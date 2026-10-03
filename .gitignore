@@ -1,0 +1,10 @@
+.deps/
+.runs/
+.lake/
+*.olean
+*.olean.*
+*.ilean
+states/
+*.out
+.DS_Store
+._*

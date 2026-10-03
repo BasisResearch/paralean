@@ -1,0 +1,16 @@
+'ParaleanConvergence.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.conflict_no_silent_winner' does not depend on any axioms
+'ParaleanRegistry.receive_adds_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.receive_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.heal_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.conflicting_name_not_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_stutter_prevents_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.unfair_scheduler_counterexample' does not depend on any axioms

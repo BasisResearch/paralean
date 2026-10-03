@@ -1,0 +1,36 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 11 and seed -6298676728380887590 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 2108365] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/loss/Quorums.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/loss/Durability.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Durability
+Semantic processing of module Quorums
+Starting... (2026-10-03 21:54:26)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-03 21:54:27.
+Error: Invariant NeverLost is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ live = {"r1", "r2", "r3"}
+/\ witness = [source |-> {"r1", "r2"}, term |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
+/\ acknowledged = {}
+
+State 2: <Lose line 34, col 12 to line 38, col 50 of module Durability>
+/\ live = {"r2", "r3"}
+/\ witness = [source |-> {"r1", "r2"}, term |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
+/\ acknowledged = {}
+
+8 states generated, 8 distinct states found, 6 states left on queue.
+The depth of the complete state graph search is 2.
+Finished in 00s at (2026-10-03 21:54:27)

@@ -1,0 +1,24 @@
+{
+  "researched_at": "2026-10-03",
+  "proposed_fork_base": {
+    "repository": "https://github.com/leanprover/lean4-nightly",
+    "tag": "nightly-2026-10-03",
+    "commit": "193c3589a4fc16c4059261ab38cfa365eb24f323"
+  },
+  "mathlib": {
+    "repository": "https://github.com/leanprover-community/mathlib4-nightly-testing",
+    "branch": "nightly-testing",
+    "commit": "0575336843263378752eeb5f4c75a612327768a2",
+    "successful_ci": "https://github.com/leanprover-community/mathlib4-nightly-testing/actions/runs/37115079169"
+  },
+  "verification": {
+    "lean": "leanprover/lean4:v4.32.0",
+    "veil_commit": "d05518f22076b8cc84fb2d2b74d196aa979bfe8f",
+    "tla_tools": "v1.7.4",
+    "tla_jar_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+  },
+  "boundary_experiments": {
+    "lean": "4.34.1",
+    "commit": "5045d0056413266e57c625dcd7c365b10e377c52"
+  }
+}

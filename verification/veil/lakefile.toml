@@ -1,0 +1,11 @@
+name = "paraleanProofs"
+version = "0.1.0"
+defaultTargets = ["Paralean"]
+
+[[require]]
+name = "veil"
+git = "https://github.com/verse-lab/veil.git"
+rev = "d05518f22076b8cc84fb2d2b74d196aa979bfe8f"
+
+[[lean_lib]]
+name = "Paralean"

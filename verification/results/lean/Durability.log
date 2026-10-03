@@ -1,0 +1,8 @@
+'Durability.Put_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Ack_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Lose_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Init_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Next_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_invariants' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_noDataLoss' depends on axioms: [propext, Classical.choice, Quot.sound]

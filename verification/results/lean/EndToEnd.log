@@ -1,0 +1,7 @@
+'ParaleanComposition.next_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.reachable_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.toRegistryTrace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.durable_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
