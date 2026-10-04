@@ -1,0 +1,9 @@
+'ParaleanCompletionRecovery.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.finish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.completed_required_target_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.physical_recovery_extends_composed_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

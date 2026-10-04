@@ -1,0 +1,29 @@
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/RecoveryAdequacy.lean:77:48: warning: This simp argument is unused:
+  instIsSubReaderOfRefl
+
+Hint: Omit it from the simp argument list.
+  simp [rec', accepted, admissible, readFrom, i̵n̵s̵t̵I̵s̵S̵u̵b̵R̵e̵a̵d̵e̵r̵O̵f̵R̵e̵f̵l̵,̵ ̵buildable, Veil.FieldRepresentation.setSingle,
+  ̲  ̲ ̲ ̲ ̲ ̲Veil.CanonicalField.set, Veil.FieldUpdatePat.match, Veil.IteratedArrow.curry,
+  ̲  ̲ ̲ ̲ ̲ ̲Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/RecoveryAdequacy.lean:88:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.reconstruction_enabled_for_known_record`:
+  [DecidableEq node]
+  [Inhabited node]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq node] [Inhabited node] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/RecoveryAdequacy.lean:116:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.historical_enabled_for_known_record`:
+  [DecidableEq node]
+  [Inhabited node]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq node] [Inhabited node] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanRecovery.physical_enumeration_enabled_with_label' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reachable_physical_historical_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.committed_admissible_from_physical_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruction_enabled_for_known_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.historical_enabled_for_known_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_historical_recovery_adequate' depends on axioms: [propext, Classical.choice, Quot.sound]

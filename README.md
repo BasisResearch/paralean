@@ -25,10 +25,22 @@ bash scripts/check-tla-negative.sh
 bash scripts/check-veil.sh
 ```
 
-The proofs cover admission, immutable dependency graphs, collision handling,
-quorum durability, guarded publication/checkpoints and fair convergence. Trusted
-checker/exporter/storage interfaces and fairness assumptions are explicit. They
-do not prove the future implementation or its performance.
+The proofs cover atomic groups, immutable dependency graphs, collision handling,
+quorum durability, guarded publication/checkpoints and fair convergence. They also
+cover request/receipt binding, required-target completion and catalog recovery
+after losing the local checkpoint ID. [Protocol obligations](verification/PROTOCOL-OBLIGATIONS.md)
+lists the claims and boundaries. Checker/exporter/storage interfaces and fairness
+assumptions remain explicit. The future implementation and its performance are
+not proved.
+
+Recovery ancestry is proved equivalent to recorded parent paths. Required targets
+permit alternative checked result objects. A connected two-worker execution covers
+group admission, receipt acceptance, durable completion and subsequent disk loss.
+
+The strengthened [joint protocol](verification/veil/PROTOCOL.md) requires a durable
+catalogue record before completion. Publication also retains a distinct durable
+discovery marker. Recovery and discovery use physical quorum scans after local IDs
+and indexes are lost. These guards share the same typed store.
 
 The earlier boundary experiments run with an installed stock Lean binary:
 

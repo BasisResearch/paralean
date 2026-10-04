@@ -3,6 +3,23 @@
 This delivery covers design, TLA+ checks and Veil/Lean verification. The distributed
 Lean fork itself is subsequent implementation work.
 
+The abstract protocol gates now include atomic multi-name groups, receipt/session
+binding, every required target at durable commit, and checkpoint catalog recovery
+after losing the local ID. See the [proof obligations](../verification/PROTOCOL-OBLIGATIONS.md)
+and [recorded checks](../verification/results/README.md). These results do not close
+the implementation gates below.
+
+Additional protocol proofs tie recovery ancestry exactly to parent paths and permit
+alternative checked objects for a fixed target. A concrete two-worker execution
+combines atomic helper admission, a dependent target, both receipts, durable task
+completion and destruction of an acknowledging replica.
+
+The [joint protocol](../verification/veil/PROTOCOL.md) additionally couples task
+completion to a durable catalogue record for the exact snapshot. Publication
+retains a distinct discovery marker; scanning a surviving quorum reconstructs
+published IDs after every worker index is lost. Implement these guards together.
+Payload and manifest persistence alone do not satisfy this protocol.
+
 ## P0 — Pin the baseline and interfaces
 
 Lean: `nightly-2026-10-03`, commit `193c3589a4fc16c4059261ab38cfa365eb24f323`.
@@ -46,6 +63,14 @@ counterexamples into protocol regression fixtures. Keep GC disabled.
 Gate: no unvalidated/under-replicated publication; convergence; checkpoint recovery,
 including loss of the desktop's last manifest hash. Exercise storage enumeration
 and causal head reconstruction, not only fetch-by-known-ID.
+
+Protocol gates also require admitted ancestor closure, acyclic causal ancestry,
+and freshness at each commit, including repeated commits to the same checkpoint.
+Remove each admission/freshness guard in a regression model and require the
+corresponding property to fail when the guard is independently necessary; record
+redundant guards in the [guard matrix](../verification/TLA-GUARDS.md).
+Require a full B→A→B dependency-chain witness;
+a model that rejects dependent declarations must fail that witness check.
 
 ## P3 — Distributed checks and transparent imports
 

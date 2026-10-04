@@ -1,9 +1,9 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
 Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 75 and seed -6339313119538265757 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 2108614] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/no_fair_recovery/Collision.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/no_fair_recovery/Registry.tla
+Running breadth-first search Model-Checking with fp 44 and seed -9222105040389865308 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3788529] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/no_fair_recovery/Collision.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/no_fair_recovery/Registry.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/TLC.tla
 Parsing file /tmp/Naturals.tla
@@ -14,134 +14,167 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Collision
-Starting... (2026-10-03 21:54:30)
+Starting... (2026-10-04 01:02:53)
 Implied-temporal checking--satisfiability problem has 6 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-03 21:54:30.
-Checking 6 branches of temporal properties for the current state space with 76938 total distinct states at (2026-10-03 21:54:33)
+Finished computing initial states: 1 distinct state generated at 2026-10-04 01:02:53.
+Checking 6 branches of temporal properties for the current state space with 74839 total distinct states at (2026-10-04 01:02:56)
 Error: Temporal properties were violated.
 
 Error: The following behavior constitutes a counter-example:
 
 State 1: <Initial predicate>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
 /\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {}]
+/\ online = {"A", "B"}
 /\ published = {}
-/\ stable = FALSE
 /\ known = [A |-> {}, B |-> {}]
+/\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-State 2: <Crash line 84, col 5 to line 89, col 52 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {}]
-
-State 3: <Prepare line 48, col 5 to line 54, col 66 of module Registry>
-/\ pending = [A |-> {}, B |-> {"x"}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {}]
-
-State 4: <Publish line 59, col 5 to line 64, col 48 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {"x"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {"x"}]
-/\ head = [A |-> {}, B |-> {}]
-
-State 5: <Commit line 76, col 5 to line 81, col 69 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {"x"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {"x"}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 6: <Crash line 84, col 5 to line 89, col 52 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {}
-/\ published = {"x"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 7: <Recover line 91, col 15 to line 93, col 78 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {"x"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 8: <Prepare line 48, col 5 to line 54, col 66 of module Registry>
+State 2: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {}, B |-> {"y"}]
 /\ online = {"A", "B"}
-/\ alive = {"B"}
+/\ published = {}
+/\ known = [A |-> {}, B |-> {}]
+/\ stable = FALSE
+/\ head = [A |-> {}, B |-> {}]
+
+State 3: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"x", "y"}]
+/\ online = {"A", "B"}
+/\ published = {}
+/\ known = [A |-> {}, B |-> {}]
+/\ stable = FALSE
+/\ head = [A |-> {}, B |-> {}]
+
+State 4: <Publish line 64, col 5 to line 69, col 67 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"A", "B"}
 /\ published = {"x"}
+/\ known = [A |-> {}, B |-> {"x"}]
 /\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {"x"}]
+/\ head = [A |-> {}, B |-> {}]
 
-State 9: <Publish line 59, col 5 to line 64, col 48 of module Registry>
+State 5: <Publish line 64, col 5 to line 69, col 67 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {}, B |-> {}]
 /\ online = {"A", "B"}
-/\ alive = {"B"}
 /\ published = {"x", "y"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {"y"}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 10: <Prepare line 48, col 5 to line 54, col 66 of module Registry>
-/\ pending = [A |-> {}, B |-> {"x"}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {"x", "y"}
-/\ stable = FALSE
-/\ known = [A |-> {}, B |-> {"y"}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 11: <Receive line 69, col 5 to line 73, col 68 of module Registry>
-/\ pending = [A |-> {}, B |-> {"x"}]
-/\ online = {"A", "B"}
-/\ alive = {"B"}
-/\ published = {"x", "y"}
-/\ stable = FALSE
 /\ known = [A |-> {}, B |-> {"x", "y"}]
-/\ head = [A |-> {}, B |-> {"x"}]
-
-State 12: <Crash line 84, col 5 to line 89, col 52 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
-/\ online = {"A", "B"}
-/\ alive = {}
-/\ published = {"x", "y"}
 /\ stable = FALSE
-/\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {"x"}]
+/\ head = [A |-> {}, B |-> {}]
 
-State 13: <Recover line 91, col 15 to line 93, col 78 of module Registry>
-/\ pending = [A |-> {}, B |-> {}]
+State 6: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
 /\ online = {"A", "B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {}, B |-> {}]
+
+State 7: <Receive line 74, col 5 to line 79, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"A", "B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {"y"}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {}, B |-> {}]
+
+State 8: <Commit line 82, col 5 to line 88, col 69 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"A", "B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {"y"}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+State 9: <Partition line 103, col 17 to line 107, col 50 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {"y"}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+State 10: <Crash line 91, col 5 to line 96, col 71 of module Registry>
 /\ alive = {"B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"B"}
 /\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x", "y"}]
 /\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+State 11: <Recover line 98, col 15 to line 101, col 48 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+State 12: <Crash line 91, col 5 to line 96, col 71 of module Registry>
+/\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
 /\ known = [A |-> {}, B |-> {}]
-/\ head = [A |-> {}, B |-> {"x"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
 
-Back to state 9: <Receive line 69, col 5 to line 73, col 68 of module Registry>
+State 13: <Recover line 98, col 15 to line 101, col 48 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
 
-Finished checking temporal properties in 00s at 2026-10-03 21:54:33
-130404 states generated, 13145 distinct states found, 1932 states left on queue.
-Finished in 03s at (2026-10-03 21:54:33)
+State 14: <Receive line 74, col 5 to line 79, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+State 15: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}, B |-> {"y"}]
+/\ online = {"B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x"}]
+/\ stable = FALSE
+/\ head = [A |-> {"y"}, B |-> {}]
+
+Back to state 11: <Receive line 74, col 5 to line 79, col 38 of module Registry>
+
+Finished checking temporal properties in 00s at 2026-10-04 01:02:56
+125111 states generated, 12815 distinct states found, 2051 states left on queue.
+Finished in 03s at (2026-10-04 01:02:56)

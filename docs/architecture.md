@@ -80,6 +80,13 @@ normal. Arbitrary internal expression fragments would require their local contex
 7. B's anti-entropy refresh adds the record to ordinary search/completion and source
    lookup. Using its name pins the ID and materializes a compatible dependency closure.
 
+Publication also persists a separate discovery marker naming the exact group.
+Successful marker acknowledgement is the publication event. A partial marker
+upload remains staged. The store must enumerate publication markers from a
+surviving recovery quorum and supply their durable acknowledgement evidence.
+This permits discovery when every worker has lost its index; no surviving peer
+or remembered group ID is required.
+
 The project has a generated shared prelude/import managed by the controller. New
 discoveries enter at frontend command boundaries. Pin an elaborating command;
 rebase and invalidate the affected document suffix before changing its environment.
@@ -126,6 +133,29 @@ New current checkpoints require every member of their closure to be current. Onc
 an upstream replacement is known, rebuild affected consumers before committing.
 Historical exports remain available by explicit immutable checkpoint ID.
 
+The protocol must establish these obligations separately:
+
+- Every published revision's dependencies and causal ancestors are published.
+  The same holds for dependencies and ancestors of a pending revision.
+- First-publication order strictly decreases along dependency and ancestor edges.
+  Neither relation permits circular admission.
+- Every successful commit selects the unique current head for each name in its
+  contents, using the committing worker's knowledge immediately before the commit.
+  This also applies when the selected checkpoint equals the previous checkpoint.
+- Later discoveries may make a committed checkpoint stale. Its pinned contents
+  remain valid; freshness is a condition on the commit event.
+- The work witness must complete the full `B.helper_b → A.helper → B.helper_c`
+  chain and commit its closure. Publishing an independent declaration alone does
+  not establish this requirement.
+
+The checker and exporter contracts remain separate. `Valid` must enforce kernel
+acceptance, exact dependency meanings, the allowed-axiom policy and any fixed
+target contract. `Exportable` must attest to a clean source build of the selected
+contents. A controller may report task completion only when every required target
+is present with its pinned contract; an empty buildable checkpoint is insufficient.
+These interfaces require implementation evidence before the protocol guarantees
+can be applied to the Lean fork.
+
 ## Cycles, source merge and checkpoints
 
 Machine dependencies may cycle. Declaration versions cannot circularly justify
@@ -149,6 +179,11 @@ Compare required target statements and dependency meanings; check allowed axioms
 Durably store the successful manifest before advancing that workspace's checkpoint.
 Failed merge/build leaves the previous checkpoint. A compiling empty project does
 not finish a task: every required target contract must be present and validated.
+
+Before reporting completion, also durably retain a catalogue record for the same
+workspace and exact snapshot. The completion action checks this record. Its
+payloads, manifest and catalogue entry share one store, so a crash immediately
+after completion cannot leave the snapshot without a discoverable catalogue ID.
 
 Private editing buffers can be temporarily broken. Crash tolerance means the last
 acknowledged checkpoint remains recoverable and buildable, not that every keystroke
@@ -185,8 +220,16 @@ of these records, or an equally durable manifest catalog. Reconstruct causal hea
 from that catalog; do not depend on the dead desktop retaining the final hash.
 If multiple heads exist, recover a buildable historical checkpoint and expose the
 conflict. Re-establish durability before adopting a merely discovered staged record.
-The formal model proves object survival; enumeration and head reconstruction are
-explicit implementation/refinement gates.
+The Veil recovery model proves quorum-catalog coverage, validation of discovered
+records, causal head reconstruction and safe selection after local-ID loss.
+Within decoded, schema-valid records, wrong-workspace, nonbuildable or incomplete
+staged entries cannot block recovery of acknowledged work. Decoder validation must
+reject malformed metadata and enforce the assumed ancestry schema.
+Adopting re-acknowledged historical data grants no writer ownership. Physical
+enumeration, byte decoding and the fenced ownership authority remain implementation
+interfaces. The group, receipt and recovery models share exact artifact meanings;
+typed storage identities separate payloads, manifests, catalog records and
+publication markers.
 
 Recovery loads a durable checkpoint and rebuilds indexes/caches. Private candidates
 and incomplete uploads may be lost. Acknowledged packages cannot disappear within

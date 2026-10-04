@@ -4,8 +4,9 @@ CONSTANTS Nodes, Decls, Names, Name, Deps, Ancestors, Valid, Exportable,
           CollisionLeft, CollisionRight,
           Replicas, Objects, Writes, Reads, Meet, Payload, Manifest
 VARIABLES published, known, pending, head, alive, online, stable,
-          stored, live, acknowledged, witness
-registryVars == <<published, known, pending, head, alive, online, stable>>
+          lastCommitCurrent, stored, live, acknowledged, witness
+registryVars == <<published, known, pending, head, alive, online, stable,
+                  lastCommitCurrent>>
 storeVars == <<stored, live, acknowledged, witness>>
 vars == <<registryVars, storeVars>>
 R == INSTANCE Registry
@@ -34,6 +35,7 @@ Spec == Init /\ [][Next]_vars
 
 TypeOK == R!TypeOK /\ D!TypeOK
 ComponentSafety == R!AdmissionSafety /\ R!SnapshotSafety /\ R!CollisionSafety
+                   /\ R!CausalAdmissionSafety /\ R!CommitFreshness
                    /\ D!WitnessSurvives /\ D!FailureEnvelope /\ D!Recoverable
 PublicationGuard == \A d \in published : Payload[d] \in acknowledged
 CheckpointGuard == \A n \in Nodes : head[n] # {} => Manifest[head[n]] \in acknowledged

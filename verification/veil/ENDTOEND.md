@@ -12,6 +12,11 @@ checkpoint advancement remain enforced by the composed transition.
 states. `Trace.toRegistryTrace` constructs a Registry trace from a composed
 trace, including its initial reachability and every successor transition.
 
+The same reachable-state projection transfers `AncestorSafe`. The composition
+therefore preserves published and pending ancestor closure and ancestor acyclicity.
+`published_ancestor_has_copy` combines closure with storage coupling: each ancestor
+of a published revision retains a live stored package within the failure envelope.
+
 The transferred results are:
 
 - `Trace.eventual_delivery`: an already-published declaration eventually stays

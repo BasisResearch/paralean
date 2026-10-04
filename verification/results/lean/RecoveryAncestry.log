@@ -1,0 +1,5 @@
+'ParaleanRecovery.ancestor_iff_parent_path' does not depend on any axioms
+'ParaleanRecovery.no_parent_no_ancestor' depends on axioms: [propext]
+'ParaleanRecovery.reconstruction_parent_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.parent_conflict_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.parentless_records_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]

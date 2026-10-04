@@ -1,0 +1,62 @@
+'ParaleanRegistry.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_member_unique_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_member_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.stale_member_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_excludes_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.collision_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Commit.lean:137:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_fresh`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Commit.lean:149:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_member_not_stale`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Commit.lean:159:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_excludes_collision`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanComposition.CommitStep.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_member_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_excludes_collision' depends on axioms: [propext, Classical.choice, Quot.sound]

@@ -1,0 +1,194 @@
+'ParaleanGroups.published_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.pending_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_ancestor_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_no_self_ancestor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initial_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.prepare_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.crash_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.recover_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.partition_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reconnect_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.heal_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.known_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.snapshot_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.collision_blocks_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.prepare_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.crash_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.recover_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.partition_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reconnect_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.heal_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initializer_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:768:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_publication`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:774:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_snapshot`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:1026:52: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:1026:77: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:1059:57: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+'ParaleanGroups.published_revision_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_revision_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_prepare_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_publish_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_three_names' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_resolves_both' depends on axioms: [propext]
+'ParaleanGroups.overlap_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_commit_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_pipeline_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.no_subset_publication' depends on axioms: [propext]
+'ParaleanGroups.no_subset_snapshot' depends on axioms: [propext]
+'ParaleanGroups.snapshot_no_duplicate_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.snapshot_exact_dependency' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_unique_head_for_every_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.stale_name_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlapping_heads_block_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.transitive_name_conflict_blocks_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.old_snapshot_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.singleton_buildable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.singleton_assumptions' depends on axioms: [propext, Quot.sound]
+'ParaleanGroups.resolved_group_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.resolved_group_commit_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.storage_acknowledged_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.registry_preserves_coupling' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.initial_coupled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_manifest_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_manifest_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_declaration_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_declaration_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_adds_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.reachable_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_ancestor_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:1841:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.commit_fresh`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.CommitStep.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_path_snapshot_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_path_conflict_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_preserves_historical_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:1952:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.guarded_commit_enabled_iff`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.guarded_commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.snapshot_no_duplicate_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_name_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Groups.lean:2034:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.CommitStep.registry_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.Trace.eventual_name_collision' depends on axioms: [propext, Classical.choice, Quot.sound]

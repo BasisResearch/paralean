@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 root="$PWD"
 mkdir -p .runs/tla
 workers="${TLC_WORKERS:-8}"
-for model in "${@:-Chain Collision Revision Revert Rejected Quorums Integrated}"; do
+for model in "${@:-Chain Collision Revision Revert Rejected Quorums Integrated CheckpointReuse ExportRejected}"; do
   for scenario in $model; do
     echo "Checking $scenario"
     java -Xmx12g -cp "$root/.deps/tla2tools.jar" tlc2.TLC \

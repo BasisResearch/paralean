@@ -1,0 +1,83 @@
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:18:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.missing_catalogue_guard_regression`:
+  [DecidableEq record]
+  [Inhabited record]
+  [DecidableEq workspace]
+  [Inhabited workspace]
+  [DecidableEq token]
+  [Inhabited token]
+  [DecidableEq scan]
+  [Inhabited scan]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  record] [Inhabited
+  record] [DecidableEq
+  workspace] [Inhabited
+  workspace] [DecidableEq
+  token] [Inhabited
+  token] [DecidableEq
+  scan] [Inhabited
+  scan] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:34:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.mismatched_image_guard_regression`:
+  [DecidableEq record]
+  [Inhabited record]
+  [DecidableEq workspace]
+  [Inhabited workspace]
+  [DecidableEq token]
+  [Inhabited token]
+  [DecidableEq scan]
+  [Inhabited scan]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  record] [Inhabited
+  record] [DecidableEq
+  workspace] [Inhabited
+  workspace] [DecidableEq
+  token] [Inhabited
+  token] [DecidableEq
+  scan] [Inhabited
+  scan] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:50:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanProtocolGuardChecks.missing_catalogue_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanProtocolGuardChecks.mismatched_image_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

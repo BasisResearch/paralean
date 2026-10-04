@@ -1,0 +1,8 @@
+'ParaleanProtocol.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.finish_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.publication_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.all_indexes_erased_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.committed_physical_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.completed_required_target_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]

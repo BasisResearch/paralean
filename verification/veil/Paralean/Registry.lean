@@ -139,6 +139,12 @@ safety [registrySafety]
   (∀ d, published d → rank d < clock) ∧
   (∀ d e, published d → deps d e → rank e < rank d)
 
+/- Admission preserves ancestor publication and assigns older ancestors smaller ranks. -/
+ghost relation ancestorSafety :=
+  (∀ d e, published d → ancestors d e → published e) ∧
+  (∀ n d, pending n d → ∀ e, ancestors d e → published e) ∧
+  (∀ d e, published d → ancestors d e → rank e < rank d)
+
 #gen_spec
 
 abbrev CanonicalRep (node decl name snapshot : Type) (f : State.Label) :=
@@ -184,6 +190,12 @@ local instance : delta% (commit._veil_dec_type_2 (node := node) (decl := decl)
 abbrev TheoryAssumptions := Assumptions (Theory node decl name snapshot) node decl name snapshot
 abbrev Safe := Invariants (Theory node decl name snapshot) (CanonicalState node decl name snapshot)
   node decl name snapshot (CanonicalRep node decl name snapshot)
+
+abbrev AncestorSafe := fun (th : Theory node decl name snapshot)
+  (st : CanonicalState node decl name snapshot) => ancestorSafety th st
+
+abbrev AncestorPre := fun (th : Theory node decl name snapshot)
+  (st : CanonicalState node decl name snapshot) => Safe th st ∧ AncestorSafe th st
 
 theorem prepare_safe (n : node) (d : decl) :
     Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
@@ -310,6 +322,131 @@ theorem initializer_safe :
     Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
   grind
 
+theorem prepare_ancestor_safe (n : node) (d : decl) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (prepare.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n d)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem publish_ancestor_safe (n : node) (d : decl) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (publish.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n d)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  rcases hinv with ⟨hs, hclosed, hpending, horder⟩
+  have hrank := hs.2.2.2.2.2.2.1
+  intro halive honline hp
+  have hnew := hpending n d hp
+  split_ifs with hpub
+  · grind
+  · have old_ancestors_ne : ∀ a b, st.published a = true →
+        th.ancestors a b = true → d ≠ b := by
+      intro a b ha hab heq
+      apply hpub
+      subst b
+      exact hclosed a d ha hab
+    have new_ancestors_ne : ∀ b, th.ancestors d b = true → d ≠ b := by
+      intro b hb heq
+      apply hpub
+      subst b
+      exact hnew d hb
+    grind
+
+theorem receive_ancestor_safe (n : node) (d : decl) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (receive.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n d)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem commit_ancestor_safe (n : node) (S : snapshot) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (commit.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n S)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem crash_ancestor_safe (n : node) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (crash.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem recover_ancestor_safe (n : node) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (recover.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem partition_ancestor_safe (n : node) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (partition.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem reconnect_ancestor_safe (n : node) :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (reconnect.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) n)
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
+theorem heal_ancestor_safe  :
+    Veil.VeilM.meetsSpecificationIfSuccessfulAssuming
+      (heal.ext (ρ := Theory node decl name snapshot)
+        (σ := CanonicalState node decl name snapshot) )
+      TheoryAssumptions AncestorPre AncestorSafe := by
+  unfold AncestorPre AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  grind
+
 abbrev RegistryNext := Next (Theory node decl name snapshot) (CanonicalState node decl name snapshot)
   node decl name snapshot (CanonicalRep node decl name snapshot)
 
@@ -381,6 +518,65 @@ theorem reachable_safe
   | step hr ht ih => exact next_safe th _ _ _ ha ih ht
   | stutter hr ih => exact ih
 
+
+private theorem vc_ancestor_step_from
+    (act : Veil.VeilM Veil.Mode.external (Theory node decl name snapshot)
+      (CanonicalState node decl name snapshot) Unit)
+    (h : act.meetsSpecificationIfSuccessfulAssuming TheoryAssumptions AncestorPre AncestorSafe)
+    (th : Theory node decl name snapshot) (st st' : CanonicalState node decl name snapshot)
+    (ha : TheoryAssumptions th) (hs : Safe th st) (hi : AncestorSafe th st)
+    (ht : act.toTransitionDerived th st st') : AncestorSafe th st' := by
+  have htr : act.toTransition.meetsSpecificationIfSuccessful
+      (fun th st => TheoryAssumptions th ∧ AncestorPre th st) AncestorSafe := by
+    rw [Veil.Transition.meetsSpecificationIfSuccessful_eq]
+    exact h
+  rw [Veil.VeilM.toTransitionDerived_sound] at htr
+  exact htr th st st' ⟨ha, hs, hi⟩ ht
+
+theorem next_ancestor_safe
+    (th : Theory node decl name snapshot) (st st' : CanonicalState node decl name snapshot)
+    (label : Label node decl name snapshot)
+    (ha : TheoryAssumptions th) (hs : Safe th st) (hi : AncestorSafe th st)
+    (ht : RegistryNext th st label st') : AncestorSafe th st' := by
+  cases label with
+  | prepare n d => exact vc_ancestor_step_from _ (prepare_ancestor_safe n d) th st st' ha hs hi ht
+  | publish n d => exact vc_ancestor_step_from _ (publish_ancestor_safe n d) th st st' ha hs hi ht
+  | receive n d => exact vc_ancestor_step_from _ (receive_ancestor_safe n d) th st st' ha hs hi ht
+  | commit n S => exact vc_ancestor_step_from _ (commit_ancestor_safe n S) th st st' ha hs hi ht
+  | crash n => exact vc_ancestor_step_from _ (crash_ancestor_safe n) th st st' ha hs hi ht
+  | recover n => exact vc_ancestor_step_from _ (recover_ancestor_safe n) th st st' ha hs hi ht
+  | partition n => exact vc_ancestor_step_from _ (partition_ancestor_safe n) th st st' ha hs hi ht
+  | reconnect n => exact vc_ancestor_step_from _ (reconnect_ancestor_safe n) th st st' ha hs hi ht
+  | heal  => exact vc_ancestor_step_from _ (heal_ancestor_safe ) th st st' ha hs hi ht
+
+private theorem initializer_transition_ancestor_safe :
+    Veil.Transition.meetsSpecificationIfSuccessfulAssuming
+      (initializer.ext.tr (Theory node decl name snapshot) (CanonicalState node decl name snapshot)
+        node decl name snapshot (CanonicalRep node decl name snapshot))
+      TheoryAssumptions (fun _ _ => True) AncestorSafe := by
+  unfold AncestorSafe
+  unveil
+  try simp [canonicalFieldRep, Veil.FieldRepresentation.get, Veil.FieldRepresentation.setSingle,
+    Veil.canonicalFieldRepresentation, Veil.CanonicalField.set, Veil.FieldUpdatePat.match,
+    Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp] at *
+  rcases htr with ⟨hpub, hknown, hpending, hhead, _⟩
+  simp [hpub, hpending]
+
+theorem initial_ancestor_safe
+    (th : Theory node decl name snapshot) (st : CanonicalState node decl name snapshot)
+    (ha : TheoryAssumptions th) (ht : RegistryInit th st) : AncestorSafe th st := by
+  exact initializer_transition_ancestor_safe th default st ⟨ha, trivial⟩ ht
+
+theorem reachable_ancestor_safe
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st) :
+    AncestorSafe th st := by
+  induction hr with
+  | initial hi => exact initial_ancestor_safe th _ ha hi
+  | step hr ht ih => exact next_ancestor_safe th _ _ _ ha (reachable_safe th ha hr) ih ht
+  | stutter hr ih => exact ih
+
+
 theorem dependency_acyclic
     (th : Theory node decl name snapshot) (st : CanonicalState node decl name snapshot)
     (hs : Safe th st) (T : decl → Prop)
@@ -436,6 +632,62 @@ theorem reachable_acyclic
     ∃ d, T d ∧ ∀ e, T e → th.deps d e ≠ true :=
   dependency_acyclic th st (reachable_safe th ha hr) T hsub hne
 
+
+theorem published_ancestors_closed
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st)
+    (d e : decl) (hp : st.published d = true) (he : th.ancestors d e = true) :
+    st.published e = true :=
+  (reachable_ancestor_safe th ha hr).1 d e hp he
+
+theorem pending_ancestors_closed
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st)
+    (n : node) (d e : decl) (hp : st.pending n d = true) (he : th.ancestors d e = true) :
+    st.published e = true :=
+  (reachable_ancestor_safe th ha hr).2.1 n d hp e he
+
+theorem published_ancestor_rank
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st)
+    (d e : decl) (hp : st.published d = true) (he : th.ancestors d e = true) :
+    st.rank e < st.rank d :=
+  (reachable_ancestor_safe th ha hr).2.2 d e hp he
+
+theorem published_no_self_ancestor
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st)
+    (d : decl) (hp : st.published d = true) : th.ancestors d d ≠ true := by
+  intro he
+  exact Nat.lt_irrefl _ (published_ancestor_rank th ha hr d d hp he)
+
+theorem ancestor_acyclic
+    (th : Theory node decl name snapshot) (st : CanonicalState node decl name snapshot)
+    (hs : AncestorSafe th st) (T : decl → Prop)
+    (hsub : ∀ d, T d → st.published d = true) (hne : ∃ d, T d) :
+    ∃ d, T d ∧ ∀ e, T e → th.ancestors d e ≠ true := by
+  classical
+  have horder := hs.2.2
+  have minimal : ∀ k, ∀ d, T d → st.rank d = k →
+      ∃ d, T d ∧ ∀ e, T e → th.ancestors d e ≠ true := by
+    intro k
+    induction k using Nat.strongRecOn with
+    | ind k ih =>
+      intro d hd hr
+      by_cases hblocked : ∃ e, T e ∧ th.ancestors d e = true
+      · obtain ⟨e, he, hancestor⟩ := hblocked
+        exact ih (st.rank e) (hr ▸ horder d e (hsub d hd) hancestor) e he rfl
+      · exact ⟨d, hd, fun e he hancestor => hblocked ⟨e, he, hancestor⟩⟩
+  obtain ⟨d, hd⟩ := hne
+  exact minimal (st.rank d) d hd rfl
+
+theorem reachable_ancestor_acyclic
+    (th : Theory node decl name snapshot) (ha : TheoryAssumptions th)
+    {st : CanonicalState node decl name snapshot} (hr : Reachable th st)
+    (T : decl → Prop) (hsub : ∀ d, T d → st.published d = true) (hne : ∃ d, T d) :
+    ∃ d, T d ∧ ∀ e, T e → th.ancestors d e ≠ true :=
+  ancestor_acyclic th st (reachable_ancestor_safe th ha hr) T hsub hne
+
 /-- Two causal heads sharing a name cannot be selected as a current version. -/
 theorem collision_blocks_current
     (th : Theory node decl name snapshot) (st : CanonicalState node decl name snapshot)
@@ -448,6 +700,24 @@ theorem collision_blocks_current
   have hbd : b = d := (hc d hd b hnb).1 hb
   exact hne (had.trans hbd.symm)
 
+#print axioms published_ancestors_closed
+#print axioms pending_ancestors_closed
+#print axioms published_ancestor_rank
+#print axioms published_no_self_ancestor
+#print axioms ancestor_acyclic
+#print axioms reachable_ancestor_acyclic
+#print axioms initial_ancestor_safe
+#print axioms next_ancestor_safe
+#print axioms reachable_ancestor_safe
+#print axioms prepare_ancestor_safe
+#print axioms publish_ancestor_safe
+#print axioms receive_ancestor_safe
+#print axioms commit_ancestor_safe
+#print axioms crash_ancestor_safe
+#print axioms recover_ancestor_safe
+#print axioms partition_ancestor_safe
+#print axioms reconnect_ancestor_safe
+#print axioms heal_ancestor_safe
 #print axioms known_published
 #print axioms published_valid
 #print axioms published_closed

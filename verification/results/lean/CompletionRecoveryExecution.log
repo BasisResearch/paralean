@@ -1,0 +1,9 @@
+'ParaleanCompletionRecovery.Example.selected_identifier_then_losses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.Example.nonempty_completion_loss_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.Example.completion_then_actual_losses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

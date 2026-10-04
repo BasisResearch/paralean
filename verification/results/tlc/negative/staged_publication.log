@@ -1,0 +1,85 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 64 and seed -8306353399175115155 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3788971] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/staged_publication/Integrated.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/staged_publication/Publication.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/staged_publication/Registry.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/staged_publication/Durability.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Registry
+Semantic processing of module Durability
+Semantic processing of module Publication
+Semantic processing of module Integrated
+Starting... (2026-10-04 01:03:01)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-04 01:03:01.
+Error: Invariant PublicationGuard is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
+/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ acknowledged = {}
+/\ online = {"A"}
+/\ published = {}
+/\ known = [A |-> {}]
+/\ live = {"r1", "r2", "r3"}
+/\ stable = FALSE
+/\ head = [A |-> {}]
+
+State 2: <RegistryStep line 25, col 5 to line 28, col 26 of module Publication>
+/\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {"helper"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
+/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ acknowledged = {}
+/\ online = {"A"}
+/\ published = {}
+/\ known = [A |-> {}]
+/\ live = {"r1", "r2", "r3"}
+/\ stable = FALSE
+/\ head = [A |-> {}]
+
+State 3: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
+/\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {"helper"}]
+/\ stored = [r1 |-> {"package"}, r2 |-> {}, r3 |-> {}]
+/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ acknowledged = {}
+/\ online = {"A"}
+/\ published = {}
+/\ known = [A |-> {}]
+/\ live = {"r1", "r2", "r3"}
+/\ stable = FALSE
+/\ head = [A |-> {}]
+
+State 4: <Publish line 18, col 17 to line 20, col 38 of module Publication>
+/\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {}]
+/\ stored = [r1 |-> {"package"}, r2 |-> {}, r3 |-> {}]
+/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ acknowledged = {}
+/\ online = {"A"}
+/\ published = {"helper"}
+/\ known = [A |-> {"helper"}]
+/\ live = {"r1", "r2", "r3"}
+/\ stable = FALSE
+/\ head = [A |-> {}]
+
+297 states generated, 157 distinct states found, 136 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 8 (minimum is 0, the maximum 16 and the 95th percentile is 16).
+Finished in 00s at (2026-10-04 01:03:02)

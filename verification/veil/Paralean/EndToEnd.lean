@@ -35,6 +35,44 @@ theorem reachable_registry_projection
     · exact he.symm ▸ ih
     · exact ParaleanRegistry.Reachable.step ih ht
 
+theorem reachable_ancestor_safe
+    (ha : Assumptions th)
+    {s : State node decl name snapshot replica obj writeQuorum readQuorum}
+    (hr : Reachable th s) : ParaleanRegistry.AncestorSafe th.registry s.registry :=
+  ParaleanRegistry.reachable_ancestor_safe th.registry ha.1 (reachable_registry_projection hr)
+
+theorem published_ancestors_closed
+    (ha : Assumptions th)
+    {s : State node decl name snapshot replica obj writeQuorum readQuorum}
+    (hr : Reachable th s) (d e : decl)
+    (hp : s.registry.published d = true) (he : th.registry.ancestors d e = true) :
+    s.registry.published e = true :=
+  (reachable_ancestor_safe ha hr).1 d e hp he
+
+theorem pending_ancestors_closed
+    (ha : Assumptions th)
+    {s : State node decl name snapshot replica obj writeQuorum readQuorum}
+    (hr : Reachable th s) (n : node) (d e : decl)
+    (hp : s.registry.pending n d = true) (he : th.registry.ancestors d e = true) :
+    s.registry.published e = true :=
+  (reachable_ancestor_safe ha hr).2.1 n d hp e he
+
+theorem reachable_ancestor_acyclic
+    (ha : Assumptions th)
+    {s : State node decl name snapshot replica obj writeQuorum readQuorum}
+    (hr : Reachable th s) (T : decl → Prop)
+    (hsub : ∀ d, T d → s.registry.published d = true) (hne : ∃ d, T d) :
+    ∃ d, T d ∧ ∀ e, T e → th.registry.ancestors d e ≠ true :=
+  ParaleanRegistry.ancestor_acyclic th.registry s.registry (reachable_ancestor_safe ha hr) T hsub hne
+
+theorem published_ancestor_has_copy
+    (ha : Assumptions th)
+    {s : State node decl name snapshot replica obj writeQuorum readQuorum}
+    (hr : Reachable th s) (d e : decl)
+    (hp : s.registry.published d = true) (he : th.registry.ancestors d e = true) :
+    ∃ r, s.storage.live r = true ∧ s.storage.stored r (th.payload e) = true :=
+  published_has_copy th ha hr e (published_ancestors_closed ha hr d e hp he)
+
 /-- Storage transitions and guarded Registry transitions share one timeline.
     Composition.Next already includes stuttering. -/
 structure Trace (th : Theory node decl name snapshot replica obj writeQuorum readQuorum) where
@@ -114,6 +152,11 @@ end EndToEnd
 
 #print axioms next_registry_projection
 #print axioms reachable_registry_projection
+#print axioms reachable_ancestor_safe
+#print axioms published_ancestors_closed
+#print axioms pending_ancestors_closed
+#print axioms reachable_ancestor_acyclic
+#print axioms published_ancestor_has_copy
 #print axioms Trace.toRegistryTrace
 #print axioms Trace.eventual_delivery
 #print axioms Trace.index_convergence

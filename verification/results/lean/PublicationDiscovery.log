@@ -1,0 +1,11 @@
+'ParaleanPublicationDiscovery.Trace.scan_fair_implies_receive_fair' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationDiscovery.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.failure_healed_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.nonempty_failure_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.accepted_exact_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.staged_unacknowledged_rejected' does not depend on any axioms
+'ParaleanPublicationDiscovery.all_indexes_erased_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]

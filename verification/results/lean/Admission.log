@@ -1,0 +1,215 @@
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:93:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.PassiveProtocol.to_next`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq request] [Inhabited request] [DecidableEq packet] [Inhabited packet] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:125:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.to_next`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq request] [Inhabited request] [DecidableEq packet] [Inhabited packet] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:133:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.known`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:241:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptStep.delivery_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:248:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.FinishStep.delivery_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:255:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.FinishStep.protocol_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:367:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.enabled_iff`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:419:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.payload_mapping_injective`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq
+  name] [Inhabited
+  name] [DecidableEq
+  snapshot] [Inhabited
+  snapshot] [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:427:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.payload_manifest_distinct`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq
+  name] [Inhabited
+  name] [DecidableEq
+  snapshot] [Inhabited
+  snapshot] [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Admission.lean:446:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.CrashStep.cancel_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanAdmission.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.reachable_protocol_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_published_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_complete_current_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_required_groups' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.corrupt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.stale_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_checked_realizes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.AcceptProtocol.enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.payload_mapping_injective' does not depend on any axioms
+'ParaleanAdmission.payload_manifest_distinct' does not depend on any axioms
+'ParaleanAdmission.PassiveProtocol.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.crash_epoch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.crash_rejects_old_response' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_all_groups_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_required_targets_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.empty_cannot_finish' depends on axioms: [propext, Classical.choice, Quot.sound]

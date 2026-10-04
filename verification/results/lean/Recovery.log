@@ -1,0 +1,39 @@
+'ParaleanRecovery.commit_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.loseDesktop_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.rotateFence_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.enumerate_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruct_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.automatic_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.historical_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.Init_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.Next_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruction_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.conflict_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.selected_record_backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.catalog_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.automatic_no_silent_winner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.stale_writer_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.composition_checkpoint_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.ready_in_quorum_catalog' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.nonempty_lose_id_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Recovery.lean:739:5: warning: Variable name `th` is not explicitly referenced.
+
+The binding can be removed (if unused) or named `_` (if used implicitly).
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/Recovery.lean:740:5: warning: Variable name `s` is not explicitly referenced.
+
+The binding can be removed (if unused) or named `_` (if used implicitly).
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+'ParaleanRecovery.physical_enumeration_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_selected_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_scan_ready_for_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_scan_covers_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_selected_has_copies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_nonempty_lose_id_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.ofAdmission_objects_separate' does not depend on any axioms

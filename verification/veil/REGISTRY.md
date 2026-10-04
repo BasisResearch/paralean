@@ -8,10 +8,21 @@ Consequences:
 
 - `published_valid`: every durable declaration passed the abstract validator.
 - `published_closed`: every dependency identity is durable.
+- `published_ancestors_closed` and `pending_ancestors_closed`: every ancestor of a published or pending revision is published.
+- `published_ancestor_rank` and `reachable_ancestor_acyclic`: first-publication rank strictly decreases along ancestor edges; every nonempty published subset has an ancestor-free member within that subset.
 - `known_published`: receipt and local publication never expose an unpublished declaration.
 - `snapshot_safe`: every committed snapshot is valid, dependency-closed, name-compatible, exportable, and contained in durable publication.
 - `reachable_acyclic`: every nonempty subset of published declarations has a member with no dependency inside that subset. This matches TLA `Acyclic`; it also holds for infinite subsets.
 - `collision_blocks_current`: two distinct causal heads sharing a name block selecting a current version of that name. Names never select a winner by clock order.
+
+`ancestorSafety` is an auxiliary invariant. `initial_ancestor_safe`, every generated
+action's preservation proof, and `reachable_ancestor_safe` establish it alongside
+the existing `registrySafety`. Its closure and rank facts are conclusions of
+admission, not assumptions on the immutable theory. The original `Safe` interface
+is retained for existing consumers.
+
+[Commit](COMMIT.md) derives freshness from the generated successful commit action
+and proves that satisfying its guards supplies a successor state.
 
 ## Correspondence
 
@@ -21,7 +32,12 @@ Veil uses a `snapshot` sort with immutable `contents` and `exportable` relations
 
 `head` stores a snapshot value. Crashes preserve that value and publication; they clear volatile `known` and `pending`. Receipt may arrive before local dependencies. Commit checks local containment, closure, compatibility, exportability, and current causal heads. Later publication may make an existing snapshot stale. Its exact contents remain safe.
 
-Ghost `clock` and `rank` record first publication order. A first publication records the previous clock and advances it. Repeated publication leaves the rank unchanged. Erasing these fields gives the TLA actions. They introduce no action guard, network coordination, storage assumption, or numerical quorum argument. The invariant proves strict rank decrease along admitted dependencies. Natural-number well-founded induction proves TLA's subset definition of acyclicity.
+Ghost `clock` and `rank` record first publication order. A first publication records the previous clock and advances it. Repeated publication leaves the rank unchanged. The invariants prove strict rank decrease along both admitted dependencies and causal ancestors. Natural-number well-founded induction proves the subset form of acyclicity.
+
+TLA additionally records `lastCommitCurrent`, initially true and updated to the
+pre-state `Current` result at each commit. Other actions preserve it. Erasing this
+observation from TLA and the admission ranks from Veil gives the corresponding
+protocol actions. Neither adds an action guard or network coordination.
 
 ## Proof boundary
 

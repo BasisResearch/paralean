@@ -1,13 +1,13 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
 Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 122 and seed 3301797871656391781 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 2108430] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/integrated_work/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/integrated_work/Publication.tla
+Running breadth-first search Model-Checking with fp 97 and seed -1953403118140258661 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3786745] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/integrated_work/Integrated.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/integrated_work/Publication.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/integrated_work/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/integrated_work/Durability.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/integrated_work/Registry.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/integrated_work/Durability.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
 Semantic processing of module Naturals
@@ -18,13 +18,14 @@ Semantic processing of module Registry
 Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
-Starting... (2026-10-03 21:54:27)
+Starting... (2026-10-04 01:02:35)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-03 21:54:27.
+Finished computing initial states: 1 distinct state generated at 2026-10-04 01:02:35.
 Error: Invariant NeverCommitted is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {}]
 /\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -36,8 +37,9 @@ State 1: <Initial predicate>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 2: <RegistryStep line 24, col 5 to line 27, col 26 of module Publication>
+State 2: <RegistryStep line 25, col 5 to line 28, col 26 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -49,8 +51,9 @@ State 2: <RegistryStep line 24, col 5 to line 27, col 26 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 3: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 3: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package"}, r2 |-> {}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -62,8 +65,9 @@ State 3: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 4: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 4: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package"}, r2 |-> {"package"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -75,8 +79,9 @@ State 4: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 5: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 5: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -88,8 +93,9 @@ State 5: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 6: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 6: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -101,8 +107,9 @@ State 6: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 7: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 7: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -114,8 +121,9 @@ State 7: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 8: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
+State 8: <StorageStep line 29, col 16 to line 29, col 47 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {"helper"}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -127,8 +135,9 @@ State 8: <StorageStep line 28, col 16 to line 28, col 47 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 9: <Publish line 17, col 17 to line 19, col 38 of module Publication>
+State 9: <Publish line 18, col 17 to line 20, col 38 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -140,8 +149,9 @@ State 9: <Publish line 17, col 17 to line 19, col 38 of module Publication>
 /\ stable = FALSE
 /\ head = [A |-> {}]
 
-State 10: <Commit line 20, col 16 to line 22, col 37 of module Publication>
+State 10: <Commit line 21, col 16 to line 23, col 37 of module Publication>
 /\ alive = {"A"}
+/\ lastCommitCurrent = TRUE
 /\ pending = [A |-> {}]
 /\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
@@ -156,4 +166,4 @@ State 10: <Commit line 20, col 16 to line 22, col 37 of module Publication>
 208107 states generated, 21608 distinct states found, 7567 states left on queue.
 The depth of the complete state graph search is 10.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 16 and the 95th percentile is 5).
-Finished in 01s at (2026-10-03 21:54:28)
+Finished in 01s at (2026-10-04 01:02:36)

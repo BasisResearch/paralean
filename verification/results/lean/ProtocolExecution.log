@@ -1,0 +1,3 @@
+'ParaleanProtocol.Example.joint_nonempty_completion_loss_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

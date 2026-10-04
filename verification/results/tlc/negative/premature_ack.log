@@ -1,9 +1,9 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
 Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 9 and seed 1605346405727363718 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 2108568] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/premature_ack/Quorums.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean/.runs/tla/negative/premature_ack/Durability.tla
+Running breadth-first search Model-Checking with fp 45 and seed 1059344439498167755 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3788438] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/premature_ack/Quorums.tla
+Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/premature_ack/Durability.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/TLC.tla
 Parsing file /tmp/Naturals.tla
@@ -14,9 +14,9 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Durability
 Semantic processing of module Quorums
-Starting... (2026-10-03 21:54:29)
+Starting... (2026-10-04 01:02:52)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-03 21:54:29.
+Finished computing initial states: 1 distinct state generated at 2026-10-04 01:02:53.
 Error: Invariant WitnessSurvives is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -25,7 +25,7 @@ State 1: <Initial predicate>
 /\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
 /\ acknowledged = {}
 
-State 2: <Ack line 26, col 14 to line 29, col 42 of module Durability>
+State 2: <Ack line 26, col 14 to line 30, col 42 of module Durability>
 /\ live = {"r1", "r2", "r3"}
 /\ witness = [source |-> {"r1", "r2"}, term |-> {"r1", "r2"}]
 /\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {}]
@@ -33,4 +33,4 @@ State 2: <Ack line 26, col 14 to line 29, col 42 of module Durability>
 
 8 states generated, 8 distinct states found, 6 states left on queue.
 The depth of the complete state graph search is 2.
-Finished in 00s at (2026-10-03 21:54:29)
+Finished in 00s at (2026-10-04 01:02:53)
