@@ -7,10 +7,10 @@ of rank 0/1, record `false` a child of record `true`).
 
 Main trace (`hardened_nonvacuous`), every step a hardened step: worker `false`
 owns name `2`; it prepares and publishes a helper and the required target under
-held receipts (the target becomes the name's recorded head) and writes a
-publication certificate for each on replica `true`. Worker `true` receives each
-group through the physical certificate read, then puts certificates for both
-groups on both replicas. The catalogue writer's reply log records each
+held receipts (the target becomes the name's recorded head). Each publication
+writes the publisher's certificates for the group on both replicas in the same
+step. Worker `true` receives each group through the physical certificate read,
+then puts its own certificates for both groups on both replicas. The catalogue writer's reply log records each
 acknowledgement; from it the manifest, payload and commit certificates of record
 `true` are written (commit certificate under fence 0) and the catalogue commits.
 The desktop is lost, the controller reassigns name `2` to worker `true`, the fence
@@ -127,6 +127,11 @@ theorem new_group_steps :
     Veil.IteratedProd.patCmp, funext_iff, Bool.forall_bool, Bool.exists_bool]
 
 attribute [local simp] d0 d1 d2 d3 d4 d5 d6 d7 d8 d9 d10 d11 d12 d13 d14 d15 d16 d17 d18
+
+/-- No group is newly published by a concrete step. -/
+macro "nopub" : tactic => `(tactic| (rintro d ⟨h1, h2⟩; cases d <;>
+  simp [state, rg0, rgPreparedHelper, rgHelper, rgHelperRecv, rgPrepT, rgPublished,
+    rgReceivedHelper, rgReceived, rgCommitted, rgC1, rgC2, rgR, rgRecv] at h1 h2))
 
 macro "regs" : tactic => `(tactic| (intro n d h; cases n <;> cases d <;>
   simp [state, rg0, rgPreparedHelper, rgHelper, rgHelperRecv, rgPrepT, rgPublished,
@@ -265,16 +270,35 @@ theorem fenced_writes0 {s t : CState} (hf : s.recovery.fence = 0) (h0 : NoCat0 t
 theorem ack_same {s t : CState} {eA : X}
     (hr : ParaleanAckCertificates.ReceiveGuard TH s eA t)
     (hc : ParaleanAckCertificates.CommitGuard TH s eA t)
-    (hl : s.admission.protocol.storage.live = t.admission.protocol.storage.live) :
-    ParaleanAckCertificates.Guard TH RT EN s eA t eA :=
-  Or.inl ⟨hr, hc, (ParaleanAckCertificates.clearLost_same s t eA hl).symm⟩
+    (hl : s.admission.protocol.storage.live = t.admission.protocol.storage.live)
+    (hp : ∀ d, ¬ParaleanAckCertificates.NewPub s t d := by nopub) :
+    ParaleanAckCertificates.Guard TH RT EN s eA t eA := by
+  refine Or.inl ⟨hr, hc, ?_⟩
+  rw [ParaleanAckCertificates.clearLost_same s t eA hl]
+  exact ParaleanAckCertificates.publishWrite_quiet TH s t eA hp
+
+/-- A publication step: the same transaction writes publisher `n`'s certificates
+for `d` on both replicas (the write quorum) and records the replies. -/
+theorem ack_pub {s t : CState} {eA : X}
+    (hr : ParaleanAckCertificates.ReceiveGuard TH s eA t)
+    (hc : ParaleanAckCertificates.CommitGuard TH s eA t)
+    (hl : s.admission.protocol.storage.live = t.admission.protocol.storage.live)
+    (n d : Bool) (hnew : ParaleanAckCertificates.NewPub s t d)
+    (hk : t.admission.protocol.registry.known n d = true)
+    (hw : ∀ x, t.admission.protocol.storage.live x = true) :
+    ParaleanAckCertificates.Guard TH RT EN s eA t (ParaleanAckCertificates.putQuorum TH eA n () d) := by
+  refine Or.inl ⟨hr, hc, ?_⟩
+  rw [ParaleanAckCertificates.clearLost_same s t eA hl]
+  exact Or.inr ⟨n, (), d, hnew, hk, fun x _ => hw x, rfl⟩
 
 theorem ack_reg {s t : CState} {eA : X}
     (hreg : t.admission.protocol.registry = s.admission.protocol.registry) :
     ParaleanAckCertificates.Guard TH RT EN s eA t (ParaleanAckCertificates.clearLost s t eA) := by
-  refine Or.inl ⟨?_, ?_, rfl⟩
+  refine Or.inl ⟨?_, ?_, ?_⟩
   · intro n d h1 h2 _; rw [hreg, h1] at h2; cases h2
   · intro n h; rw [hreg] at h; exact absurd rfl h
+  · exact ParaleanAckCertificates.publishWrite_quiet TH s t _
+      (ParaleanAckCertificates.no_new_pub_of_same s t (by rw [hreg]))
 
 /-- A step creating no pending bit under fence 0. -/
 theorem wstep {s t : CState} {eA eA' : X} {eC eC' : XC} {eT : XT} (h : HR s eA eC eT)
@@ -370,29 +394,35 @@ theorem sstep {s : CState} {eA : X} {eC : XC} {eT : XT} (h : HR s eA eC eT)
 
 /-! ## Publication certificate extras
 
-Publisher `false` writes one certificate per group on replica `true` (enough for
-the physical read that guards worker `true`'s receive, not a quorum). Committer
-`true` then puts each group on both replicas itself, after receiving it. -/
+Each publication by publisher `false` writes its certificates for the group on
+both replicas (the write quorum) in the publication step. Committer `true` then
+puts each group on both replicas itself, after receiving it: its commit guard
+reads only its own replies. -/
 
-open ParaleanAckCertificates (putCert clearLost initExtra certScan CertQuorumBy)
+open ParaleanAckCertificates (putCert putQuorum clearLost initExtra certScan CertQuorumBy)
 
-def eP1 : X := putCert initExtra false true false
+def eP1 : X := putQuorum TH initExtra false () false
 def eC1 : X := putCert eP1 true false false
 def eC2 : X := putCert eC1 true true false
-def eP2 : X := putCert eC2 false true true
+def eP2 : X := putQuorum TH eC2 false () true
 def eC3 : X := putCert eP2 true false true
 def eFull : X := putCert eC3 true true true
 
+theorem eP1_cert (x : Bool) : eP1.cert x false = true := by
+  cases x <;> simp [eP1, putQuorum, initExtra, TH, theory, storageTheory]
 theorem eP2_cert (d : Bool) : eP2.cert true d = true := by
-  cases d <;> simp [eP2, eC2, eC1, eP1, putCert, initExtra]
+  cases d <;> simp [eP2, eC2, eC1, eP1, putQuorum, putCert, initExtra, TH, theory, storageTheory]
 theorem eFull_reply (d x : Bool) : eFull.certReply true d x = true := by
-  cases d <;> cases x <;> simp [eFull, eC3, eP2, eC2, eC1, eP1, putCert, initExtra]
+  cases d <;> cases x <;> simp [eFull, eC3, eP2, eC2, eC1, eP1, putQuorum, putCert, initExtra]
 theorem eFull_quorum (d : Bool) : CertQuorumBy TH eFull true d := ⟨(), fun x _ => eFull_reply d x⟩
-/-- Before the committer's puts nobody holds a certificate quorum for the target. -/
-theorem eP2_no_quorum (n : Bool) : ¬CertQuorumBy TH eP2 n true := by
+/-- The target's publication wrote the publisher's certificate quorum. -/
+theorem eP2_publisher_quorum : CertQuorumBy TH eP2 false true :=
+  ⟨(), fun x _ => by cases x <;> simp [eP2, putQuorum, TH, theory, storageTheory]⟩
+/-- Before its own puts for the target the committer holds no quorum for it. -/
+theorem eP2_committer_none : ¬CertQuorumBy TH eP2 true true := by
   rintro ⟨w, hw⟩
   have := hw false rfl
-  cases n <;> simp [eP2, eC2, eC1, eP1, putCert, initExtra] at this
+  simp [eP2, eC2, eC1, eP1, putQuorum, putCert, initExtra] at this
 
 /-! ## Catalogue reply log and certificates
 
@@ -458,7 +488,7 @@ abbrev recoveredS : CState := state dlC2 rgRecv lostZ fAuto
 
 theorem eLost_cert (d : Bool) : eLost.cert true d = true := by
   cases d <;> simp [eLost, clearLost, lostS, zS, state, eFull, eC3, eP2,
-    eC2, eC1, eP1, putCert, initExtra, put, ack]
+    eC2, eC1, eP1, putQuorum, putCert, initExtra, put, ack, TH, theory, storageTheory]
 theorem eLost_quorum (d : Bool) : CertQuorumBy TH eLost true d :=
   ⟨(), fun x _ => by simpa [eLost, clearLost] using eFull_reply d x⟩
 
@@ -502,7 +532,7 @@ theorem destroyZ : ParaleanGroupComposition.StorageNext storageTheory dM3 (.Lose
 /-! ## The trace -/
 
 /-- Helper receipt in flight; owner `false` prepares and publishes the helper. -/
-theorem helper_published : HR (state dlSentHelper rgHelper d6) initExtra kA2 eT0 := by
+theorem helper_published : HR (state dlSentHelper rgHelper d6) eP1 kA2 eT0 := by
   have h0 := hr_initial
   have h1 := pstep h0 (control_joint dl0 dlStartedHelper rg0 d0 (.start true false) trivial
     delivery_steps.2.1) rfl rfl rfl
@@ -534,8 +564,11 @@ theorem helper_published : HR (state dlSentHelper rgHelper d6) initExtra kA2 eT0
   exact wstep h8 (publish_joint dlSentHelper rgPreparedHelper rgHelper d5 false group_steps.2.2.1
       (by simp [ack, put]) (by intro r; cases r <;> simp [disk0, put, ack]))
     (by regs) rfl
-    (ack_same (fun n d _ _ h3 => by simp [state, rgPreparedHelper, rg0] at h3)
-      (fun n h => absurd rfl h) rfl) (hu := update_nontarget (by regs) (by
+    (ack_pub (s := state dlSentHelper rgPreparedHelper d5) (t := state dlSentHelper rgHelper d6)
+      (fun n d _ _ h3 => by simp [state, rgPreparedHelper, rg0] at h3)
+      (fun n h => absurd rfl h) rfl false false
+      ⟨by simp [state, rgPreparedHelper, rg0], by simp [state, rgHelper, rg0]⟩
+      (by simp [state, rgHelper, rg0]) (fun x => rfl)) (hu := update_nontarget (by regs) (by
         intro d h1 h2; cases d <;> simp [state, rgPreparedHelper, rgHelper, rg0] at h1 h2 ⊢))
     (hcc := cc_adv rfl (advance_ack _ _ _ _ _ _ _ _ _ (fun x => rfl)
       (by intro x; cases x <;> simp [disk0, put, ack]) (by simp [disk0, put, ack])))
@@ -543,19 +576,18 @@ theorem helper_published : HR (state dlSentHelper rgHelper d6) initExtra kA2 eT0
 theorem held_target : ParaleanPublicationReceipts.HeldReceipt TH dlSentTarget true :=
   ⟨true, rfl, rfl, rfl, rfl⟩
 
-/-- Publisher certificate for the helper; worker `true` receives the helper
-through the physical read and puts its own helper certificates on both replicas;
+/-- Worker `true` receives the helper through the physical read of the
+publisher's certificate and puts its own helper certificates on both replicas;
 the target receipt is sent and owner `false` prepares the target while holding it. -/
 theorem target_prepared : HR preparedS eC2 kA3 eT0 := by
-  have h9 := helper_published
-  have c1 : HR (state dlSentHelper rgHelper d6) eP1 kA2 eT0 := cstep h9 (.put false true false rfl rfl)
+  have c1 := helper_published
   have h10 : HR (state dlAcceptedHelper rgHelperRecv d6) eP1 kA2 eT0 :=
     wstep c1 (accept_joint dlSentHelper dlAcceptedHelper rgHelper rgHelperRecv d6 false
         delivery_steps.2.2.2.1 new_group_steps.1 (by simp [put, ack]) (by simp [put, ack]) rfl)
       (by regs) rfl
       (ack_same (fun n d h1 h2 _ => ⟨(), true, rfl, rfl, by
           cases n <;> cases d <;> simp [state, rgHelper, rgHelperRecv, rg0] at h1 h2 ⊢
-          simp [eP1, putCert, initExtra]⟩)
+          exact eP1_cert true⟩)
         (fun n h => absurd rfl h) rfl)
   have c2 : HR (state dlAcceptedHelper rgHelperRecv d6) eC1 kA2 eT0 := cstep h10 (.put true false false rfl rfl)
   have c3 : HR (state dlAcceptedHelper rgHelperRecv d6) eC2 kA2 eT0 := cstep c2 (.put true true false rfl rfl)
@@ -586,8 +618,8 @@ theorem target_prepared : HR preparedS eC2 kA3 eT0 := by
     cases n <;> cases d <;> simp [state, rg0, rgHelper, rgHelperRecv, rgPrepT, TH, theory,
       groupTheory, targets, ParaleanTargetNames.initExtra, Bool.forall_bool] at hp hs hm ⊢
 
-/-- Owner `false` publishes the target under the epoch fence and writes its
-publisher certificate on replica `true`. -/
+/-- Owner `false` publishes the target under the epoch fence; the same step writes
+its publisher certificates on both replicas. -/
 theorem target_published : HR (state dlSentTarget rgReceivedHelper d12) eP2 kA4 eTP := by
   have hp : NoNewPending preparedS (state dlSentTarget rgReceivedHelper d12) := by regs
   have hu : ParaleanTargetNames.update TH targets preparedS
@@ -608,17 +640,18 @@ theorem target_published : HR (state dlSentTarget rgReceivedHelper d12) eP2 kA4 
   have g := ParaleanTargetNames.guard_of_no_new_pending TH targets RT EN preparedS
     (state dlSentTarget rgReceivedHelper d12) eT0 hp (ParaleanTargetNames.publishOk_initExtra _ _ _ _ _)
   rw [hu] at g
-  have h19 : HR (state dlSentTarget rgReceivedHelper d12) eC2 kA4 eTP :=
-    hstep target_prepared (publish_joint dlSentTarget rgPrepT rgReceivedHelper d11 true
+  exact hstep target_prepared (publish_joint dlSentTarget rgPrepT rgReceivedHelper d11 true
         new_group_steps.2.2.1 (by simp [ack, put]) (by intro r; cases r <;> simp [disk0, put, ack]))
       (rguard_of hp) g (fenced_writes0 rfl (by nocat0))
-      (ack_same (fun n d h1 h2 h3 => by
+      (ack_pub (s := preparedS) (t := state dlSentTarget rgReceivedHelper d12) (fun n d h1 h2 h3 => by
           cases n <;> cases d <;> simp [state, rgPrepT, rgHelperRecv, rgHelper, rg0,
             rgReceivedHelper, rgPublished] at h1 h2 h3)
-        (fun n h => absurd rfl h) rfl)
+        (fun n h => absurd rfl h) rfl false true
+        ⟨by simp [state, rgPrepT, rgHelperRecv, rgHelper, rg0],
+          by simp [state, rgReceivedHelper, rgPublished, rgHelper, rg0]⟩
+        (by simp [state, rgReceivedHelper, rgPublished, rgHelper, rg0]) (fun x => rfl))
       (cc_adv rfl (advance_ack _ _ _ _ _ _ _ _ _ (fun x => rfl)
         (by intro x; cases x <;> simp [disk0, put, ack]) (by simp [disk0, put, ack])))
-  exact cstep h19 (.put false true true rfl rfl)
 
 /-- Guarded accept of the target by worker `true`, its own certificate puts for
 the target interleaved with manifest writes, the record's own acknowledgement,
@@ -659,7 +692,8 @@ theorem completed_hr : HR completedS eFull kFull eTP := by
   have q4 : HR (state dlAcceptedTarget rgReceived d18) eFull kFull eTP :=
     ccstep q3 (.record () true (fun x _ => rfl)
       (reply_quorum _ _ (by intro x; simp [EN, encode]))
-      (by simp [state, rec0, tok, RT, recoveryTheory]))
+      (by simp [state, rec0, tok, RT, recoveryTheory])
+      ⟨(), fun x _ => rfl, fun p hp => by simp [RT, recoveryTheory] at hp⟩)
   have h26 : HR (state dlAcceptedTarget rgReceived d18 recCommitted) eFull kFull eTP :=
     wstep q4 recommit_joint (by regs) rfl
       (ack_same (fun n d h1 h2 _ => absurd (h1.symm.trans h2) (by decide))
@@ -946,7 +980,12 @@ theorem zB_hr : HR zS eFull kB eT1 := by
   have b1 : HR zS eFull kB1 eT1 :=
     ccstep zS_hr (.object () (.manifest false) (fun x _ => rfl) (reply_quorum _ _ (by intro x; simp)))
   exact ccstep b1 (.record () false (fun x _ => rfl) (reply_quorum _ _ (by intro x; simp [EN, encode]))
-    (by simp [state, fRot, recCommitted, rec0, tok, RT, recoveryTheory]))
+    (by simp [state, fRot, recCommitted, rec0, tok, RT, recoveryTheory])
+    ⟨(), fun x _ => rfl, fun p hp => by
+      cases p
+      · simp [RT, recoveryTheory] at hp
+      · refine ready_true _ (by simp [TH, theory, storageTheory]) ?_
+        rintro o (rfl | ⟨d, rfl⟩) <;> (try cases d) <;> simp [TH, theory, storageTheory]⟩)
 
 theorem lostB_hr : HR lostS eLost kBLost eT1 := lost_hr zB_hr
 
@@ -1010,8 +1049,9 @@ theorem stale_owner_publish_blocked :
 /-- Joint non-vacuity of the hardened protocol. On one trace, every step of which
 satisfies all five guards: the current owner of the target name (worker `false`,
 epoch 0) prepares the required target holding a verified receipt, and publishes
-it, which records it as the name's head; before the committer's own certificate
-puts nobody holds a certificate quorum for it; the committer (worker `true`)
+it, which records it as the name's head and writes the publisher's certificate
+quorum in the same step; the committer (worker `true`) holds no quorum for it
+before its own puts; the committer
 collects replies for both groups from both replicas; the catalogue writer's reply
 log holds a write quorum of replies for the record, its manifest and payloads; from
 it the certificates and the commit certificate (fence 0) are written as quorum
@@ -1034,7 +1074,7 @@ theorem hardened_nonvacuous :
     groupTheory.member true (targets.targetName true) = true ∧
     eT0.owner (targets.targetName true) = false ∧
     -- publish, certificates, commit, finish
-    (∀ n, ¬CertQuorumBy TH eP2 n true) ∧
+    CertQuorumBy TH eP2 false true ∧ ¬CertQuorumBy TH eP2 true true ∧
     (∃ eF, ParaleanHardened.Reachable TH RT EN cfg (completedS, (eF, eFull, kFull, eTP)) ∧
       eF true = some 0) ∧
     eTP.head (targets.targetName true) = some true ∧
@@ -1093,12 +1133,12 @@ theorem hardened_nonvacuous :
   have hb := ParaleanAckCertificates.scan_between TH RT EN assumptions
     (ParaleanHardened.reachable_certificates TH RT EN cfg hE) () (fun x hx => hx)
   have hv := scanA_value
-  refine ⟨target_prepared, rfl, held_target, rfl, rfl, rfl, rfl, eP2_no_quorum,
+  refine ⟨target_prepared, rfl, held_target, rfl, rfl, rfl, rfl, eP2_publisher_quorum, eP2_committer_none,
     ⟨eC, hC, ?_⟩, by simp [targets], rfl, eFull_reply, eFull_quorum, rfl, rfl,
     rfl, reply_quorum _ _ (by intro x; simp), rfl, kFull_ready _, by simp, rfl, ?_, ?_, ?_,
     ⟨eZ, hZ, ?_⟩, rfl, by simp [cfg, tok, RT, recoveryTheory], by simp [zS, state, put, ack],
     by simp, ⟨eE, hE⟩, rfl, rfl, fun _ => rfl, fun _ _ => rfl,
-    fun d => (hb d).1 ⟨true, eLost_quorum d⟩, fun d => (hb d).2, received_hr, rfl,
+    fun d => (hb d).1 ⟨true, eLost_quorum d⟩, fun d => (hb d).2.1, received_hr, rfl,
     responded _ _ _, by rw [hv]; rfl, by rw [hv]; rfl, by rw [hv]; rfl, by rw [hv]; rfl,
     scanEnum_of (responded _ _ _) fScan (by rw [hv]; exact scanA_effect), scanned_hr, rfl, rfl,
     ⟨eR, hR, ?_⟩, rfl, rfl, ?_, rfl⟩
@@ -1205,9 +1245,13 @@ theorem v_control {dl dl' : ParaleanProtocol.Example.Delivery}
       (fun n d h => h) (fun d h => h)
   · exact ⟨fun c hn => absurd hn (ParaleanCatalogFencing.same_storage_no_write EN rfl c),
       (ParaleanCatalogFencing.update_quiet EN _ (ParaleanCatalogFencing.same_storage_no_write EN rfl)).symm⟩
-  · refine Or.inl ⟨?_, ?_, (ParaleanAckCertificates.clearLost_same _ _ _ rfl).symm⟩
+  · refine Or.inl ⟨?_, ?_, ?_⟩
     · intro n d h1 h2 _; exact absurd (h1.symm.trans h2) (by decide)
     · intro n h; exact absurd rfl h
+    · dsimp only
+      rw [ParaleanAckCertificates.clearLost_same _ _ _ (by rfl)]
+      exact ParaleanAckCertificates.publishWrite_quiet _ _ _ _
+        (ParaleanAckCertificates.no_new_pub_of_same _ _ rfl)
   · refine Or.inl ⟨?_, (ParaleanCatalogCertificates.advance_same _ _ _ rfl rfl).symm⟩
     intro c h1 h2; exact absurd (h1.symm.trans h2) (by decide)
 

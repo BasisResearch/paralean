@@ -17,12 +17,12 @@
 'ParaleanRecovery.composition_checkpoint_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanRecovery.ready_in_quorum_catalog' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanRecovery.nonempty_lose_id_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Recovery.lean:739:5: warning: Variable name `th` is not explicitly referenced.
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Recovery.lean:739:5: warning: Variable name `th` is not explicitly referenced.
 
 The binding can be removed (if unused) or named `_` (if used implicitly).
 
 Note: This linter can be disabled with `set_option linter.unusedVariables false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Recovery.lean:740:5: warning: Variable name `s` is not explicitly referenced.
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Recovery.lean:740:5: warning: Variable name `s` is not explicitly referenced.
 
 The binding can be removed (if unused) or named `_` (if used implicitly).
 

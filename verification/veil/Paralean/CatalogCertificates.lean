@@ -1,6 +1,7 @@
 import Paralean.Protocol
 import Paralean.CatalogFencing
 import Paralean.AckCertificates
+import Paralean.RecoveryAncestry
 
 /-! Physically readable catalogue certificates and fenced commit records.
 
@@ -23,6 +24,13 @@ the catalogue writer's own reply log:
   quorum, and only once the writer's reply log (`reply o x`, recorded when the
   writer's write of `o` is acknowledged) holds a write quorum of replies for the
   object. No certificate step reads Durability's `acknowledged` flag.
+- A commit certificate also needs every parent of the record to be ready on a
+  responding read quorum (its commit, manifest and payload certificates were
+  returned). Without this check a record could be certified over a parent that
+  was acknowledged but never committed; recovery adopts a record only with its
+  ancestors, so that record would never be adopted (TLA `fencing_commit_orphan`).
+- Certificate repair copies an existing certificate from a live replica to
+  another live replica, unconditionally (like byte repair).
 - `certFence c` (ghost): the fence at which `c`'s commit certificate was written.
 
 A reader decides readiness from the answers of a read quorum all of whose members
@@ -283,23 +291,40 @@ def putRecord (a : ATheory) (e : XState) (w : writeQuorum) (c : record) (k : Nat
 def putObject (a : ATheory) (e : XState) (w : writeQuorum) (o : Obj) : XState :=
   { e with ocert := fun x o' => if a.storage.memberW x w = true ∧ o' = o then true else e.ocert x o' }
 
+/-- Repair: replica `y` receives a copy of `c`'s commit certificate. -/
+def copyRecord (e : XState) (y : replica) (c : record) : XState :=
+  { e with rcert := fun x c' => if x = y ∧ c' = c then true else e.rcert x c' }
+
+/-- Repair: replica `y` receives a copy of `o`'s certificate. -/
+def copyObject (e : XState) (y : replica) (o : Obj) : XState :=
+  { e with ocert := fun x o' => if x = y ∧ o' = o then true else e.ocert x o' }
+
 /-- Extra-only certificate writes. Each is one transactional write applied to every
 member of a live write quorum (the catalogue store's conditional write; a reader
 never observes a certificate that has not reached a write quorum). A commit
 certificate is conditional on the fence register: the record's token rank equals
-the current fence. Both writes need the writer's own reply quorum for the object,
-read from its reply log, not Durability's `acknowledged` flag. -/
+the current fence, and needs every parent of the record ready on a responding
+read quorum. Both writes need the writer's own reply quorum for the object, read
+from its reply log, not Durability's `acknowledged` flag. Repair copies a
+certificate a live replica holds to another live replica; it is not fenced. -/
 inductive CertStep (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : RecordToken record token)
     (s : ModelState) (e : XState) : XState → Prop where
   | record (w : writeQuorum) (c : record) :
       (∀ x, a.storage.memberW x w = true → s.admission.protocol.storage.live x = true) →
       ReplyQuorum a e (.catalog (encode c)) →
       r.tokenRank (recordToken c) = s.recovery.fence →
+      (∃ q, Responded a s q ∧ ∀ p, r.parent c p = true → ScanReady a r e q p) →
       CertStep a r encode recordToken s e (putRecord a e w c s.recovery.fence)
   | object (w : writeQuorum) (o : Obj) :
       (∀ x, a.storage.memberW x w = true → s.admission.protocol.storage.live x = true) →
       ReplyQuorum a e o →
       CertStep a r encode recordToken s e (putObject a e w o)
+  | repairRecord (x y : replica) (c : record) :
+      s.admission.protocol.storage.live x = true → s.admission.protocol.storage.live y = true →
+      e.rcert x c = true → CertStep a r encode recordToken s e (copyRecord e y c)
+  | repairObject (x y : replica) (o : Obj) :
+      s.admission.protocol.storage.live x = true → s.admission.protocol.storage.live y = true →
+      e.ocert x o = true → CertStep a r encode recordToken s e (copyObject e y o)
 
 def Guard (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : RecordToken record token)
     (s : ModelState) (e : XState) (t : ModelState) (e' : XState) : Prop :=
@@ -378,7 +403,8 @@ def Inv (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : Rec
   (∀ c k, p.2.certFence c = some k → k = r.tokenRank (recordToken c) ∧ k ≤ p.1.recovery.fence) ∧
   (∀ c, p.1.recovery.committed c = true → CatReady a r p.1 p.2 c) ∧
   (∀ c, p.1.recovery.committed c = true → p.2.certFence c = some (r.tokenRank (recordToken c))) ∧
-  (∀ o x, p.2.reply o x = true → p.1.admission.protocol.storage.acknowledged o = true)
+  (∀ o x, p.2.reply o x = true → p.1.admission.protocol.storage.acknowledged o = true) ∧
+  (∀ x c, p.2.rcert x c = true → ∀ q, r.parent c q = true → CatReady a r p.1 p.2 q)
 
 theorem initial_committed_empty (a : ATheory) (r : RTheory) {s : ModelState}
     (hi : ParaleanCompletionRecovery.Initial a r s) : ∀ c, s.recovery.committed c = false := by
@@ -404,7 +430,7 @@ theorem inv_initial (a : ATheory) (r : RTheory) (encode : record → Nat)
   have hc := initial_committed_empty a r hi
   refine ⟨fun _ _ h => by simp [initExtra] at h, fun _ _ h => by simp [initExtra] at h,
     fun _ _ h => by simp [initExtra] at h, fun c h => ?_, fun c h => ?_,
-    fun _ _ h => by simp [initExtra] at h⟩ <;>
+    fun _ _ h => by simp [initExtra] at h, fun _ _ h => by simp [initExtra] at h⟩ <;>
     (dsimp at h; rw [hc c] at h; cases h)
 
 /-- Some member of every write quorum is live (the failure envelope and `meet`). -/
@@ -489,23 +515,45 @@ theorem replyQuorum_acknowledged (a : ATheory) (r : RTheory) (encode : record �
   obtain ⟨x, hx, _⟩ := write_quorum_has_live a r encode ha hs w
   exact hrep o x (hw x hx)
 
+theorem catReady_mono (a : ATheory) (r : RTheory) {s : ModelState} {e e' : XState}
+    (h1 : ∀ x c, e.rcert x c = true → e'.rcert x c = true)
+    (h2 : ∀ x o, e.ocert x o = true → e'.ocert x o = true) {c : record}
+    (h : CatReady a r s e c) : CatReady a r s e' c := by
+  obtain ⟨⟨w, hw⟩, ⟨wm, hwm⟩, hp⟩ := h
+  refine ⟨⟨w, fun x hx hl => h1 _ _ (hw x hx hl)⟩, ⟨wm, fun x hx hl => h2 _ _ (hwm x hx hl)⟩,
+    fun d hd => ?_⟩
+  obtain ⟨wp, hwp⟩ := hp d hd
+  exact ⟨wp, fun x hx hl => h2 _ _ (hwp x hx hl)⟩
+
+/-- On a state satisfying the invariant, a certificate returned by any member of
+any read quorum is durable. -/
+theorem catReady_of_scanReady_inv (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (recordToken : RecordToken record token) {p : ModelState × XState}
+    (hi : Inv a r encode recordToken p) {q : readQuorum} {c : record}
+    (h : ScanReady a r p.2 q c) : CatReady a r p.1 p.2 c := by
+  obtain ⟨⟨x, _, hx⟩, ⟨xm, _, hxm⟩, hp⟩ := h
+  refine ⟨(hi.1 x c hx).2.2, (hi.2.1 xm _ hxm).2, fun d hd => ?_⟩
+  obtain ⟨xp, _, hxp⟩ := hp d hd
+  exact (hi.2.1 xp _ hxp).2
+
 theorem inv_step (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : RecordToken record token) (ha : ParaleanAdmission.Assumptions a)
     {p p' : ModelState × XState} (hr : Reachable a r encode recordToken p)
     (hinv : Inv a r encode recordToken p) (ht : Next a r encode recordToken p p') :
     Inv a r encode recordToken p' := by
+  have hinv' := hinv
   rcases p with ⟨s, e⟩
   rcases p' with ⟨t, e'⟩
   rcases ht with ⟨hb, hg⟩
   dsimp only at hb hg
-  obtain ⟨hI1, hI2, hI3, hI4, hI5, hI6⟩ := hinv
-  dsimp only at hI1 hI2 hI3 hI4 hI5 hI6
+  obtain ⟨hI1, hI2, hI3, hI4, hI5, hI6, hI7⟩ := hinv
+  dsimp only at hI1 hI2 hI3 hI4 hI5 hI6 hI7
   have mono := ParaleanAckCertificates.protocol_storage_mono a r encode hb
   have fmono := ParaleanCatalogFencing.fence_mono a r encode hb
   have hbase := reachable_protocol a r encode recordToken hr
   rcases hg with ⟨hadopt, he'⟩ | ⟨hts, hcs⟩
   · subst he'
-    refine ⟨?_, ?_, ?_, ?_, ?_, ?_⟩
+    refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
     · intro x c hc
       simp only [advance_rcert, clearLost] at hc
       split_ifs at hc
@@ -534,13 +582,17 @@ theorem inv_step (a : ATheory) (r : RTheory) (encode : record → Nat)
       rcases hx with hx | ⟨⟨⟨_, h⟩, _⟩, _⟩
       · exact mono.2 _ (hI6 o x hx)
       · exact h
+    · intro x c hc q hq
+      simp only [advance_rcert, clearLost] at hc
+      split_ifs at hc
+      exact catReady_transfer a r mono.1 (hI7 x c hc q hq)
   · subst t
     cases hcs with
-    | record w0 c0 hl hrep hf =>
+    | record w0 c0 hl hrep hf hpar =>
       have hack := replyQuorum_acknowledged a r encode ha hbase hI6 hrep
       have hdur : RecordDurable a s (putRecord a e w0 c0 s.recovery.fence) c0 :=
         ⟨w0, fun x hx _ => by simp [putRecord, hx]⟩
-      refine ⟨?_, ?_, ?_, ?_, ?_, hI6⟩
+      refine ⟨?_, ?_, ?_, ?_, ?_, hI6, ?_⟩
       · intro x c hc
         by_cases hc0 : c = c0
         · subst hc0
@@ -566,9 +618,19 @@ theorem inv_step (a : ATheory) (r : RTheory) (encode : record → Nat)
         split_ifs with hc0
         · subst hc0; rw [hf]
         · exact hI5 c hc
+      · intro x c hc q hq
+        by_cases hc0 : c = c0
+        · subst hc0
+          obtain ⟨rq, _, hready⟩ := hpar
+          exact catReady_putRecord a r w0 c _
+            (catReady_of_scanReady_inv a r encode recordToken (p := (s, e)) hinv' (hready q hq))
+        · have hc' : e.rcert x c = true := by
+            simpa [putRecord, hc0] using hc
+          exact catReady_putRecord a r w0 c0 _ (hI7 x c hc' q hq)
     | object w0 o0 hl hrep =>
       have hack := replyQuorum_acknowledged a r encode ha hbase hI6 hrep
-      refine ⟨?_, ?_, hI3, fun c hc => catReady_putObject a r w0 o0 (hI4 c hc), hI5, hI6⟩
+      refine ⟨?_, ?_, hI3, fun c hc => catReady_putObject a r w0 o0 (hI4 c hc), hI5, hI6,
+        fun x c hc q hq => catReady_putObject a r w0 o0 (hI7 x c hc q hq)⟩
       · intro x c hc
         obtain ⟨h1, h2, w, hw⟩ := hI1 x c hc
         exact ⟨h1, h2, w, fun y hy hly => hw y hy hly⟩
@@ -579,6 +641,52 @@ theorem inv_step (a : ATheory) (r : RTheory) (encode : record → Nat)
         · have hc' : e.ocert x o = true := by simpa [putObject, ho] using hc
           obtain ⟨h1, h2⟩ := hI2 x o hc'
           exact ⟨h1, objectDurable_putObject a w0 o0 h2⟩
+    | repairRecord x0 y0 c0 hlx hly hsrc =>
+      have m1 : ∀ x c, e.rcert x c = true → (copyRecord e y0 c0).rcert x c = true := by
+        intro x c h; simp only [copyRecord]; split_ifs
+        · rfl
+        · exact h
+      have m2 : ∀ x o, e.ocert x o = true → (copyRecord e y0 c0).ocert x o = true :=
+        fun _ _ h => h
+      have back : ∀ x c, (copyRecord e y0 c0).rcert x c = true → ∃ x', e.rcert x' c = true := by
+        intro x c h
+        simp only [copyRecord] at h
+        split_ifs at h with hxc
+        · obtain ⟨_, rfl⟩ := hxc; exact ⟨x0, hsrc⟩
+        · exact ⟨x, h⟩
+      refine ⟨?_, ?_, hI3, fun c hc => catReady_mono a r m1 m2 (hI4 c hc), hI5, hI6, ?_⟩
+      · intro x c hc
+        obtain ⟨x', hx'⟩ := back x c hc
+        obtain ⟨h1, h2, w, hw⟩ := hI1 x' c hx'
+        exact ⟨h1, h2, w, fun y hy hly => m1 _ _ (hw y hy hly)⟩
+      · intro x o hc
+        obtain ⟨h1, w, hw⟩ := hI2 x o hc
+        exact ⟨h1, w, fun y hy hly => hw y hy hly⟩
+      · intro x c hc q hq
+        obtain ⟨x', hx'⟩ := back x c hc
+        exact catReady_mono a r m1 m2 (hI7 x' c hx' q hq)
+    | repairObject x0 y0 o0 hlx hly hsrc =>
+      have m1 : ∀ x c, e.rcert x c = true → (copyObject e y0 o0).rcert x c = true :=
+        fun _ _ h => h
+      have m2 : ∀ x o, e.ocert x o = true → (copyObject e y0 o0).ocert x o = true := by
+        intro x o h; simp only [copyObject]; split_ifs
+        · rfl
+        · exact h
+      have back : ∀ x o, (copyObject e y0 o0).ocert x o = true → ∃ x', e.ocert x' o = true := by
+        intro x o h
+        simp only [copyObject] at h
+        split_ifs at h with hxo
+        · obtain ⟨_, rfl⟩ := hxo; exact ⟨x0, hsrc⟩
+        · exact ⟨x, h⟩
+      refine ⟨?_, ?_, hI3, fun c hc => catReady_mono a r m1 m2 (hI4 c hc), hI5, hI6,
+        fun x c hc q hq => catReady_mono a r m1 m2 (hI7 x c hc q hq)⟩
+      · intro x c hc
+        obtain ⟨h1, h2, w, hw⟩ := hI1 x c hc
+        exact ⟨h1, h2, w, fun y hy hly => hw y hy hly⟩
+      · intro x o hc
+        obtain ⟨x', hx'⟩ := back x o hc
+        obtain ⟨h1, w, hw⟩ := hI2 x' o hx'
+        exact ⟨h1, w, fun y hy hly => m2 _ _ (hw y hy hly)⟩
 
 theorem reachable_inv (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : RecordToken record token) (ha : ParaleanAdmission.Assumptions a)
@@ -636,13 +744,37 @@ theorem stale_record_cert_rejected (a : ATheory) (r : RTheory) (encode : record 
     (hnew : e'.certFence c ≠ e.certFence c) : ¬ CertStep a r encode recordToken s e e' := by
   intro h
   cases h with
-  | record w c0 _ _ hf =>
+  | record w c0 _ _ hf _ =>
     apply hnew
     dsimp [putRecord]
     split_ifs with hc
     · subst hc; exact absurd hf hstale
     · rfl
   | object w o _ _ => exact hnew rfl
+  | repairRecord => exact hnew rfl
+  | repairObject => exact hnew rfl
+
+/-- The parent check is load-bearing in the step relation: a commit certificate
+for a record with a parent that no responding read quorum shows ready is not a
+certificate step. -/
+theorem orphan_record_cert_rejected (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (recordToken : RecordToken record token) (s : ModelState) (e e' : XState) (c p : record)
+    (hp : r.parent c p = true)
+    (horphan : ∀ q, Responded a s q → ¬ ScanReady a r e q p)
+    (hnew : e'.certFence c ≠ e.certFence c) : ¬ CertStep a r encode recordToken s e e' := by
+  intro h
+  cases h with
+  | record w c0 _ _ _ hpar =>
+    apply hnew
+    dsimp [putRecord]
+    split_ifs with hc
+    · subst hc
+      obtain ⟨q, hq, hready⟩ := hpar
+      exact absurd (hready p hp) (horphan q hq)
+    · rfl
+  | object w o _ _ => exact hnew rfl
+  | repairRecord => exact hnew rfl
+  | repairObject => exact hnew rfl
 
 /-- Once the fence has passed a record's token rank, a record without a commit
 certificate never gets one, so it is never committed or adopted afterwards. -/
@@ -661,12 +793,14 @@ theorem stale_stays_uncertified (a : ATheory) (r : RTheory) (encode : record →
   rcases hg with ⟨_, rfl⟩ | ⟨rfl, hcs⟩
   · exact hnone
   · cases hcs with
-    | record w c0 _ _ hf =>
+    | record w c0 _ _ hf _ =>
       dsimp [putRecord]
       split_ifs with hc
       · subst hc; omega
       · exact hnone
     | object w o _ _ => exact hnone
+    | repairRecord => exact hnone
+    | repairObject => exact hnone
 
 /-- A record without a commit certificate is not committed. -/
 theorem uncertified_not_committed (a : ATheory) (r : RTheory) (encode : record → Nat)
@@ -728,12 +862,8 @@ are written to a whole write quorum at once and erased only with their replica. 
 theorem scanReady_catReady (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : RecordToken record token) (ha : ParaleanAdmission.Assumptions a)
     {p : ModelState × XState} (hr : Reachable a r encode recordToken p)
-    {q : readQuorum} {c : record} (h : ScanReady a r p.2 q c) : CatReady a r p.1 p.2 c := by
-  have hi := reachable_inv a r encode recordToken ha hr
-  obtain ⟨⟨x, _, hx⟩, ⟨xm, _, hxm⟩, hp⟩ := h
-  refine ⟨(hi.1 x c hx).2.2, (hi.2.1 xm _ hxm).2, fun d hd => ?_⟩
-  obtain ⟨xp, _, hxp⟩ := hp d hd
-  exact (hi.2.1 xp _ hxp).2
+    {q : readQuorum} {c : record} (h : ScanReady a r p.2 q c) : CatReady a r p.1 p.2 c :=
+  catReady_of_scanReady_inv a r encode recordToken (reachable_inv a r encode recordToken ha hr) h
 
 /-- Readiness is decided by any responding read quorum. -/
 theorem scanReady_iff_catReady (a : ATheory) (r : RTheory) (encode : record → Nat)
@@ -742,6 +872,42 @@ theorem scanReady_iff_catReady (a : ATheory) (r : RTheory) (encode : record → 
     {q : readQuorum} (hq : Responded a p.1 q) (c : record) :
     ScanReady a r p.2 q c ↔ CatReady a r p.1 p.2 c :=
   ⟨scanReady_catReady a r encode recordToken ha hr, catReady_scanReady a r ha hq⟩
+
+/-! Parents of certified records. -/
+
+/-- Every parent of a record that holds a commit certificate is ready (its commit,
+manifest and payload certificates are durable). -/
+theorem record_cert_parents_ready (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (recordToken : RecordToken record token) (ha : ParaleanAdmission.Assumptions a)
+    {p : ModelState × XState} (hr : Reachable a r encode recordToken p)
+    (x : replica) (c : record) (hc : p.2.rcert x c = true) (q : record)
+    (hq : r.parent c q = true) : CatReady a r p.1 p.2 q :=
+  (reachable_inv a r encode recordToken ha hr).2.2.2.2.2.2 x c hc q hq
+
+/-- No orphan commit certificates: every ancestor of a record that holds a commit
+certificate is ready, so it is ready in the scan of every responding read quorum.
+Recovery adopts a record only with its ancestors (`ParaleanRecovery.admissible`),
+so certificates alone never leave a certified record unadoptable. -/
+theorem record_cert_ancestors_ready (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (recordToken : RecordToken record token) (ha : ParaleanAdmission.Assumptions a)
+    (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
+    {p : ModelState × XState} (hr : Reachable a r encode recordToken p)
+    (x : replica) (c : record) (hc : p.2.rcert x c = true) (b : record)
+    (hb : r.ancestor c b = true) :
+    CatReady a r p.1 p.2 b ∧ ∀ q, Responded a p.1 q → ScanReady a r p.2 q b := by
+  have hbase := reachable_protocol a r encode recordToken hr
+  have key : ∀ c b, ParaleanRecovery.ParentPath r c b → ∀ x, p.2.rcert x c = true →
+      CatReady a r p.1 p.2 b := by
+    intro c b path
+    induction path with
+    | edge hp => exact fun x hx => record_cert_parents_ready a r encode recordToken ha hr x _ hx _ hp
+    | trans _ _ ih₁ ih₂ =>
+      intro x hx
+      obtain ⟨⟨w, hw⟩, _⟩ := ih₁ x hx
+      obtain ⟨y, hy, hl⟩ := write_quorum_has_live a r encode ha hbase w
+      exact ih₂ y (hw y hy hl)
+  have hcat := key c b ((ParaleanRecovery.ancestor_iff_parent_path r hra.2.1 c b).1 hb) x hc
+  exact ⟨hcat, fun q hq => catReady_scanReady a r ha hq hcat⟩
 
 /-! Concrete certificate scan and recovery adequacy. -/
 
@@ -800,6 +966,18 @@ theorem certScanValue_sound (a : ATheory) (r : RTheory) (encode : record → Nat
   simp only [certScanValue, codec.ready_build, decide_eq_true_eq] at h
   have hc := scanReady_catReady a r encode recordToken ha hr h
   exact ⟨hc, catReady_storageReady a r encode recordToken ha hr c hc⟩
+
+/-- Necessity of the parent check: a record with an ancestor that the scan of `q`
+does not mark ready is not admissible for that scan, so `enumerate` never adopts
+it. A commit certificate written over such a parent (an orphan) is never adopted. -/
+theorem orphan_not_adopted (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (codec : ScanCodec r) (s : ModelState) (e : XState) (q : readQuorum) (c b : record)
+    (hb : r.ancestor c b = true) (hnot : ¬ ScanReady a r e q b) :
+    ¬ ParaleanRecovery.admissible (certScanValue codec a encode s e q) c r s.recovery := by
+  intro h
+  have hready := (h.2.2.2.2 b hb).2.1
+  simp only [certScanValue, codec.ready_build, decide_eq_true_eq] at hready
+  exact hnot hready
 
 /-- Implementation `enumerate`: recovery reads read quorum `rq`, every member of
 which answered, computes the certificate scan from those answers, and applies the
@@ -917,6 +1095,10 @@ end
 #print axioms selected_fenced
 #print axioms stale_record_cert_rejected
 #print axioms stale_stays_uncertified
+#print axioms orphan_record_cert_rejected
+#print axioms record_cert_parents_ready
+#print axioms record_cert_ancestors_ready
+#print axioms orphan_not_adopted
 #print axioms uncertified_not_committed
 #print axioms catReady_storageReady
 #print axioms committed_catReady

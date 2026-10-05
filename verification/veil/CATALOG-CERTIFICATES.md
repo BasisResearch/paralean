@@ -33,10 +33,15 @@ Each is one transactional write applied to every member of a live write quorum
 `w`: a reader never observes a certificate that has not reached a write quorum.
 
 - `CertStep.record w c`: every member of `w` is live, the writer's reply log holds a
-  write quorum of replies for `.catalog (encode c)` (`ReplyQuorum`), and
-  `tokenRank (recordToken c) = fence` (a conditional write on the fence register).
-  Sets `rcert x c` for every member of `w` and `certFence c := some fence`.
+  write quorum of replies for `.catalog (encode c)` (`ReplyQuorum`),
+  `tokenRank (recordToken c) = fence` (a conditional write on the fence register),
+  and every parent of `c` is `ScanReady` on some responding read quorum (the writer
+  read the parents' commit, manifest and payload certificates). Sets `rcert x c` for
+  every member of `w` and `certFence c := some fence`.
 - `CertStep.object w o`: every member of `w` is live and `ReplyQuorum o`. Not fenced.
+- `CertStep.repairRecord x y c`, `CertStep.repairObject x y o`: certificate repair.
+  Replica `y` (live) receives a copy of a certificate that live replica `x` holds.
+  Unconditional and unfenced, like byte repair. `certFence` is unchanged.
 
 No certificate step reads Durability's `acknowledged` flag. `replyQuorum_acknowledged`
 shows the reply log is sound for it.
@@ -89,7 +94,8 @@ Invariant `Inv`:
 - `ocert x o` implies `o` is acknowledged and `ObjectDurable o`;
 - `certFence c = some k` implies `k = tokenRank (recordToken c) ≤ fence`;
 - every committed record is `CatReady` and has `certFence c = some rank`;
-- every reply in the writer's log is for an acknowledged object.
+- every reply in the writer's log is for an acknowledged object;
+- every parent of a record holding a commit certificate is `CatReady`.
 
 Fencing:
 
@@ -102,6 +108,24 @@ Fencing:
 - `stale_stays_uncertified`, `uncertified_not_committed`: once the fence passes a
   record's token rank, a record without a commit certificate never gets one, so it
   is never committed or adopted. This excludes the late-ack-and-repair zombie.
+  Certificate repair never sets `certFence`, so it cannot certify a stale record.
+
+Parents (the orphan commit):
+
+- `record_cert_parents_ready`: every parent of a record holding a commit
+  certificate is `CatReady`.
+- `record_cert_ancestors_ready` (needs the coupled recovery assumptions): every
+  ancestor of such a record is `CatReady`, so it is `ScanReady` in the scan of every
+  responding read quorum. By induction over parent paths
+  (`ParaleanRecovery.ancestor_iff_parent_path`): a ready parent has a durable commit
+  certificate, which a live replica holds, so its own parents are ready.
+- `orphan_record_cert_rejected`: a commit certificate for a record with a parent
+  that no responding read quorum shows ready is not a certificate step.
+- `orphan_not_adopted` (necessity): a record with an ancestor that the scan of `q`
+  does not mark ready is not admissible for that scan, so `enumerate` never adopts
+  it. Without the parent check a record could be certified over a parent that was
+  acknowledged but never committed (its writer was fenced out first), and recovery
+  could never adopt it (TLA `fencing_commit_orphan` breaks `RecoveryAdopts`).
 
 Readiness and recovery:
 
@@ -148,10 +172,30 @@ replicas. Mutations (`scripts/check-tla-negative.sh`):
   (`NoLateAckedKnown` fails).
 - `fencing_cert_unacked`: `CommitCert` without the writer's Ack; a certified record's
   bytes can be lost (`ScanFindsCertified` fails).
+- `fencing_commit_orphan` (on `FencingLive`): `CommitCert` without the parents check;
+  `RecoveryAdopts` fails. The Lean counterpart is the parent premise of
+  `CertStep.record`.
+- `fencing_no_cert_repair` (on `FencingLive`): no `CertRepair`; `RecoveryAdopts`
+  fails.
 
 The TLA `Scan` still decides durability over live replicas, and its certificates are
 written per replica; it has not been updated to the read-quorum readiness and
 all-quorum certificate writes of the Lean model.
+
+### Certificate repair in Lean
+
+The Lean model has `repairRecord`/`repairObject` steps, and they preserve every
+invariant (a copy names a record or object whose properties are already
+established), so `scanReady_iff_catReady` is unchanged. Lean does not need repair
+for readiness to persist: `RecordDurable`/`ObjectDurable` quantify over the *live*
+members of a write quorum, certificates are written to a whole write quorum at once,
+and a lost replica never rejoins, so durability never decays under the failure
+envelope (`committed_catReady`). TLA needs `CertRepair` for liveness because its
+`CertDurable` requires a fully live write quorum holding the certificate, which a
+loss destroys. The contract this implies: an implementation that replaces a lost
+replica with a new member of the write quorum (a membership change, not modelled in
+Lean) must copy existing certificates to it before counting it towards durability;
+that copy is the repair step.
 
 ## Implementation contract
 
@@ -165,15 +209,18 @@ all-quorum certificate writes of the Lean model.
   certificates likewise follow the writer's own write-quorum replies.
 - Recovery waits until every member of some read quorum has answered, and decides
   readiness from those answers alone.
+- A commit certificate write reads the parents' commit, manifest and payload
+  certificates on a responding read quorum and aborts unless all are present.
 - A lost replica never rejoins under the same identity; a replacement replica gets a
-  new identity (or rejoins only after certificate repair, which is not modelled).
+  new identity and receives copies of existing certificates (repair) before it
+  counts towards a write quorum.
 - Certificates are never garbage-collected. A lost replica's certificates are gone.
 
 ## Not established
 
-- There is no certificate repair. Durability of a certificate decays with replica
-  loss; with write quorum = all replicas, no new certificate can be written after a
-  loss.
+- Replica replacement (membership change) is not modelled; repair only copies to
+  existing live replicas. With write quorum = all replicas, no new certificate can
+  be written after a loss.
 - All-quorum certificate writes are an atomicity assumption about the store (above),
   not derived from per-replica writes. With per-replica writes, a reader that sees a
   certificate on one replica would need write-back before adopting.
@@ -184,4 +231,6 @@ all-quorum certificate writes of the Lean model.
 - Base-model theorems stated with `ReadyScan` or a fixed scan (RecoveryAdequacy,
   CompletionRecovery, Protocol, the `CatalogFencing` examples) remain base-model
   results.
-- Liveness is not restated.
+- Liveness (`RecoveryAdopts`) is checked only in TLA; Lean shows the certificate
+  side of adoptability (`record_cert_ancestors_ready`), not workspace identity or
+  buildability of ancestors.

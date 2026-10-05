@@ -4,6 +4,10 @@
 'ParaleanCatalogCertificates.selected_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.stale_record_cert_rejected' does not depend on any axioms
 'ParaleanCatalogCertificates.stale_stays_uncertified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.orphan_record_cert_rejected' does not depend on any axioms
+'ParaleanCatalogCertificates.record_cert_parents_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.record_cert_ancestors_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.orphan_not_adopted' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.uncertified_not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.catReady_storageReady' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.committed_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
