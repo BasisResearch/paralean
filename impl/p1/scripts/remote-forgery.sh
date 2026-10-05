@@ -2,10 +2,12 @@
 # Forged `remote%` uses must fail with an error (never a sorry). Uses alice's copy from
 # scripts/run-transparent.sh.
 set -u
-here="$(cd "$(dirname "$0")/.." && pwd)"
-W="${1:-$HOME/tmp/p1/transparent}"; A="$W/alice"
-export TMPDIR="${TMPDIR:-$HOME/tmp}" PARALEAN_LIB="$here/.lake/build/lib/lean"
-P="${PARALEAN_BIN:-$here/.lake/build/bin/paralean}"
+source "$(dirname "$0")/env.sh"
+require_bin
+here="$P1_DIR"
+W="${1:-$PARALEAN_RUNS/transparent}"; A="$W/alice"
+[ -d "$A/store" ] || die "no transparent-workspace run at $W; run scripts/run-transparent.sh first"
+P="$PARALEAN_BIN"
 F="$W/forgery"; rm -rf "$F"; mkdir -p "$F"
 pid=$(python3 -c "
 import json,glob

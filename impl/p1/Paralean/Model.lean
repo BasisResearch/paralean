@@ -53,6 +53,9 @@ structure MemberRec where
   /-- Hash of the statement alone (type + level params), with exact dependency pins.
       Target contracts compare this. -/
   typeHash : String := ""
+  /-- For an instance named by the canonical scheme at capture: the name stock Lean would
+      have given it (metadata for the G2 oracle comparison; not part of any identity). -/
+  stock : Option Name := none
   deriving ToJson, FromJson, Inhabited, Repr
 
 /-- Source capsule: everything needed to re-elaborate the command. -/

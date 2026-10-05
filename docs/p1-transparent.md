@@ -177,7 +177,10 @@ element.
 **Name collisions (rule 4).** For each public name published by more than one package
 (unrelated, since revisions are not modelled), the lowest (Lamport time, author,
 package) keeps the name. Every other package's declaration is renamed to
-`<name>_<author>_<lamport>`; its auxiliaries follow by prefix. Published uses of a
+`<name>_<author>_<lamport>`; its auxiliaries follow by prefix. This is a prototype
+spelling: it lies outside any reserved namespace, so a user could write the same name.
+The v1 spelling of fresh names is tracked as OPEN-25 (reserved-name spelling) in
+[p0-interfaces.md](p0-interfaces.md). Published uses of a
 renamed package (groups depending on it) are rewritten in their rendered and loaded
 text by identifier-token rewriting. Renames apply consistently in rendering,
 `remote%` loading, the visibility index, capture and export. Identity is unaffected:

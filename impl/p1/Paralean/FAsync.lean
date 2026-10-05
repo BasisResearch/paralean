@@ -80,6 +80,7 @@ unsafe def forge (path : System.FilePath) (storeDir : System.FilePath) : IO (Arr
     (`FA.usesLateBad, mkApp4 (mkConst ``Eq.symm [1]) (mkConst ``Nat) (ty `FA.lateBad).appFn!.appArg!
         (ty `FA.lateBad).appArg! (mkConst `FA.lateBad), "theorem FA.usesLateBad : 2 = 1 := FA.lateBad.symm", #[])]
   let mut pids : Std.HashMap Name String := {}
+  let mut declIds : Std.HashMap String String := {}
   let mut gids := #[]
   let mut report := #[]
   for (n, v, text, effs) in specs do
@@ -89,7 +90,9 @@ unsafe def forge (path : System.FilePath) (storeDir : System.FilePath) : IO (Arr
       else match pids[c]? with
         | some p => .ok (.dep p c)
         | none => .ok (.base c)
-    let some bytes := (encodeGroup baseId #[{ local_ := n, cls := .pub, info := ci }] resolve).toOption
+    let wire : WireCtx := { selfIdx := fun l => if l == n then some 0 else none
+                            dep := fun p _ => (declIds[p]?).map (·, 0) }
+    let some bytes := (encodeGroup baseId #[{ local_ := n, cls := .pub, info := ci }] resolve wire).toOption
       | throw <| IO.userError "forge: encode failed"
     let declId ← store.putObject bytes
     let deps := (ci.getUsedConstantsAsSet.toArray.filterMap pids.get?)
@@ -105,6 +108,7 @@ unsafe def forge (path : System.FilePath) (storeDir : System.FilePath) : IO (Arr
       touched := #[], axioms := #[], capsule, diags := #[], encSize := bytes.size }
     store.putMeta g
     pids := pids.insert n pid
+    declIds := declIds.insert pid declId
     gids := gids.push pid
   let _ := input
   let _ ← store.putFileRec {

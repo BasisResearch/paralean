@@ -1,4 +1,5 @@
 import Lean
+import Paralean.InstName
 
 /-!
 Process-wide elaborator hooks (stand-ins for fork changes). Registered in Lean's builtin
@@ -73,6 +74,8 @@ def recordingSimpAll : Tactic := fun stx =>
 
 /-- Install the hooks (call before any environment is created). -/
 def install : IO Unit := do
+  -- canonical names for anonymous instances (Paralean/InstName.lean)
+  InstName.install
   tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simp `Paralean.Hooks.recordingSimp recordingSimp
   tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simpAll `Paralean.Hooks.recordingSimpAll recordingSimpAll
 

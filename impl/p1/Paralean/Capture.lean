@@ -4,6 +4,7 @@ import Paralean.Model
 import Paralean.Store
 import Paralean.Render
 import Paralean.Hooks
+import Paralean.InstName
 import Paralean.Remote
 import Paralean.Crdt
 
@@ -27,6 +28,9 @@ structure Session where
   mainModule : Name
   /-- Lean name in this session's environment ↦ (package id, local identity). -/
   index : Std.HashMap Name (String × Name) := {}
+  /-- Package ID ↦ (group ID, member local identities in canonical order): the wire form
+  of dependency references (OPEN-22/23). -/
+  pkgs : Std.HashMap String (String × Array Name) := {}
   /-- Constants introduced only as capsule scaffolding (local effects re-run in a capsule). -/
   scaffold : NameSet := {}
   /-- Constant ↦ effect groups whose command targeted it (`attribute [...] c`). -/
@@ -417,6 +421,8 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
           | .str .anonymous s => plComponent? s
           | _ => none
         let l := normName sess.mainModule n
+        for m in metas do
+          sess := { sess with pkgs := sess.pkgs.insert m.gid (m.declId, m.members.map (·.local_)) }
         if let some m := metas.find? fun m =>
             (if m.capsule.relocate then some m.short else none) == tag &&
             m.members.any (fun mr => renameName (sess.remoteRenames.getD m.gid {}) mr.local_ == l) then
@@ -460,19 +466,37 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   let mut realized : Array Name := #[]
   let coreCtx : Core.Context := { fileName := fc.file, fileMap := fc.fileMap }
   let coreSt : Core.State := { env }
-  let suffix := projectSuffix sess.mainModule
-  -- generated instances: registered as instances but not declared by a `declId`
   let instNames := (Meta.instanceExtension.getState env).instanceNames
-  -- only an anonymous `instance` or a `deriving` clause/command generates instance names;
-  -- instances named by attributes (`@[to_additive]` of a named instance) are public
-  let generatesInstances :=
-    (findNodes r.stx (·.getKind == ``Lean.Parser.Command.instance)).any (fun i =>
-      i[3].isNone || ((i.reprint.getD "").splitOn genMarker).length > 1) ||
+  -- Instance names (docs/p0-interfaces.md §3.2). Auto-named instances and deriving outputs
+  -- are public: users can write them and two groups producing one collide. An anonymous
+  -- `instance` is named canonically by `InstName` (no `_n`, no project suffix); the
+  -- hook reports which names it chose, with the stock name for the G2 oracle.
+  let chosen := (← InstName.chosen.swap #[]).foldl (fun m (c, st) => m.insert c st)
+    ({} : Std.HashMap Name Name)
+  let anonInstCmd := (findNodes r.stx (·.getKind == ``Lean.Parser.Command.instance)).any (·[3].isNone)
+  let derives :=
     !(findNodes r.stx fun s => s.getKind == ``Lean.Parser.Command.optDeriving && !s[0].isNone).isEmpty ||
     !(findNodes r.stx (·.getKind == ``Lean.Parser.Command.deriving)).isEmpty
-  let genRoots : Array Name := if !generatesInstances then #[] else r.newConsts.filterMap fun ci =>
-    if instNames.contains ci.name && !roots.contains ci.name && !isPrivateName ci.name then
-      some ci.name else none
+  if anonInstCmd && chosen.isEmpty && (← IO.getEnv "PARALEAN_STOCK_INSTANCE_NAMES").isNone &&
+      (← IO.getEnv "PARALEAN_NO_HOOKS").isNone then
+    -- e.g. an anonymous instance inside `mutual`, which bypasses the declaration elaborator
+    diags := diags.push (mkDiag "unsupported" "noncanonical-instance"
+      "anonymous instance not named by the canonical scheme")
+  -- Deriving outputs keep the deriving handler's spelling (a stock export cannot name
+  -- them). That spelling is canonical as long as stock did not deduplicate it: a `_n`
+  -- suffix means the name was already taken, which is a collision, never a rename.
+  if derives then
+    for ci in r.newConsts do
+      let n := ci.name
+      unless instNames.contains n && !roots.contains n && !chosen.contains n do continue
+      if let .str p s := n then
+        match s.splitOn "_" |>.reverse with
+        | k :: rest =>
+          if k.toNat?.isSome && !rest.isEmpty && r.envBefore.contains (.str p ("_".intercalate rest.reverse)) then
+            diags := diags.push (mkDiag "reject" "instance-name-clash"
+              s!"derived instance would be named {n} because {Name.str p ("_".intercalate rest.reverse)} \
+                already exists: a collision (canonical instance names take no `_n` suffix)")
+        | [] => pure ()
   -- an auxiliary belongs to a public root if some proper prefix is a non-internal new name
   let newNames : NameSet := r.newConsts.foldl (fun s c => s.insert c.name) {}
   let publicRootOf (n : Name) : Bool :=
@@ -490,24 +514,25 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     let hasPl := n.components.any fun c => match c with
       | .str .anonymous s => (plComponent? s).isSome | _ => false
     let underRoot := roots.any (·.isPrefixOf user)
-    -- Provenance classes (LEAN-NAMES.md): scoped = private, or generated. "Generated" means
-    -- an instance the user did not name (anonymous `instance`, `deriving` outputs) together
-    -- with its auxiliaries, or an internal/hygienic name outside any public root. Names
-    -- that attributes, `alias`, notation or `initialize` create are public: two
-    -- workspaces producing them must collide.
-    let generated := genRoots.any (·.isPrefixOf n)
+    -- Provenance classes (LEAN-NAMES.md): scoped = private, or an internal/hygienic name
+    -- outside any public root. Auto-named instances, deriving outputs and names that
+    -- attributes, `alias`, notation or `initialize` create are public: two workspaces
+    -- producing them must collide.
     let (auto, _) ← (isAutoDeclOrPrivate_Internal n).toIO coreCtx coreSt
+    -- eager auxiliaries of a public root are public (`casesOn`, `injEq`, …); internal
+    -- auxiliaries (`_proof_n`, `match_n`, `_sizeOf_n`, …) are scoped even under one
     let cls : NameClass :=
-      if isPrivateName n || hasPl || generated then .scoped
+      if isPrivateName n || hasPl then .scoped
       else if roots.contains n then .pub
-      else if auto then (if underRoot || publicRootOf n then .pubAux else .scoped)
+      else if auto then (if (underRoot || publicRootOf n) && !n.isInternal && !n.hasMacroScopes
+        then .pubAux else .scoped)
       else .pub
-    -- generated instance names are pinned by the capsule (`genMarker`), so their spelling,
-    -- including any project suffix, is part of the identity
+    -- canonical instance names are written into the capsule (`genMarker`), so replay and
+    -- export produce the same spelling
     let l := normName sess.mainModule n
-    let _ := suffix
     members := members.push { local_ := l, cls, info := canonLevelParams ci }
-    memberRecs := memberRecs.push { name := n, local_ := l, cls := classNameOf cls, kind := kindOf ci }
+    memberRecs := memberRecs.push { name := n, local_ := l, cls := classNameOf cls, kind := kindOf ci
+                                    stock := chosen[n]? }
   -- hygienic names: number them per group in creation order
   let mut hygCount : Std.HashMap Name Nat := {}
   for i in [0:members.size] do
@@ -518,17 +543,18 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
       let l' := Name.mkNum l k
       members := members.set! i { members[i]! with local_ := l' }
       memberRecs := memberRecs.set! i { memberRecs[i]! with local_ := l' }
-  -- canonical order and uniqueness of local identities
-  let order := (Array.range members.size).qsort fun i j =>
-    (members[i]!.local_.toString) < (members[j]!.local_.toString)
-  members := order.map fun (i : Nat) => members[i]!
-  memberRecs := order.map fun (i : Nat) => memberRecs[i]!
-  for i in [1:members.size] do
-    if members[i]!.local_ == members[i-1]!.local_ then
+  -- local identities must be unique (they key metadata and in-memory references)
+  let sortedLocals := (members.map (·.local_.toString)).qsort (· < ·)
+  for i in [1:sortedLocals.size] do
+    if sortedLocals[i]! == sortedLocals[i-1]! then
       diags := diags.push (mkDiag "unsupported" "identity-clash"
-        s!"two members normalize to {members[i]!.local_}")
+        s!"two members normalize to {sortedLocals[i]!}")
   let memberSet : Std.HashMap Name Name :=
     members.foldl (fun m x => m.insert x.info.name x.local_) {}
+  let wireDep : String → Name → Option (String × Nat) := fun pid l => do
+    let (d, ls) ← sess.pkgs[pid]?
+    let i ← ls.idxOf? l
+    pure (d, i)
   -- Resolve references.
   let rec resolve (fuel : Nat) (c : Name) : Except String Ref := do
     match fuel with
@@ -544,19 +570,26 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     if sess.scaffold.contains c then
       throw s!"reference to capsule scaffolding constant {c}"
     throw s!"unresolvable reference {c}"
+  -- canonical member numbering (OPEN-22); metadata follows the same order
+  members ← match canonicalOrder baseId members (resolve 64) wireDep with
+    | .ok ms => pure ms
+    | .error e => return (sess, fc, .failed (diags.push (mkDiag "reject" "encode" e)))
+  let recOf : Std.HashMap Name MemberRec := memberRecs.foldl (fun m r => m.insert r.local_ r) {}
+  memberRecs := members.map fun m => recOf.getD m.local_ default
+  let wire := WireCtx.ofMembers members wireDep
   for i in [0:members.size] do
     let m := members[i]!
-    if let .ok b := encodeGroup baseId #[m] (resolve 64) then
+    if let .ok b := encodeGroup baseId #[m] (resolve 64) wire then
       memberRecs := memberRecs.set! i { memberRecs[i]! with hash := (groupIdOf b).take 12 |>.toString }
     let stmt : EncMember := { m with info := .axiomInfo {
       name := m.info.name, levelParams := m.info.levelParams, type := m.info.type, isUnsafe := false } }
-    if let .ok b := encodeGroup baseId #[stmt] (resolve 64) then
+    if let .ok b := encodeGroup baseId #[stmt] (resolve 64) wire then
       memberRecs := memberRecs.set! i { memberRecs[i]! with typeHash := groupIdOf b }
       if let some t := sess.targets.find? (·.name == m.info.name) then
         unless t.typeHash == groupIdOf b do
           diags := diags.push (mkDiag "reject" "changed-target"
             s!"{m.info.name} does not have the pinned statement {t.typeHash.take 12} (got {(groupIdOf b).take 12})")
-  let encoded := encodeGroup baseId members (resolve 64)
+  let encoded := encodeGroup baseId members (resolve 64) wire
   let bytes ← match encoded with
     | .ok b => pure b
     | .error e => return (sess, fc, .failed (diags.push (mkDiag "reject" "encode" e)))
@@ -718,6 +751,7 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   -- Update the index.
   let mut index := sess.index
   for (m : MemberRec) in memberRecs do index := index.insert m.name (pid, m.local_)
+  let pkgs := sess.pkgs.insert pid (declId, memberRecs.map (·.local_))
   let mut effectTargets := sess.effectTargets
   -- attribute-like commands target constants; an effect group with members (notation,
   -- `compile_inductive%`, …) targets only workspace constants, not the base it mentions
@@ -734,6 +768,6 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   let rejected := if diags.any (·.severity == "reject") then sess.rejected.insert pid else sess.rejected
   let initGroups := if r.touched.any (fun (n, _) => n == `Lean.regularInitAttr || n == `Lean.builtinInitAttr)
     then sess.initGroups.push pid else sess.initGroups
-  return ({ sess with index, effectTargets, rejected, initGroups }, fc, .group g bytes)
+  return ({ sess with index, pkgs, effectTargets, rejected, initGroups }, fc, .group g bytes)
 
 end Paralean

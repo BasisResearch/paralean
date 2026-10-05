@@ -2,12 +2,13 @@
 # Elaboration cost of Elab.async=false vs the stock default (true), stock `lean`, per corpus
 # file; best of N runs of wall time, plus CPU time. Output: TSV on stdout.
 set -u
-here="$(cd "$(dirname "$0")/.." && pwd)"; repo="$(cd "$here/../.." && pwd)"
-export TMPDIR="${TMPDIR:-$HOME/tmp}"
+source "$(dirname "$0")/env.sh"
+require_toolchain; require_mathlib
+here="$P1_DIR"; repo="$REPO"
 N="${N:-3}"
-LEAN="$HOME/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean"
-ML="$repo/.deps/mathlib"
-MLP="$(cd "$ML" && lake env printenv LEAN_PATH)"
+LEAN="$(lean --print-prefix)/bin/lean"
+ML="$PARALEAN_MATHLIB"
+MLP="$(mathlib_lean_path)"
 FX="$repo/corpus/fixtures"
 (cd "$FX" && lake build >/dev/null 2>&1)
 FXP="$FX/.lake/build/lib/lean:$MLP"

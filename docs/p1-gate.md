@@ -2,41 +2,101 @@
 
 Date 2026-10-05. Implementation: `impl/p1/` (Lean 4 library and CLI on the stock nightly
 `193c3589`, no fork). Corpus and thresholds: [p1-corpus.md](p1-corpus.md) (P0).
-Reproduce with `impl/p1/scripts/run-all.sh`. Logs are in `impl/p1/results/` (`summary.md`,
-`g2.txt`, `stats-*.txt`, `negative.log`, `fasync*.log`, `async-cost.tsv`).
 Notes: [interface findings](p1-interface-notes.md), [fork hooks](p1-fork-hooks.md),
 [running log](p1-log.md).
 
-## Verdict (round 2, after the `simp` hook; first-round numbers are in the log)
+## Reproduce
 
-| Gate | Status | Measured |
+```sh
+impl/p1/scripts/bootstrap.sh --mathlib   # elan toolchain (checked: 193c3589), fixtures, paralean,
+                                         # Mathlib at the versions.json pin + `lake exe cache get`
+impl/p1/scripts/run-all.sh               # every gate; logs in impl/p1/results/
+```
+
+Everything lives in the repository (`.runs/p1`, `.deps/mathlib`); every path can be
+overridden, and scripts stop with a message when a dependency is missing. Details:
+[impl/p1/README.md](../impl/p1/README.md). No Mathlib build is needed: the gate uses the
+pinned cache.
+
+**Two runs are reported.**
+
+- **Local (this report's numbers unless marked).** macOS arm64, elan toolchain,
+  Mathlib from `lake exe cache get`, the final binary (canonical instance names,
+  encoding v2 with canonical numbering and group-ID pins, audit namespace). Logs:
+  `impl/p1/results/local-darwin/`. The machine was shared with other jobs (load 40–90),
+  so its times are not comparable.
+- **AWS (first gate, marked *aws*).** Linux x86-64 (`aws-dev`), elan toolchain, the
+  previous binary. Logs: `impl/p1/results/*.log`. Its timing and `Elab.async` cost
+  figures below are from that run.
+
+**Toolchain provenance.** Both runs used elan's `leanprover/lean4-nightly:nightly-2026-10-03`.
+The corpus protocol (p1-corpus.md, G4) names P0's frozen source build
+`~/p0-deps/lean-stock-193c3589` instead. Both are commit `193c3589`; only the version string
+in `.olean` headers differs (p0-log.md), and the release binary rejects the source build's
+`Init.olean`. No run used the frozen binary. To do so, set `PARALEAN_SYSROOT` and
+`PARALEAN_LAKE` to it and use a Mathlib built by it (`impl/p1/README.md`).
+
+## Verdict
+
+| Gate | Status | Measured (local run) |
 |---|---|---|
-| G1 replay, fixtures (100 % required) | **PASS** | per group in a fresh session with exact dependencies: 120/120. The `simp` used-lemma hook plus the attribute-set rule (see below) closed the 2 F10 gaps |
-| G1 replay, Mathlib (≥ 98 %, 0 silent) | **PASS** (99.7 %) | per group, exact dependencies: 1102/1105. The 3 remaining groups carry diagnostics: 2 `grind` proofs (fixed by the file-prefix capsule) and M08's module-dependent literal. 0 silent failures |
-| G1 kernel | PASS | stock kernel accepts 1225/1225 transported groups; 41 reserved names re-realized, never transported |
-| G2 membership and classes | PASS | 1026/1026 commands' public sets equal the oracle after the provenance corrections; 0 reserved names published; 0 commands split; 0 multi-command groups; every group without a public name has an anchor |
-| G3 capsule size | PASS | fixtures: max capsule 390 B (≤ 4 KiB); per-group capsule/command ratio p50 ≤ 5.5 and p95 ≤ 6.6. Mathlib: p50 1.5–3.8 (≤ 4), p95 2.1–9.8 (≤ 16), max 2,868 B (≤ 64 KiB), total 0.53 MB = 2.2× source (≤ 6×); 0 groups above the p95 bound |
-| G4 export build | PASS (build); identity 97.7 % | 22/22 exports build with stock `lake build` (21/21 fixture files, F14 as 3 modules; 18/18 Mathlib modules). Of declaration groups re-encoded from the **built `.olean`s**, 1116/1142 are byte-identical to the stored declaration ID. All 26 mismatches are `initialize`/`register_simp_attr`/local-syntax quotation bodies with module-dependent name literals (diagnosed) |
-| G5 negatives | PASS (with one deviation) | 6/6 rejected for the required reasons, N3 by the validator's kernel re-check. Deviation: rejected groups are kept in the store as unpublished audit objects ("0 staged" is not met literally) |
-| G6 B→A→B | PASS | (a) `helper_c` fails ("Unknown identifier `helper`"), no group published; (b) A's group pins B's `helper_b` package ID, and `helper_c` pins A's; (c) export = 3 modules `ws_b.B → ws_a.A → ws_b.B.Part2`, acyclic, stock build OK, 3/3 identical |
-| F-async soundness | PASS | (a) neither bad theorem nor its user is published; (b) forged publication rejected by the validator independently; (c) cancelled or killed capture publishes nothing; (d) recorded below |
+| G1 replay, fixtures (100 % required) | **PASS** | per group in a fresh session with exact dependencies: 120/120 (core 103, F14 3, F15 7, F16 7; the G4 probe fixture adds 8/8). *aws*: 120/120. The first round (exact dependencies only) did **not** pass: 118/120, failing on F10. It passed only after round 2 added the `simp` used-lemma hook and the attribute-set rule (below); those were added after the first measurement |
+| G1 replay, Mathlib (≥ 98 %, 0 silent) | **PASS** (99.9 %) | 1104/1105. The remaining group is M08 `by_cases!`, a module-dependent literal, with a diagnostic. *aws*: 1102/1105; the two `grind` groups that failed there (M03, M16) now pass, consistent with canonical numbering ignoring auxiliary spellings (their isolated proof terms had differed). Round 1 on *aws*: 1068/1105 = 96.7 %, a FAIL before the hook. 0 silent failures |
+| G1 kernel | PASS | stock kernel accepts 1225/1225 transported groups; reserved names re-realized, never transported |
+| G2 membership and classes | PASS (with 5 explained instance spellings) | auto-named instances and deriving outputs are now **public** (p0-interfaces.md §3.1). 1122/1127 commands' public sets equal the oracle's; the 5 differences are all instance spellings (below). 0 reserved names published; 0 commands split; 0 multi-command groups; every group without a public name has an anchor. *aws* (old classification, instances excluded): 1026/1026 |
+| G3 capsule size | PASS | fixtures: max capsule 390 B (≤ 4 KiB). Mathlib: max 2,868 B (≤ 64 KiB); per-module p50 ratio ≤ 3.8, p95 ≤ 9.8; 0 groups above the p95 bound |
+| G4 export build | PASS (build); identity 97.7 % | 23/23 exports build with stock `lake build` (fixtures, F14 as 3 modules, F15, F16, G4 probe, 18/18 Mathlib modules). 1116/1142 groups re-encoded from the **built `.olean`s** equal the stored group ID; the 26 others are module-dependent literals (diagnosed). `#print axioms`: 1445/1448 public members have exactly the reference build's axiom set, 0 differ; the 3 others are M13's `@[to_dual]` names derived from canonical instance names, which the reference does not contain (G2 below). Source/line mappings: 5/5 diagnostics of the exported modules resolve to the agent file and line (100 %), and all 5 match a stock diagnostic of the agent file at that line (4 distinct lines). The corpus itself produces no diagnostics on accepted code; the 5 come from the G4 probe |
+| G5 negatives | **PASS** | 6/6 rejected for the required reasons, N3 by the validator's kernel re-check of the audit copy. **0 staged**: rejected groups are written only to the store's `audit/` namespace, never to the publishable `objects/`/`meta/` (per negative: publishable objects 0, audit objects 1–2). *aws*: rejected groups were kept beside published ones (deviation, now fixed) |
+| G6 B→A→B | PASS | (a) `helper_c` fails ("Unknown identifier `helper`"), no group published; (b) A's group pins B's `helper_b`, `helper_c` pins A's; (c) export = 3 modules `ws_b.B → ws_a.A → ws_b.B.Part2`, acyclic, stock build OK, 3/3 identical |
+| F-async soundness | PASS | (a) neither bad theorem nor its user is published; (b) forged publication rejected by the validator independently; (c) a capture cancelled after 4 commands, or `SIGKILL`ed 20 s into Mathlib.Order.Basic, leaves 0 objects (`results/local-darwin-cancel.log`; *aws*: 2 and 142 orphaned, unpublished objects); (d) below |
+| Instance collisions | PASS | `instance : Inhabited (Nat × String × Bool)` in two workspaces → the same canonical name → `version-conflict` after merging, and export refuses; in one workspace → `instance name collision` error (`impl/p1/fixtures/instdup`) |
 
 **Feasibility:** command-granularity capture, content-addressed storage, stock-kernel
-replay and clean stock export work at Mathlib scale on this corpus, and G1–G6 pass (G5
-with the audit-storage deviation below). With the `simp` used-lemma hook and the attribute-set rule, exact-dependency
-capsules suffice for 99.8 % of groups. Two classes remain open: `grind` (2 groups, which
-need a `grind` lemma record) and module-dependent name literals in `initialize`-style
-bodies (26 groups; identity cannot be module-independent).
+replay and clean stock export work on an 18-module Mathlib sample (1,105 groups) and the
+fixtures, and G1–G6 pass. With the `simp` used-lemma hook and the attribute-set rule,
+exact-dependency capsules suffice for 1224 of 1225 groups. One class remains open:
+module-dependent name literals in `initialize`-style bodies (26 groups whose identity
+cannot be module-independent, and M08's isolated replay).
 
-## Per-set results (final run)
+### G2: instance spellings
+
+Capture names an anonymous `instance` `instFoo…_<8 hex>` (p1-interface-notes.md §6) and
+records the stock spelling, which the comparison maps back. 78 anonymous instances in the
+corpus were named this way; all are public. The five commands whose public sets still
+differ from the oracle's:
+
+- M13 L382, L593, L786: `@[to_dual]` on an anonymous instance. The dual instance's name is
+  translated from the base's canonical name (`Pi.instMinForall_d560181b` from
+  `Pi.instMaxForall_d560181b`), where the oracle has the translation of the stock name.
+  The derived name is a function of the base name, so it collides exactly when the base
+  does.
+- M16 L677, L770: stock Lean named these `instTransTransGen_mathlib_1` and
+  `instTransReflTransGen_1` because an earlier instance of the file had taken the
+  unsuffixed name. With canonical names the earlier instance is `…_624233da`, the later
+  `…_0e2330ee`: the environment-dependent `_1` disappears, which is the point of the
+  scheme.
+
+### G4: axioms and source mappings
+
+`scripts/g4.py` (with `tools/Axioms.lean`) compares the axioms of every public member of
+each export, as `#print axioms` reports them (`collectAxioms`), with the reference build of
+the agent's file: the corpus fixture package, a stock compile of F16, or the Mathlib cache.
+It then runs stock `lean` on every export module and maps each diagnostic back through the
+group header (`-- paralean group <id> (<ws>/<file>:<start>-<end>)`) to the agent's file and
+line. The corpus's accepted code produces no diagnostics, so the mapping check uses a
+probe fixture (`impl/p1/fixtures/diagmap`) with five deprecation and unused-variable
+warnings, including one in a multi-line command.
+
+## Per-set results (local run; *aws* in `impl/p1/results/summary.md`)
 
 | set | groups | source replay | kernel replay | isolated (exact deps) | export | identical in stock oleans | capsule B median / p95 / max |
 |---|---|---|---|---|---|---|---|
-| core F01–F13 | 103 | 103/103 | 103/103 | 103/103 | OK | 81/85 (+18 effect-only) | 224 / 333 / 390 |
+| core F01–F13 | 103 | 103/103 | 103/103 | 103/103 | OK | 81/85 (+18 effect-only) | 222 / 316 / 390 |
 | F14 B→A→B | 3 | 3/3 | 3/3 | 3/3 | OK | 3/3 | 202 / 227 / 227 |
 | F15 module | 7 | 7/7 | 7/7 | 7/7 | OK | 6/6 (+1) | 195 / 298 / 298 |
 | F16 Mathlib attrs | 7 | 7/7 | 7/7 | 7/7 | OK | 6/6 (+1) | 215 / 334 / 334 |
-| M01–M18 | 1,105 | 1104/1105 | 1105/1105 | 1102/1105 | 18/18 OK | 1020/1042 (+63) | per module in `results/summary.md` |
+| G4 probe (diagmap) | 8 | 8/8 | 8/8 | 8/8 | OK | 7/7 (+1) | — |
+| M01–M18 | 1,105 | 1104/1105 | 1105/1105 | 1104/1105 (*aws* 1102) | 18/18 OK | 1020/1042 (+63) | per module in `results/local-darwin/summary.md` |
 
 "Source replay" re-elaborates the closure's capsules in one session and requires the
 identical declaration ID. That is stronger than G1's interface equality: it covers
@@ -65,12 +125,15 @@ which never appear in the proof term. Round 2 closes them with two dependency so
   workspace targets, and `set_option X` depends on the group that declared `X` (or on the
   initializer groups, for trace classes).
 
-Remaining (3/1225), all diagnosed:
+Remaining in the local run (1/1225): M08 `by_cases!`, a module-dependent literal; no
+capsule fixes it.
 
-- M03 `ascFactorial_eq_ascFactorialBinary` and M16 `bicompl_map_eq_of_injective`: both
-  `grind`; the proof terms differ in isolation; the file-prefix capsule fixes them. An
-  exact fix needs a `grind` used-lemma record (fork-hooks item 11).
-- M08 `by_cases!`: module-dependent literal; no capsule fixes it.
+The *aws* run also had M03 `ascFactorial_eq_ascFactorialBinary` and M16
+`bicompl_map_eq_of_injective` (both `grind`; the file-prefix capsule fixed them). With
+encoding v2 they replay with exact dependencies. The likely reason is that their isolated
+proof terms differed only in the spelling of scoped auxiliaries, which v2 no longer
+hashes (inferred from the change, not separately diffed). A `grind` used-lemma record
+(fork-hooks item 11) is still the exact fix for `grind` dependencies.
 
 ## Unsupported frontend effects (diagnosed, never guessed)
 
@@ -106,17 +169,18 @@ file.
   mismatch, `sorryAx` in the axiom audit, and dependency on a rejected group. No
   worker signal is consulted. Kernel replay names constants by identity when source
   replay fails, so it is independent of source replay.
-- (c) Cancellation after N commands, and `SIGKILL` mid-file on Mathlib.Order.Basic,
-  leave 2 and 142 staged objects respectively but no file record, so nothing is
-  published.
+- (c) Capture writes nothing until the file is committed. A capture cancelled after 4
+  commands and a capture `SIGKILL`ed 20 s into Mathlib.Order.Basic leave 0 objects, 0
+  metadata and 0 file records (local). The *aws* run, before buffering, left 2 and 142
+  orphaned objects without a file record (unpublished, but staged).
 
-## Cost of `Elab.async := false` (stock `lean`, best of 3)
+## Cost of `Elab.async := false` (*aws*, stock `lean`, best of 3)
 
 Fixtures F01–F16 and FAsync: 5.5 s → 5.9 s wall. Mathlib M01–M18: 11.7 s async → 16.3 s
 sync wall (×1.39); worst case M18 0.77 s → 1.68 s (×2.2). Total CPU time goes down
 (24.6 s → 22.4 s). Per-file data: `results/async-cost.tsv`.
 
-## P1 costs
+## P1 costs (*aws*)
 
 Capture of M01–M18: 20.8 s, versus 16.3 s for stock synchronous `lean` (×1.28, including
 encoding and the axiom audit). Whole-module source replay: 50.0 s (×3.1). Kernel replay:
@@ -126,8 +190,17 @@ checkout's packages, with no network.
 ## Deviations from the corpus protocol
 
 - Builds use the elan toolchain `leanprover/lean4-nightly:nightly-2026-10-03` (commit
-  `193c3589`), not P0's frozen binary path.
+  `193c3589`), not P0's frozen binary path (see "Toolchain provenance").
 - Publication happens per file capture: one file record at the end. The protocol's
   per-group receipts and acknowledgements are P2/P3.
-- G4's `#print axioms` comparison with the oracle build was not run separately.
-  Byte-identical groups have identical axioms; the 26 differing groups are listed above.
+- G1 fixtures passed only in round 2, after the `simp` hook and the attribute-set rule
+  were added in response to the round-1 failures. The thresholds were not changed.
+- Derived instances (`deriving`) keep the deriving handler's spelling; only anonymous
+  `instance` commands get the canonical OPEN-24 name. Renaming derived instances needs
+  the fork (fork-hooks item 14).
+- `Elab.async`: exports pin it off (OPEN-14). An experiment exporting the core fixtures
+  without the pin (`results/local-darwin/core-async-export.log`) verifies 79/85 groups:
+  the 4 module-dependent groups as usual, plus 2 whose proof auxiliaries are spelled
+  `_proof_1_1` under async elaboration. Group identity no longer depends on those
+  spellings (canonical numbering), but the export verifier still finds scoped members by
+  spelling, so OPEN-14 also needs position-based matching there.

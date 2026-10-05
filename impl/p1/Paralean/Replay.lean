@@ -54,7 +54,7 @@ unsafe def sourceReplay (cat : Catalog) (gids : Array String) (imports : Array N
     throw <| IO.userError s!"replay header failed: {hdrDiags.map toString}"
   let covered := (matRes.map (·.covered)).getD #[]
   let sess0 := match matRes with
-    | some mr => { sess0 with index := mr.identOf sess0.cmdState.env }
+    | some mr => { sess0 with index := mr.identOf sess0.cmdState.env, pkgs := mr.pkgs }
     | none => sess0
   let fc0 : FileCtx := {
     workspace := "<replay>", file := "<replay>", module, imports := imps, input := hdr
@@ -247,7 +247,7 @@ unsafe def kernelReplay (store : Store) (cat : Catalog) (gids : Array String) (s
       if out.any (fun (k : KernelRes) => k.gid == d && !k.ok) then
         diags := diags.push (mk "rejected-dep" s!"depends on group {d.take 12}, which the validator rejected")
     let env := sr.sess.cmdState.env
-    match decodeGroup bytes (replayName sr gid env) with
+    match decodeGroup bytes (cat.unwire g) (replayName sr gid env) with
     | .error e =>
       out := out.push { gid, ok := false, added := 0, realized := 0, diags := #[mk "decode" e] }
     | .ok dg =>

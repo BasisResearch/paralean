@@ -1,0 +1,44 @@
+### M02 Mathlib.Algebra.Group.Defs
+capture M02:Mathlib/Algebra/Group/Defs.lean
+  effect ec5583ea moduleDoc L10 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  effect a826004b assertNotExists L19 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl ceac1de5 declaration L25 members=15 pub=4 realized=0 deps=0 fe=0 bytes=5714
+  decl 66e2ff51 declaration L36 members=13 pub=4 realized=0 deps=0 fe=0 bytes=5359
+  effect 22919c5c attribute L47 members=0 pub=0 realized=0 deps=0 fe=2 bytes=74
+  decl 43390613 declaration L53 members=2 pub=2 realized=0 deps=2 fe=1 bytes=1370
+  decl 85f741d2 declaration L57 members=2 pub=0 realized=0 deps=3 fe=1 bytes=1558
+  decl 86080ff8 declaration L61 members=2 pub=2 realized=0 deps=4 fe=1 bytes=2219
+  decl c890732a declaration L65 members=2 pub=2 realized=0 deps=3 fe=2 bytes=2119
+  decl dcfae26a declaration L68 members=2 pub=2 realized=0 deps=3 fe=3 bytes=2482
+  decl 4a4e69de declaration L72 members=2 pub=2 realized=0 deps=3 fe=4 bytes=2484
+  decl 4d11e41a declaration L76 members=2 pub=2 realized=0 deps=3 fe=5 bytes=2434
+  decl f235bdaa declaration L80 members=2 pub=2 realized=0 deps=3 fe=6 bytes=1882
+  decl 038a681e declaration L84 members=2 pub=2 realized=0 deps=3 fe=7 bytes=2434
+  decl 9f9ee241 declaration L88 members=2 pub=2 realized=0 deps=3 fe=8 bytes=2066
+  decl 1122ad92 declaration L92 members=8 pub=2 realized=2 deps=6 fe=1 bytes=4191
+  decl c55c7d6a declaration L101 members=10 pub=2 realized=2 deps=4 fe=1 bytes=4239
+  decl 8137a420 declaration L110 members=14 pub=5 realized=0 deps=1 fe=1 bytes=5697
+  decl a2ee548d declaration L113 members=16 pub=5 realized=0 deps=1 fe=2 bytes=6033
+  decl dbd604e6 declaration L123 members=4 pub=2 realized=2 deps=5 fe=9 bytes=1815
+  decl 24c73e21 declaration L128 members=2 pub=2 realized=2 deps=5 fe=9 bytes=1429
+  effect b6bbbb1c lemma L132 members=2 pub=2 realized=0 deps=5 fe=8 bytes=2332
+  effect e28f6d74 lemma L135 members=2 pub=2 realized=0 deps=5 fe=9 bytes=2336
+  effect f4b21b9c lemma L138 members=2 pub=2 realized=0 deps=5 fe=10 bytes=2348
+  effect 04bf92ef lemma L141 members=2 pub=2 realized=0 deps=5 fe=11 bytes=2344
+  effect 28ee9aa9 moduleDoc L147 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  effect 48ddc165 initialize_simps_projections L152 members=0 pub=0 realized=0 deps=0 fe=15 bytes=74
+  effect d6770300 initialize_simps_projections L153 members=0 pub=0 realized=0 deps=0 fe=15 bytes=74
+  effect 7c056aea initialize_simps_projections L154 members=0 pub=0 realized=0 deps=0 fe=14 bytes=74
+  effect 5396acf3 initialize_simps_projections L155 members=0 pub=0 realized=0 deps=0 fe=14 bytes=74
+  => 30 groups, 10 skipped, 0 diagnostics (0 reject)
+capture-time 6.53 s maxrss 485744 KB
+source replay: 30/30 groups reproduce their declaration ID (5620 ms)
+kernel replay: 30/30 groups accepted; 102 declarations added, 0 reserved names re-realized (126 ms)
+isolated replay (exact deps only): 30/30
+replay-time 43.65 s maxrss 486432 KB
+export: 1 modules, 30 groups, 11740 bytes of source
+  Mathlib.ParaleanExport.Algebra.Group.Defs: 30 groups; imports #[Mathlib.Algebra.Group.DivInvMonoid]
+stock lake build: OK (21962 ms)
+verify: 22/22 declaration groups identical in the stock-built oleans; 8 effect-only groups (build-checked)
+export-time 48.32 s maxrss 1009120 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":647,"median":372,"p95":647,"sum":11366},"commandBytes":{"max":455,"median":138,"sum":4837},"diagnostics":[],"encodingBytes":{"max":6033,"median":2219,"sum":65477},"groups":30,"ratio":{"p50":2.742424,"p95":6.243243},"rejected":0,"skipped":10}

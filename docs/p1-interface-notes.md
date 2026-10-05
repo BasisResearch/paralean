@@ -13,9 +13,11 @@ Each item gives the evidence and the choice P1 made.
 - P1 choice: capture runs synchronously, and every exported module pins
   `set_option Elab.async false`. With that pin, 14/14 probe groups and 3/3 B→A→B groups
   re-encode identically from the stock-built `.olean`s.
-- **Decided (parent, 2026-10-05):** the fork forces `Elab.async false` everywhere:
-  capture, validator, export and the `remote%` elaborator. The setting is not
-  overridable; option changes are rejected with a diagnostic. P1 implements this for
+- **Decided:** this is the v1 position in p0-interfaces.md §4.3, architecture.md and
+  lean-integration.md: `Elab.async` is off everywhere, including the interactive
+  server, and is not overridable. Restoring asynchronous interactive elaboration is a
+  fork target tracked as OPEN-14, conditional on async and sync captures of the corpus
+  giving equal group IDs under canonical numbering (OPEN-22). P1 implements this for
   capture (`reject:async-override`) and pins it in replay and export. Fork locations:
   [p1-fork-hooks.md](p1-fork-hooks.md) item 1.
 - Measured cost (stock `lean`, best of 3, `impl/p1/results/async-cost.tsv`): Mathlib
@@ -40,7 +42,7 @@ identity after these normalizations; all were needed to make replay reproduce ID
 | hygienic decl names | `initFn._@.M.<hash>._hygCtx._hyg.2` | `initFn._hyg.<k>`, k = per-group creation order |
 | hygienic binder names | `x._@.M.<hash>._hygCtx._hyg.5` | macro scopes erased (kernel ignores binder names) |
 | hygienic universe params | `v._@.M….` in `noConfusionType` | renamed injectively by position, `v._hyg_<i>` |
-| generated instance suffix | `instInhabitedProdNat_fix` | project suffix stripped from the identity; export keeps module roots so Lean regenerates it |
+| auto-named instance | stock `instInhabitedProdNat_fix`, `instFoo_1` | none needed: an anonymous `instance` gets the canonical name `instInhabitedProdNat_<8 hex>` at capture (§6), which the capsule writes explicitly; derived instances keep the deriving handler's spelling, and export keeps module roots so Lean regenerates it |
 
 Hygienic *name literals inside terms* (e.g. `register_simp_attr`'s `initFn` bodies)
 cannot be normalized; such groups are module-dependent and reported.
@@ -74,3 +76,83 @@ Kernel dependencies are not enough for capsules:
 - `attribute [...] c` commands become effect groups that consumers of `c` depend on.
 - Section-local effects (`local notation`, `attribute [local …]`, `open scoped`) are not
   published. Their text travels in the capsule of every later command in the section.
+
+## 6. Canonical instance names (OPEN-24, implemented)
+
+P1 follows the decided scheme of p0-interfaces.md §3.2. An anonymous `instance` written in
+source is named
+
+    <ns>.<stock base name, no `_n`, no project suffix>_<first 8 hex of H("v0/insttype", τ)>
+
+where `τ` is the elaborated instance type (all binders, including section variables,
+auto-bound implicits and instance arguments) and `H` is SHA-256 over the domain tag, a NUL
+byte and an injective text of `τ`: every `Expr` constructor has its own tag, binder names
+and `mdata` are erased, binder kinds are kept, universe parameters are numbered by first
+occurrence, and constants are spelled by their module-independent identity (`normName`).
+Example: `instance : Foo Nat` in `F08` is `F08.instFooNat_7d9f17e6`. The two instances
+`Inhabited (ULift.{1} Nat)` and `Inhabited (ULift.{2} Nat)`, which stock Lean names
+`instInhabitedULiftNat` and `instInhabitedULiftNat_1` depending on order, get
+`…_2672ce46` and `…_ad3bb490`.
+
+Implementation: `Paralean/InstName.lean` (fork-hooks item 14). Capture records the stock
+spelling as metadata (`MemberRec.stock`) for the G2 oracle comparison only.
+
+**Injectivity.** Within one namespace, the name is a function of `τ`, so equal types give
+equal names (the duplicate-instance collision LEAN-NAMES.md's `instance_collision`
+requires). The text of `τ` is injective on types modulo alpha-renaming, binder names,
+`mdata` and level-parameter renaming, none of which changes which instance it is.
+Different types therefore get different names unless the 32-bit truncations collide.
+A collision needs the same namespace, the same stock base name *and* the same 8 hex
+digits: for n instances sharing a base name, the chance of any clash is about
+n² / 2³³ (n = 100: about 1 in 860,000). A clash is never resolved by renaming. Within one
+environment the hook reports `instance name collision: … is already declared`; across
+workspaces the two groups publish the same public name, and the registry's ordinary
+collision check reports it (`version-conflict`, `run-negative.sh`, fixture
+`impl/p1/fixtures/instdup`). Either way the cost of a hash clash is a spurious,
+diagnosed collision, never an unsound merge, and the user resolves it by naming one
+instance explicitly.
+
+**Where it does not apply (P1).**
+
+- Instances that a deriving handler synthesizes (`deriving Repr`, `deriving instance`) keep
+  the handler's spelling (`instReprShape`). A stock export re-runs the handler and cannot
+  be told a name, so the prototype cannot rename them without a fork; the fork changes
+  `mkInstName` (Deriving/Util.lean:95) to the same scheme. P1 still never accepts a `_n`
+  deduplicated derived name: capture rejects it as `instance-name-clash`. These names are
+  public and collide by spelling, which is environment-independent once `_n` is excluded,
+  but not injective (two derived instances whose types share head symbols share a name).
+- Anonymous instances inside `mutual` blocks bypass the `declaration` elaborator; capture
+  reports `unsupported:noncanonical-instance` (none in the corpus).
+- The stock name for an instance whose type mentions macro-scoped constants is fresh
+  (hygienic); the hook leaves those to the stock elaborator.
+- The hook elaborates such a command twice (once to read the type). The fork computes the
+  name from the elaborated header directly.
+- Source that refers to an anonymous instance by its stock name (`@instFooNat`) must use
+  the canonical name instead. No corpus file does: all 18 Mathlib modules and the fixtures
+  capture with 0 rejections under the canonical scheme.
+- Attributes that derive names from an instance's name (`@[to_dual]`) derive them from the
+  canonical name (`Pi.instMinForall_d560181b` from `Pi.instMaxForall_d560181b`). Such a
+  derived name is a function of the base name, so it collides exactly when the base does.
+
+## 7. Group identity: canonical numbering and group-ID pins (OPEN-22, OPEN-23, implemented)
+
+The group encoding is now `paralean-group-v2`:
+
+- `self` references carry the member's canonical index, not its spelling. Members are
+  numbered as p0-interfaces.md §3.4 says: public members by name; then scoped members in
+  order of first reference from the public members' types and values (depth-first,
+  left to right); then unreferenced scoped members sorted by their encoding with
+  self-references written `self(⊥)`.
+- Public members carry their name in the bytes. Scoped members carry none; their spelling
+  is metadata (`MemberRec.local_`). Two groups that differ only in the spelling of a
+  `_proof_n`, `match_n` or private auxiliary therefore have the same group ID.
+- `dep` references pin the dependency's **group ID** (its declaration ID) and member index
+  (OPEN-23 option (a)). The package ID still pins the capsule through the group's `deps`
+  and `feDeps` metadata, which decoding uses to map a group ID back to a package. The
+  package ID hashes the group ID, the capsule and the frontend dependencies, as before.
+- Eager auxiliaries of a public base (`casesOn`, `injEq`, `ctorIdx`, …) are `pubAux`;
+  internal auxiliaries under a public root (`_proof_n`, `match_n`, `_sizeOf_n`, …) are now
+  scoped, so they are numbered rather than named.
+
+Effect on G4: the export is verified against the stored group ID by matching scoped
+members to constants by spelling; identities are unchanged by relocation as before.

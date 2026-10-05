@@ -1,0 +1,64 @@
+### M14 Mathlib.Data.List.Defs
+capture M14:Mathlib/Data/List/Defs.lean
+  effect 9ba4a309 moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 88429097 declaration L31 members=1 pub=1 realized=0 deps=0 fe=0 bytes=298
+  decl 8fddea70 declaration L34 members=1 pub=1 realized=0 deps=0 fe=0 bytes=271
+  decl 0c98d555 declaration L39 members=2 pub=1 realized=0 deps=0 fe=0 bytes=559
+  decl 98b3d1ca declaration L44 members=1 pub=1 realized=0 deps=1 fe=0 bytes=329
+  decl 2cb6db57 declaration L45 members=1 pub=1 realized=0 deps=1 fe=1 bytes=356
+  decl 9f10561d declaration L47 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2142
+  decl c55ef977 declaration L54 members=1 pub=1 realized=0 deps=0 fe=2 bytes=276
+  decl 193bbe1a declaration L59 members=1 pub=1 realized=0 deps=0 fe=2 bytes=428
+  decl c2001726 declaration L64 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1813
+  decl 7e8492be declaration L80 members=1 pub=1 realized=0 deps=0 fe=2 bytes=253
+  decl d5b98240 declaration L86 members=1 pub=1 realized=0 deps=0 fe=2 bytes=254
+  decl 4acbdae6 declaration L98 members=1 pub=1 realized=0 deps=0 fe=2 bytes=622
+  decl e0bcfa44 declaration L106 members=1 pub=1 realized=0 deps=0 fe=2 bytes=622
+  decl 6394c494 declaration L122 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1898
+  decl bc2ad775 declaration L127 members=1 pub=1 realized=0 deps=1 fe=2 bytes=450
+  decl 9fc83a1d declaration L134 members=6 pub=1 realized=9 deps=1 fe=2 bytes=1918
+  decl 1fa39c1f declaration L144 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2111
+  decl 8cf28e4b declaration L162 members=9 pub=1 realized=5 deps=0 fe=3 bytes=14399
+  decl 61c3755e declaration L173 members=1 pub=1 realized=0 deps=2 fe=3 bytes=640
+  decl bc33a4bb declaration L179 members=1 pub=1 realized=0 deps=1 fe=3 bytes=288
+  decl 424220e9 declaration L190 members=4 pub=1 realized=6 deps=1 fe=3 bytes=928
+  decl 0c61288e declaration L209 members=4 pub=1 realized=3 deps=2 fe=3 bytes=879
+  decl 7954d6ff declaration L226 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1554
+  decl d86e3d7a declaration L236 members=1 pub=1 realized=0 deps=0 fe=0 bytes=289
+  decl 62448c8c declaration L240 members=1 pub=1 realized=0 deps=0 fe=5 bytes=336
+  decl 8e6b7483 declaration L251 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1374
+  decl 6cdb2a75 declaration L260 members=2 pub=1 realized=0 deps=1 fe=0 bytes=672
+  decl 4ca11e9e declaration L271 members=11 pub=1 realized=0 deps=0 fe=0 bytes=6456
+  decl 1b424d06 declaration L285 members=1 pub=1 realized=0 deps=1 fe=5 bytes=523
+  decl 12948582 declaration L293 members=6 pub=1 realized=0 deps=1 fe=0 bytes=1714
+  decl a7abfc4f declaration L310 members=5 pub=1 realized=8 deps=0 fe=5 bytes=2165
+  decl 75ceb86a declaration L329 members=1 pub=1 realized=0 deps=1 fe=5 bytes=450
+  decl e4a60871 declaration L344 members=4 pub=1 realized=4 deps=1 fe=5 bytes=1440
+  decl 13b4d37b declaration L362 members=1 pub=1 realized=0 deps=1 fe=6 bytes=426
+  decl 9d6a0cf3 declaration L378 members=1 pub=1 realized=0 deps=0 fe=7 bytes=563
+  effect cc91bafa moduleDoc L384 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 82e79768 declaration L393 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2861
+  decl f22c2c82 declaration L398 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2820
+  decl 6e095d3d declaration L403 members=5 pub=1 realized=0 deps=1 fe=0 bytes=3446
+  decl 91c41237 declaration L408 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2235
+  decl f6dd2fa3 declaration L417 members=5 pub=1 realized=6 deps=0 fe=7 bytes=982
+  decl c67f8359 declaration L423 members=5 pub=2 realized=3 deps=1 fe=7 bytes=1057
+  decl 931c3132 declaration L435 members=1 pub=1 realized=0 deps=2 fe=7 bytes=1712
+  decl 8af51f1a declaration L439 members=1 pub=1 realized=0 deps=3 fe=7 bytes=683
+  decl 361254b0 declaration L446 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1747
+  decl 5e050c19 declaration L454 members=3 pub=1 realized=0 deps=1 fe=9 bytes=2133
+  decl ed3dad9f declaration L461 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2377
+  decl 6a9ff45e declaration L470 members=3 pub=1 realized=0 deps=1 fe=10 bytes=3571
+  decl fd1efbf2 declaration L487 members=1 pub=1 realized=0 deps=0 fe=11 bytes=235
+  => 50 groups, 25 skipped, 0 diagnostics (0 reject)
+capture-time 3.68 s maxrss 505952 KB
+source replay: 50/50 groups reproduce their declaration ID (2894 ms)
+kernel replay: 50/50 groups accepted; 155 declarations added, 1 reserved names re-realized (81 ms)
+isolated replay (exact deps only): 50/50
+replay-time 19.95 s maxrss 509168 KB
+export: 1 modules, 50 groups, 29363 bytes of source
+  Mathlib.ParaleanExport.Data.List.Defs: 50 groups; imports #[Batteries.Data.List.Basic, Batteries.Logic, Mathlib.Basic.SProd, Mathlib.Control.Functor, Mathlib.Data.Nat.Notation]
+stock lake build: OK (9245 ms)
+verify: 48/48 declaration groups identical in the stock-built oleans; 2 effect-only groups (build-checked)
+export-time 16.80 s maxrss 1027840 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1043,"median":514,"p95":953,"sum":28836},"commandBytes":{"max":744,"median":272,"sum":16403},"diagnostics":[],"encodingBytes":{"max":14399,"median":879,"sum":75703},"groups":50,"ratio":{"p50":1.916667,"p95":3.242991},"rejected":0,"skipped":25}

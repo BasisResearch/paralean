@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Aggregate impl/p1/results/*.log into results/summary.md (P1 gate tables)."""
-import json, re, sys, pathlib
+import json, os, re, sys, pathlib
 
-R = pathlib.Path(__file__).resolve().parent.parent / "results"
+R = pathlib.Path(os.environ.get("PARALEAN_RESULTS", pathlib.Path(__file__).resolve().parent.parent / "results"))
 
 def parse(text):
     d = {}

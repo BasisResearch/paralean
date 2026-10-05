@@ -54,7 +54,7 @@ unsafe def replayCapsule (sess : Session) (fc : FileCtx) (g : GroupRec) (src : S
         let ok := g'.declId == g.declId
         if !ok && (← IO.getEnv "PARALEAN_DEBUG").isSome then
           let nameOf (r : Ref) : Except String Name := pure (Name.mkSimple (toString r))
-          if let .ok dg := decodeGroup bytes' nameOf then
+          if let .ok dg := decodeGroup bytes' (g'.unwire fun _ => none) nameOf then
             for (l, _, ci) in dg.members do
               let h := (g'.members.find? (·.local_ == l)).map (·.hash) |>.getD ""
               if !g.members.any (fun o => o.local_ == l && o.hash == h) then
@@ -108,6 +108,8 @@ structure MatResult where
   arts : NameMap ImportArtifacts
   covered : Array String
   identOf : Environment → Std.HashMap Name (String × Name)
+  /-- Wire information of the covered packages (see `Session.pkgs`). -/
+  pkgs : Std.HashMap String (String × Array Name) := {}
   buildMs : Nat := 0
   diags : Array Diag
 
@@ -273,7 +275,7 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
         if d1.isEmpty then
           let inits := mr.covered.filter fun gid => (cat.get! gid).touched.any fun (n, _) =>
             n == `Lean.regularInitAttr || n == `Lean.builtinInitAttr
-          sess0 := { s1 with index := mr.identOf s1.cmdState.env, initGroups := inits }
+          sess0 := { s1 with index := mr.identOf s1.cmdState.env, pkgs := mr.pkgs, initGroups := inits }
           sel := sel.filter (!mr.covered.contains ·)
         else selDiags := selDiags ++ d1
   let baseEnv := sess0.cmdState.env
@@ -349,6 +351,7 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
   let diagsRef ← IO.mkRef diags
   let okRef ← IO.mkRef nOk
   let pendingRef ← IO.mkRef deferred
+  let writesRef ← IO.mkRef (#[] : Array (GroupRec × ByteArray))
   let availRef ← IO.mkRef (sel.foldl (·.insert ·) ({} : Std.HashSet String))
   -- test hook: cancel the capture after N commands (models a killed or cancelled worker)
   let cancelAfter := (← IO.getEnv "PARALEAN_CANCEL_AFTER").bind (·.toNat?)
@@ -363,9 +366,9 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
     fcRef.set fc'
     match out with
     | .group g bytes =>
-      let declId ← store.putObject bytes
-      unless declId == g.declId do throw <| IO.userError "store: declaration ID mismatch"
-      store.putMeta g
+      -- nothing is written until the file record: a cancelled or failed capture stages
+      -- nothing in the publishable store
+      writesRef.modify (·.push (g, bytes))
       if g.diags.any (·.severity == "reject") then
         rejectedRef.modify (·.push g.gid)
       else
@@ -426,6 +429,15 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
     workspace := ws, file := relFile, module, imports, groups := groups
     skipped := ← skippedRef.get, diags := ← diagsRef.get, prelude := sel ++ deferred
     rejected := ← rejectedRef.get, wsImports, preludeOk := ← okRef.get }
+  -- Commit: accepted groups into the publishable namespace, rejected groups into the
+  -- audit namespace (never published, exported or used as dependencies), then the file
+  -- record, which is what publishes.
+  for (g, bytes) in ← writesRef.get do
+    let dst := if g.diags.any (·.severity == "reject") then store.audit else store
+    dst.init
+    let declId ← dst.putObject bytes
+    unless declId == g.declId do throw <| IO.userError "store: declaration ID mismatch"
+    dst.putMeta g
   let _ ← store.putFileRec rec_
   return rec_
 

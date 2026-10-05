@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """G2 (docs/p1-corpus.md): compare P1's published public names per command with the
 oracle's `public` set (corpus/reference/<id>.jsonl), and count reserved names published,
-and groups lacking an anchor. Usage: g2.py GATE_WORKDIR"""
+and groups lacking an anchor. Usage: g2.py GATE_WORKDIR
+
+Provenance corrections (docs/p1-corpus.md G2, as revised with canonical instance names):
+auto-named instances and deriving outputs are public on both sides. P1 spells an anonymous
+instance canonically (`instFooNat_<8 hex>`); its member record keeps the stock spelling
+(`stock`), which is what the oracle (stock Lean) produced, so the comparison maps the
+canonical name back to it. Reserved names never count as public."""
 import json, sys, pathlib, collections
 
 repo = pathlib.Path(__file__).resolve().parents[3]
@@ -20,7 +26,10 @@ def store_groups(store):
     out = []
     for r in files.values():
         for gid in r["groups"] + r.get("rejected", []):
-            g = json.load(open(store / "meta" / f"{gid}.json"))
+            p = store / "meta" / f"{gid}.json"
+            if not p.exists():  # rejected groups live in the audit namespace
+                p = store / "audit" / "meta" / f"{gid}.json"
+            g = json.load(open(p))
             out.append((r["file"], g))
     return out
 
@@ -33,9 +42,9 @@ def oracle(id_):
         rows.append(json.loads(line))
     return rows
 
-def gen_instance(n, row):
-    # provenance correction: auto-named instances / deriving outputs are scoped-generated
-    return any(c.startswith("inst") for c in n.split("."))
+def oracle_spelling(m):
+    """Name of a P1 member as stock Lean spells it (canonical instance -> stock name)."""
+    return name(m["stock"]) if m.get("stock") else name(m["name"])
 
 cases = []  # (oracle id, store, file filter)
 core = work / "core" / "store"
@@ -59,7 +68,14 @@ for id_, store, ffilter in cases:
     by_line = collections.defaultdict(set)
     reserved_pub = 0
     for g in groups:
-        by_line[g["capsule"]["startLine"]] |= {name(n) for n in g["publicNames"]}
+        pubs = {name(n) for n in g["publicNames"]}
+        by_line[g["capsule"]["startLine"]] |= {oracle_spelling(m) for m in g["members"] if name(m["name"]) in pubs}
+        for m in g["members"]:
+            if m.get("stock"):
+                tot["canonical_instances"] += 1
+                if name(m["name"]) not in pubs:
+                    tot["canonical_instance_not_public"] += 1
+                details.append(f"{id_} L{g['capsule']['startLine']}: canonical instance {name(m['name'])} (stock {name(m['stock'])})")
         if not g["publicNames"] and g["members"] and g.get("anchor") is None:
             tot["no_anchor"] += 1
     oracle_reserved = set()
@@ -73,8 +89,10 @@ for id_, store, ffilter in cases:
                 reserved_pub += 1
     tot["reserved_published"] += reserved_pub
     for row in rows:
-        exp = {a["name"].replace("«", "").replace("»", "") for a in row["added"] if a["class"] == "public" and not gen_instance(a["name"], row)}
-        got = {n for n in by_line.get(row["line"], set()) if not gen_instance(n, row)}
+        exp = {a["name"].replace("«", "").replace("»", "") for a in row["added"] if a["class"] == "public"}
+        got = set(by_line.get(row["line"], set()))
+        tot["oracle_instances"] += sum(1 for n in exp if n.split(".")[-1].startswith("inst"))
+        tot["instances_public_both"] += sum(1 for n in exp & got if n.split(".")[-1].startswith("inst"))
         if not exp and not got:
             continue
         tot["commands"] += 1
@@ -87,5 +105,8 @@ for id_, store, ffilter in cases:
 print(f"G2 commands with public names: {tot['commands']}; exact public-set match {tot['match']}; "
       f"mismatch {tot['mismatch']}; reserved names published {tot['reserved_published']}; "
       f"groups without public name lacking an anchor {tot['no_anchor']}")
+print(f"instances: oracle public names spelled inst* {tot['oracle_instances']}, public in P1 too "
+      f"{tot['instances_public_both']}; anonymous instances named canonically {tot['canonical_instances']} "
+      f"(not public: {tot['canonical_instance_not_public']})")
 for d in details:
     print("  " + d)

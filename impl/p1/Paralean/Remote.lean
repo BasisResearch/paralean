@@ -243,6 +243,9 @@ def groupState (g : GroupRec) (closure : Array GroupRec) : CommandElabM (Option 
   if names.isEmpty then return none
   let resolve ← resolverFor closure g
   let env ← getEnv
+  let wire : WireCtx := {
+    selfIdx := fun l => g.members.findIdx? (·.local_ == l)
+    dep := wireDepOf fun pid => closure.find? (·.gid == pid) }
   let mut problems := #[]
   for m in g.members do
     match names[m.local_]? with
@@ -263,11 +266,11 @@ def groupState (g : GroupRec) (closure : Array GroupRec) : CommandElabM (Option 
       if isPlaceholder || m.kind == "theorem" then
         let stmt : EncMember := { em with info := .axiomInfo {
           name := ci.name, levelParams := ci.levelParams, type := ci.type, isUnsafe := false } }
-        match encodeGroup baseId #[stmt] resolve with
+        match encodeGroup baseId #[stmt] resolve wire with
         | .ok b => unless groupIdOf b == m.typeHash do problems := problems.push s!"statement of {n} differs"
         | .error e => problems := problems.push e
       else
-        match encodeGroup baseId #[em] resolve with
+        match encodeGroup baseId #[em] resolve wire with
         | .ok b => unless (groupIdOf b).take 12 == m.hash do problems := problems.push s!"body of {n} differs"
         | .error e => problems := problems.push e
   return some problems

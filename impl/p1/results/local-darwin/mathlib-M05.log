@@ -1,0 +1,33 @@
+### M05 Mathlib.Data.Nat.BitIndices
+capture M05:Mathlib/Data/Nat/BitIndices.lean
+  effect ab1421d6 moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 87f34afb declaration L36 members=1 pub=1 realized=0 deps=0 fe=0 bytes=486
+  decl d9eb5bb5 declaration L41 members=1 pub=1 realized=1 deps=1 fe=0 bytes=350
+  decl 56c51771 declaration L43 members=1 pub=1 realized=0 deps=1 fe=1 bytes=671
+  decl 39c7f287 declaration L45 members=1 pub=1 realized=0 deps=1 fe=2 bytes=747
+  decl c52dbcec declaration L49 members=1 pub=1 realized=0 deps=1 fe=2 bytes=745
+  decl 4dac82c1 declaration L53 members=1 pub=1 realized=0 deps=2 fe=2 bytes=952
+  decl 2926f09d declaration L57 members=1 pub=1 realized=0 deps=2 fe=3 bytes=891
+  decl 24a97243 declaration L61 members=4 pub=1 realized=0 deps=4 fe=1 bytes=6191
+  decl 2fc3ff0d declaration L69 members=2 pub=1 realized=0 deps=2 fe=4 bytes=597
+  decl eb4e8669 declaration L71 members=1 pub=1 realized=0 deps=2 fe=5 bytes=3832
+  decl 3c957c44 declaration L79 members=1 pub=1 realized=0 deps=3 fe=5 bytes=1804
+  decl 1da86cdb declaration L82 members=1 pub=1 realized=0 deps=4 fe=5 bytes=4833
+  effect fcb66466 alias L93 members=1 pub=1 realized=0 deps=2 fe=0 bytes=641
+  decl f6c3e825 declaration L95 members=2 pub=1 realized=0 deps=4 fe=6 bytes=7482
+  decl 6a9a8bae declaration L100 members=4 pub=1 realized=0 deps=4 fe=7 bytes=15084
+  effect 30a365fd alias L128 members=1 pub=1 realized=0 deps=2 fe=0 bytes=708
+  decl 11f87188 declaration L130 members=1 pub=1 realized=0 deps=2 fe=9 bytes=793
+  decl 27b2e3fb declaration L133 members=1 pub=1 realized=0 deps=2 fe=10 bytes=660
+  => 19 groups, 6 skipped, 0 diagnostics (0 reject)
+capture-time 3.12 s maxrss 735520 KB
+source replay: 19/19 groups reproduce their declaration ID (2924 ms)
+kernel replay: 19/19 groups accepted; 26 declarations added, 0 reserved names re-realized (48 ms)
+isolated replay (exact deps only): 19/19
+replay-time 12.56 s maxrss 735952 KB
+export: 1 modules, 19 groups, 9532 bytes of source
+  Mathlib.ParaleanExport.Data.Nat.BitIndices: 19 groups; imports #[Mathlib.Algebra.BigOperators.Ring.List, Mathlib.Algebra.Order.Group.Nat, Mathlib.Algebra.Order.Sub.Basic, Mathlib.Algebra.Ring.Nat, Mathlib.Data.List.Sort]
+stock lake build: OK (8145 ms)
+verify: 18/18 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 18.91 s maxrss 1451264 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1753,"median":350,"p95":1753,"sum":9018},"commandBytes":{"max":1540,"median":139,"sum":5071},"diagnostics":[],"encodingBytes":{"max":15084,"median":747,"sum":47541},"groups":19,"ratio":{"p50":2.517986,"p95":3.813333},"rejected":0,"skipped":6}
