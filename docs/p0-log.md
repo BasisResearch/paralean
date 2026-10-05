@@ -151,6 +151,25 @@ source bytes, 161 reserved and 283 scoped-private constants.
   default), and package-ID pinning accepted pending OPEN-22/23.
 - 23 open decisions are marked.
 
+### Store choice and interface triage (later on 2026-10-05)
+
+- [store.md](store.md): FoundationDB for metadata (markers, revisions, receipts,
+  certificates, catalogue, fence, tokens, target records), S3 for payloads, payload
+  written and hash-verified before any metadata names it. etcd is rejected on size;
+  DynamoDB is the fallback under the same mapping. The refinement argument maps the
+  modelled store to one abstract replica (`W = R = {{σ}}`), each committed
+  transaction to a fixed sequence of model steps, and paginated scans to model scans
+  through grow-only key spaces. It states what it does not cover: unresolved unknown
+  commit outcomes, deletion and GC, backup restore, cross-region, and the stores' own
+  guarantees. OPEN-9 is marked resolved pending sign-off.
+- `Elab.async`: the v1 position is now P1's measured decision (off everywhere, not
+  overridable; ×1.39 wall on M01–M18, ×2.2 worst file). OPEN-14 becomes the fork
+  target of restoring asynchronous interactive elaboration.
+- §13 triage: OPEN-1, 2, 10, 18 (marker bytes, if P2 stores §11.1 markers), 22, 23
+  and 24 block P2, each with a proposed resolution awaiting a decision. OPEN-26 is
+  new: a rendered collision rename is not committable under Groups' `buildable` and
+  `current`. Open decisions: 23 (OPEN-8, 9 and 15 resolved; OPEN-26 added).
+
 ## Gate status
 
 | Item | Status | Numbers |
@@ -162,4 +181,5 @@ source bytes, 161 reserved and 283 scoped-private constants.
 | Boundary experiments on the pinned nightly | PASS | 14/14, output identical to 4.34.1 |
 | Extraction corpus | PASS (defined; stock baseline) | 21 fixture files + 18 Mathlib modules, oracle 0 errors; 6 negatives; gates G1–G6 set for P1 |
 | Protocol verification | PASS (unchanged) | `verification/` not modified; recorded results stand (verification/results/README.md) |
-| Interface freeze | DRAFT | `docs/p0-interfaces.md` v0, 23 OPEN decisions |
+| Store choice and refinement argument | WRITTEN (awaiting sign-off) | `docs/store.md`: FoundationDB metadata, S3 payloads, payload before metadata; refinement to one abstract replica with stated exclusions; resolves OPEN-9 |
+| Interface freeze | DRAFT | `docs/p0-interfaces.md` v0, 23 OPEN decisions, 7 of them blocking P2 with proposed resolutions (§13) |

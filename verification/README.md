@@ -1,8 +1,11 @@
 # Verification scope
 
 The checked subject is the abstract distribution protocol. The production Lean
-fork, serializer, validator service, source exporter, object-store adapter and
-LSP transport are not implemented or verified here.
+fork, validator service, object-store adapter and LSP transport are not
+implemented. The P1 prototype (`impl/p1`, on stock Lean) implements capture, an
+encoder, a local content-addressed store, replay and stock export; none of it is
+verified here. The mapping of the modelled store to FoundationDB and S3 is a
+written argument ([store.md](../docs/store.md)), not a proof.
 
 ## Models
 
@@ -158,15 +161,22 @@ Read the component notes for exact theorem statements and mappings:
 [catalogue certificates](veil/CATALOG-CERTIFICATES.md).
 [The joint protocol](veil/PROTOCOL.md) strengthens the original component models;
 its catalogue and publication-marker guards are part of the service contract.
-The [hardened protocol](veil/HARDENED.md) adds receipt-gated publication, target
-ownership with a recorded head, fenced catalogue writes, publication and catalogue
-certificates and a Lean naming layer.
+The [hardened protocol](veil/HARDENED.md) adds receipt-gated staging, target
+ownership with a recorded head, fenced catalogue writes, and publication and
+catalogue certificates. The [Lean naming layer](veil/LEAN-NAMES.md) and
+[transparent workspaces](veil/WORKSPACES.md) are separate refinements of the Groups
+registry; `Hardened` imports neither.
 The TLA/Veil correspondence is documented, not mechanically translated.
 
 ## Assumptions and limits
 
 - `Valid` is the trusted checker/policy interface; `Exportable` is the source-build
   interface. The proofs do not implement or verify them.
+- The receipt guard binds a receipt to the group ID only, not to worker, request,
+  policy or checker version. `HeldReceipt` reads the global in-flight packet set,
+  which any actor may extend, so on reachable states it is equivalent to the static
+  `Receipted` fact. The substance of the receipt results is the `receipt_sound`
+  assumption.
 - Buildability alone does not imply task completion. `Delivery` checks every
   immutable required contract; `Admission` pairs completion with an actual durable
   current commit. An empty snapshot cannot finish a nonempty required task.

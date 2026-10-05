@@ -5,7 +5,8 @@ Source inspected: Lean nightly `193c3589a4fc16c4059261ab38cfa365eb24f323`
 `0575336843263378752eeb5f4c75a612327768a2` specifies that toolchain; upstream
 build/test CI passed. [Mathlib toolchain](https://github.com/leanprover-community/mathlib4-nightly-testing/blob/0575336843263378752eeb5f4c75a612327768a2/lean-toolchain),
 [CI evidence](https://github.com/leanprover-community/mathlib4-nightly-testing/actions/runs/37115079169).
-No full local Mathlib build or distributed fork is claimed in this delivery.
+P0 later rebuilt that Mathlib commit locally with the stock binary ([p0-log](p0-log.md)).
+No distributed fork is claimed.
 
 ## Existing boundaries
 
@@ -44,7 +45,9 @@ theorem-use checking can reuse an already validated environment. Signatures may
 travel first, but authenticated bodies must remain retrievable.
 
 V1 fetches missing declaration packages before kernel checking and materializes
-a compatible environment locally. Independent declarations check on different
+a compatible environment locally. (The P1 prototype's `remote%` skips theorem
+proofs in working copies behind a placeholder axiom; that is a prototype shortcut,
+not the v1 design. See [architecture](architecture.md#transparent-workspaces).) Independent declarations check on different
 machines. Large storage chunks can live elsewhere without adding a new `Expr`
 constructor or changing Lean's logic. This is fine-grained distributed admission;
 it does not distribute every recursive kernel traversal across the network.
@@ -69,7 +72,7 @@ only after prefetch/memory measurements demonstrate a need.
 | `src/Lean/Server/Rpc` and session code | Preserve session affinity/generation for remote RPC references | Avoid treating pointers as global IDs |
 | New exporter plus Lake integration | Replay source capsules, regenerate acyclic imports, clean stock build | Stock build validates portability |
 | Separate validator executable | Reconstruct trusted dependency environment, enforce axiom and target policies | Explicit additional trusted service |
-| `addConstAsync` path and command snapshot completion | Keep local asynchronous elaboration; the capture hook waits for every kernel task of the command before staging. Validation and export run synchronously | No other worker sees a statement before its proof is kernel-checked |
+| `addConstAsync` path and command snapshot completion, `Elab.async` defaults in `Elab/Frontend.lean` and `Server/FileWorker.lean` | V1 forces `Elab.async` off everywhere (capture, validator, export, `remote%`, interactive server) and rejects changes to it; the capture hook still waits for every kernel task of the command and rejects theorems re-added as axioms after a kernel failure. Restoring asynchronous interactive elaboration is a fork target (p0-interfaces OPEN-14) | No other worker sees a statement before its proof is kernel-checked |
 | C++ kernel `environment.cpp`, `type_checker.cpp`, `declaration.h` | No semantic edits for v1; regression tests and profiling | Keep base kernel behavior |
 
 This is a thin frontend/runtime fork plus services, not a new proof calculus.
@@ -135,3 +138,8 @@ acceptance alone does not enforce a target contract or prohibit axioms.
 `ProofGraph.lean` tests AND/OR scheduling behavior. Its open task metadata is not
 the declaration admission protocol. These are boundary experiments, not benchmarks
 or evidence that the selected nightly fork has been implemented.
+
+The P1 prototype (`impl/p1`) runs capture, replay and export as a library on the
+stock pinned nightly. It measured the `Elab.async` cost above: ×1.39 wall time on
+an 18-module Mathlib sample (×2.2 on the worst file), with total CPU time lower.
+[p1-fork-hooks.md](p1-fork-hooks.md) lists the source locations a fork would patch.

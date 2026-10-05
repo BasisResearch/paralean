@@ -8,9 +8,10 @@ See [Lean integration](lean-integration.md), [plan](plan.md), and
 
 Distribute immutable, checked declaration groups and exact dependencies. Replicate
 small discovery records by set union. Resolve names by explicit revision ancestry.
-Concurrent conflicting declarations are recorded as conflicts, and the workspace
-view renames every lineage but the one with the lowest root (Lamport time, author).
-Keep candidates
+Concurrent conflicting declarations are recorded as registry conflicts. For each
+name, the workspace view keeps it for the live head with the lowest lineage key
+(the lowest (Lamport time, author) among the head and the groups it revises for
+that name) and renames the others. Keep candidates
 private until validation and durable replication succeed. Export ordinary source
 snapshots that compile under the unmodified pinned Lean.
 
@@ -27,7 +28,7 @@ invalidating an existing snapshot. Safety and availability have separate assumpt
 | Distributed checking and LSP | Immutable jobs and remote document sessions | Local/remote results agree |
 | Ordinary agent workflow | Files, Lake, Lean diagnostics/search/completion | Unmodified agent uses remote helpers |
 | No speculative library facts | Admit only completed checked declarations | Failed drafts and `sorry` remain private |
-| Avoid stepping on others' work | Private workspaces; explicit conflicts | Duplicate names eventually diagnose |
+| Avoid stepping on others' work | Private workspaces; explicit conflicts; deterministic renaming in the view | Duplicate names eventually diagnose in the registry; every copy renders the same winner |
 | Upstream edits | Exact dependency versions; retained snapshots | Changed bodies invalidate current consumers |
 | No new axioms or weakened targets | Trusted policy and frozen target contracts | Adversarial submissions rejected |
 | Machine cycles allowed | Declaration DAG; mutual groups atomic | B.helper_b → A.helper → B.helper_c works |
@@ -73,13 +74,20 @@ normal. Arbitrary internal expression fragments would require their local contex
 
 1. A edits ordinary files in its private workspace.
 2. Elaboration completes a declaration group against a pinned environment.
-3. Capture exact dependencies and frontend inputs. Local elaboration keeps Lean's
-   asynchronous mode. The capture hook waits until every kernel task of the
-   command has succeeded, so no other worker sees a statement before its proof is
-   kernel-checked. Capture names generated auxiliaries deterministically.
+3. Capture exact dependencies and frontend inputs. V1 forces `Elab.async` off
+   everywhere, including the interactive server, and rejects changes to it,
+   because auxiliary names differ between modes (P1 measured ×1.39 wall time on an
+   18-module Mathlib sample, ×2.2 on the worst file). Restoring asynchronous
+   interactive elaboration is a fork target (p0-interfaces OPEN-14). The capture
+   hook waits until every kernel task of the command has succeeded, and rejects a
+   theorem Lean re-added as an axiom after a kernel failure, so no other worker sees
+   a statement before its proof is kernel-checked. Capture names generated
+   auxiliaries deterministically.
 4. A trusted validator reconstructs the environment, checks the candidate, enforces
    axiom policy and compares any fixed task contract. It signs a receipt over the
-   exact group ID. A worker stages a group only while holding that receipt.
+   exact group ID, policy and checker version. A worker stages a group only while
+   holding that receipt. The model binds the receipt to the group ID only; the
+   policy and checker binding is an implementation contract.
 5. Durably store the package, source, receipt and dependency closure.
 6. Publish a small record only after durable acknowledgement.
 7. B's anti-entropy refresh adds the record to ordinary search/completion and source
@@ -209,6 +217,12 @@ local binding of that ID, so the check does not depend on which renames a copy
 currently knows. A forged `remote%` fails. In v1 the checker prefetches the missing
 declaration packages, theorem proofs included, before kernel checking (see
 [lean-integration.md](lean-integration.md)); the kernel does not demand-load bodies.
+The P1 prototype does not meet this yet. In working copies it elaborates a
+theorem's statement only and adds a receipt-backed placeholder axiom; it never
+fetches the proof, and its receipt is an HMAC under a shared key
+([p1-transparent.md](p1-transparent.md)). The validator and exporter use real
+proofs. The HMAC is a stand-in for validator signatures; v1 requires both the real
+proof and a signed receipt.
 Definitions, instances and structures load their real bodies, since definitional
 unfolding, `simp` and instance search need them. A `remote%` declaration brings
 its own dependency closure from the store, independent of the file's imports, so
@@ -270,6 +284,18 @@ lower root key arrives, when the winner is tombstoned, or when the winner's
 lineage is superseded by a revision for another of its names. When that happens, the losing author
 gets a diagnostic and a Lean rename of their own source and drafts at the next
 turn boundary. Every copy applies the same renames once it knows the same set.
+
+Rendering and committing differ. The view renders every live head, so a renamed
+loser appears and elaborates in working copies. The registry still holds two heads
+for the name: Groups' `buildable` rejects a snapshot containing both, and
+`current` rejects any snapshot containing either while the committer knows both. So
+a rendered file can show declarations that no checkpoint can contain until the
+conflict is resolved in the registry, by a revision naming both heads or by the
+loser tombstoning its group and republishing under the new name. Making the
+rendered renaming committable needs a change to the commit rule that is not
+modelled (p0-interfaces OPEN-26). The P1 prototype renames to
+`<name>_<author>_<lamport>`, outside a reserved namespace, and keys only on
+(Lamport time, author, package) because it does not model revisions.
 
 **Git and timing.** The CRDT state is the truth. Each agent's git history is
 projected from it: teammates' insertions arrive as commits authored by those
@@ -347,7 +373,9 @@ Storage owns the data; the producer does not own the only copy. A location regis
 is advisory. Unannounced power loss must work without a shutdown broadcast.
 
 The interface supplies write quorums `W`, recovery quorums `R`, and `meet(w,r)`
-belonging to both. Ack means every member of one write quorum persisted validated
+belonging to both. The chosen store ([store.md](store.md): FoundationDB for
+metadata, S3 for payloads) instantiates it with one abstract replica and
+`W = R = {{σ}}`; retention is then the stores' guarantee. Ack means every member of one write quorum persisted validated
 bytes. Failures must leave some recovery quorum alive. Every acknowledged object
 then has a surviving copy, accessible through every surviving recovery quorum.
 The proof uses this interface, not numerical majority arithmetic. V1 has no
@@ -382,9 +410,10 @@ payload certificate are each held by every live member of some write quorum. A
 record whose writer lost the fence before committing never gets a commit
 certificate, so it is never adopted, whatever happens to its bytes. The selected
 record was committed while its writer held the fence. Both conditional writes
-need a transaction that checks a fence item and writes atomically (etcd `Txn`,
-DynamoDB `TransactWriteItems` with a condition check, FoundationDB). A plain
-per-key conditional put does not suffice.
+need a transaction that checks a fence item and writes atomically. A plain
+per-key conditional put does not suffice. V1 uses FoundationDB transactions that
+read the fence key; [store.md](store.md) gives the transactions and the
+refinement argument.
 Multiwriter checkpoint aliases must expose conflicts; no hidden global consensus
 is assumed.
 

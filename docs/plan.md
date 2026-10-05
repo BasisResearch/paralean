@@ -1,7 +1,10 @@
 # Implementation plan
 
-This delivery covers design, TLA+ checks and Veil/Lean verification. The distributed
-Lean fork itself is subsequent implementation work.
+This delivery covers design, TLA+ checks, Veil/Lean verification and a P1
+prototype. The prototype (`impl/p1`, [gate report](p1-gate.md)) runs as a library
+and CLI on stock Lean, not a fork; it passes G1 to G6 (G5 with one recorded
+deviation) on 21 fixture files and an 18-module Mathlib sample. The distributed Lean fork itself is subsequent
+implementation work.
 
 The abstract protocol gates now include atomic multi-name groups, receipt/session
 binding, every required target at durable commit, and checkpoint catalog recovery
@@ -21,16 +24,22 @@ published IDs after every worker index is lost. Implement these guards together.
 Payload and manifest persistence alone do not satisfy this protocol.
 
 The [hardened protocol](../verification/veil/HARDENED.md) adds receipt-gated
-publication, single-owner target names, fenced catalogue writes, per-replica
-acknowledgement certificates and a Lean naming layer. All guards are proved on one
-joint transition. P1–P3 below carry the resulting implementation contracts.
+staging, single-owner target names, fenced catalogue writes and commit
+certificates, and per-replica publication certificates. These five guards are
+proved on one joint transition. The receipt is bound to the group ID only; binding
+it to policy and checker version is an implementation contract. The Lean naming
+layer ([LeanNames](../verification/veil/LEAN-NAMES.md)) and the transparent-workspace
+model ([Workspaces](../verification/veil/WORKSPACES.md)) are separate refinements of
+the Groups registry; `Hardened` imports neither. P1–P3 below carry the resulting
+implementation contracts.
 
 ## P0 — Pin the baseline and interfaces
 
 Lean: `nightly-2026-10-03`, commit `193c3589a4fc16c4059261ab38cfa365eb24f323`.
 Mathlib nightly: `0575336843263378752eeb5f4c75a612327768a2`; matching toolchain and
 successful build/test [CI run](https://github.com/leanprover-community/mathlib4-nightly-testing/actions/runs/37115079169).
-This is upstream build evidence, not a local full Mathlib rebuild.
+P0 also rebuilt it locally from scratch with the stock binary and ran its tests
+([p0-log](p0-log.md)).
 
 Preserve a stock binary. Freeze encoding, receipts, source capsules, revision rules,
 durable acknowledgement and snapshots. Reproduce baseline builds before modifying
@@ -39,15 +48,22 @@ Lean. Formal tooling separately pins Veil and Lean 4.32.0.
 Choose the store before P2. The models assume replicas the system controls:
 per-replica certificates, recovery-quorum enumeration and a fence register checked
 atomically with catalogue writes. Two shapes fit. (a) A linearizable replicated
-metadata store (FoundationDB, etcd) for markers, certificates, catalogue and
-fences, with large immutable payloads in an object store. A committed metadata
-transaction then discharges the quorum and certificate layers; record that
-refinement argument. (b) Self-managed replicas implementing the modelled quorum
-interface directly. Plain S3 alone fits neither, because its conditional put
-cannot check a fence held under another key. Default to (a).
+metadata store for markers, certificates, catalogue and fences, with large
+immutable payloads in an object store. A committed metadata transaction then
+discharges the quorum and certificate layers. (b) Self-managed replicas
+implementing the modelled quorum interface directly. Plain S3 alone fits neither,
+because its conditional put cannot check a fence held under another key.
+
+[Store choice](store.md) takes (a): FoundationDB for metadata, S3 for payloads,
+payload before metadata. It records the refinement argument: one abstract replica
+with `W = R = {{σ}}`, each committed transaction as a fixed sequence of model steps,
+and paginated scans justified by grow-only key spaces. It also lists what the
+argument does not cover (unresolved unknown outcomes, deletion, restore,
+cross-region). DynamoDB is the fallback under the same mapping; etcd is rejected on
+size.
 
 Gate: baseline Mathlib build, extraction corpus, protocol verification and a
-written store choice with its refinement argument.
+written store choice with its refinement argument (written; awaiting sign-off).
 
 ## P1 — Local declaration replay and stock export
 
@@ -68,7 +84,11 @@ aux-lemma reuse across groups; treat `_hyg` names as scoped. Scoped names (`_pri
 mangle them to group-unique Lean names. Reserved names (`eq_n`, `eq_def`,
 `unfold`, `induct`, `fun_cases`, `hinj`, match/congruence equations) are never
 published; consumers and the validator re-realize them from the pinned base group.
-Capture waits for the command's kernel tasks; local elaboration stays asynchronous.
+Capture waits for the command's kernel tasks. V1 forces `Elab.async` off
+everywhere (capture, validator, export, `remote%` and the interactive server) and
+rejects attempts to change it; P1 measured ×1.39 wall time on the Mathlib sample,
+×2.2 on the worst file, with lower total CPU. Restoring asynchronous interactive
+elaboration is a fork target, conditional on OPEN-14.
 See [Lean names](../verification/veil/LEAN-NAMES.md).
 
 Cover theorems, definitions, structures, inductives, mutual groups, well-founded
@@ -85,12 +105,16 @@ engineering feasibility gate.
 ## P2 — Storage and eventual registry
 
 Implement immutable writes, hash verification, durable acknowledgements, anti-entropy,
-recovery, causal revisions and conflict diagnostics. Put an existing durable store
-behind the modeled interface before inventing a storage system.
+recovery, causal revisions and conflict diagnostics on FoundationDB and S3, using the
+key layout and transactions of [store.md](store.md). Every transaction is
+idempotent, and a writer resolves an unknown commit outcome before it proceeds.
 
 Inject duplicate/reordered/lost messages, partitions, killed workers, incomplete
-uploads, corrupt bytes, validator timeouts and allowed disk loss. Convert model
-counterexamples into protocol regression fixtures. Keep GC disabled.
+uploads, corrupt bytes, validator timeouts and allowed disk loss. Add the store
+faults of [store.md](store.md#p2-obligations-from-this-choice): unknown commit
+outcomes, rotation or reassignment between a read and a commit, S3 PUT timeouts and
+killed FoundationDB processes. Convert model counterexamples into protocol
+regression fixtures. Keep GC disabled; the bucket denies deletes.
 
 Gate: no unvalidated/under-replicated publication; convergence; checkpoint recovery,
 including loss of the desktop's last manifest hash. Exercise storage enumeration
@@ -110,7 +134,10 @@ Regression fixtures must include a stale writer after fence rotation, a put befo
 rotation acknowledged and repaired after it (and never adopted), a repair copy
 after rotation, a target published just before a handover without a certificate
 quorum, and a surviving
-staged marker indistinguishable by bytes from a published one.
+staged marker indistinguishable by bytes from a published one. Under the
+single-replica mapping of [store.md](store.md) the per-replica rules hold
+trivially; the fixtures still apply, as unknown-outcome retries across a rotation
+and markers without certificate keys.
 
 Protocol gates also require admitted ancestor closure, acyclic causal ancestry,
 and freshness at each commit, including repeated commits to the same checkpoint.
@@ -141,13 +168,26 @@ response rejection and retained old snapshots.
 Gate: unchanged agent workflow, adversarial validation, clean exports, fork Lean/
 Mathlib tests and measured transfer/checking costs.
 
+`remote%` in v1 materializes the published members, theorem proofs included, and
+kernel-checks them unless the environment already holds them; it never accepts a
+body it cannot fetch (p0-interfaces §11.2). The P1 prototype differs: in working
+copies it elaborates only a theorem's statement and adds a receipt-backed
+placeholder axiom, never fetching the proof, and its receipts are an HMAC under a
+shared key ([p1-transparent.md](p1-transparent.md)). The HMAC stands in for
+validator Ed25519 signatures (§6). P3 replaces both: real proofs and signed
+receipts.
+
 Agents keep an unchanged workflow through [transparent workspaces](architecture.md#transparent-workspaces):
 `remote%` declarations checked by ID, a declaration-level RGA per file, lineage
 naming and git histories projected from the CRDT. Gate additionally: rendered
 published projections are hash-identical across copies after exchange in any order;
 superseded and tombstoned declarations leave the file; revising a collision winner
-keeps its name; forged `remote%` is rejected; B→A→B works through `remote%` without
-module cycles; a losing author receives a diagnostic and a Lean rename.
+keeps its name; forged `remote%` is rejected; no placeholder axiom appears in any
+working copy's `#print axioms`; B→A→B works through `remote%` without module
+cycles; a losing author receives a diagnostic and a Lean rename. A rendered
+collision loser elaborates in working copies, but no checkpoint containing either
+colliding group commits until a revision or tombstone resolves the registry
+conflict (see [architecture](architecture.md#transparent-workspaces)).
 
 ## P4 — Distributed LSP
 

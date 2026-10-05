@@ -3,7 +3,8 @@
 Status: **draft freeze**, 2026-10-05. It fixes the shapes P1–P3 build against: the
 encoding, declaration groups, names, source capsules, validator receipts, revisions,
 durable acknowledgements and certificates, and snapshots and catalogue records. Every
-unresolved choice is marked **OPEN-n** and collected in [§13](#13-open-decisions).
+unresolved choice is marked **OPEN-n** and collected in [§13](#13-open-decisions),
+which also marks the ones that block P2.
 A field marked OPEN is still frozen as a slot; only its contents may change. Any
 change after the freeze bumps `format` (§1.4) and is noted in [p0-log.md](p0-log.md).
 
@@ -300,15 +301,19 @@ The P1 finding: under stock asynchronous elaboration, auxiliary proofs get diffe
 names (`aux_pos._proof_1_1` asynchronously vs `_proof_1` synchronously). Export
 already pins `set_option Elab.async false`.
 
-**Decision (v0): capture also pins `Elab.async = false`.** The pin is part of
-`BaseManifest.options`, so capture, the validator, replay and the export build all use
-the same mode. The interactive server may still elaborate asynchronously. In that
-case capture re-elaborates the completed command synchronously before encoding, which
-costs one extra elaboration per published command. Independently, §3.4 makes identity
-invariant to scoped spellings and `addDecl` order. That makes the pin a
-belt-and-braces measure, not the only defence. **OPEN-14**: drop the pin once P1
-measures that async and sync captures of the whole corpus give equal group IDs under
-canonical numbering.
+**Decision (v1): `Elab.async = false` everywhere, not overridable.** The pin is part
+of `BaseManifest.options`. Capture, the validator, replay, the export build, the
+`remote%` elaborator and the interactive server all elaborate synchronously, and a
+`set_option Elab.async` in user source is rejected with a diagnostic
+([p1-interface-notes.md](p1-interface-notes.md) §1, [p1-fork-hooks.md](p1-fork-hooks.md)
+item 1). P1 measured the cost on stock `lean`: Mathlib M01–M18 wall time ×1.39, worst
+file ×2.2, total CPU time lower; the loss is within-file parallelism. There is no
+second, synchronous re-elaboration at capture. Independently, §3.4 makes identity
+invariant to scoped spellings and `addDecl` order, so the pin is not the only
+defence once OPEN-22 adopts canonical numbering. **OPEN-14** (fork target):
+restore asynchronous elaboration in the interactive server, with capture still
+synchronous or reading async results, once async and sync captures of the whole
+corpus give equal group IDs under canonical numbering.
 
 The P0 baseline shows proof bodies are **not** reproducible across build environments
 even with one binary and pinned options. The upstream CI cache and the local build
@@ -425,7 +430,9 @@ Rules (architecture §Revisions, TargetNames):
   supersession.
 - Heads(name) are the known revisions not superseded by a known descendant. Zero
   heads means unknown, one means a candidate, and more than one means an eventual
-  error. There is no automatic winner.
+  error in the registry: no checkpoint containing any of them commits. The registry
+  picks no winner; the rendered workspace view does (§11.5), without resolving the
+  registry conflict.
 - A revert is a new revision whose `groupID` points at old content. An ancestor is
   never resurrected as a head.
 - **Target names**: each target name has one store record,
@@ -474,8 +481,12 @@ DurableAck   = {kind, id, acks : set ReplicaAck}   -- acks cover some write quor
 
 Quorum systems are configuration: `W` (write quorums) and `R` (recovery quorums)
 with `meet(w, r)` for every pair. The proofs use this interface, not majority
-arithmetic. **OPEN-9**: the concrete store (an existing durable store behind this
-interface, per plan P2) and how `W`/`R` are configured for it.
+arithmetic. **OPEN-9** (resolved, pending sign-off): [store.md](store.md).
+FoundationDB holds the metadata kinds, the target records and the fence; S3 holds
+`payload`, `capsule`, `manifest` and chunk objects, written before any metadata
+that names them. The pair is one abstract replica, `W = R = {{σ}}`; physical
+redundancy is the stores' configuration (FoundationDB `triple` or
+`three_data_hall`, one region).
 
 ### 8.2 Publication
 
@@ -611,7 +622,8 @@ acknowledged, certified) ever appear in a file sequence.
 
 **Verification status.** §11.5 changes the protocol: unrelated same-name
 declarations stop being an eventual error in the rendered view and get a
-deterministic winner (the registry still records the conflict). The placement,
+deterministic winner. The registry still records the conflict, and it still
+blocks every commit containing either group (§11.5, OPEN-26). The placement,
 rendering and naming rules are modelled in `verification/tla/Workspace.tla` and
 `verification/veil/Paralean/Workspaces.lean` ([notes](../verification/veil/WORKSPACES.md)):
 only live heads render, in stable order; intention is preserved; a revised winner
@@ -677,6 +689,10 @@ of group `X`. It checks, in this order, and fails with a distinct diagnostic for
 On success, the command adds `X`'s members exactly as published (materialized from
 the store, kernel-checked locally unless the environment already holds them). The
 body term is `m`'s published value. `remote%` never accepts a body it cannot fetch.
+The P1 prototype deviates: it never fetches theorem proofs in working copies, adds
+a receipt-backed placeholder axiom instead, and checks an HMAC under a shared key
+in place of the Ed25519 signature of §6 ([p1-transparent.md](p1-transparent.md)).
+This section is the v1 requirement.
 **OPEN-16**: commands without a term body (`inductive`, `structure`, `class`,
 `mutual`, attribute-only and notation commands) use a command form,
 `remote_decl% <declId>`, with checks 1, 3 and 4 and, for check 2, comparison of every
@@ -787,6 +803,14 @@ groups follow the revision and head rules of §7.
   revision for another name (Workspaces `winner_change_explained`). A snapshot fixes the mapping in force
   at commit (`renames : set (group:…, Name, Name)` is added to `Snapshot`), and old
   snapshots keep theirs.
+- **Rendered is not committable.** The rename does not resolve the registry
+  conflict. Groups' `buildable` rejects a snapshot holding both colliding groups,
+  and `current` rejects any snapshot holding either while the committer knows both
+  heads. A working copy can therefore show and elaborate a renamed loser that no
+  checkpoint can contain until a revision naming both heads, or a tombstone of the
+  loser plus a republication under the new name, lands. Until then `renames` holds
+  no pair for an unresolved conflict. **OPEN-26**: whether the commit rule should
+  accept the rendered renaming; not modelled.
 - **Target names keep the owner rule** (§7). Only the owner stages a group declaring
   a target name, and each new proof revises the recorded head, so target names
   never reach this rule. A non-owner group declaring a target name is rejected at
@@ -831,30 +855,37 @@ stock tools:
 
 ## 13. Open decisions
 
-| ID | Decision | Default in v0 | Decide by |
-|---|---|---|---|
-| OPEN-1 | PCE vs deterministic CBOR | PCE | P1 start |
-| OPEN-2 | SHA-256 vs BLAKE3; FFI vs pure Lean | SHA-256 | before P2 |
-| OPEN-3 | Hook points for "synthesized name" provenance (instances, deriving) | post-hoc "no `declId` supplied" rule, cross-checked against the spelling classifier | P1 |
-| OPEN-4 | Renamed scoped instances: attribute re-application and capsule rewriting | re-apply with original priority | P1 export |
-| OPEN-5 | Whether constant-free commands are groups | P1's choice: global `attribute [...] c` commands are anchored *effect groups* that consumers of `c` depend on (`frontendDeps`); section-local effects (`local notation`, `attribute [local …]`, `open scoped`) are not published and travel as text in later capsules of the section | P1 |
-| OPEN-6 | Extension coverage list for `FrontendEffects` | list in §4.2; others are unsupported | P1 (measured on corpus) |
-| OPEN-7 | Receipt binding to request, epoch and target | slots reserved; required from P3 | P3 |
-| OPEN-8 | ~~Target ownership transfer and owner failure~~ | resolved: epoch-fenced reassignment with recorded head (§7) | — |
-| OPEN-9 | Concrete durable store; quorum configuration | to choose in P2 | P2 |
-| OPEN-10 | Fence/rank authority | counter in the catalogue store | P2 |
-| OPEN-11 | Job envelope fields | reserved shape §10 | P3 |
-| OPEN-12 | Whether docstrings and `declRange` belong in capsule metadata or effects | capsule metadata (not hashed) | P1 |
-| OPEN-13 | Treatment of `meta`/`initialize` groups (IO at import) in validators | validator replays `initialize` only for allow-listed effects; others unsupported | P1 |
-| OPEN-14 | Drop the `Elab.async = false` capture pin | keep the pin; identity is already spelling- and order-invariant (§3.4) | after P1 measures async vs sync IDs |
-| OPEN-15 | ~~Model and proof for Lamport collision resolution and file sequences~~ | resolved: `Workspace.tla`, `Workspaces.lean`; byte printing and git projection remain unmodelled | — |
-| OPEN-16 | `remote_decl%` command form for commands without a term body | as §11.2 | P1/P3 |
-| OPEN-17 | Rewriting capsule text that refers to renamed names | not rewritten; the export may fail with a diagnostic | P1 export |
-| OPEN-18 | RGA vs Fugue | RGA; `rightAnchor` slot reserved | before P3 |
-| OPEN-19 | Delete authority for file elements | author or controller | P3 |
-| OPEN-20 | Moves (re-insert after tombstone) | not supported in v0 | P3 |
-| OPEN-21 | History-preserving git projection | rewritten `paralean/projection` branch plus immutable snapshot tags | P5 |
-| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 |
-| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 |
-| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 |
-| OPEN-25 | Spelling of the reserved fresh-name namespace | a final component the parser rejects in user source | P1 |
+"Blocks P2" means P2 persists bytes or keys that depend on the decision, or
+implements the behaviour itself; changing it afterwards bumps `format` and
+invalidates P2's stored data and fixtures. For those rows, "Proposed" is a concrete
+resolution for sign-off. It is not a decision; the default column stays in force
+until one is recorded here and in [p0-log.md](p0-log.md).
+
+| ID | Decision | Default in v0 | Decide by | Blocks P2 | Proposed (not decided) |
+|---|---|---|---|---|---|
+| OPEN-1 | PCE vs deterministic CBOR | PCE | P1 start | yes: the bytes of every ID | PCE exactly as §1.1. P1's encoder is brought to §1.1 byte for byte and checked against golden vectors shared with the validator |
+| OPEN-2 | SHA-256 vs BLAKE3; FFI vs pure Lean | SHA-256 | before P2 | yes: every ID and the S3 checksum ([store.md](store.md)) | SHA-256. Capture keeps P1's pure-Lean `Sha256.lean`; the validator and the store client use a native implementation tested against it. Storing the hashed preimage lets S3's `x-amz-checksum-sha256` verify uploads |
+| OPEN-3 | Hook points for "synthesized name" provenance (instances, deriving) | post-hoc "no `declId` supplied" rule, cross-checked against the spelling classifier | P1 | no | |
+| OPEN-4 | Renamed scoped instances: attribute re-application and capsule rewriting | re-apply with original priority | P1 export | no | |
+| OPEN-5 | Whether constant-free commands are groups | P1's choice: global `attribute [...] c` commands are anchored *effect groups* that consumers of `c` depend on (`frontendDeps`); section-local effects (`local notation`, `attribute [local …]`, `open scoped`) are not published and travel as text in later capsules of the section | P1 | no (P1's choice is in force) | |
+| OPEN-6 | Extension coverage list for `FrontendEffects` | list in §4.2; others are unsupported | P1 (measured on corpus) | no; additions bump `format` | |
+| OPEN-7 | Receipt binding to request, epoch and target | slots reserved; required from P3 | P3 | no (slots reserved) | |
+| OPEN-8 | ~~Target ownership transfer and owner failure~~ | resolved: epoch-fenced reassignment with recorded head (§7) | — | n/a | |
+| OPEN-9 | ~~Concrete durable store; quorum configuration~~ | resolved, pending sign-off: [store.md](store.md) (FoundationDB metadata, S3 payloads, one abstract replica) | — | n/a | |
+| OPEN-10 | Fence/rank authority | counter in the catalogue store | P2 | yes: fenced writes are P2 work | `fence` key in FoundationDB, rotated by the controller in one read-modify-write transaction that also writes the signed token `token/<rank>` (store.md T3); never an atomic add |
+| OPEN-11 | Job envelope fields | reserved shape §10 | P3 | no | |
+| OPEN-12 | Whether docstrings and `declRange` belong in capsule metadata or effects | capsule metadata (not hashed) | P1 | no | |
+| OPEN-13 | Treatment of `meta`/`initialize` groups (IO at import) in validators | validator replays `initialize` only for allow-listed effects; others unsupported | P1 | no | |
+| OPEN-14 | Restore asynchronous interactive elaboration (fork target) | `Elab.async = false` everywhere, not overridable (§4.3) | after OPEN-22 and a corpus run of async vs sync IDs | no | |
+| OPEN-15 | ~~Model and proof for Lamport collision resolution and file sequences~~ | resolved: `Workspace.tla`, `Workspaces.lean`; byte printing and git projection remain unmodelled | — | n/a | |
+| OPEN-16 | `remote_decl%` command form for commands without a term body | as §11.2 | P1/P3 | no | |
+| OPEN-17 | Rewriting capsule text that refers to renamed names | not rewritten; the export may fail with a diagnostic | P1 export | no | |
+| OPEN-18 | RGA vs Fugue | RGA; `rightAnchor` slot reserved | before P3 | yes, if P2 stores §11.1 markers: the marker bytes | Keep RGA; encode `rightAnchor` now as an optional field fixed to `0x00`, so a later switch to Fugue does not change the marker format |
+| OPEN-19 | Delete authority for file elements | author or controller | P3 | no | |
+| OPEN-20 | Moves (re-insert after tombstone) | not supported in v0 | P3 | no | |
+| OPEN-21 | History-preserving git projection | rewritten `paralean/projection` branch plus immutable snapshot tags | P5 | no | |
+| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 | yes: group-ID bytes | Canonical numbering (§3.4), spellings as unhashed metadata. It is also invariant to auxiliary renaming, which OPEN-14 needs. P1 changes `self <name>` to `self <memberIdx>`; G4 identity is re-measured |
+| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 | yes: dependency bytes in group IDs and storage deduplication | Option (a): group ID for kernel `deps`, package ID for `requires` and `frontendDeps`. Byte-identical declarations from different capsules then deduplicate, and replay still finds a capsule through `frontendDeps` |
+| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 | yes: public names enter membership, group IDs and collision keys | Stock base name without `_n`, then `_` and the first 8 hex of `H("v0/insttype", type term)` with binder names erased, for every auto-named instance. Export writes the name explicitly. A truncated-hash clash is a spurious public-name collision, diagnosed, not unsound |
+| OPEN-25 | Spelling of the reserved fresh-name namespace | a final component the parser rejects in user source | P1 | no (rendering and validation, P3) | |
+| OPEN-26 | Whether a snapshot may commit a rendered collision rename (§11.5) | no: Groups' `buildable` and `current` reject it; resolution is a registry revision or tombstone | P3 | no | |

@@ -25,7 +25,7 @@ nonempty execution or enabledness theorem.
 | Reconstruct history from recorded parents | `RecoveryAncestry`: exact parent-path ancestry, head and conflict equivalences |
 | Combine receipts, group admission, completion and disk loss | `AdmissionExecution`: connected two-worker execution, dependent target, two-name helper group and surviving copies |
 | Exercise failure after useful work | `CheckpointReuse`: acknowledge, commit, destroy an acknowledged replica, crash/recover and recommit |
-| Gate publication on a validator receipt, not the publisher's validity claim | `PublicationReceipts`: receipt guard on staging; untrusted workers that skip validity (`untrusted_step_is_protocol_step`, `ureachable_iff`, `invalid_never_published_untrusted`, `guard_necessary`); TLA `Receipts` with Byzantine staging |
+| Gate publication on a validator receipt, not the publisher's validity claim | `PublicationReceipts`: receipt guard on staging; untrusted workers that skip validity (`untrusted_step_is_protocol_step`, `ureachable_iff`, `invalid_never_published_untrusted`, `guard_necessary`); TLA `Receipts` with Byzantine staging. The receipt is bound to the group ID only; `HeldReceipt` reads global flight, so the guard is reachably equivalent to static `Receipted`, and the content rests on `receipt_sound` |
 | Keep alternative proofs of one target from colliding, across owner failure | `TargetNames`: owner/epoch record holding the latest published proof, prepare revises that recorded head, epoch-fenced publish updates it; `guard_observable` (no ghost read), `target_chain`, `recorded_head_tops_chain`, `no_target_collision`, `handover_witness`, `scan_check_unsafe` (a scan-based check admits two heads); TLA mutations per guard conjunct plus `target_scan_subset` and `target_no_head_update` |
 | Fence catalogue first writes against stale writers | `CatalogFencing`: `present_fenced`, `selected_not_stale`, `completion_not_stale`; unfenced repair and acknowledgement (`repair_put_enabled`, `ack_unfenced`, `late_ack_and_repair_execution`) show first-write fencing alone does not fence adoption |
 | Recover catalogue records from physical evidence, and adopt only records committed under the fence | `CatalogCertificates`: fenced commit certificates and manifest/payload certificates; `committed_fenced`, `selected_fenced`, `stale_stays_uncertified`, `uncertified_not_committed`, `catReady_storageReady`, `certified_recovery` (scan built by `certScanValue`, no assumed scan); TLA `Fencing` with re-acquisition, commit-certificate and byte-scan mutations |
@@ -43,8 +43,12 @@ assignment with epoch-fenced publication that updates the recorded head,
 transactional fenced catalogue first writes and commit certificates, per-replica
 certificate storage with persisted replies, the Lean name classifier and
 injective instance naming,
-complete physical catalogue/marker enumeration, stable writes and exclusive ownership service. Those contracts must
-be implemented and tested before applying these results to a distributed service.
+complete physical catalogue/marker enumeration, stable writes and exclusive ownership service. Receipt binding to
+policy and checker version is also an implementation contract; the model binds
+only the group ID. Those contracts must be implemented and tested before applying
+these results to a distributed service. [store.md](../docs/store.md) maps the
+storage contracts to FoundationDB and S3 operations; that mapping is an argument,
+not a proof.
 
 The failure envelope still requires a surviving recovery quorum; the loss budget
 is lifetime-cumulative because nothing repairs or replaces a lost replica. New
