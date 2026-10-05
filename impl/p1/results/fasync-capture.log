@@ -1,0 +1,26 @@
+## (a) capture (Elab.async pinned false)
+capture W:FAsync.lean
+  effect 2b542fb4 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  effect a5b3beef elab L6 members=2 pub=0 realized=0 deps=0 fe=0 bytes=1597
+  [reject:elab-error] FAsync.lean:11: FAsync.lean:11:8: error: (kernel) declaration type mismatch, 'FA.kernelBad' has type
+  True
+but it is expected to have type
+  1 = 2
+  [reject:encode] FAsync.lean:13: unresolvable reference FA.kernelBad
+  [reject:elab-error] FAsync.lean:15: FAsync.lean:15:30: error: unsolved goals
+_h : True
+⊢ False
+  [reject:encode] FAsync.lean:19: unresolvable reference FA.lateBad
+  decl 51c5569d declaration L21 members=1 pub=1 realized=0 deps=0 fe=0 bytes=299
+  => 3 groups, 4 skipped, 4 diagnostics (4 reject)
+  [reject:elab-error] FAsync.lean:11: FAsync.lean:11:8: error: (kernel) declaration type mismatch, 'FA.kernelBad' has type
+  True
+but it is expected to have type
+  1 = 2
+  [reject:encode] FAsync.lean:13: unresolvable reference FA.kernelBad
+  [reject:elab-error] FAsync.lean:15: FAsync.lean:15:30: error: unsolved goals
+_h : True
+⊢ False
+  [reject:encode] FAsync.lean:19: unresolvable reference FA.lateBad
+published groups:
+[[], [], [['FA', 'fine']]] rejected: 0

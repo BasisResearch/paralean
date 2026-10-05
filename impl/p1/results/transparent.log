@@ -1,0 +1,87 @@
+### 1. bob writes helper_b in B.lean and publishes
+  decl e1e6fc13 declaration L1 members=1 pub=1 realized=0 deps=0 fe=0 bytes=273
+validator: 1 receipt(s)
+sync: applied 1 new publication(s); 1 file(s)
+published 1 group(s) from B.lean
+### 2. alice pulls; writes helper (uses bob's helper_b by name) in A.lean; publishes
+sync: applied 1 new publication(s); 1 file(s)
+  decl 8e0060b1 declaration L1 members=1 pub=1 realized=0 deps=1 fe=0 bytes=392
+validator: 1 receipt(s)
+sync: applied 1 new publication(s); 2 file(s)
+published 1 group(s) from A.lean
+### 3. bob pulls; appends helper_c (uses alice's helper) to B.lean; publishes
+sync: applied 1 new publication(s); 2 file(s)
+  skipped Lean.Parser.Command.declaration (remote)
+  decl 1c528b1d declaration L11 members=1 pub=1 realized=0 deps=2 fe=0 bytes=619
+  decl dcde861e declaration L15 members=1 pub=1 realized=0 deps=0 fe=1 bytes=589 REJECTED
+publish: 1 rejected group(s) stay drafts
+validator: 1 receipt(s)
+sync: applied 1 new publication(s); 2 file(s)
+published 1 group(s) from B.lean
+sync: applied 1 new publication(s); 2 file(s)
+### 4. projections after exchange
+alice:
+A.lean 806bb7953738d65c5d80354428ae7937cedb9bb98d4cb36c1cbd32a199ae13af
+B.lean 55307931a4f5a7361457ba9c101e555fe5a306831d1122c52531c7954a0bbcd9
+bob:
+A.lean 806bb7953738d65c5d80354428ae7937cedb9bb98d4cb36c1cbd32a199ae13af
+B.lean 55307931a4f5a7361457ba9c101e555fe5a306831d1122c52531c7954a0bbcd9
+### 5. concurrent publications at the start of Shared.lean, exchanged in both orders
+AB alice Shared.lean 9185d0b8f83a8427fe1d377434c0a284d37587ef6461544e3735b55443844d06
+AB bob Shared.lean 9185d0b8f83a8427fe1d377434c0a284d37587ef6461544e3735b55443844d06
+BA alice Shared.lean 9185d0b8f83a8427fe1d377434c0a284d37587ef6461544e3735b55443844d06
+BA bob Shared.lean 9185d0b8f83a8427fe1d377434c0a284d37587ef6461544e3735b55443844d06
+### 6. standalone elaboration of every projection file in both copies (remote mode)
+  => 0 groups, 4 skipped, 0 diagnostics (0 reject)
+  time 0.61 s
+  => 0 groups, 7 skipped, 0 diagnostics (0 reject)
+  time 0.62 s
+  => 0 groups, 4 skipped, 0 diagnostics (0 reject)
+  time 0.62 s
+  => 0 groups, 7 skipped, 1 diagnostics (1 reject)
+  [reject:axiom] B.lean:19: depends on disallowed axiom sorryAx
+  time 0.63 s
+### 7. git projection (bob's copy)
+5aabaa2 bob: paralean: bob publishes #[Cross.helper_c] in B.lean (1c528b1d6506, t=3)
+ee36219 alice: paralean: alice publishes #[Cross.helper] in A.lean (8e0060b1338e, t=2)
+bcc6a7c bob: paralean: bob publishes #[Cross.helper_b] in B.lean (e1e6fc134243, t=1)
+-- git diff in bob's copy (his drafts only):
+ B.lean | 4 ++++
+ 1 file changed, 4 insertions(+)
+diff --git a/B.lean b/B.lean
+index a31b1c3..bfc068f 100644
+--- a/B.lean
++++ b/B.lean
+@@ -14,3 +14,7 @@ section
+ theorem Cross.helper_c (n : Nat) : Cross.helper_b (Cross.helper_b n) = n + 2 := remote% "1c528b1d6506b2b4cb12f4219e87d5027ddbe9c6eec685bcd5b35ffa06ffd91a"
+ end
+ -- paralean:end 1c528b1d6506
++
++-- bob's unfinished draft: incomplete, so it is never published
++theorem Cross.wip (n : Nat) : n + 0 = n := by
++  sorry
+### 8. bob's working B.lean
+import Init
+-- paralean: published projection of B.lean
+
+-- paralean:published e1e6fc134243f7c320e5711832d793b4d8b7ea04a9327616c00e669c8ac9f619
+-- bob @1: #[Cross.helper_b]
+section
+def Cross.helper_b (n : Nat) : Nat := remote% "e1e6fc134243f7c320e5711832d793b4d8b7ea04a9327616c00e669c8ac9f619"
+end
+-- paralean:end e1e6fc134243
+
+-- paralean:published 1c528b1d6506b2b4cb12f4219e87d5027ddbe9c6eec685bcd5b35ffa06ffd91a
+-- bob @3: #[Cross.helper_c]
+section
+theorem Cross.helper_c (n : Nat) : Cross.helper_b (Cross.helper_b n) = n + 2 := remote% "1c528b1d6506b2b4cb12f4219e87d5027ddbe9c6eec685bcd5b35ffa06ffd91a"
+end
+-- paralean:end 1c528b1d6506
+
+-- bob's unfinished draft: incomplete, so it is never published
+theorem Cross.wip (n : Nat) : n + 0 = n := by
+  sorry
+### 9. export from alice's store
+  B.Part2: 1 groups; imports #[A, B]
+stock lake build: OK (537 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 0 effect-only groups (build-checked)

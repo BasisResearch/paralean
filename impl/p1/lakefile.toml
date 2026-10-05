@@ -1,0 +1,11 @@
+name = "paralean-p1"
+version = "0.1.0"
+defaultTargets = ["paralean"]
+
+[[lean_lib]]
+name = "Paralean"
+
+[[lean_exe]]
+name = "paralean"
+root = "Main"
+supportInterpreter = true

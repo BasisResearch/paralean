@@ -1,0 +1,101 @@
+### N1Sorry
+capture N1Sorry:N1Sorry.lean
+  decl bc9919df declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=493 REJECTED
+  => 0 groups, 1 skipped, 1 diagnostics (1 reject)
+  [reject:axiom] N1Sorry.lean:2: depends on disallowed axiom sorryAx
+exit=1
+### N2Axiom
+capture N2Axiom:N2Axiom.lean
+  decl bfa6d029 declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=107 REJECTED
+  decl b8925429 declaration L3 members=1 pub=1 realized=0 deps=1 fe=0 bytes=304 REJECTED
+  => 0 groups, 1 skipped, 4 diagnostics (4 reject)
+  [reject:axiom] N2Axiom.lean:2: depends on disallowed axiom N2.cheat
+  [reject:new-axiom] N2Axiom.lean:2: declares axiom N2.cheat
+  [reject:axiom] N2Axiom.lean:3: depends on disallowed axiom N2.cheat
+  [reject:rejected-dep] N2Axiom.lean:3: depends on rejected group bfa6d0299b77
+exit=1
+### N3SkipKernel
+capture N3SkipKernel:N3SkipKernel.lean
+  effect 88f0c49c in L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=218 REJECTED
+  => 0 groups, 2 skipped, 1 diagnostics (1 reject)
+  [reject:bypass-option] N3SkipKernel.lean:5: option debug.skipKernelTC disables or weakens checking
+exit=1
+### N6NativeDecide
+capture N6NativeDecide:N6NativeDecide.lean
+  decl 6ed80c42 declaration L3 members=2 pub=1 realized=0 deps=0 fe=0 bytes=508 REJECTED
+  => 0 groups, 2 skipped, 2 diagnostics (2 reject)
+  [reject:axiom] N6NativeDecide.lean:3: depends on disallowed axiom N6.bad._native.native_decide.ax_1
+  [reject:new-axiom] N6NativeDecide.lean:3: declares axiom N6.bad._native.native_decide.ax_1
+exit=1
+### N3 audit: kernel re-check of the rejected group by the validator
+source replay: 1/1 groups reproduce their declaration ID (495 ms)
+kernel replay: 0/1 groups accepted; 0 declarations added, 0 reserved names re-realized (1 ms)
+  [reject:kernel] N3SkipKernel.lean:5: [N3.bad]: (kernel) declaration type mismatch, 'N3.bad' has type
+  1 = 1
+but it is expected to have type
+  1 = 2
+### N4ChangedTarget
+capture ref:N4Ref.lean
+  decl 1088cbdd declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=309
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+[{"typeHash":
+  "0d924383e21f420b3f9e29966b98c0bc4145c58691c703e6cdfd4a73ac6f7f0a",
+  "name": ["N4", "target"]}]
+capture N4:N4ChangedTarget.lean
+  decl 821e92c3 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=497 REJECTED
+  => 0 groups, 1 skipped, 1 diagnostics (1 reject)
+  [reject:changed-target] N4ChangedTarget.lean:4: N4.target does not have the pinned statement 0d924383e21f (got b3f273893de7)
+exit=1
+### N5ChangedDep
+capture N5:N5ChangedDep.lean
+  decl 15c90346 declaration L3 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  decl 6381e2f8 declaration L4 members=1 pub=1 realized=0 deps=1 fe=0 bytes=290
+  => 2 groups, 1 skipped, 0 diagnostics (0 reject)
+[{"typeHash":
+  "805c6614c8d6a30e8d840eadfa0c4afd421dc14f7c177354e68ef07283e03413",
+  "name": ["N5", "value_zero"]}]
+-- upstream revision value := 1, same file re-captured:
+capture N5:N5ChangedDep.lean
+  decl 5a6ce393 declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:40: error: Type mismatch
+  rfl
+has type
+  ?m.5 = ?m.5
+but is expected to have type
+  value = 0
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:8: error: Not a definitional equality: the left-hand side
+  value
+is not definitionally equal to the right-hand side
+  0
+  => 1 groups, 1 skipped, 2 diagnostics (2 reject)
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:40: error: Type mismatch
+  rfl
+has type
+  ?m.5 = ?m.5
+but is expected to have type
+  value = 0
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:8: error: Not a definitional equality: the left-hand side
+  value
+is not definitionally equal to the right-hand side
+  0
+exit=1
+### version conflict (concurrent: ws1 and ws2 partitioned, then merged)
+capture ws1:C1.lean
+  decl cda1c9fd declaration L1 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+capture ws2:C2.lean
+  decl 460fc4ac declaration L1 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+capture ws3:Use.lean
+  [reject:elab-error] Use.lean:1: Use.lean:1:19: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  [reject:elab-error] Use.lean:1: Use.lean:1:30: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  => 0 groups, 1 skipped, 3 diagnostics (3 reject)
+  [reject:version-conflict] :0: public name Conf.foo has 2 concurrent heads: #[cda1c9fd79bc, 460fc4ac1a58]
+  [reject:elab-error] Use.lean:1: Use.lean:1:19: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  [reject:elab-error] Use.lean:1: Use.lean:1:30: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+exit=1
+export: 2 modules, 2 groups, 852 bytes of source
+  C1: 1 groups; imports #[]
+  C2: 1 groups; imports #[]
+  [reject:version-conflict] :0: Conf.foo defined by cda1c9fd79bc and 460fc4ac1a58
+export exit=1

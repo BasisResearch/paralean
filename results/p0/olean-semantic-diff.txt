@@ -1,0 +1,27 @@
+== Mathlib.Algebra.Homology.BifunctorHomotopy consts 27/28 differing-lines 5
+1c1
+< HomologicalComplex.mapBifunctorMapHomotopy.comm₁ thm 3826133227 443020103
+---
+> HomologicalComplex.mapBifunctorMapHomotopy.comm₁ thm 3826133227 372983756
+25c25,26
+< _private.Mathlib.Algebra.Homology.BifunctorHomotopy.0.HomologicalComplex.mapBifunctorMapHomotopy.comm₁._abel_1_3 thm 1217438534 3513121714
+== Mathlib.Analysis.Calculus.ContDiff.FaaDiBruno consts 233/233 differing-lines 0
+== Mathlib.Analysis.Calculus.IteratedDeriv.FaaDiBruno consts 41/41 differing-lines 0
+== Mathlib.Analysis.Normed.Module.Alternating.Basic consts 158/158 differing-lines 0
+== Mathlib.CategoryTheory.GuitartExact.VerticalComposition consts 21/21 differing-lines 0
+== Mathlib.Computability.PartrecCode consts 281/283 differing-lines 8
+101c101
+< Nat.Partrec.Code.evaln_mono._f def 3065162897 1612240208
+---
+> Nat.Partrec.Code.evaln_mono._f def 3065162897 1680701816
+242,243c242,245
+< _private.Mathlib.Computability.PartrecCode.0.Nat.Partrec.Code.evaln_mono._simp_1_18 thm 2238273408 3051904328
+== Mathlib.Data.WSeq.Basic consts 214/214 differing-lines 0
+== Mathlib.Data.WSeq.Relation consts 127/127 differing-lines 0
+== Mathlib.RingTheory.MvPolynomial.MonomialOrder consts 251/253 differing-lines 8
+161c161
+< MonomialOrder.sPolynomial_decomposition thm 447047488 443721083
+---
+> MonomialOrder.sPolynomial_decomposition thm 447047488 1291061516
+237,238c237,240
+< _private.Mathlib.RingTheory.MvPolynomial.MonomialOrder.0.MonomialOrder.sPolynomial_decomposition._simp_1_2 thm 3998506103 1533513393

@@ -1,0 +1,198 @@
+### M01 Mathlib.Order.Basic
+  => 213 groups, 62 skipped, 0 diagnostics (0 reject)
+capture-time 3.44 s maxrss 698016 KB
+source replay: 213/213 groups reproduce their declaration ID (11011 ms)
+kernel replay: 213/213 groups accepted; 419 declarations added, 1 reserved names re-realized (120 ms)
+isolated replay (exact deps only): 213/213
+replay-time 76.27 s maxrss 711416 KB
+stock lake build: OK (5699 ms)
+verify: 198/198 declaration groups identical in the stock-built oleans; 15 effect-only groups (build-checked)
+export-time 7.34 s maxrss 1349384 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1557,"median":411,"p95":771,"sum":97776},"commandBytes":{"max":1424,"median":139,"sum":40393},"diagnostics":[],"encodingBytes":{"max":38588,"median":746,"sum":272200},"groups":213,"ratio":{"p50":3.039326,"p95":7.647059},"rejected":0,"skipped":62}
+### M02 Mathlib.Algebra.Group.Defs
+  => 30 groups, 10 skipped, 0 diagnostics (0 reject)
+capture-time 0.67 s maxrss 641320 KB
+source replay: 30/30 groups reproduce their declaration ID (758 ms)
+kernel replay: 30/30 groups accepted; 102 declarations added, 0 reserved names re-realized (26 ms)
+isolated replay (exact deps only): 30/30
+replay-time 5.86 s maxrss 641844 KB
+stock lake build: OK (2086 ms)
+verify: 22/22 declaration groups identical in the stock-built oleans; 8 effect-only groups (build-checked)
+export-time 3.58 s maxrss 1282180 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":647,"median":372,"p95":647,"sum":11366},"commandBytes":{"max":455,"median":138,"sum":4837},"diagnostics":[],"encodingBytes":{"max":6149,"median":2338,"sum":68136},"groups":30,"ratio":{"p50":2.742424,"p95":6.243243},"rejected":0,"skipped":10}
+### M03 Mathlib.Data.Nat.Factorial.Basic
+  => 83 groups, 11 skipped, 0 diagnostics (0 reject)
+capture-time 1.84 s maxrss 887056 KB
+source replay: 83/83 groups reproduce their declaration ID (2290 ms)
+kernel replay: 83/83 groups accepted; 158 declarations added, 9 reserved names re-realized (163 ms)
+isolated replay (exact deps only): 82/83
+replay-time 26.30 s maxrss 893084 KB
+stock lake build: OK (3378 ms)
+verify: 78/78 declaration groups identical in the stock-built oleans; 5 effect-only groups (build-checked)
+export-time 5.78 s maxrss 1686096 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":890,"median":452,"p95":737,"sum":37891},"commandBytes":{"max":703,"median":259,"sum":21913},"diagnostics":[],"encodingBytes":{"max":17336,"median":1344,"sum":180234},"groups":83,"ratio":{"p50":1.732394,"p95":4.029412},"rejected":0,"skipped":11}
+### M04 Mathlib.Data.Nat.MaxPowDiv
+  => 13 groups, 4 skipped, 0 diagnostics (0 reject)
+capture-time 0.50 s maxrss 601948 KB
+source replay: 13/13 groups reproduce their declaration ID (457 ms)
+kernel replay: 13/13 groups accepted; 32 declarations added, 4 reserved names re-realized (16 ms)
+isolated replay (exact deps only): 13/13
+replay-time 1.89 s maxrss 602548 KB
+stock lake build: OK (1786 ms)
+verify: 12/12 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.20 s maxrss 1239680 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1130,"median":306,"p95":1130,"sum":5970},"commandBytes":{"max":951,"median":127,"sum":3681},"diagnostics":[],"encodingBytes":{"max":9965,"median":766,"sum":28628},"groups":13,"ratio":{"p50":2.409449,"p95":3.034091},"rejected":0,"skipped":4}
+### M05 Mathlib.Data.Nat.BitIndices
+  => 19 groups, 6 skipped, 0 diagnostics (0 reject)
+capture-time 1.03 s maxrss 930724 KB
+source replay: 19/19 groups reproduce their declaration ID (1053 ms)
+kernel replay: 19/19 groups accepted; 26 declarations added, 0 reserved names re-realized (26 ms)
+isolated replay (exact deps only): 19/19
+replay-time 5.10 s maxrss 935280 KB
+stock lake build: OK (2484 ms)
+verify: 18/18 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 5.44 s maxrss 1800324 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1753,"median":350,"p95":1753,"sum":9018},"commandBytes":{"max":1540,"median":139,"sum":5071},"diagnostics":[],"encodingBytes":{"max":15208,"median":760,"sum":48390},"groups":19,"ratio":{"p50":2.517986,"p95":3.813333},"rejected":0,"skipped":6}
+### M06 Mathlib.Data.Set.Notation
+  => 4 groups, 4 skipped, 0 diagnostics (0 reject)
+capture-time 0.48 s maxrss 652304 KB
+source replay: 4/4 groups reproduce their declaration ID (396 ms)
+kernel replay: 4/4 groups accepted; 8 declarations added, 0 reserved names re-realized (3 ms)
+isolated replay (exact deps only): 4/4
+replay-time 0.62 s maxrss 652732 KB
+stock lake build: OK (1776 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.51 s maxrss 1401008 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":853,"median":638,"p95":853,"sum":2443},"commandBytes":{"max":714,"median":452,"sum":1746},"diagnostics":[],"encodingBytes":{"max":4773,"median":4396,"sum":9651},"groups":4,"ratio":{"p50":1.452555,"p95":2.100592},"rejected":0,"skipped":4}
+### M07 Mathlib.Tactic.FieldSimp.Attr
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+capture-time 0.32 s maxrss 591168 KB
+source replay: 2/2 groups reproduce their declaration ID (2289 ms)
+kernel replay: 2/2 groups accepted; 0 declarations added, 0 reserved names re-realized (0 ms)
+isolated replay (exact deps only): 2/2
+replay-time 5.51 s maxrss 1599664 KB
+stock lake build: OK (1676 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.10 s maxrss 1239524 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":447,"median":447,"p95":447,"sum":643},"commandBytes":{"max":267,"median":267,"sum":320},"diagnostics":[],"encodingBytes":{"max":575,"median":575,"sum":649},"groups":2,"ratio":{"p50":3.698113,"p95":3.698113},"rejected":0,"skipped":3}
+### M08 Mathlib.Tactic.ByCases
+  => 3 groups, 6 skipped, 1 diagnostics (0 reject)
+capture-time 0.40 s maxrss 619308 KB
+source replay: 2/3 groups reproduce their declaration ID (330 ms)
+kernel replay: 3/3 groups accepted; 2 declarations added, 0 reserved names re-realized (1 ms)
+isolated replay (exact deps only): 2/3
+replay-time 0.57 s maxrss 609864 KB
+stock lake build: OK (1688 ms)
+verify: 1/2 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.20 s maxrss 1274344 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":648,"median":628,"p95":648,"sum":1580},"commandBytes":{"max":416,"median":217,"sum":801},"diagnostics":[["unsupported:module-dependent-literal",1]],"encodingBytes":{"max":3139,"median":618,"sum":3831},"groups":3,"ratio":{"p50":1.809524,"p95":2.894009},"rejected":0,"skipped":6}
+### M09 Mathlib.Data.PNat.Equiv
+  => 2 groups, 2 skipped, 0 diagnostics (0 reject)
+capture-time 0.39 s maxrss 670840 KB
+source replay: 2/2 groups reproduce their declaration ID (296 ms)
+kernel replay: 2/2 groups accepted; 3 declarations added, 0 reserved names re-realized (1 ms)
+isolated replay (exact deps only): 2/2
+replay-time 0.40 s maxrss 670716 KB
+stock lake build: OK (1667 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.38 s maxrss 1365344 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":439,"median":439,"p95":439,"sum":625},"commandBytes":{"max":285,"median":285,"sum":334},"diagnostics":[],"encodingBytes":{"max":592,"median":592,"sum":666},"groups":2,"ratio":{"p50":3.795918,"p95":3.795918},"rejected":0,"skipped":2}
+### M10 Mathlib.Algebra.PEmptyInstances
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+capture-time 0.33 s maxrss 624732 KB
+source replay: 2/2 groups reproduce their declaration ID (279 ms)
+kernel replay: 2/2 groups accepted; 4 declarations added, 0 reserved names re-realized (0 ms)
+isolated replay (exact deps only): 2/2
+replay-time 0.38 s maxrss 625272 KB
+stock lake build: OK (1695 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.18 s maxrss 1276216 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":297,"median":297,"p95":297,"sum":588},"commandBytes":{"max":152,"median":152,"sum":280},"diagnostics":[],"encodingBytes":{"max":966,"median":966,"sum":1040},"groups":2,"ratio":{"p50":2.273438,"p95":2.273438},"rejected":0,"skipped":3}
+### M11 Mathlib.Data.Ineq
+  => 11 groups, 9 skipped, 0 diagnostics (0 reject)
+capture-time 0.27 s maxrss 372604 KB
+source replay: 11/11 groups reproduce their declaration ID (197 ms)
+kernel replay: 11/11 groups accepted; 44 declarations added, 0 reserved names re-realized (5 ms)
+isolated replay (exact deps only): 11/11
+replay-time 0.56 s maxrss 374380 KB
+stock lake build: OK (1598 ms)
+verify: 8/8 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)
+export-time 3.20 s maxrss 875704 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":883,"median":376,"p95":883,"sum":4753},"commandBytes":{"max":663,"median":178,"sum":2537},"diagnostics":[],"encodingBytes":{"max":4131,"median":794,"sum":15392},"groups":11,"ratio":{"p50":2.140449,"p95":9.826087},"rejected":0,"skipped":9}
+### M12 Mathlib.Algebra.Field.ZMod
+  => 4 groups, 5 skipped, 0 diagnostics (0 reject)
+capture-time 0.67 s maxrss 1077412 KB
+source replay: 4/4 groups reproduce their declaration ID (600 ms)
+kernel replay: 4/4 groups accepted; 13 declarations added, 0 reserved names re-realized (7 ms)
+isolated replay (exact deps only): 4/4
+replay-time 0.88 s maxrss 1077604 KB
+stock lake build: OK (2173 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 7.61 s maxrss 2083924 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":490,"median":487,"p95":490,"sum":1491},"commandBytes":{"max":271,"median":268,"sum":694},"diagnostics":[],"encodingBytes":{"max":4114,"median":2779,"sum":7512},"groups":4,"ratio":{"p50":2.724409,"p95":6},"rejected":0,"skipped":5}
+### M13 Mathlib.Order.Lattice
+  => 115 groups, 54 skipped, 0 diagnostics (0 reject)
+capture-time 2.50 s maxrss 743640 KB
+source replay: 115/115 groups reproduce their declaration ID (4806 ms)
+kernel replay: 115/115 groups accepted; 313 declarations added, 0 reserved names re-realized (114 ms)
+isolated replay (exact deps only): 115/115
+replay-time 23.55 s maxrss 747192 KB
+stock lake build: OK (4275 ms)
+verify: 106/106 declaration groups identical in the stock-built oleans; 9 effect-only groups (build-checked)
+export-time 6.26 s maxrss 1473708 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1931,"median":468,"p95":1008,"sum":58923},"commandBytes":{"max":1716,"median":197,"sum":28800},"diagnostics":[],"encodingBytes":{"max":10371,"median":1410,"sum":221803},"groups":115,"ratio":{"p50":2.391089,"p95":7.052632},"rejected":0,"skipped":54}
+### M14 Mathlib.Data.List.Defs
+  => 50 groups, 25 skipped, 0 diagnostics (0 reject)
+capture-time 1.01 s maxrss 639240 KB
+source replay: 50/50 groups reproduce their declaration ID (1429 ms)
+kernel replay: 50/50 groups accepted; 155 declarations added, 1 reserved names re-realized (49 ms)
+isolated replay (exact deps only): 50/50
+replay-time 6.87 s maxrss 644484 KB
+stock lake build: OK (2476 ms)
+verify: 48/48 declaration groups identical in the stock-built oleans; 2 effect-only groups (build-checked)
+export-time 3.98 s maxrss 1285984 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1043,"median":514,"p95":953,"sum":28835},"commandBytes":{"max":744,"median":272,"sum":16402},"diagnostics":[],"encodingBytes":{"max":14413,"median":949,"sum":77069},"groups":50,"ratio":{"p50":1.916667,"p95":3.264151},"rejected":0,"skipped":25}
+### M15 Mathlib.SetTheory.Lists
+  => 56 groups, 17 skipped, 0 diagnostics (0 reject)
+capture-time 2.03 s maxrss 797644 KB
+source replay: 56/56 groups reproduce their declaration ID (4739 ms)
+kernel replay: 56/56 groups accepted; 183 declarations added, 5 reserved names re-realized (101 ms)
+isolated replay (exact deps only): 56/56
+replay-time 54.19 s maxrss 811828 KB
+stock lake build: OK (5013 ms)
+verify: 53/53 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)
+export-time 7.06 s maxrss 1508696 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2868,"median":394,"p95":1551,"sum":28878},"commandBytes":{"max":2601,"median":153,"sum":15946},"diagnostics":[],"encodingBytes":{"max":47489,"median":1040,"sum":190405},"groups":56,"ratio":{"p50":2.511111,"p95":4.985075},"rejected":0,"skipped":17}
+### M16 Mathlib.Logic.Relation
+  => 211 groups, 51 skipped, 0 diagnostics (0 reject)
+capture-time 2.46 s maxrss 648736 KB
+source replay: 211/211 groups reproduce their declaration ID (8446 ms)
+kernel replay: 211/211 groups accepted; 278 declarations added, 4 reserved names re-realized (116 ms)
+isolated replay (exact deps only): 210/211
+replay-time 160.92 s maxrss 668228 KB
+stock lake build: OK (5272 ms)
+verify: 205/205 declaration groups identical in the stock-built oleans; 6 effect-only groups (build-checked)
+export-time 6.82 s maxrss 1288276 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2348,"median":465,"p95":687,"sum":103025},"commandBytes":{"max":2212,"median":138,"sum":35725},"diagnostics":[],"encodingBytes":{"max":15088,"median":656,"sum":312320},"groups":211,"ratio":{"p50":3.319527,"p95":6.961538},"rejected":0,"skipped":51}
+### M17 Mathlib.Tactic.Attr.Register
+  => 22 groups, 2 skipped, 40 diagnostics (0 reject)
+capture-time 0.68 s maxrss 603948 KB
+source replay: 22/22 groups reproduce their declaration ID (2718 ms)
+kernel replay: 22/22 groups accepted; 0 declarations added, 0 reserved names re-realized (0 ms)
+isolated replay (exact deps only): 22/22
+replay-time 50.61 s maxrss 1606008 KB
+stock lake build: OK (1988 ms)
+verify: 0/21 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.44 s maxrss 1240644 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2317,"median":271,"p95":1512,"sum":10167},"commandBytes":{"max":2161,"median":115,"sum":6776},"diagnostics":[["unsupported:module-dependent-literal",40]],"encodingBytes":{"max":3693,"median":1669,"sum":37904},"groups":22,"ratio":{"p50":2.368421,"p95":3.363636},"rejected":0,"skipped":2}
+### M18 Mathlib.Logic.Function.Basic
+  => 265 groups, 48 skipped, 0 diagnostics (0 reject)
+capture-time 2.66 s maxrss 652516 KB
+source replay: 265/265 groups reproduce their declaration ID (9654 ms)
+kernel replay: 265/265 groups accepted; 343 declarations added, 2 reserved names re-realized (100 ms)
+isolated replay (exact deps only): 265/265
+replay-time 117.54 s maxrss 659248 KB
+stock lake build: OK (5089 ms)
+verify: 262/262 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)
+export-time 6.65 s maxrss 1287628 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1300,"median":461,"p95":753,"sum":130989},"commandBytes":{"max":974,"median":172,"sum":52574},"diagnostics":[],"encodingBytes":{"max":10156,"median":608,"sum":258723},"groups":265,"ratio":{"p50":2.764331,"p95":4.795455},"rejected":0,"skipped":48}

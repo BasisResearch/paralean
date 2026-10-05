@@ -1,0 +1,20 @@
+# P1 extraction corpus: Mathlib modules (mathlib4-nightly-testing @ 0575336843263378752eeb5f4c75a612327768a2).
+# id  module                                   primary features
+M01 Mathlib.Order.Basic                        theorems, defs, instances, simp, aliases
+M02 Mathlib.Algebra.Group.Defs                 classes, extends, to_additive
+M03 Mathlib.Data.Nat.Factorial.Basic           structural recursion, scoped notation
+M04 Mathlib.Data.Nat.MaxPowDiv                 well-founded recursion
+M05 Mathlib.Data.Nat.BitIndices                well-founded recursion, decreasing_by
+M06 Mathlib.Data.Set.Notation                  scoped notation, delaborators
+M07 Mathlib.Tactic.FieldSimp.Attr              initialize (simproc attribute)
+M08 Mathlib.Tactic.ByCases                     macros, macro_rules
+M09 Mathlib.Data.PNat.Equiv                    simps-generated declarations
+M10 Mathlib.Algebra.PEmptyInstances            instance-only commands, to_additive
+M11 Mathlib.Data.Ineq                          inductive, deriving handlers
+M12 Mathlib.Algebra.Field.ZMod                 private declarations
+M13 Mathlib.Order.Lattice                      structure/class hierarchies, simp
+M14 Mathlib.Data.List.Defs                     definitions, recursion, match auxiliaries
+M15 Mathlib.SetTheory.Lists                    mutual inductive, mutual recursion
+M16 Mathlib.Logic.Relation                     inductive relations, theorems
+M17 Mathlib.Tactic.Attr.Register               register_simp_attr (initialize)
+M18 Mathlib.Logic.Function.Basic               theorems, defs, simp, private

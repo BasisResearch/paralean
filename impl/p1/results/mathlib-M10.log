@@ -1,0 +1,16 @@
+### M10 Mathlib.Algebra.PEmptyInstances
+capture M10:Mathlib/Algebra/PEmptyInstances.lean
+  effect e33b83b7 moduleDoc L10 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 8c182a17 declaration L22 members=4 pub=2 realized=2 deps=0 fe=0 bytes=966
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+capture-time 0.33 s maxrss 624732 KB
+source replay: 2/2 groups reproduce their declaration ID (279 ms)
+kernel replay: 2/2 groups accepted; 4 declarations added, 0 reserved names re-realized (0 ms)
+isolated replay (exact deps only): 2/2
+replay-time 0.38 s maxrss 625272 KB
+export: 1 modules, 2 groups, 931 bytes of source
+  Mathlib.ParaleanExport.Algebra.PEmptyInstances: 2 groups; imports #[Mathlib.Algebra.Group.Semigroup]
+stock lake build: OK (1695 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.18 s maxrss 1276216 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":297,"median":297,"p95":297,"sum":588},"commandBytes":{"max":152,"median":152,"sum":280},"diagnostics":[],"encodingBytes":{"max":966,"median":966,"sum":1040},"groups":2,"ratio":{"p50":2.273438,"p95":2.273438},"rejected":0,"skipped":3}

@@ -1,0 +1,8 @@
+module	groups	remote_elab_s	local_capture_s	stock_sync_s	loads_statement	loads_full	placeholders	object_reads	errors
+M18	265	12.37	2.66	1.68	216	46	175	0	0
+M01	213	8.46	3.44	2.21	79	119	36	0	0
+M16	211	7.30	2.46	1.81	180	25	109	0	0
+M13	115	4.73	2.50	1.99	13	93	8	0	0
+M03	83	2.06	1.84	1.56	71	7	63	0	0
+M14	50	1.70	1.01	0.85	6	42	6	0	0
+M15	56	3.69	2.03	1.47	24	29	22	0	0

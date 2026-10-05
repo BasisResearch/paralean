@@ -1,0 +1,17 @@
+capture F16:F16MathlibAttrs.lean
+  effect 2f81722a moduleDoc L4 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 0c840358 declaration L10 members=2 pub=2 realized=0 deps=0 fe=0 bytes=1045
+  decl 6083d935 declaration L14 members=17 pub=5 realized=0 deps=0 fe=0 bytes=2136
+  decl cc656ff0 declaration L18 members=3 pub=3 realized=0 deps=1 fe=0 bytes=570
+  decl b240b70e declaration L20 members=1 pub=1 realized=0 deps=2 fe=0 bytes=661
+  decl 198b53bc declaration L22 members=1 pub=1 realized=0 deps=2 fe=0 bytes=737
+  decl 33a2597a in L24 members=1 pub=1 realized=0 deps=0 fe=2 bytes=245
+  => 7 groups, 3 skipped, 0 diagnostics (0 reject)
+source replay: 7/7 groups reproduce their declaration ID (655 ms)
+kernel replay: 7/7 groups accepted; 23 declarations added, 0 reserved names re-realized (3 ms)
+isolated replay (exact deps only): 7/7
+export: 1 modules, 7 groups, 2059 bytes of source
+  F16MathlibAttrs: 7 groups; imports #[Mathlib.Algebra.Group.Defs, Mathlib.Tactic.Simps.Basic, Mathlib.Data.Nat.Factorial.Basic]
+stock lake build: OK (2083 ms)
+verify: 6/6 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":334,"median":215,"p95":334,"sum":1656},"commandBytes":{"max":207,"median":64,"sum":623},"diagnostics":[],"encodingBytes":{"max":2136,"median":661,"sum":5468},"groups":7,"ratio":{"p50":3.359375,"p95":4.431818},"rejected":0,"skipped":3}

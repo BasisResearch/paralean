@@ -1,0 +1,10 @@
+genuine: ACCEPTED — 
+unknown_id: REJECTED — remote%: no published declaration with ID 0000000000000000000000000000000000000000000000000000000000000000
+edited_statement: REJECTED — remote%: the header does not match the published declaration 8e0060b1:
+other_name: REJECTED — remote%: the header does not match the published declaration 8e0060b1:
+in_term: REJECTED — remote% may only be the entire value of a published declaration
+wrong_key: REJECTED — remote%: the receipt for 8e0060b1 does not verify
+no_receipt: REJECTED — remote%: 8e0060b1 has no validator receipt; it is not published
+conflicting_local_dep: REJECTED — `Cross.helper_b` has already been declared
+wrong_namespace: REJECTED — remote%: the written declaration `Foo.Cross.helper` is not the published declaration 8e0060b1 (publishes [Cross.helper])
+shadowed_meaning: REJECTED — remote%: the written statement of `Cross.helper` does not elaborate here to the published statement of 8e0060b1:

@@ -1,0 +1,21 @@
+Lean (version 4.36.0-pre, commit 193c3589a4fc16c4059261ab38cfa365eb24f323, Release)
+'Paralean.Experiment.compose' does not depend on any axioms
+'Paralean.Experiment.closed' does not depend on any axioms
+PASS: original proof accepted
+PASS: same signature, changed body invalidates proof
+PASS: old snapshot remains valid
+PASS: kernel acceptance alone does not enforce the target
+PASS: axiom policy is required in addition to kernel checking
+PASS: mutual justification proves nothing
+PASS: self justification proves nothing
+PASS: alternative proof grounds a cycle
+PASS: AND waits for every child
+PASS: AND closes with all witnesses
+PASS: reordering messages preserves status
+PASS: duplicate messages preserve status
+PASS: old evidence cannot close a new revision
+PASS: new evidence closes only its own revision
+
+real	0m1.227s
+user	0m0.840s
+sys	0m0.443s

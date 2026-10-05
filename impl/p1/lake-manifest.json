@@ -1,0 +1,6 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages": [],
+ "name": "«paralean-p1»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

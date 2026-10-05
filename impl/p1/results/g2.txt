@@ -1,0 +1,1 @@
+G2 commands with public names: 1026; exact public-set match 1026; mismatch 0; reserved names published 0; groups without public name lacking an anchor 0

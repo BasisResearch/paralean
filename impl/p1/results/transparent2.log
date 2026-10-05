@@ -1,0 +1,89 @@
+### A. namespace blocks in drafts, draft re-placement
+published 1 group(s) from B.lean
+published 1 group(s) from A.lean
+publish: 1 rejected group(s) stay drafts
+published 1 group(s) from B.lean
+-- bob's working B.lean:
+import Init
+-- paralean: published projection of B.lean
+
+namespace Cross
+
+-- paralean:auto-begin (close draft scopes around a published element)
+end Cross
+-- paralean:auto-end
+
+-- paralean:published 415a265e33dba20c5a54c29c6a8d30354efd797060bfb6898f2ffd5841ac18d1
+-- bob @1: #[Cross.helper_b]
+section
+namespace Cross
+def helper_b (n : Nat) : Nat := remote% "415a265e33dba20c5a54c29c6a8d30354efd797060bfb6898f2ffd5841ac18d1"
+end Cross
+end
+-- paralean:end 415a265e33db
+-- paralean:auto-begin (reopen draft scopes)
+namespace Cross
+-- paralean:auto-end
+
+end Cross
+
+namespace Cross
+
+-- paralean:auto-begin (close draft scopes around a published element)
+end Cross
+-- paralean:auto-end
+
+-- paralean:published 4970694e08b1eb8fcd296142fcf924686cd58164f265676ea952b8757988cd5c
+-- bob @3: #[Cross.helper_c]
+section
+namespace Cross
+theorem helper_c (n : Nat) : helper_b (helper_b n) = n + 2 := remote% "4970694e08b1eb8fcd296142fcf924686cd58164f265676ea952b8757988cd5c"
+end Cross
+end
+-- paralean:end 4970694e08b1
+-- paralean:auto-begin (reopen draft scopes)
+namespace Cross
+-- paralean:auto-end
+
+-- unfinished: stays a draft, and must stay right after helper_c
+theorem wip (n : Nat) : n + 0 = n := by
+  sorry
+end Cross
+-- standalone elaboration of bob's working B.lean (drafts included):
+  => 0 groups, 19 skipped, 1 diagnostics (1 reject)
+  [reject:axiom] B.lean:43: depends on disallowed axiom sorryAx
+alice: A.lean 913251fe959defcb4d7b60fc9d4a4ac0cce9efec7dbcc538674fa924bc7d9542 B.lean 1d1b4e30702952f8087306b19cfc85812943c848d3bdd40d474ef6df78209c81 
+bob: A.lean 913251fe959defcb4d7b60fc9d4a4ac0cce9efec7dbcc538674fa924bc7d9542 B.lean 1d1b4e30702952f8087306b19cfc85812943c848d3bdd40d474ef6df78209c81 
+### B. concurrent same-name declarations (rule 4), both exchange orders
+AB AB-alice: Shared.lean 1ec33e790f5972569b1a8114c5f6080043ab79828f7083cd9fdd969361f1db33
+AB AB-bob: Shared.lean 1ec33e790f5972569b1a8114c5f6080043ab79828f7083cd9fdd969361f1db33
+BA BA-alice: Shared.lean 1ec33e790f5972569b1a8114c5f6080043ab79828f7083cd9fdd969361f1db33
+BA BA-bob: Shared.lean 1ec33e790f5972569b1a8114c5f6080043ab79828f7083cd9fdd969361f1db33
+-- rendered Shared.lean (AB-bob):
+import Init
+section
+theorem Shared.dup_bob_1 : 2 + 2 = 4 := remote% "2f06e2ded73cf0dc3b37ef1d662b534f2dc623974f92bf41b5f592407014088a"
+end
+section
+theorem Shared.use_dup : 2 + 2 = 4 := remote% "8894d85c01fd58a30f911996f37d92fc5e9aa04a3d92c66aa64d8dcc80d28ac7"
+end
+section
+theorem Shared.dup : 1 + 1 = 2 := remote% "42084c1b6902c745e5f445ec75d18402dbd89d414c2f9ee1351b53fa7395d945"
+end
+-- git log (AB-bob):
+alice: paralean: alice publishes #[Shared.dup] in Shared.lean (42084c1b6902, t=1)
+bob: paralean: bob publishes #[Shared.use_dup] in Shared.lean (8894d85c01fd, t=2)
+bob: paralean: bob publishes #[Shared.dup] in Shared.lean (2f06e2ded73c, t=1)
+-- last commit diff (the rename arrives as alice's commit):
+-theorem Shared.dup : 2 + 2 = 4 := remote% "2f06e2ded73cf0dc3b37ef1d662b534f2dc623974f92bf41b5f592407014088a"
++theorem Shared.dup_bob_1 : 2 + 2 = 4 := remote% "2f06e2ded73cf0dc3b37ef1d662b534f2dc623974f92bf41b5f592407014088a"
++theorem Shared.dup : 1 + 1 = 2 := remote% "42084c1b6902c745e5f445ec75d18402dbd89d414c2f9ee1351b53fa7395d945"
+-- standalone elaboration of Shared.lean in both copies:
+  => 0 groups, 10 skipped, 0 diagnostics (0 reject)
+  => 0 groups, 10 skipped, 0 diagnostics (0 reject)
+-- a draft using the renamed declaration by its rendered name (bob's copy):
+  => 2 groups, 10 skipped, 0 diagnostics (0 reject)
+-- export of the merged store:
+export: 1 modules, 3 groups, 781 bytes of source
+stock lake build: OK (236 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 0 effect-only groups (build-checked)

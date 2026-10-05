@@ -1,0 +1,8 @@
+## (c1) cancel after 3 commands (hook)
+  effect a5b3beef elab L6 members=2 pub=0 realized=0 deps=0 fe=0 bytes=1597
+uncaught exception: capture cancelled after 3 commands
+objects written: 2; file records (publications): 0
+source replay: 0/0 groups reproduce their declaration ID (100 ms)
+## (c2) SIGKILL mid-file (Mathlib.Order.Basic, killed after 2 s)
+exit=124 objects written: 142; file records: 0
+source replay: 0/0 groups reproduce their declaration ID (103 ms)
