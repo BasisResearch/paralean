@@ -1,0 +1,27 @@
+'ParaleanPublicationReceipts.published_receipted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.unreceipted_never_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.receipt_implies_valid' does not depend on any axioms
+'ParaleanPublicationReceipts.invalid_never_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.prepare_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.valid_guard_redundant' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.guard_stutter' does not depend on any axioms
+'ParaleanPublicationReceipts.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.Example.receipted_publication_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.Example.base_publishes_unreceipted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.untrusted_step_is_protocol_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.ureachable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.invalid_never_published_untrusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.guard_necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.untrusted_prepare_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.Example.untrusted_publication_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.Example.untrusted_invalid_staged_without_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

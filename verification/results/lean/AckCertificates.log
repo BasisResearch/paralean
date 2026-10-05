@@ -1,0 +1,16 @@
+'ParaleanAckCertificates.guard_stutter' depends on axioms: [propext, Quot.sound]
+'ParaleanAckCertificates.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.cert_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.reply_survives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.scan_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.scan_between' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.checkpoint_contents_discoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.receive_guard_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.receive_guard_physical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.published_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.lost_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.erased_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.nonvacuous_certificate_rediscovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanAckCertificates.Example.guard_necessity' depends on axioms: [propext, Classical.choice, Quot.sound]

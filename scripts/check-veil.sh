@@ -14,7 +14,7 @@ cd .deps/veil
 dependency_path="$(lake env printenv LEAN_PATH)"
 lean_binary="$(lake env which lean)"
 export LEAN_PATH="$root/.runs/veil:$dependency_path"
-for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks; do
+for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks LeanNames PublicationReceipts TargetNames CatalogFencing AckCertificates CatalogCertificates Hardened HardenedExecution Workspaces; do
   echo "Checking $module"
   "$lean_binary" -R "$root/verification/veil" -o "$root/.runs/veil/Paralean/$module.olean" \
     "$root/verification/veil/Paralean/$module.lean" \

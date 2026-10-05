@@ -26,7 +26,8 @@ bash scripts/check-veil.sh
 ```
 
 The proofs cover atomic groups, immutable dependency graphs, collision handling,
-quorum durability, guarded publication/checkpoints and fair convergence. They also
+quorum durability, guarded publication/checkpoints and convergence (under receive
+fairness and eventual permanent stabilisation). They also
 cover request/receipt binding, required-target completion and catalog recovery
 after losing the local checkpoint ID. [Protocol obligations](verification/PROTOCOL-OBLIGATIONS.md)
 lists the claims and boundaries. Checker/exporter/storage interfaces and fairness
@@ -41,6 +42,16 @@ The strengthened [joint protocol](verification/veil/PROTOCOL.md) requires a dura
 catalogue record before completion. Publication also retains a distinct durable
 discovery marker. Recovery and discovery use physical quorum scans after local IDs
 and indexes are lost. These guards share the same typed store.
+
+The [hardened protocol](verification/veil/HARDENED.md) closes five gaps found in
+review. Publication needs a validator receipt for the exact group, and this holds
+even when workers skip their own validity check. Each target has a reassignable
+owner whose publications are fenced by an epoch, so alternative proofs form a
+chain across handovers. First catalogue writes are fenced in the store. Discovery
+reads per-replica acknowledgement certificates, and commits need the committer's
+own reply quorum. Group membership follows real Lean naming, including
+auto-named instances. All four transition guards are proved together on one joint
+step. Liveness is not restated for the hardened protocol.
 
 The earlier boundary experiments run with an installed stock Lean binary:
 

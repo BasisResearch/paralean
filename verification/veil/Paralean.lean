@@ -18,3 +18,12 @@ import Paralean.Protocol
 import Paralean.CompletionRecoveryExecution
 import Paralean.ProtocolExecution
 import Paralean.ProtocolGuardChecks
+import Paralean.LeanNames
+import Paralean.PublicationReceipts
+import Paralean.TargetNames
+import Paralean.CatalogFencing
+import Paralean.AckCertificates
+import Paralean.CatalogCertificates
+import Paralean.Hardened
+import Paralean.HardenedExecution
+import Paralean.Workspaces

@@ -1,9 +1,9 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
 Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 19 and seed 221127873351782821 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3787080] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/export_rejection_work/ExportRejected.tla
-Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/export_rejection_work/Registry.tla
+Running breadth-first search Model-Checking with fp 16 and seed 6811920909597779880 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1707679] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/export_rejection_work/ExportRejected.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/export_rejection_work/Registry.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/TLC.tla
 Parsing file /tmp/Naturals.tla
@@ -14,9 +14,9 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module ExportRejected
-Starting... (2026-10-04 01:02:40)
+Starting... (2026-10-05 16:20:02)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-04 01:02:40.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:02.
 Error: Invariant NeverPublished is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -52,4 +52,4 @@ State 3: <Publish line 64, col 5 to line 69, col 67 of module Registry>
 8 states generated, 6 distinct states found, 3 states left on queue.
 The depth of the complete state graph search is 3.
 The average outdegree of the complete state graph is 4 (minimum is 4, the maximum 4 and the 95th percentile is 4).
-Finished in 00s at (2026-10-04 01:02:40)
+Finished in 00s at (2026-10-05 16:20:02)

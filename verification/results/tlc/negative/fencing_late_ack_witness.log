@@ -1,0 +1,113 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 82 and seed -3005587055435003202 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1718841] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/fencing_late_ack_witness/Fencing.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Fencing
+Starting... (2026-10-05 16:20:59)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:59.
+Error: Invariant NeverLateAck is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 0, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 2: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 3: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 4: <RotateFence line 119, col 5 to line 123, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 2
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 2]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 5: <Ack line 97, col 5 to line 103, col 79 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {"a"}
+/\ fence = 2
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 2]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+325 states generated, 96 distinct states found, 64 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 10 and the 95th percentile is 7).
+Finished in 00s at (2026-10-05 16:20:59)

@@ -1,0 +1,294 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 130 and seed 2740621611633652711 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1710138] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/fencing_reacquire_witness/Fencing.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Fencing
+Starting... (2026-10-05 16:20:45)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:46.
+Progress(13) at 2026-10-05 16:20:49: 249,535 states generated (249,535 s/min), 40,933 distinct states found (40,933 ds/min), 20,221 states left on queue.
+Error: Invariant NeverReacquiredRecovered is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 0, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 2: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 3: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 4: <Ack line 97, col 5 to line 103, col 79 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 5: <CommitCert line 107, col 5 to line 115, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 6: <RotateFence line 119, col 5 to line 123, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 2
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 2, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 7: <RotateFence line 119, col 5 to line 123, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 8: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 9: <Put line 74, col 5 to line 82, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 10: <Ack line 97, col 5 to line 103, col 79 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 11: <CommitCert line 107, col 5 to line 115, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 3]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
+/\ cert = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 12: <LoseReplica line 126, col 5 to line 135, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 3]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r3}
+
+State 13: <Scan line 150, col 5 to line 160, col 42 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 3]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {"a", "d"}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r3}
+
+State 14: <Reconstruct line 163, col 5 to line 167, col 68 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 3]
+/\ heads = {"d"}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = TRUE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {"a", "d"}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r3}
+
+State 15: <Automatic line 170, col 5 to line 174, col 80 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, s |-> 0, d |-> 3]
+/\ heads = {"d"}
+/\ lateRepair = FALSE
+/\ selected = "d"
+/\ reconstructed = TRUE
+/\ stored = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {"a", "d"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 3, new |-> 0]
+/\ known = {"a", "d"}
+/\ acked = {"a", "d"}
+/\ writtenAt = [a |-> 1, s |-> 0, d |-> 3]
+/\ desktopLost = FALSE
+/\ live = {r1, r3}
+
+1209998 states generated, 162145 distinct states found, 63333 states left on queue.
+The depth of the complete state graph search is 15.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 13 and the 95th percentile is 5).
+Finished in 11s at (2026-10-05 16:20:57)

@@ -310,7 +310,9 @@ theorem Trace.stable_after (tr : Trace th) {a b : Nat} (hab : a ≤ b)
     · exact ((registry_step_persistent th _ _ l hn).2.1 ih).1
 
 /-- Every trace law is discharged using generated Registry transitions and
-    the proved safety invariant. The only temporal premises are action fairness. -/
+    the proved safety invariant. The temporal premises are receive fairness and
+    eventual permanent stabilisation: `HealFair` forces a `heal`, after which no
+    crash or partition is enabled again. -/
 def Trace.deliveryTrace (tr : Trace th) (ha : TheoryAssumptions th)
     (cutoff : Nat) (stable : (tr.state cutoff).stable = true) :
     ParaleanConvergence.DeliveryTrace node decl where

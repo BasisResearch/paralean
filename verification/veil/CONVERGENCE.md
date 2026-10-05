@@ -18,7 +18,10 @@ publication, and absent local knowledge. The execution is the generated
 generated successor state. `heal_enabled_iff` does the same for Heal.
 
 `HealFair` applies the same condition to the generated Heal action. Heal is
-enabled while `stable` is false. Fairness therefore yields a stable state.
+enabled while `stable` is false, and `crash` and `partition` require
+`¬stable`. So `HealFair` is not a fairness assumption in the usual sense: it is
+eventual permanent stabilisation. After the forced `heal`, no node ever crashes
+or partitions again.
 Generated transitions preserve stability. Reachability proves that stable
 nodes stay alive and online.
 
@@ -64,9 +67,13 @@ No machine-checked translation between the two specifications is claimed.
 No refinement proof connects either specification to the executable database,
 storage adapter, network transport, or Lean artifact checker.
 
-Fairness abstracts a scheduler that eventually serves a continuously enabled
-record. It gives no latency bound. Permanent crashes, permanent partitions,
-and an unfair scheduler remain permitted by the safety specification.
+`ReceiveFair` abstracts a scheduler that eventually serves a continuously
+enabled receive. `HealFair` is stronger than fairness: it assumes the system
+eventually stabilises for good (every node alive and online, no further crash
+or partition). Neither gives a latency bound. Convergence is not proved for
+runs with crashes or partitions that recur forever. Permanent crashes,
+permanent partitions and an unfair scheduler remain permitted by the safety
+specification.
 
 The `#print axioms` commands audit the capstones. Permitted foundations are
 `propext`, `Classical.choice`, and `Quot.sound` only.

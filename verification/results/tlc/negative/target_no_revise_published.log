@@ -1,0 +1,81 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 130 and seed -141119534587402685 with 1 worker on 10 cores with 4096MB heap and 64MB offheap memory [pid: 68614] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.runs/tla/negative/target_no_revise_published/Targets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-05 01:54:31)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 01:54:31.
+Error: Invariant TargetChain is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 2: <Prepare line 51, col 3 to line 58, col 65 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 3: <Publish line 62, col 3 to line 68, col 63 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 4: <Prepare line 51, col 3 to line 58, col 65 of module Targets>
+/\ pending = [w1 |-> {"p2"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1", "p2"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 5: <Publish line 62, col 3 to line 68, col 63 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1", "p2"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1", "p2"}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+158 states generated, 110 distinct states found, 82 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 4 (minimum is 2, the maximum 9 and the 95th percentile is 9).
+Finished in 01s at (2026-10-05 01:54:31)

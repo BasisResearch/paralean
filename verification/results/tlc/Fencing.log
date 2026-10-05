@@ -1,0 +1,27 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 55 and seed 6933681160408605293 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1698301] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Fencing.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Fencing
+Starting... (2026-10-05 16:19:11)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:11.
+Progress(17) at 2026-10-05 16:19:14: 1,949,982 states generated (1,949,982 s/min), 245,699 distinct states found (245,699 ds/min), 89,663 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 5.5E-7
+  based on the actual fingerprints:  val = 4.8E-8
+11928037 states generated, 922366 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 28.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
+Finished in 15s at (2026-10-05 16:19:26)

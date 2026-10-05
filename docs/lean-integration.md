@@ -59,7 +59,8 @@ only after prefetch/memory measurements demonstrate a need.
 
 | Area / inspected source | Proposed change | Kernel-trust impact |
 |---|---|---|
-| `src/Lean/AddDecl.lean`: `addDecl`, `addAndCompile`, internal `addDeclCore` | Capture completed declaration groups; defer publication until checked tasks succeed | Preserve existing checks |
+| `src/Lean/AddDecl.lean`: `addDecl`, `addAndCompile`, internal `addDeclCore` | Capture completed commands (all `addDecl` calls of one command, including nested `realizeConst`) as one group; defer publication until checked tasks succeed | Preserve existing checks |
+| `Lean/ReservedNameAction.lean`, `Meta/Basic.lean` `realizeConst`, `Lean/PrivateName.lean`, `Lean/AutoDecl.lean`, instance naming in `Elab/DeclUtil` | Classify names; drop reserved realizations from published membership and re-realize them from the pinned base; key private and compiler-auxiliary names by group, not module; name instances canonically and injectively without `_n` dedup; disable matcher/aux-lemma reuse across groups | Realizations re-checked by the kernel |
 | `src/Lean/Environment.lean`: `addConstAsync`, `addDeclCore`, `toKernelEnv`, extensions | Pin dependency maps; reconstruct environments; record compatible frontend manifests | No unchecked remote insertion |
 | New `Lean/Distributed/Artifact`, `Registry`, `Admission` modules | Canonical encoding, exact IDs, version conflicts, receipts and job envelopes | Validate untrusted input at boundary |
 | Frontend command processing / name resolution | Materialize discovered dependencies at snapshot boundaries; invalidate suffixes after rebasing | Exact ordinary constants reach kernel |
@@ -68,12 +69,17 @@ only after prefetch/memory measurements demonstrate a need.
 | `src/Lean/Server/Rpc` and session code | Preserve session affinity/generation for remote RPC references | Avoid treating pointers as global IDs |
 | New exporter plus Lake integration | Replay source capsules, regenerate acyclic imports, clean stock build | Stock build validates portability |
 | Separate validator executable | Reconstruct trusted dependency environment, enforce axiom and target policies | Explicit additional trusted service |
+| `addConstAsync` path and command snapshot completion | Keep local asynchronous elaboration; the capture hook waits for every kernel task of the command before staging. Validation and export run synchronously | No other worker sees a statement before its proof is kernel-checked |
 | C++ kernel `environment.cpp`, `type_checker.cpp`, `declaration.h` | No semantic edits for v1; regression tests and profiling | Keep base kernel behavior |
 
 This is a thin frontend/runtime fork plus services, not a new proof calculus.
-Generated inductives, recursors, mutual definitions and auxiliary declarations
-need explicit atomic package handling. Choosing a package boundary by source line
-alone is insufficient.
+One command emits many kernel declarations, and reserved constants appear lazily
+in consumers via `realizeConst`. Package boundaries are therefore elaborated
+commands. Collision checks apply to public names, which include auto-named
+instances and eager auxiliaries. Private and compiler-auxiliary names are scoped
+to their group; the renderer and exporter rename them to group-unique names.
+Reserved names are re-derived, never transported. See
+[Lean names](../verification/veil/LEAN-NAMES.md).
 
 ## Validation policy and comparator
 

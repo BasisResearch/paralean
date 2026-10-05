@@ -1,9 +1,9 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
 Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
 (Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 96 and seed 4023099919126682508 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 3787791] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/stale_recommit/Revision.tla
-Parsing file /tmp/paralean-protocol.oNAGuR/.runs/tla/negative/stale_recommit/Registry.tla
+Running breadth-first search Model-Checking with fp 38 and seed -392734903424712958 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1708514] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/stale_recommit/Revision.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/stale_recommit/Registry.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/TLC.tla
 Parsing file /tmp/Naturals.tla
@@ -14,9 +14,9 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Revision
-Starting... (2026-10-04 01:02:46)
+Starting... (2026-10-05 16:20:13)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-04 01:02:46.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:13.
 Error: Invariant CommitFreshness is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -92,4 +92,4 @@ State 7: <Commit line 82, col 5 to line 88, col 69 of module Registry>
 3600 states generated, 772 distinct states found, 497 states left on queue.
 The depth of the complete state graph search is 7.
 The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 11 and the 95th percentile is 9).
-Finished in 00s at (2026-10-04 01:02:46)
+Finished in 00s at (2026-10-05 16:20:13)

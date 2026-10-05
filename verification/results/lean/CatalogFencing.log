@@ -1,0 +1,18 @@
+'ParaleanCatalogFencing.guard_stutter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.fence_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.reachable_inv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.present_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.stale_first_write_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.repair_put_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.ack_unfenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.catalog_objects_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.selected_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.completion_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.guard_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.fenced_put_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.fenced_recovery_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.unfenced_stale_selection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.late_ack_and_repair_execution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

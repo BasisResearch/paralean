@@ -81,3 +81,41 @@ recovery of a lost checkpoint hash, byte parsing, or source replay.
 The independent full B→A→B chain and dependent-publication witnesses also remain
 required. `dependent_work_blocked` rejects dependent declarations and must lose
 both witnesses.
+
+## Hardening guards
+
+Each hardening model has its own mutations in `scripts/check-tla-negative.sh`.
+
+| Model | Guard | Mutation | Required failure |
+|---|---|---|---|
+| Receipts | Staging needs a held receipt (the only receipt guard; publish is the base publish) | `unreceipted_staging`, `unreceipted_publication` (same deletion, two oracles) | `StagedValid`, `PublishedValid` |
+| Targets | Owner prepares | `target_no_owner_check` | `TargetChain` |
+| Targets | Prepare revises the head in the owner record | `target_no_revise_head`; `target_scan_subset` (revise some subset of `published`, as a certificate scan would see) | `TargetChain` |
+| Targets | Publish updates the recorded head | `target_no_head_update` | `TargetChain` |
+| Targets | One pending proof per preparer | `target_no_single_pending` | `TargetChain` |
+| Targets | Publish fenced on the prepare epoch | `target_no_epoch_fence` | `TargetChain` |
+| Fencing | First write conditional on the fence | `fencing_unfenced_put` | `StaleNeverStored` |
+| Fencing | Repair copies bytes read from a live source replica | `fencing_repair_disguised` | `StaleNeverStored` |
+| Fencing | Commit certificate conditional on the fence | `fencing_unfenced_commit`, `fencing_unfenced_commit_selected` (same deletion, two oracles) | `CertFenced`, `SelectedFenced` |
+| Fencing | Commit certificate only after the writer's Ack | `fencing_cert_unacked` | `ScanFindsCertified` |
+| Fencing | Scan adopts on live certificates, not byte quorums | `fencing_stale_selected` (adopts a record written before rotation and acknowledged after) | `NoLateAckedKnown` |
+| Certificates | Receive reads certificates; commit needs own reply quorum; put needs knowledge | `cert_scan_raw_marker`, `cert_commit_unguarded`, `cert_put_unknown` | `ReceivedPublished`, `CheckpointDiscoverable`, `CertSound` |
+| Workspace | Render from the known set; lineage winner; Lamport clock; live heads | `workspace_arrival_order`, `workspace_first_seen_winner`, `workspace_counter_clock`, `workspace_own_key_winner`, `workspace_render_superseded` | `SameKnownSameRender`, `IntentionPreserved`, `WinnerLineageKeepsName`, `NoSupersededRendered` |
+| Workspace | A group superseded for any name holds no name | `workspace_superseded_holds_name` | `NameHeld` |
+
+Every target guard conjunct is independently necessary. Each hardening model also
+has reachability witnesses so a mutation cannot pass by blocking work: target
+alternatives and handover; recovery after rotation, recovery of a record written
+after the old writer re-acquired the fence (`NeverReacquiredRecovered`), late
+acknowledgement and late repair; certificate rediscovery and a commit after a
+lost replier; converged inserts, a resolved collision, a revised winner, a
+deletion and a partial revision that frees a name (`NeverPartialRevisionFreed`).
+
+`Fencing` no longer reads global state in its guards. Repair names its source
+replica, and `Scan` reads certificates on live replicas. The ghost `writtenAt`
+is reset when the last copy of a record is lost, so a second first write is
+checked again. Lean necessity witnesses for the Lean-only guards are listed in
+the component notes (`scan_check_unsafe`, `partial_revision_frees_name`,
+`own_pending_anchor`, `publish_guard_needed`, `render_reads_unknown_anchor`,
+`reserved_check_needed`). The workspace guards for anchoring through the author's pending groups are
+Lean-only: the TLA model has no pending state.

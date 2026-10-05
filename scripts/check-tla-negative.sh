@@ -78,7 +78,7 @@ prepare_case() {
   cp verification/tla/*.tla verification/tla/*.cfg ".runs/tla/negative/$1/"
 }
 
-for item in 'work Chain NeverChainCommitted' 'dependent_work Chain NeverDependentPublished' 'collision Collision NeverCollided' 'durable Quorums NeverAcked' 'loss Quorums NeverLost' 'integrated_work Integrated NeverCommitted' 'checkpoint_reuse CheckpointReuse NeverReusedAfterLoss' 'export_rejection_work ExportRejected NeverPublished'; do
+for item in 'work Chain NeverChainCommitted' 'dependent_work Chain NeverDependentPublished' 'collision Collision NeverCollided' 'durable Quorums NeverAcked' 'loss Quorums NeverLost' 'integrated_work Integrated NeverCommitted' 'checkpoint_reuse CheckpointReuse NeverReusedAfterLoss' 'export_rejection_work ExportRejected NeverPublished' 'receipt_work Receipts NeverValidPublished' 'receipt_dependent_work Receipts NeverDependentPublished' 'target_alternatives Targets NeverAlternativeCommitted' 'target_handover Targets NeverHandover' 'workspace_concurrent_converged Workspace NeverConcurrentConverged' 'workspace_collision_resolved Workspace NeverCollisionResolved' 'workspace_winner_revised Workspace NeverWinnerRevised' 'workspace_deleted Workspace NeverDeleted'; do
   read -r label model invariant <<< "$item"
   prepare_case "$label"
   finite_witness_config ".runs/tla/negative/$label/$model.cfg" "$invariant"
@@ -176,6 +176,142 @@ edit_once .runs/tla/negative/silent_winner/Registry.tla 'Heads(K, name) ==' 'Raw
 edit_once .runs/tla/negative/silent_winner/Registry.tla 'Conflict(K, name) ==' 'Heads(K, name) == IF RawHeads(K,name) = {} THEN {} ELSE {CHOOSE d \in RawHeads(K,name) : TRUE}
 Conflict(K, name) =='
 run_expected_failure silent_winner Collision 'Temporal properties were violated'
+
+# Hardening guards. Each removal must produce its named counterexample.
+prepare_case unreceipted_publication
+edit_once .runs/tla/negative/unreceipted_publication/Receipts.tla '  /\ g \in held[w]' '  /\ TRUE'
+edit_once .runs/tla/negative/unreceipted_publication/Receipts.cfg 'PublishedValid PublishedReceipted DepsClosed' 'PublishedValid DepsClosed'
+edit_once .runs/tla/negative/unreceipted_publication/Receipts.cfg 'INVARIANTS StagedReceipted StagedValid' ''
+run_expected_failure unreceipted_publication Receipts 'Invariant PublishedValid is violated'
+
+prepare_case unreceipted_staging
+edit_once .runs/tla/negative/unreceipted_staging/Receipts.tla '  /\ g \in held[w]' '  /\ TRUE'
+edit_once .runs/tla/negative/unreceipted_staging/Receipts.cfg 'INVARIANTS StagedReceipted StagedValid' 'INVARIANTS StagedValid'
+run_expected_failure unreceipted_staging Receipts 'Invariant StagedValid is violated'
+
+prepare_case target_no_owner_check
+edit_once .runs/tla/negative/target_no_owner_check/Targets.tla 'OwnerOK(w) == w = owner' 'OwnerOK(w) == TRUE'
+run_expected_failure target_no_owner_check Targets 'Invariant TargetChain is violated'
+
+prepare_case target_no_revise_head
+edit_once .runs/tla/negative/target_no_revise_head/Targets.tla 'RevisesHead(R) == recHead = None \/ recHead \in R' 'RevisesHead(R) == TRUE'
+run_expected_failure target_no_revise_head Targets 'Invariant TargetChain is violated'
+
+# Reading a publication scan instead of the head record: any subset of the
+# published set (a certificate scan only guarantees CertQuorum <= S <= published).
+prepare_case target_scan_subset
+edit_once .runs/tla/negative/target_scan_subset/Targets.tla 'RevisesHead(R) == recHead = None \/ recHead \in R' 'RevisesHead(R) == \E S \in SUBSET published : S \subseteq R'
+run_expected_failure target_scan_subset Targets 'Invariant TargetChain is violated'
+
+prepare_case target_no_head_update
+edit_once .runs/tla/negative/target_no_head_update/Targets.tla 'HeadUpdate(p) == p' 'HeadUpdate(p) == recHead'
+edit_once .runs/tla/negative/target_no_head_update/Targets.cfg 'INVARIANTS TypeOK TargetChain HeadUnique RecordTopsChain' 'INVARIANTS TypeOK TargetChain HeadUnique'
+run_expected_failure target_no_head_update Targets 'Invariant TargetChain is violated'
+
+prepare_case target_no_single_pending
+edit_once .runs/tla/negative/target_no_single_pending/Targets.tla 'NoOtherPending(w) == pending[w] = {}' 'NoOtherPending(w) == TRUE'
+run_expected_failure target_no_single_pending Targets 'Invariant TargetChain is violated'
+
+prepare_case target_no_epoch_fence
+edit_once .runs/tla/negative/target_no_epoch_fence/Targets.tla 'EpochOK(w, p) == prepEpoch[w][p] = epoch' 'EpochOK(w, p) == TRUE'
+run_expected_failure target_no_epoch_fence Targets 'Invariant TargetChain is violated'
+
+prepare_case fencing_unfenced_put
+edit_once .runs/tla/negative/fencing_unfenced_put/Fencing.tla 'FenceOK(w) == holds[w] = fence' 'FenceOK(w) == TRUE'
+run_expected_failure fencing_unfenced_put Fencing 'Invariant StaleNeverStored is violated'
+
+# The commit certificate is the fenced write; without its check an old writer
+# commits after rotation.
+prepare_case fencing_unfenced_commit
+edit_once .runs/tla/negative/fencing_unfenced_commit/Fencing.tla 'CertFenceOK(w) == fence = holds[w]' 'CertFenceOK(w) == TRUE'
+run_expected_failure fencing_unfenced_commit Fencing 'Invariant CertFenced is violated'
+
+prepare_case fencing_unfenced_commit_selected
+edit_once .runs/tla/negative/fencing_unfenced_commit_selected/Fencing.tla 'CertFenceOK(w) == fence = holds[w]' 'CertFenceOK(w) == TRUE'
+edit_once .runs/tla/negative/fencing_unfenced_commit_selected/Fencing.cfg 'INVARIANTS TypeOK StaleNeverStored CertFenced KnownFenced SelectedFenced NoLateAckedKnown ScanFindsCertified' 'INVARIANTS TypeOK SelectedFenced'
+run_expected_failure fencing_unfenced_commit_selected Fencing 'Invariant SelectedFenced is violated'
+
+# Adoption on physical byte quorums (the old Scan) instead of certificates
+# adopts a late-acknowledged stale record.
+prepare_case fencing_stale_selected
+edit_once .runs/tla/negative/fencing_stale_selected/Fencing.tla '           ready == {c \in found : CertDurable(c)}' '           ready == {c \in found : OnLiveQuorum(c)}'
+edit_once .runs/tla/negative/fencing_stale_selected/Fencing.cfg 'INVARIANTS TypeOK StaleNeverStored CertFenced KnownFenced SelectedFenced NoLateAckedKnown ScanFindsCertified' 'INVARIANTS TypeOK NoLateAckedKnown'
+run_expected_failure fencing_stale_selected Fencing 'Invariant NoLateAckedKnown is violated'
+
+prepare_case fencing_recovery_witness
+printf '%s\n' 'INVARIANT NeverRecoveredAfterRotation' >> .runs/tla/negative/fencing_recovery_witness/Fencing.cfg
+run_expected_failure fencing_recovery_witness Fencing 'Invariant NeverRecoveredAfterRotation is violated'
+
+prepare_case fencing_reacquire_witness
+printf '%s\n' 'INVARIANT NeverReacquiredRecovered' >> .runs/tla/negative/fencing_reacquire_witness/Fencing.cfg
+run_expected_failure fencing_reacquire_witness Fencing 'Invariant NeverReacquiredRecovered is violated'
+
+# A commit certificate written before the writer's Ack can outlive the bytes.
+prepare_case fencing_cert_unacked
+edit_once .runs/tla/negative/fencing_cert_unacked/Fencing.tla '    /\ c \in acked' '    /\ TRUE'
+run_expected_failure fencing_cert_unacked Fencing 'Invariant ScanFindsCertified is violated'
+
+prepare_case fencing_repair_disguised
+edit_once .runs/tla/negative/fencing_repair_disguised/Fencing.tla '    /\ src \in live /\ c \in stored[src]   \* repair copies existing bytes' '    /\ TRUE'
+run_expected_failure fencing_repair_disguised Fencing 'Invariant StaleNeverStored is violated'
+
+prepare_case fencing_late_ack_witness
+printf '%s\n' 'INVARIANT NeverLateAck' >> .runs/tla/negative/fencing_late_ack_witness/Fencing.cfg
+run_expected_failure fencing_late_ack_witness Fencing 'Invariant NeverLateAck is violated'
+
+prepare_case fencing_late_repair_witness
+printf '%s\n' 'INVARIANT NeverLateRepair' >> .runs/tla/negative/fencing_late_repair_witness/Fencing.cfg
+run_expected_failure fencing_late_repair_witness Fencing 'Invariant NeverLateRepair is violated'
+
+prepare_case cert_scan_raw_marker
+edit_once .runs/tla/negative/cert_scan_raw_marker/Certificates.tla '                        /\ \E r \in q : g \in cert[r]' '                        /\ \E r \in q : g \in marker[r]'
+run_expected_failure cert_scan_raw_marker Certificates 'Invariant ReceivedPublished is violated'
+
+prepare_case cert_commit_unguarded
+edit_once .runs/tla/negative/cert_commit_unguarded/Certificates.tla '                /\ \A g \in S : CertQuorumBy(n, g)' '                /\ TRUE'
+edit_once .runs/tla/negative/cert_commit_unguarded/Certificates.cfg ' CheckpointCertified CheckpointDiscoverable' ' CheckpointDiscoverable'
+run_expected_failure cert_commit_unguarded Certificates 'Invariant CheckpointDiscoverable is violated'
+
+prepare_case cert_put_unknown
+edit_once .runs/tla/negative/cert_put_unknown/Certificates.tla '                    /\ g \in known[n]' '                    /\ TRUE'
+run_expected_failure cert_put_unknown Certificates 'Invariant CertSound is violated'
+
+prepare_case cert_rediscovery_work
+printf '%s\n' 'INVARIANT NeverRediscoveredAfterLoss' >> .runs/tla/negative/cert_rediscovery_work/Certificates.cfg
+run_expected_failure cert_rediscovery_work Certificates 'Invariant NeverRediscoveredAfterLoss is violated'
+
+prepare_case cert_lost_replier_work
+printf '%s\n' 'PROPERTY NeverCommitWithLostReplier' >> .runs/tla/negative/cert_lost_replier_work/Certificates.cfg
+run_expected_failure cert_lost_replier_work Certificates 'Action property NeverCommitWithLostReplier is violated'
+
+prepare_case workspace_arrival_order
+edit_once .runs/tla/negative/workspace_arrival_order/Workspace.tla "    /\\ doc' = [doc EXCEPT ![x][File[d]] = Render(known'[x], File[d])]" "    /\\ doc' = [doc EXCEPT ![x][File[d]] = Append(doc[x][File[d]], d)]"
+run_expected_failure workspace_arrival_order Workspace 'Invariant SameKnownSameRender is violated'
+
+prepare_case workspace_first_seen_winner
+edit_once .runs/tla/negative/workspace_first_seen_winner/Workspace.tla 'Winner(x, K, n) == LinMin(Heads(K, n))' 'Winner(x, K, n) == IF firstSeen[x][n] \in Heads(K, n) THEN firstSeen[x][n] ELSE LinMin(Heads(K, n))'
+run_expected_failure workspace_first_seen_winner Workspace 'Invariant SameKnownSameRender is violated'
+
+prepare_case workspace_counter_clock
+edit_once .runs/tla/negative/workspace_counter_clock/Workspace.tla 'Clock(x) == 1 + KnownMax(known[x])' 'Clock(x) == 1 + Cardinality({d \in known[x] : Author[d] = x})'
+run_expected_failure workspace_counter_clock Workspace 'Action property IntentionPreserved is violated'
+
+prepare_case workspace_own_key_winner
+edit_once .runs/tla/negative/workspace_own_key_winner/Workspace.tla 'Winner(x, K, n) == LinMin(Heads(K, n))' 'Winner(x, K, n) == Oldest(Heads(K, n))'
+run_expected_failure workspace_own_key_winner Workspace 'Action property WinnerLineageKeepsName is violated'
+
+prepare_case workspace_render_superseded
+edit_once .runs/tla/negative/workspace_render_superseded/Workspace.tla 'LiveIn(K, f) == {d \in K : File[d] = f /\ Live(K, d)}' 'LiveIn(K, f) == {d \in K : File[d] = f}'
+run_expected_failure workspace_render_superseded Workspace 'Invariant NoSupersededRendered is violated'
+
+# A partial revision (a3 revises a1 for foo only) retires a1 for bar as well.
+prepare_case workspace_partial_revision_witness
+printf '%s\n' 'INVARIANT NeverPartialRevisionFreed' >> .runs/tla/negative/workspace_partial_revision_witness/Workspace.cfg
+run_expected_failure workspace_partial_revision_witness Workspace 'Invariant NeverPartialRevisionFreed is violated'
+
+prepare_case workspace_superseded_holds_name
+edit_once .runs/tla/negative/workspace_superseded_holds_name/Workspace.tla 'Heads(K, n) == {d \in K : n \in NameSet(d) /\ Live(K, d)}' 'Heads(K, n) == {d \in K : n \in NameSet(d) /\ ~Tomb[d] /\ ~\E e \in K : d \in Anc(e) /\ Name[e] = n}'
+run_expected_failure workspace_superseded_holds_name Workspace 'Invariant NameHeld is violated'
 
 # Redundant checks and the independent failure oracle for each effective guard
 # are documented in verification/TLA-GUARDS.md.

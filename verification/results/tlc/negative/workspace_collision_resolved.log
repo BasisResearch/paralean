@@ -1,0 +1,69 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 30 and seed 2673781421989184525 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1708012] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/workspace_collision_resolved/Workspace.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Workspace
+Starting... (2026-10-05 16:20:06)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:06.
+Error: Invariant NeverCollisionResolved is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ doc = [ a |-> [F |-> <<>>, G |-> <<>>],
+  b |-> [F |-> <<>>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ intent = [a1 |-> <<>>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
+/\ ts = [a1 |-> 0, a2 |-> 0, a3 |-> 0, b1 |-> 0, b2 |-> 0]
+/\ known = [a |-> {}, b |-> {}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "none", bar |-> "none"],
+  b |-> [foo |-> "none", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ anchor = [a1 |-> "none", a2 |-> "none", a3 |-> "none", b1 |-> "none", b2 |-> "none"]
+
+State 2: <Publish line 143, col 5 to line 156, col 33 of module Workspace>
+/\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
+  b |-> [F |-> <<>>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 0, b2 |-> 0]
+/\ known = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
+  b |-> [foo |-> "none", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "none", b2 |-> "none"]
+
+State 3: <Publish line 143, col 5 to line 156, col 33 of module Workspace>
+/\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
+  b |-> [F |-> <<"b1">>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
+/\ known = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
+  b |-> [foo |-> "b1", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+
+State 4: <Receive line 159, col 5 to line 166, col 39 of module Workspace>
+/\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
+  b |-> [F |-> <<"b1", "a1">>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
+/\ known = [a |-> {"a1"}, b |-> {"a1", "b1"}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
+  b |-> [foo |-> "b1", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+
+30 states generated, 26 distinct states found, 18 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 4 (minimum is 2, the maximum 6 and the 95th percentile is 6).
+Finished in 00s at (2026-10-05 16:20:06)

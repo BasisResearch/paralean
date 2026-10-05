@@ -73,8 +73,8 @@ It then destroys a replica, loses the remembered catalogue ID, and selects the
 same snapshot through three joint recovery transitions. The separate
 `PublicationDiscovery` execution erases every worker index before rediscovery.
 
-`ProtocolGuardChecks` records the rejected cases independently of the strengthened
-guards: the original component finish can lack catalogue evidence or reference
+`ProtocolGuardChecks` restates the guards on concrete cases. It is not a
+necessity proof: the original component finish can lack catalogue evidence or reference
 a different image; the original receive can name a publication with no physically
 stored marker. The strengthened operations reject those cases.
 

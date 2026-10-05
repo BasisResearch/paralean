@@ -1,4 +1,4 @@
-/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:18:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.missing_catalogue_guard_regression`:
+/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/ProtocolGuardChecks.lean:18:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.missing_catalogue_guard_regression`:
   [DecidableEq record]
   [Inhabited record]
   [DecidableEq workspace]
@@ -28,7 +28,7 @@ consider restructuring your `variable` declarations so that the variables are no
   writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:34:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.mismatched_image_guard_regression`:
+/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/ProtocolGuardChecks.lean:34:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.mismatched_image_guard_regression`:
   [DecidableEq record]
   [Inhabited record]
   [DecidableEq workspace]
@@ -58,7 +58,7 @@ consider restructuring your `variable` declarations so that the variables are no
   writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/tmp/paralean-protocol-final.gVL4iM/verification/veil/Paralean/ProtocolGuardChecks.lean:50:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression`:
+/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/ProtocolGuardChecks.lean:50:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq writeQuorum]

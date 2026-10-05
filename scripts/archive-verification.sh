@@ -2,17 +2,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p verification/results/tlc/negative verification/results/lean
-for model in Chain Collision Revision Revert Rejected Quorums Integrated CheckpointReuse ExportRejected; do
+for model in Chain Collision Revision Revert Rejected Quorums Integrated CheckpointReuse ExportRejected Receipts Targets Fencing Certificates Workspace; do
   cp ".runs/tla/$model.log" "verification/results/tlc/$model.log"
 done
-for label in work dependent_work collision durable loss integrated_work checkpoint_reuse export_rejection_work \
-  unchecked unknown_dependency unknown_ancestor unclosed_ancestors unprepared_publication unpublished_receive \
-  unbuildable_commit unclosed_snapshot unexportable_snapshot stale_commit stale_recommit dependent_work_blocked \
-  checkpoint_loss_blocked premature_ack no_fair_recovery no_fair_receive unbacked_publication staged_publication \
-  unbacked_checkpoint silent_winner; do
-  cp ".runs/tla/negative/$label/result.log" "verification/results/tlc/negative/$label.log"
+# Archive every negative case the suite ran; drop logs of retired cases.
+rm -f verification/results/tlc/negative/*.log
+for dir in .runs/tla/negative/*/; do
+  label="$(basename "$dir")"
+  cp "$dir/result.log" "verification/results/tlc/negative/$label.log"
 done
-for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks Audit; do
+for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks LeanNames PublicationReceipts TargetNames CatalogFencing AckCertificates CatalogCertificates Hardened HardenedExecution Workspaces Audit; do
   cp ".runs/veil/$module.log" "verification/results/lean/$module.log"
 done
 {

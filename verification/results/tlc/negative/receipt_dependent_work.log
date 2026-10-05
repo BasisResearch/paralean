@@ -1,0 +1,75 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 37 and seed -2626436793082659859 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1707787] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/receipt_dependent_work/Receipts.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Receipts
+Starting... (2026-10-05 16:20:03)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:03.
+Error: Invariant NeverDependentPublished is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {}
+/\ held = [W1 |-> {}, W2 |-> {}]
+/\ receipts = {}
+
+State 2: <Issue line 43, col 3 to line 46, col 43 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {}
+/\ held = [W1 |-> {}, W2 |-> {}]
+/\ receipts = {"a"}
+
+State 3: <Deliver line 49, col 3 to line 51, col 47 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {}
+/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ receipts = {"a"}
+
+State 4: <Prepare line 36, col 3 to line 39, col 44 of module Receipts>
+/\ pending = [W1 |-> {"a"}, W2 |-> {}]
+/\ published = {}
+/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ receipts = {"a"}
+
+State 5: <Publish line 54, col 3 to line 57, col 33 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {"a"}
+/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ receipts = {"a"}
+
+State 6: <Issue line 43, col 3 to line 46, col 43 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {"a"}
+/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ receipts = {"a", "b"}
+
+State 7: <Deliver line 49, col 3 to line 51, col 47 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {"a"}
+/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
+/\ receipts = {"a", "b"}
+
+State 8: <Prepare line 36, col 3 to line 39, col 44 of module Receipts>
+/\ pending = [W1 |-> {"b"}, W2 |-> {}]
+/\ published = {"a"}
+/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
+/\ receipts = {"a", "b"}
+
+State 9: <Publish line 54, col 3 to line 57, col 33 of module Receipts>
+/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ published = {"a", "b"}
+/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
+/\ receipts = {"a", "b"}
+
+307 states generated, 57 distinct states found, 20 states left on queue.
+The depth of the complete state graph search is 9.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 4 and the 95th percentile is 3).
+Finished in 00s at (2026-10-05 16:20:03)

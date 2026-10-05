@@ -1,0 +1,112 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 81 and seed -89860666884025767 with 1 worker on 32 cores with 4096MB heap and 64MB offheap memory [pid: 1707892] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-harden/.runs/tla/negative/target_handover/Targets.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-05 16:20:04)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 16:20:04.
+Error: Invariant NeverHandover is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "none"
+
+State 2: <Prepare line 61, col 3 to line 69, col 74 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "none"
+
+State 3: <Reassign line 84, col 3 to line 87, col 95 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ epoch = 1
+/\ owner = "w2"
+/\ used = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "none"
+
+State 4: <Prepare line 61, col 3 to line 69, col 74 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {"p2"}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 1, p3 |-> 0]]
+/\ epoch = 1
+/\ owner = "w2"
+/\ used = {"p1", "p2"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "none"
+
+State 5: <Publish line 73, col 3 to line 80, col 63 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 1, p3 |-> 0]]
+/\ epoch = 1
+/\ owner = "w2"
+/\ used = {"p1", "p2"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 1, p3 |-> 0]
+/\ published = {"p2"}
+/\ known = [w1 |-> {}, w2 |-> {"p2"}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "p2"
+
+State 6: <Prepare line 61, col 3 to line 69, col 74 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {"p3"}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 1, p3 |-> 1]]
+/\ epoch = 1
+/\ owner = "w2"
+/\ used = {"p1", "p2", "p3"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 1, p3 |-> 0]
+/\ published = {"p2"}
+/\ known = [w1 |-> {}, w2 |-> {"p2"}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {"p2"}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "p2"
+
+State 7: <Publish line 73, col 3 to line 80, col 63 of module Targets>
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 1, p3 |-> 1]]
+/\ epoch = 1
+/\ owner = "w2"
+/\ used = {"p1", "p2", "p3"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 1, p3 |-> 1]
+/\ published = {"p2", "p3"}
+/\ known = [w1 |-> {}, w2 |-> {"p2", "p3"}]
+/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {"p2"}]
+/\ head = [w1 |-> "none", w2 |-> "none"]
+/\ recHead = "p3"
+
+2585 states generated, 1352 distinct states found, 888 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 7 and the 95th percentile is 6).
+Finished in 00s at (2026-10-05 16:20:04)
