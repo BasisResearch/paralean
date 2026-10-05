@@ -13,7 +13,7 @@ set_option linter.unusedSectionVars false
 abbrev Disk := ParaleanGroupComposition.DiskState Bool (StoredObject Bool Bool) Unit Unit
 abbrev Registry := ParaleanGroups.CanonicalState Bool Bool (Fin 3) Bool
 abbrev Delivery := ParaleanDelivery.CanonicalState Bool Bool Bool Bool Bool (Fin 3)
-abbrev Recovery := ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool Unit
+abbrev Recovery := ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan
 abbrev ModelState := ParaleanCompletionRecovery.Example.CState
 
 def state (dl : Delivery) (rg : Registry) (disk : Disk) (rec : Recovery := ParaleanCompletionRecovery.Example.rec0) : ModelState :=
@@ -179,9 +179,9 @@ theorem selected_reachable : ParaleanProtocol.Reachable theory recoveryTheory en
   have h₁ : ParaleanProtocol.Next theory recoveryTheory encode completed
       (state dlDone rgCommitted d18 recScanned) := by
     apply ParaleanProtocol.recovery_step theory recoveryTheory encode _ _ _
-    refine .recovery (.enumerate ()) (by intro c epoch h; cases h) ?_ local_selection_steps.1
+    refine .recovery (.enumerate ParaleanCompletionRecovery.Example.idScan) (by intro c epoch h; cases h) ?_ local_selection_steps.1
     intro v h c hc
-    cases v
+    cases h
     cases c
     · simp [ParaleanRecovery.ofAdmission, recoveryTheory] at hc
     · simp [ParaleanRecovery.StorageReady, ParaleanRecovery.ofAdmission, protocolTheory,
@@ -221,14 +221,14 @@ theorem failed_reachable : ParaleanProtocol.Reachable theory recoveryTheory enco
   ParaleanProtocol.failures_reachable theory recoveryTheory encode selected_reachable failure_path
 
 theorem physical_catalogue_scan : ParaleanRecovery.PhysicalScan
-    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) failed.admission.protocol.storage () () := by
+    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) failed.admission.protocol.storage () ParaleanCompletionRecovery.Example.idScan := by
   intro c
   cases c <;> simp [ParaleanRecovery.PhysicalScan, ParaleanRecovery.QuorumCatalog,
     ParaleanRecovery.ofAdmission, protocolTheory, theory, recoveryTheory, encode,
     state, lostDisk, storageTheory, disk0, put, ack, Bool.exists_bool]
 
 theorem ready_catalogue_scan : ParaleanRecovery.ReadyScan
-    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) failed.admission.protocol.storage () := by
+    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) failed.admission.protocol.storage ParaleanCompletionRecovery.Example.idScan := by
   intro c
   cases c <;> simp [ParaleanRecovery.StorageReady, ParaleanRecovery.ofAdmission,
     protocolTheory, theory, recoveryTheory, groupTheory, encode, state,
@@ -271,7 +271,7 @@ theorem joint_nonempty_completion_loss_recovery :
   obtain ⟨s₁, s₂, recovered, ht₁, ht₂, ht₃, reachable, selectedRecord, recordEq, writer, fence, admission⟩ :=
     ParaleanProtocol.committed_physical_recovery theory recoveryTheory encode assumptions recovery_assumptions
       failed_reachable () (by intro r h; cases r <;> simp [theory, storageTheory] at h ⊢; rfl)
-      () physical_catalogue_scan ready_catalogue_scan true rfl
+      ParaleanCompletionRecovery.Example.idScan physical_catalogue_scan ready_catalogue_scan true rfl
   refine ⟨selected_reachable, rfl, rfl, failure_path, failed_reachable, rfl,
     by intro c; rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
     s₁, s₂, recovered, ht₁, ht₂, ht₃, reachable, selectedRecord, recordEq, ?_, writer, fence, ?_⟩

@@ -9,8 +9,8 @@ group membership below the protocol and needs no transition guard.
 |---|---|---|
 | Publication trusted the publisher's own `valid` check | Staging a group requires a held, verified validator receipt for that exact group | [PublicationReceipts](PUBLICATION-RECEIPTS.md) |
 | Alternative proofs of one target collided on its name | Each target has an owner, an epoch and the latest published proof (head) in one store record; the owner's new proof revises that head; publication is fenced by the epoch and updates the head | [TargetNames](TARGET-NAMES.md) |
-| Any process could Put a catalogue record that recovery auto-selects | A record's first write is conditional on its token equalling the store's fence | [CatalogFencing](CATALOG-FENCING.md) |
-| Catalogue recovery read ghost acknowledgement, and adopted stale records that were acknowledged late | Per-replica certificates for the record, manifest and payloads; the record's commit certificate is a conditional write on the fence; commit and adoption need durable certificates; the scan is computed from the store | [CatalogCertificates](CATALOG-CERTIFICATES.md) |
+| Any process could Put a catalogue record that recovery auto-selects | A new write of a record's bytes either passes a conditional check of its token against the store's fence, or copies bytes read from a named live replica | [CatalogFencing](CATALOG-FENCING.md) |
+| Catalogue recovery read ghost acknowledgement and ghost commit history, and adopted stale records that were acknowledged late | Certificates for the record, manifest and payloads, written as all-quorum writes from the writer's own reply log; the commit certificate is conditional on the fence; commit and adoption need durable certificates; recovery's scan is computed from the answers of a responding read quorum, and its enumerate is lifted into a hardened step | [CatalogCertificates](CATALOG-CERTIFICATES.md) |
 | Discovery read Durability's ghost `acknowledged` flag | Scans read per-replica certificates; commits require the committer's own reply quorum, collected over time | [AckCertificates](ACK-CERTIFICATES.md) |
 | `member` ignored reserved, generated and private Lean names | Capture per command; public names (including auto-named instances and eager auxiliaries) collide; private and compiler-auxiliary names are group-keyed; reserved names are re-realized | [LeanNames](LEAN-NAMES.md) |
 
@@ -20,7 +20,8 @@ group membership below the protocol and needs no transition guard.
 
 - the first-write fencing history (`e.1`);
 - publication certificates and each writer's reply log (`e.2.1`);
-- catalogue certificates and the commit-certificate fence history (`e.2.2.1`);
+- catalogue certificates, the catalogue writer's reply log and the
+  commit-certificate fence history (`e.2.2.1`);
 - the target ownership record: owner, epoch, recorded head, prepared epochs (`e.2.2.2`).
 
 Certificate writes and target reassignments are Extra-only steps: the protocol state
@@ -43,14 +44,32 @@ projects onto the joint protocol, so every earlier theorem still applies.
   live recovery quorum;
 - every committed catalogue record is physically certified (`CatReady`).
 
-## Cross-guard results
+## Implementation recovery
 
-- `hardened_certified_recovery` (catalogue certificates + fence + all other guards):
-  from any reachable hardened state, any fully live read quorum and any committed
-  record, recovery computes the certificate scan from the store
-  (`CatalogCertificates.certScanValue`), enumerates, reconstructs and selects the
-  record in three hardened steps. The selected record's commit certificate passed
-  the fence check. No scan value, `ReadyScan` or acknowledgement oracle is assumed.
+The base `enumerate v` carries a precondition on ghost state (every record in the
+`committed` history is decoded and ready in `v`), and the base coupling checks
+ready records against Durability's ghost `acknowledged`. The hardened model keeps
+both unchanged (weakening the first would break the base `CatalogComplete`
+invariant) and proves that recovery's implementation step implies them.
+
+- `SStep`: a hardened step, or an implementation enumerate
+  (`CatalogCertificates.ScanEnumerate`): recovery reads a read quorum all of whose
+  members answered, computes the scan from those answers
+  (`CatalogCertificates.certScanValue`: decoded = a member returned the bytes, ready
+  = members returned the record, manifest and payload certificates) through a
+  `ScanCodec`, and applies the enumerate state change, checking nothing else.
+- `scan_enumerate_hardened`: from any reachable hardened state, an implementation
+  enumerate is a hardened step (all five guards). The ghost precondition, the ghost
+  readiness test and the adoption guard are derived from the certificates.
+- `sreachable_iff`: runs whose recovery enumerates this way reach exactly the
+  hardened states, so `hardened_safe` and every other hardened theorem hold for them.
+- `hardened_certified_recovery`: from any reachable hardened state, any responding
+  read quorum and any committed record, an implementation enumerate, a
+  reconstruction and a historical selection select the record in three hardened
+  steps; its commit certificate passed the fence check.
+
+## Other cross-guard results
+
 - `recorded_head_receivable` (target record + publication certificates + all other
   guards): the head in a target's owner/epoch record is a published proof of the
   name and tops every published proof of it. If it has a certificate quorum, every
@@ -64,31 +83,49 @@ projects onto the joint protocol, so every earlier theorem still applies.
 
 ## Execution
 
-[HardenedExecution](Paralean/HardenedExecution.lean) gives one concrete trace in
-which all five guards hold on every step (`hardened_nonvacuous`):
+[HardenedExecution](Paralean/HardenedExecution.lean) uses the
+`CompletionRecovery.Example` instance: two workers, two groups, two replicas (write
+quorum = both, read quorum = replica `true`), fence tokens of rank 0 and 1, and two
+catalogue records, `false` a child of `true`. Its scan type carries any
+decode/readiness pair, and `codec` is a concrete `ScanCodec`.
+
+`hardened_nonvacuous`, one trace, every step hardened:
 
 - The initial owner of the target name prepares the required target holding a
   verified receipt and publishes it; the publish records it as the name's head.
 - The committing worker receives each group through a physical certificate read,
   then puts its own certificates for both groups on both replicas. Before those
   puts no node holds a certificate quorum for the target.
-- The catalogue record is acknowledged; its payloads and manifest get
-  acknowledgement certificates and the record gets its commit certificate under
-  fence 0 on both replicas. The catalogue commits and the worker finishes.
+- Each acknowledgement adds the catalogue writer's replies to its log. From that
+  log the writer writes payload, manifest and commit certificates for record `true`
+  as quorum writes (commit certificate under fence 0). The catalogue commits and the
+  worker finishes.
 - The desktop is lost. The controller reassigns the target name to the other worker
   (epoch 1); the record keeps its head. The fence rotates to 1.
-- Under fence 1, a second record with a rank-1 token is first written, acknowledged
-  and given a commit certificate on both replicas (`eF false = some 1`,
-  `certFence false = some 1`). It is not committed: this instance has two records
-  with no ancestry, and committing both would leave two heads.
+- Under fence 1, record `false` (rank-1 token) is first written, acknowledged, and
+  its manifest written and acknowledged. It gets no commit certificate.
 - A replica is lost, every worker index is erased, a certificate scan rediscovers
-  exactly the published groups, the new owner receives the recorded head through a
-  certificate-guarded receive, and recovery auto-selects the record whose commit
-  certificate passed the fence check.
+  exactly the published groups, and the new owner receives the recorded head through
+  a certificate-guarded receive.
+- Recovery enumerates by `ScanEnumerate` over the surviving read quorum. The scan
+  decodes both records (both sets of bytes are on the surviving replica) and marks
+  only record `true` ready; record `false` is rejected for lack of a commit
+  certificate. Reconstruction and `automatic` select record `true`.
 
-The new owner preparing a revision after reassignment is not in this trace: the
-instance has one target group. It is shown in the TargetNames model
-(`TargetNames.Example.handover_witness`) and in general by `recorded_head_receivable`.
+`hardened_scan_adoption`, sharing that trace up to record `false`'s
+acknowledgement: the writer writes record `false`'s manifest and commit
+certificates (fence 1), a replica is lost, and the same scan over the same bytes
+marks both records ready. `enumerate` adopts record `false` (it was not committed;
+`AdoptGuard` holds by the surviving certificates), and `automatic` selects it as the
+unique head. Selection is decided by certificates, not by which bytes decode.
+
+`stale_owner_publish_blocked`: after the target is prepared under epoch 0, the
+controller reassigns the name (epoch 1). The former owner's publication of its
+pending target is a base protocol step, but no hardened step (the epoch fence).
+
+`hardened_receipt_rejected`: in a variant of the instance whose validator signs
+only receipt `true`, the helper's receipt is in flight in a reachable hardened
+state; staging the helper is a base protocol step there, but no hardened step.
 
 ## Implementation contracts introduced
 
@@ -101,22 +138,40 @@ instance has one target group. It is shown in the TargetNames model
 - The catalogue store performs transactional writes conditional on a fence item
   (etcd `Txn`, DynamoDB `TransactWriteItems`, FoundationDB); fence rotation is a
   linearizable write to the same store; each token rank is issued once. First
-  writes and commit certificates use it.
-- Each replica stores acknowledgement certificates separately from object bytes:
-  publication markers, catalogue manifests and payloads, and record commit
-  certificates. Writers persist the replies they receive.
+  writes and commit certificates use it. An unfenced copy of record bytes names the
+  live replica it read them from.
+- Catalogue certificates (commit, manifest, payload) are written as one transaction
+  that is readable only once it has reached a write quorum, and only after the
+  writer holds its own write quorum of replies for the object.
+- Recovery waits for every member of some read quorum to answer and decides
+  readiness from those answers. A lost replica never rejoins under the same
+  identity.
+- Publication certificates are stored per replica separately from object bytes.
+  Writers persist the replies they receive.
 - Capture runs at command granularity with a trusted name classifier. Instances
   are named canonically. The renderer and exporter mangle scoped names to
   group-unique Lean names.
 
 ## Not established
 
-The receipt is not bound to a request, checker or policy, because requests are
-opaque in the model. Untrusted workers are modelled only at staging. Publication
-certificates mirror Durability's rules in separate state rather than being
-generated Durability objects; so do catalogue certificates. Discovery is complete
-only for groups with a certificate quorum. The writer-side premise of a certificate
-write is the writer's own Ack, modelled by the ghost flag. There is no certificate
-repair. No liveness result is restated for the hardened model: the new guards
-strengthen every step, so the earlier fair-convergence theorems do not transfer.
-Each TLA model is an independent finite abstraction of one fix.
+- The receipt is not bound to a request, checker or policy, because requests are
+  opaque in the model. Untrusted workers are modelled only at staging.
+- Publication certificates mirror Durability's rules in separate state rather than
+  being generated Durability objects; so do catalogue certificates. Discovery is
+  complete only for groups with a certificate quorum. The writer-side premise of a
+  publication certificate write is that the writer knows the group; the catalogue
+  writer's reply log is recorded at Durability's `Ack` step rather than reply by
+  reply.
+- All-quorum catalogue certificate writes are a store contract, not derived from
+  per-replica writes. There is no certificate repair, and no write-back by readers.
+- The joint trace does not show a new owner preparing a revision of a non-empty
+  head: the instance has one target group and no revisions. That case is shown in
+  the TargetNames model (`TargetNames.Example.handover_witness`) and in general by
+  `recorded_head_receivable`.
+- Receipt rejection is shown on a variant instance (the main instance's validator
+  signs both receipts, which the main trace needs).
+- No liveness result is restated for the hardened model: the new guards strengthen
+  every step, so the earlier fair-convergence theorems do not transfer.
+- Each TLA model is an independent finite abstraction of one fix. `tla/Fencing.tla`
+  still decides catalogue readiness over live replicas with per-replica certificate
+  writes.

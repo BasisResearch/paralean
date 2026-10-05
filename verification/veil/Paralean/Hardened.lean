@@ -170,7 +170,7 @@ theorem lift_recovery_only (a : ATheory) (r : RTheory) (encode : record → Nat)
   · intro n d h1 h2; rw [hreg] at h1; simp_all
   · exact ParaleanTargetNames.guard_of_quiet a cfg.targets r encode s t e.2.2.2
       (fun n d h' => by rw [hreg] at h'; exact h') (fun d h' => by rw [hreg] at h'; exact h')
-  · refine ⟨fun c hf => absurd hf.1 (ParaleanCatalogFencing.same_storage_no_write encode hst c), ?_⟩
+  · refine ⟨fun c hf => absurd hf (ParaleanCatalogFencing.same_storage_no_write encode hst c), ?_⟩
     exact (ParaleanCatalogFencing.update_quiet encode e.1
       (ParaleanCatalogFencing.same_storage_no_write encode hst)).symm
   · refine Or.inl ⟨?_, ?_, ?_⟩
@@ -178,20 +178,100 @@ theorem lift_recovery_only (a : ATheory) (r : RTheory) (encode : record → Nat)
     · intro n h; rw [hreg] at h; exact absurd rfl h
     · exact (ParaleanAckCertificates.clearLost_same s t e.2.1 (by rw [hst])).symm
 
+/-! ## Implementation recovery
+
+Recovery's implementation step reads a read quorum all of whose members answered,
+computes the certificate scan from the answers (`CatalogCertificates.certScanValue`)
+and applies the `enumerate` state change. It checks no ghost state: neither the
+base precondition (the scan covers every record in the ghost `committed` history),
+nor the base readiness test (Durability's `acknowledged`), nor any guard. -/
+
+/-- One implementation step: a hardened step, or an implementation enumerate. -/
+def SStep (a : ATheory) (r : RTheory) (encode : record → Nat) (cfg : Config a token record)
+    (codec : ParaleanCatalogCertificates.ScanCodec r) (p q : ModelState × XState) : Prop :=
+  Next a r encode cfg p q ∨
+  (q.2 = p.2 ∧ ParaleanCatalogCertificates.ScanEnumerate a r encode codec (p.1, p.2.2.2.1) (q.1, p.2.2.2.1))
+
+inductive SReachable (a : ATheory) (r : RTheory) (encode : record → Nat) (cfg : Config a token record)
+    (codec : ParaleanCatalogCertificates.ScanCodec r) : ModelState × XState → Prop where
+  | initial {p} : Initial a r p → SReachable a r encode cfg codec p
+  | step {p q} : SReachable a r encode cfg codec p → SStep a r encode cfg codec p q →
+      SReachable a r encode cfg codec q
+
+/-- Lifting: from any reachable hardened state, an implementation enumerate is a
+hardened step (all five guards hold). The ghost precondition of the base
+`enumerate`, its ghost readiness test and the adoption guard are derived from the
+certificates the responding quorum returned. -/
+theorem scan_enumerate_hardened (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
+    (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
+    (codec : ParaleanCatalogCertificates.ScanCodec r) {s t : ModelState} {e : XState}
+    (hr : Reachable a r encode cfg (s, e))
+    (hs : ParaleanCatalogCertificates.ScanEnumerate a r encode codec (s, e.2.2.1) (t, e.2.2.1)) :
+    Next a r encode cfg (s, e) (t, e) := by
+  have h5 := reachable_catalog a r encode cfg hr
+  obtain ⟨hb, hg⟩ := ParaleanCatalogCertificates.scan_enumerate_step a r encode cfg.recordToken ha hra
+    codec h5 hs
+  obtain ⟨rq, _, heq⟩ := hs
+  have hadm : t.admission = s.admission := by
+    have := congrArg (fun p => p.1.admission) heq
+    simpa using this
+  exact lift_recovery_only a r encode cfg (e := e) hadm hb hg
+
+theorem sstep_next (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
+    (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
+    (codec : ParaleanCatalogCertificates.ScanCodec r) {p q : ModelState × XState}
+    (hr : Reachable a r encode cfg p) (ht : SStep a r encode cfg codec p q) :
+    Next a r encode cfg p q := by
+  rcases ht with hn | ⟨he, hs⟩
+  · exact hn
+  · obtain ⟨s, e⟩ := p
+    obtain ⟨t, e'⟩ := q
+    dsimp only at he hs
+    subst he
+    exact scan_enumerate_hardened a r encode cfg ha hra codec hr hs
+
+theorem sreachable_reachable (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
+    (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
+    (codec : ParaleanCatalogCertificates.ScanCodec r) {p} (h : SReachable a r encode cfg codec p) :
+    Reachable a r encode cfg p := by
+  induction h with
+  | initial hi => exact .initial hi
+  | step _ ht ih => exact .step ih (sstep_next a r encode cfg ha hra codec ih ht)
+
+theorem reachable_sreachable (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (codec : ParaleanCatalogCertificates.ScanCodec r)
+    {p} (h : Reachable a r encode cfg p) : SReachable a r encode cfg codec p := by
+  induction h with
+  | initial hi => exact .initial hi
+  | step _ ht ih => exact .step ih (Or.inl ht)
+
+/-- Runs whose recovery enumerates by certificate scans reach exactly the hardened
+states, so every hardened theorem holds for them. -/
+theorem sreachable_iff (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
+    (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
+    (codec : ParaleanCatalogCertificates.ScanCodec r) (p : ModelState × XState) :
+    SReachable a r encode cfg codec p ↔ Reachable a r encode cfg p :=
+  ⟨sreachable_reachable a r encode cfg ha hra codec, reachable_sreachable a r encode cfg codec⟩
+
 /-- Recovery selection from certificates and the fence, in the joint model. From
-any reachable hardened state and any fully live read quorum, recovery reads the
-store into the concrete certificate scan and selects any committed record in
-three hardened steps (all five guards hold). The selected record's commit
-certificate was written while its token was the fence. No scan value or
-acknowledgement oracle is assumed. -/
+any reachable hardened state and any read quorum all of whose members answered,
+recovery computes the certificate scan from the answers, enumerates by an
+implementation step (`ScanEnumerate`), reconstructs and selects any committed
+record in three hardened steps (all five guards hold). The selected record's
+commit certificate was written while its token was the fence. -/
 theorem hardened_certified_recovery (a : ATheory) (r : RTheory) (encode : record → Nat)
     (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
     (hra : ParaleanRecovery.CoupledAssumptions (ParaleanRecovery.ofAdmission a r encode))
     (codec : ParaleanCatalogCertificates.ScanCodec r) {s : ModelState} {e : XState}
     (hr : Reachable a r encode cfg (s, e))
-    (q : readQuorum) (hq : ∀ x, a.storage.memberR x q = true → s.admission.protocol.storage.live x = true)
+    (q : readQuorum) (hq : ParaleanCatalogCertificates.Responded a s q)
     (c : record) (hc : s.recovery.committed c = true) :
     ∃ s₁ s₂ s₃ : ModelState,
+      ParaleanCatalogCertificates.ScanEnumerate a r encode codec (s, e.2.2.1) (s₁, e.2.2.1) ∧
       Next a r encode cfg (s, e) (s₁, e) ∧ Next a r encode cfg (s₁, e) (s₂, e) ∧
       Next a r encode cfg (s₂, e) (s₃, e) ∧
       ParaleanRecovery.RecoveryNext r s.recovery
@@ -201,13 +281,13 @@ theorem hardened_certified_recovery (a : ATheory) (r : RTheory) (encode : record
       r.tokenRank (cfg.recordToken c) ≤ s.recovery.fence ∧
       s₃.admission = s.admission := by
   have h5 := reachable_catalog a r encode cfg hr
-  obtain ⟨s₁, s₂, s₃, ⟨hb₁, hg₁⟩, ⟨hb₂, hg₂⟩, ⟨hb₃, hg₃⟩, label₁, _, selected, exact, _, _, a₁, a₂, a₃⟩ :=
+  obtain ⟨s₁, s₂, s₃, hscan, _, ⟨hb₂, hg₂⟩, ⟨hb₃, hg₃⟩, label₁, _, selected, exact, _, _, a₁, a₂, a₃⟩ :=
     ParaleanCatalogCertificates.certified_recovery a r encode cfg.recordToken ha hra codec h5 q hq c hc
   have fenced := ParaleanCatalogCertificates.committed_fenced a r encode cfg.recordToken ha h5 c hc
-  have l₁ := lift_recovery_only a r encode cfg (e := e) a₁ hb₁ hg₁
+  have l₁ := scan_enumerate_hardened a r encode cfg ha hra codec hr hscan
   have l₂ := lift_recovery_only a r encode cfg (e := e) (a₂.trans a₁.symm) hb₂ hg₂
   have l₃ := lift_recovery_only a r encode cfg (e := e) (a₃.trans a₂.symm) hb₃ hg₃
-  exact ⟨s₁, s₂, s₃, l₁, l₂, l₃, label₁, selected, exact, fenced.1, fenced.2, a₃⟩
+  exact ⟨s₁, s₂, s₃, hscan, l₁, l₂, l₃, label₁, selected, exact, fenced.1, fenced.2, a₃⟩
 
 theorem receive_registry_effect (th : ParaleanGroups.Theory node group name snapshot)
     (s s' : ParaleanGroups.CanonicalState node group name snapshot) (n : node) (d : group)
@@ -269,10 +349,10 @@ theorem recorded_head_receivable (a : ATheory) (r : RTheory) (encode : record �
     · exact ParaleanTargetNames.guard_of_quiet a cfg.targets r encode s t e.2.2.2
         (fun n' d h' => by simpa [t, heff.1] using h') (fun d h' => by simpa [t, heff.2.1] using h')
     · have hst : t.admission.protocol.storage = s.admission.protocol.storage := rfl
-      refine ⟨fun c hf => absurd hf.1 (ParaleanCatalogFencing.same_storage_no_write encode hst c), ?_⟩
+      refine ⟨fun c hf => absurd hf (ParaleanCatalogFencing.same_storage_no_write encode hst c), ?_⟩
       exact (ParaleanCatalogFencing.update_quiet encode e.1
         (ParaleanCatalogFencing.same_storage_no_write encode hst)).symm
-    · refine Or.inl ⟨?_, (ParaleanCatalogCertificates.clearLost_same s t e.2.2.1 rfl).symm⟩
+    · refine Or.inl ⟨?_, (ParaleanCatalogCertificates.advance_same s t e.2.2.1 rfl rfl).symm⟩
       intro c h1 h2
       have h2' : s.recovery.committed c = true := h2
       rw [h1] at h2'; cases h2'
@@ -282,4 +362,6 @@ end ParaleanHardened
 
 #print axioms ParaleanHardened.hardened_safe
 #print axioms ParaleanHardened.hardened_certified_recovery
+#print axioms ParaleanHardened.scan_enumerate_hardened
+#print axioms ParaleanHardened.sreachable_iff
 #print axioms ParaleanHardened.recorded_head_receivable

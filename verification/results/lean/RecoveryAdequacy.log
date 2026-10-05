@@ -1,4 +1,4 @@
-/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/RecoveryAdequacy.lean:77:48: warning: This simp argument is unused:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/RecoveryAdequacy.lean:77:48: warning: This simp argument is unused:
   instIsSubReaderOfRefl
 
 Hint: Omit it from the simp argument list.
@@ -7,14 +7,14 @@ Hint: Omit it from the simp argument list.
   ̲  ̲ ̲ ̲ ̲ ̲Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp]
 
 Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
-/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/RecoveryAdequacy.lean:88:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.reconstruction_enabled_for_known_record`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/RecoveryAdequacy.lean:88:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.reconstruction_enabled_for_known_record`:
   [DecidableEq node]
   [Inhabited node]
 consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
   omit [DecidableEq node] [Inhabited node] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/data/home/kirancodes/Documents/code/paralean-harden/verification/veil/Paralean/RecoveryAdequacy.lean:116:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.historical_enabled_for_known_record`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/RecoveryAdequacy.lean:116:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.historical_enabled_for_known_record`:
   [DecidableEq node]
   [Inhabited node]
 consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:

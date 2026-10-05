@@ -227,27 +227,40 @@ theorem lose_step :
     Veil.FieldUpdatePat.match, Veil.IteratedArrow.curry, Veil.IteratedArrow.uncurry,
     Veil.IteratedProd.patCmp, funext_iff, Bool.forall_bool, Bool.exists_bool]
 
-abbrev CState := ParaleanCompletionRecovery.State Bool Bool (Fin 3) Bool Bool Bool Bool Unit Bool Unit Bool Unit Unit
+/-- A scan result for the two records: `(decoded false, decoded true)` and
+`(ready false, ready true)`. The scan carries any decode/readiness pair, so the
+certificate scan of `ParaleanCatalogCertificates` is representable
+(`ParaleanHardened.Example.codec`). -/
+abbrev Scan := (Bool × Bool) × (Bool × Bool)
+/-- Bit of a per-record pair. -/
+abbrev scanBit (p : Bool × Bool) (c : Bool) : Bool := if c then p.2 else p.1
+/-- The scan in which exactly record `true` is decoded and ready (the scan used by
+the base-model executions, which never decode record `false`). -/
+abbrev idScan : Scan := ((false, true), (false, true))
 
-def recoveryTheory : ParaleanRecovery.Theory Bool Unit Bool Bool (Fin 3) Bool Unit where
+abbrev CState := ParaleanCompletionRecovery.State Bool Bool (Fin 3) Bool Bool Bool Bool Unit Bool Scan Bool Unit Unit
+
+/-- Record `false` is a child of record `true` (a later catalogue record that
+extends it). Record `false` has image `false`, the empty snapshot. -/
+def recoveryTheory : ParaleanRecovery.Theory Bool Unit Bool Bool (Fin 3) Bool Scan where
   tokenRank := fun t => if t then 1 else 0
   identity := ()
   recordWorkspace := fun _ => ()
   image := id
-  causalRank := fun _ => 0
-  parent := fun _ _ => false
-  ancestor := fun _ _ => false
+  causalRank := fun c => if c then 0 else 1
+  parent := fun c p => !c && p
+  ancestor := fun c p => !c && p
   valid := groupTheory.valid
   deps := groupTheory.deps
   member := groupTheory.member
   contents := groupTheory.contents
   exportable := groupTheory.exportable
-  decoded := fun _ => id
-  ready := fun _ => id
+  decoded := fun v c => scanBit v.1 c
+  ready := fun v c => scanBit v.2 c
 
 def encode (c : Bool) : Nat := if c then 1 else 0
 
-def rec0 : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool Unit :=
+def rec0 : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool Scan :=
   ⟨fun _ => false, fun _ => false, fun _ => false, fun _ => false,
     false, false, false, false, false, true, 0⟩
 def recCommitted := { rec0 with committed := id, durableAck := id }
@@ -468,17 +481,17 @@ def locallySelected : CState := ⟨state dlDone rgCommitted diskCatalog, recSele
 
 local instance : delta% (ParaleanRecovery.reconstruct._veil_dec_type_0
   (record := Bool) (workspace := Unit) (snapshot := Bool)
-  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Unit)
-  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Unit)) :=
+  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Scan)
+  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Scan)) :=
   fun _ _ _ => Classical.propDecidable _
 local instance : delta% (ParaleanRecovery.reconstruct._veil_dec_type_1
   (record := Bool) (workspace := Unit) (snapshot := Bool)
-  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Unit)
-  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Unit)) :=
+  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Scan)
+  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Scan)) :=
   fun _ _ => Classical.propDecidable _
 
 theorem local_selection_steps :
-    ParaleanRecovery.RecoveryNext recoveryTheory recCommitted (.enumerate ()) recScanned ∧
+    ParaleanRecovery.RecoveryNext recoveryTheory recCommitted (.enumerate idScan) recScanned ∧
     ParaleanRecovery.RecoveryNext recoveryTheory recScanned .reconstruct recReconstructed ∧
     ParaleanRecovery.RecoveryNext recoveryTheory recReconstructed (.historical true) recSelected := by
   repeat' apply And.intro
@@ -531,10 +544,10 @@ theorem selected_identifier_then_losses :
   have hr := completion_then_actual_losses.1
   have h₁ : ParaleanCompletionRecovery.Next theory recoveryTheory encode completedWithCatalog
       ⟨state dlDone rgCommitted diskCatalog, recScanned⟩ := by
-    refine .coupled .stutter rfl rfl (.recovery (.enumerate ()) ?_ ?_ local_selection_steps.1)
+    refine .coupled .stutter rfl rfl (.recovery (.enumerate idScan) ?_ ?_ local_selection_steps.1)
     · intro c epoch h; cases h
     · intro v h c hc
-      cases v
+      cases h
       cases c
       · simp [ParaleanRecovery.ofAdmission, recoveryTheory] at hc
       · simp [ParaleanRecovery.StorageReady, ParaleanRecovery.ofAdmission, protocolTheory,
@@ -563,7 +576,7 @@ theorem selected_identifier_then_losses :
     by intro c; rfl⟩
 
 theorem physical_scan : ParaleanRecovery.PhysicalScan
-    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) afterFailures.admission.protocol.storage () () := by
+    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) afterFailures.admission.protocol.storage () idScan := by
   intro c
   cases c <;> simp [ParaleanRecovery.PhysicalScan, ParaleanRecovery.QuorumCatalog,
     ParaleanRecovery.ofAdmission, protocolTheory, theory, recoveryTheory, encode,
@@ -572,7 +585,7 @@ theorem physical_scan : ParaleanRecovery.PhysicalScan
     put, ack, Bool.exists_bool]
 
 theorem ready_scan : ParaleanRecovery.ReadyScan
-    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) afterFailures.admission.protocol.storage () := by
+    (ParaleanRecovery.ofAdmission theory recoveryTheory encode) afterFailures.admission.protocol.storage idScan := by
   intro c
   cases c <;> simp [ParaleanRecovery.StorageReady, ParaleanRecovery.ofAdmission,
     protocolTheory, theory, recoveryTheory, groupTheory, encode, afterFailures, state,
@@ -607,7 +620,7 @@ theorem nonempty_completion_loss_recovery :
   obtain ⟨s₁, s₂, recovered, ht₁, ht₂, ht₃, reachable, selected, recordEq, writer, fence, disk⟩ :=
     ParaleanCompletionRecovery.physical_recovery_extends_composed_prefix theory recoveryTheory encode
       assumptions recovery_assumptions hr () (by intro r h; cases r <;> simp [theory, storageTheory] at h ⊢; rfl)
-      () physical_scan ready_scan true rfl
+      idScan physical_scan ready_scan true rfl
   refine ⟨hr, by intro c; rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl,
     s₁, s₂, recovered, ht₁, ht₂, ht₃, reachable, selected, recordEq, ?_, writer, fence, ?_⟩
   · rw [recordEq]; rfl

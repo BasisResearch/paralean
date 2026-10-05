@@ -1,13 +1,17 @@
 import Paralean.Protocol
 import Paralean.CompletionRecoveryExecution
 
-/-! Store-side fencing of first catalogue writes. A step that makes a record's
-catalogue object appear while no replica holds it (a first write) requires the
-record's embedded token rank to equal the fence held in the store. Copies of
-bytes already on some replica (repair) and acknowledgements are unconditional;
-commit keeps only its base epoch check. A ghost map remembers the fence at each
-record's first write, so every stored, acknowledged or committed record was
-first written while its token was the current fence. -/
+/-! Store-side fencing of catalogue writes. A step that newly stores or
+acknowledges a record's catalogue object must either pass the store's
+conditional check (the record's embedded token rank equals the fence held in
+the store) or be a copy of bytes the writer read from a named live replica (a
+repair, or the acknowledgement of bytes already on a write quorum). The guard
+reads only the fence register, the record's token, the store delta and one
+positive read of a live replica; it never asks whether *no* replica holds the
+bytes. Every first write (no replica held the bytes) is therefore fenced
+(`firstWrite_fenced`). Commit keeps only its base epoch check. A ghost map
+remembers the fence at each record's first write, so every stored, acknowledged
+or committed record was first written while its token was the current fence. -/
 set_option maxHeartbeats 2000000
 set_option linter.unusedSectionVars false
 set_option linter.unusedVariables false
@@ -43,15 +47,24 @@ def NewWrite (encode : record → Nat) (s t : ModelState) (c : record) : Prop :=
     (t.admission.protocol.storage.acknowledged (.catalog (encode c)) = true ∧
       s.admission.protocol.storage.acknowledged (.catalog (encode c)) = false)
 
-/-- Some replica holds `c`'s catalogue bytes. -/
+/-- Some replica holds `c`'s catalogue bytes. Used only to state results; no
+guard evaluates it. -/
 def StoredSomewhere (encode : record → Nat) (s : ModelState) (c : record) : Prop :=
   ∃ x, s.admission.protocol.storage.stored x (.catalog (encode c)) = true
 
 /-- First write of `c`: the step newly stores or acknowledges `c`'s object while no
 replica held its bytes before the step. A new copy of bytes some replica already
-holds is a repair, not a first write. -/
+holds is a repair, not a first write. A specification notion only: the guard
+below never decides it. -/
 def FirstWrite (encode : record → Nat) (s t : ModelState) (c : record) : Prop :=
   NewWrite encode s t c ∧ ¬ StoredSomewhere encode s c
+
+/-- Observable repair source: the writer read `c`'s catalogue bytes from replica
+`x`, which answered, so `x` is live and holds them. A positive read; it does not
+quantify over replicas that did not answer. -/
+def CopySource (encode : record → Nat) (s : ModelState) (c : record) : Prop :=
+  ∃ x, s.admission.protocol.storage.live x = true ∧
+    s.admission.protocol.storage.stored x (.catalog (encode c)) = true
 
 /-- Conditional-write check: the record's embedded token has the rank of the fence
 held in the store before the step. Ranks are compared; distinct tokens of equal
@@ -63,11 +76,13 @@ def Fenced (r : RTheory) (recordToken : record → token) (s : ModelState) (c : 
 def update (encode : record → Nat) (s t : ModelState) (e : Extra record) : Extra record :=
   fun c => if e c = none ∧ NewWrite encode s t c then some s.recovery.fence else e c
 
-/-- Only first writes are fenced. Repair copies, acknowledgements and commits are
-not checked here (commit keeps its base `tokenRank epoch = fence` check). -/
+/-- Every new store or acknowledgement of a record's catalogue object either passes
+the conditional fence check or copies bytes read from a live replica (repair; an
+Ack of bytes already on a write quorum). Commit keeps its base
+`tokenRank epoch = fence` check. -/
 def Guard (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : record → token)
     (s : ModelState) (e : Extra record) (t : ModelState) (e' : Extra record) : Prop :=
-  (∀ c, FirstWrite encode s t c → Fenced r recordToken s c) ∧
+  (∀ c, NewWrite encode s t c → Fenced r recordToken s c ∨ CopySource encode s c) ∧
   e' = update encode s t e
 
 def Next (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : record → token)
@@ -86,8 +101,21 @@ inductive Reachable (a : ATheory) (r : RTheory) (encode : record → Nat) (recor
 theorem guard_stutter (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : record → token)
     (s : ModelState) (e : Extra record) : Guard a r encode recordToken s e s e := by
   refine ⟨?_, ?_⟩
-  · rintro c ⟨(⟨x, h1, h2⟩ | ⟨h1, h2⟩), _⟩ <;> simp_all
+  · rintro c (⟨x, h1, h2⟩ | ⟨h1, h2⟩) <;> simp_all
   · funext c; simp [update, NewWrite]
+
+theorem copySource_stored (encode : record → Nat) {s : ModelState} {c : record}
+    (h : CopySource encode s c) : StoredSomewhere encode s c := by
+  obtain ⟨x, _, hx⟩ := h
+  exact ⟨x, hx⟩
+
+/-- The guard fences every first write: a first write has no source replica to
+copy from, so it must pass the fence check. -/
+theorem firstWrite_fenced (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (recordToken : record → token) {s t : ModelState} {e e' : Extra record}
+    (hg : Guard a r encode recordToken s e t e') (c : record) (hf : FirstWrite encode s t c) :
+    Fenced r recordToken s c :=
+  (hg.1 c hf.1).resolve_right (fun h => hf.2 (copySource_stored encode h))
 
 theorem reachable_protocol (a : ATheory) (r : RTheory) (encode : record → Nat) (recordToken : record → token)
     {p} (h : Reachable a r encode recordToken p) : ParaleanProtocol.Reachable a r encode p.1 := by
@@ -189,7 +217,8 @@ theorem next_inv (a : ATheory) (r : RTheory) (encode : record → Nat) (recordTo
     · rw [if_pos hc] at hk
       cases hk
       have hns : ¬ StoredSomewhere encode s c := fun hs => hp.2 c (Or.inl hs) hc.1
-      exact ⟨(hw c ⟨hc.2, hns⟩).symm, hmono⟩
+      have hf := (hw c hc.2).resolve_right (fun h => hns (copySource_stored encode h))
+      exact ⟨hf.symm, hmono⟩
     · rw [if_neg hc] at hk
       obtain ⟨h1, h2⟩ := hp.1 c k hk
       exact ⟨h1, Nat.le_trans h2 hmono⟩
@@ -236,8 +265,8 @@ theorem stale_first_write_rejected (a : ATheory) (r : RTheory) (encode : record 
     (recordToken : record → token) (s : ModelState) (e : Extra record) (c : record)
     (hstale : r.tokenRank (recordToken c) ≠ s.recovery.fence) :
     ¬ ∃ t e', Next a r encode recordToken (s, e) (t, e') ∧ FirstWrite encode s t c := by
-  rintro ⟨t, e', ⟨_, hw, _⟩, hn⟩
-  exact hstale (hw c hn)
+  rintro ⟨t, e', ⟨_, hg⟩, hn⟩
+  exact hstale (firstWrite_fenced a r encode recordToken hg c hn)
 
 /-- Every catalogue object on a replica or acknowledged, and every committed
 record (including records adopted by `enumerate`), was first written while its
@@ -287,14 +316,15 @@ theorem completion_not_stale (a : ATheory) (r : RTheory) (encode : record → Na
 
 /-! Implementability: the guard reads only the pre-step fence (modelled as the
 store's fence register `recovery.fence`), the token embedded in the written
-record, whether some replica already holds the record's bytes, and the store
-delta of the step. It does not read the recovery component's `writer` flag. The
-ghost map is only written. -/
+record, the store delta of the step, and, for an unfenced copy, one live replica
+from which the writer read the bytes. It never decides that no replica holds the
+bytes. It does not read the recovery component's `writer` flag. The ghost map is
+only written. -/
 
 theorem guard_enabled_iff (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : record → token) (s t : ModelState) (e : Extra record) :
     (∃ e', Guard a r encode recordToken s e t e') ↔
-      ∀ c, FirstWrite encode s t c → Fenced r recordToken s c := by
+      ∀ c, NewWrite encode s t c → Fenced r recordToken s c ∨ CopySource encode s c := by
   constructor
   · rintro ⟨e', hw, _⟩
     exact hw
@@ -304,7 +334,7 @@ theorem guard_enabled_iff (a : ATheory) (r : RTheory) (encode : record → Nat)
 theorem hardened_step (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : record → token) {s t : ModelState} (e : Extra record)
     (hb : ParaleanProtocol.Next a r encode s t)
-    (hw : ∀ c, FirstWrite encode s t c → Fenced r recordToken s c) :
+    (hw : ∀ c, NewWrite encode s t c → Fenced r recordToken s c ∨ CopySource encode s c) :
     Next a r encode recordToken (s, e) (t, update encode s t e) :=
   ⟨hb, hw, rfl⟩
 
@@ -313,16 +343,16 @@ theorem guard_of_fenced_writes (a : ATheory) (r : RTheory) (encode : record → 
     (recordToken : record → token) {s t : ModelState} (e : Extra record)
     (hw : ∀ c, NewWrite encode s t c → Fenced r recordToken s c) :
     Guard a r encode recordToken s e t (update encode s t e) :=
-  ⟨fun c hn => hw c hn.1, rfl⟩
+  ⟨fun c hn => Or.inl (hw c hn), rfl⟩
 
-/-- A base step that only copies or acknowledges bytes some replica already
-holds is a hardened step at any fence. -/
+/-- A base step that only copies or acknowledges bytes read from a live replica
+is a hardened step at any fence. -/
 theorem no_first_write_step (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : record → token) {s t : ModelState} (e : Extra record)
     (hb : ParaleanProtocol.Next a r encode s t)
-    (hold : ∀ c, NewWrite encode s t c → StoredSomewhere encode s c) :
+    (hold : ∀ c, NewWrite encode s t c → CopySource encode s c) :
     Next a r encode recordToken (s, e) (t, update encode s t e) :=
-  hardened_step a r encode recordToken e hb (fun c hn => absurd (hold c hn.1) hn.2)
+  hardened_step a r encode recordToken e hb (fun c hn => Or.inr (hold c hn))
 
 theorem put_effect {obj : Type} [DecidableEq obj] [Inhabited obj]
     (th : Durability.Theory replica obj writeQuorum readQuorum)
@@ -382,17 +412,17 @@ theorem fenced_put_enabled (a : ATheory) (r : RTheory) (encode : record → Nat)
   obtain ⟨hst, hack⟩ := put_effect a.storage x _ hd
   refine hardened_step a r encode recordToken e
     (ParaleanProtocol.storage_step a r encode dl rg rec disk disk' _ hd trivial) ?_
-  rintro c' ⟨(⟨y, h1, h2⟩ | ⟨h1, h2⟩), _⟩
+  rintro c' (⟨y, h1, h2⟩ | ⟨h1, h2⟩)
   · have heq := (hst y _ h1 h2).2
     have : c' = c := hinj (ParaleanArtifacts.catalog_injective heq)
     subst this
-    exact current
+    exact Or.inl current
   · dsimp only at h1 h2
     rw [hack] at h1
     simp_all
 
-/-- Repair is unconditional: copying a record's bytes that some replica already
-holds to a live replica is a hardened step at any fence, whatever the record's token. -/
+/-- Repair is unconditional: copying a record's bytes read from a live replica to
+another live replica is a hardened step at any fence, whatever the record's token. -/
 theorem repair_put_enabled (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : record → token) (hinj : Function.Injective encode)
     (dl : ParaleanDelivery.CanonicalState node group request packet snapshot name)
@@ -401,7 +431,7 @@ theorem repair_put_enabled (a : ATheory) (r : RTheory) (encode : record → Nat)
     (disk disk' : ParaleanGroupComposition.DiskState replica (ParaleanAdmission.StoredObject group snapshot) writeQuorum readQuorum)
     (x : replica) (c : record) (e : Extra record)
     (hd : ParaleanGroupComposition.StorageNext a.storage disk (.Put x (.catalog (encode c))) disk')
-    (present : ∃ y, disk.stored y (.catalog (encode c)) = true) :
+    (present : ∃ y, disk.live y = true ∧ disk.stored y (.catalog (encode c)) = true) :
     Next a r encode recordToken (⟨⟨dl, ⟨rg, disk⟩⟩, rec⟩, e)
       (⟨⟨dl, ⟨rg, disk'⟩⟩, rec⟩, update encode ⟨⟨dl, ⟨rg, disk⟩⟩, rec⟩ ⟨⟨dl, ⟨rg, disk'⟩⟩, rec⟩ e) := by
   obtain ⟨hst, hack⟩ := put_effect a.storage x _ hd
@@ -416,8 +446,9 @@ theorem repair_put_enabled (a : ATheory) (r : RTheory) (encode : record → Nat)
     rw [hack] at h1
     simp_all
 
-/-- Acknowledgement is unconditional: acknowledging a record whose bytes some
-replica holds is a hardened step at any fence, whatever the record's token. -/
+/-- Acknowledgement is unconditional: acknowledging a record whose bytes a live
+replica holds is a hardened step at any fence, whatever the record's token. (The
+base Ack already needs the bytes on every member of a live write quorum.) -/
 theorem ack_unfenced (a : ATheory) (r : RTheory) (encode : record → Nat)
     (recordToken : record → token) (hinj : Function.Injective encode)
     (dl : ParaleanDelivery.CanonicalState node group request packet snapshot name)
@@ -426,7 +457,7 @@ theorem ack_unfenced (a : ATheory) (r : RTheory) (encode : record → Nat)
     (disk disk' : ParaleanGroupComposition.DiskState replica (ParaleanAdmission.StoredObject group snapshot) writeQuorum readQuorum)
     (w : writeQuorum) (c : record) (e : Extra record)
     (hd : ParaleanGroupComposition.StorageNext a.storage disk (.Ack (.catalog (encode c)) w) disk')
-    (present : ∃ y, disk.stored y (.catalog (encode c)) = true) :
+    (present : ∃ y, disk.live y = true ∧ disk.stored y (.catalog (encode c)) = true) :
     Next a r encode recordToken (⟨⟨dl, ⟨rg, disk⟩⟩, rec⟩, e)
       (⟨⟨dl, ⟨rg, disk'⟩⟩, rec⟩, update encode ⟨⟨dl, ⟨rg, disk⟩⟩, rec⟩ ⟨⟨dl, ⟨rg, disk'⟩⟩, rec⟩ e) := by
   obtain ⟨hst, hack⟩ := ack_effect a.storage _ w hd
@@ -468,7 +499,7 @@ open ParaleanCompletionRecovery.Example (theory recoveryTheory encode put ack di
   disk3 disk4 disk5 disk6 disk7 disk8 disk9 diskCatalog1 diskCatalog2 diskCatalog diskCatalogLost
   put_step ack_step rec0 recCommitted recForgotten forget_desktop destroy_catalog_replica
   assumptions recovery_assumptions recovery_initial initial_valid groupTheory storageTheory
-  dl0 rg0 state CState)
+  dl0 rg0 state CState idScan)
 attribute [local instance] Classical.propDecidable
 set_option linter.unusedSimpArgs false
 
@@ -476,7 +507,7 @@ set_option linter.unusedSimpArgs false
 def tok : Bool → Bool := fun _ => false
 
 def mk (disk : ParaleanCompletionRecovery.Example.Disk)
-    (rec : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool Unit) : CState :=
+    (rec : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan) : CState :=
   ⟨state dl0 rg0 disk, rec⟩
 
 -- Hardened run: commit under fence 0, lose a replica and the desktop, rotate.
@@ -492,18 +523,18 @@ def nAuto := { nRebuilt with selected := true, selectedRecord := true }
 
 local instance : delta% (ParaleanRecovery.reconstruct._veil_dec_type_0
   (record := Bool) (workspace := Unit) (snapshot := Bool)
-  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Unit)
-  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Unit)) :=
+  (decl := Bool) (name := Fin 3) (token := Bool) (scan := ParaleanCompletionRecovery.Example.Scan)
+  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan)) :=
   fun _ _ _ => Classical.propDecidable _
 local instance : delta% (ParaleanRecovery.reconstruct._veil_dec_type_1
   (record := Bool) (workspace := Unit) (snapshot := Bool)
-  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Unit)
-  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Unit)) :=
+  (decl := Bool) (name := Fin 3) (token := Bool) (scan := ParaleanCompletionRecovery.Example.Scan)
+  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan)) :=
   fun _ _ => Classical.propDecidable _
 local instance : delta% (ParaleanRecovery.automatic._veil_dec_type_0
   (record := Bool) (workspace := Unit) (snapshot := Bool)
-  (decl := Bool) (name := Fin 3) (token := Bool) (scan := Unit)
-  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool Unit)) :=
+  (decl := Bool) (name := Fin 3) (token := Bool) (scan := ParaleanCompletionRecovery.Example.Scan)
+  (χ := ParaleanRecovery.CanonicalRep Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan)) :=
   fun _ _ => Classical.propDecidable _
 
 macro "fence_simp" : tactic => `(tactic| simp [ParaleanRecovery.RecoveryNext, ParaleanRecovery.Next,
@@ -524,11 +555,11 @@ macro "fence_simp" : tactic => `(tactic| simp [ParaleanRecovery.RecoveryNext, Pa
 theorem recovery_steps :
     ParaleanRecovery.RecoveryNext recoveryTheory rec0 (.commit true false) recCommitted ∧
     ParaleanRecovery.RecoveryNext recoveryTheory recForgotten (.rotateFence true) fRot ∧
-    ParaleanRecovery.RecoveryNext recoveryTheory fRot (.enumerate ()) fScan ∧
+    ParaleanRecovery.RecoveryNext recoveryTheory fRot (.enumerate idScan) fScan ∧
     ParaleanRecovery.RecoveryNext recoveryTheory fScan .reconstruct fRebuilt ∧
     ParaleanRecovery.RecoveryNext recoveryTheory fRebuilt (.automatic true) fAuto ∧
     ParaleanRecovery.RecoveryNext recoveryTheory rec0 (.rotateFence true) nRot ∧
-    ParaleanRecovery.RecoveryNext recoveryTheory nRot (.enumerate ()) nScan ∧
+    ParaleanRecovery.RecoveryNext recoveryTheory nRot (.enumerate idScan) nScan ∧
     ParaleanRecovery.RecoveryNext recoveryTheory nScan .reconstruct nRebuilt ∧
     ParaleanRecovery.RecoveryNext recoveryTheory nRebuilt (.automatic true) nAuto := by
   repeat' apply And.intro
@@ -550,7 +581,7 @@ theorem ack_base (disk : ParaleanCompletionRecovery.Example.Disk) rec (o : Store
     (ack_step disk o quorum) guard
 
 theorem rec_base (disk : ParaleanCompletionRecovery.Example.Disk) rec rec'
-    (l : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool Unit)
+    (l : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan)
     (hl : ∀ c epoch, l ≠ .commit c epoch)
     (ready : ∀ v, l = .enumerate v → ∀ c, recoveryTheory.ready v c = true →
       ParaleanRecovery.StorageReady (ParaleanRecovery.ofAdmission theory recoveryTheory encode).base disk
@@ -562,11 +593,12 @@ theorem rec_base (disk : ParaleanCompletionRecovery.Example.Disk) rec rec'
 theorem ready_on (disk : ParaleanCompletionRecovery.Example.Disk)
     (hcat : disk.acknowledged (.catalog 1) = true) (hman : disk.acknowledged (.manifest true) = true)
     (hpay : ∀ g, disk.acknowledged (.payload g) = true) :
-    ∀ v, (ParaleanRecovery.Label.enumerate () : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool Unit) = .enumerate v →
+    ∀ v, (ParaleanRecovery.Label.enumerate idScan : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan) = .enumerate v →
       ∀ c, recoveryTheory.ready v c = true →
       ParaleanRecovery.StorageReady (ParaleanRecovery.ofAdmission theory recoveryTheory encode).base disk
         (ParaleanRecovery.ofAdmission theory recoveryTheory encode |>.recordObject c) (recoveryTheory.image c) := by
-  intro v _ c hc
+  intro v hv c hc
+  cases hv
   cases c
   · simp [recoveryTheory] at hc
   · refine ⟨hcat, hman, ?_⟩
@@ -602,7 +634,7 @@ theorem hstep0 {disk disk' : ParaleanCompletionRecovery.Example.Disk} {rec rec'}
     (hb : N (mk disk rec) (mk disk' rec')) (hf : rec.fence = 0) :
     Next theory recoveryTheory encode tok (mk disk rec, e)
       (mk disk' rec', update encode (mk disk rec) (mk disk' rec') e) :=
-  hardened_step _ _ _ _ e hb (fun c _ => fenced_at disk rec hf c)
+  hardened_step _ _ _ _ e hb (fun c _ => Or.inl (fenced_at disk rec hf c))
 
 /-- A step that leaves the store unchanged. -/
 theorem hquiet {disk : ParaleanCompletionRecovery.Example.Disk} {rec rec'} (e : Extra Bool)
@@ -611,7 +643,7 @@ theorem hquiet {disk : ParaleanCompletionRecovery.Example.Disk} {rec rec'} (e : 
   have hq : ∀ c, ¬ NewWrite encode (mk disk rec) (mk disk rec') c :=
     same_storage_no_write (s := mk disk rec) (t := mk disk rec') encode rfl
   have h := hardened_step theory recoveryTheory encode tok e hb
-    (fun c hn => absurd hn.1 (hq c))
+    (fun c hn => absurd hn (hq c))
   rwa [update_quiet encode e hq] at h
 
 macro "disk_simp" : tactic => `(tactic| (intro x; cases x <;> simp [diskCatalog, diskCatalog2,
@@ -621,7 +653,7 @@ theorem initial_mk : ParaleanCompletionRecovery.Initial theory recoveryTheory (m
   ⟨initial_valid, recovery_initial⟩
 
 /-- Base prefix shared by both runs: payloads and the manifest of snapshot `true`. -/
-theorem prefix_base (rec : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool Unit) :
+theorem prefix_base (rec : ParaleanRecovery.CanonicalState Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan) :
     N (mk disk0 rec) (mk disk1 rec) ∧ N (mk disk1 rec) (mk disk2 rec) ∧
     N (mk disk2 rec) (mk disk3 rec) ∧ N (mk disk3 rec) (mk disk4 rec) ∧
     N (mk disk4 rec) (mk disk5 rec) ∧ N (mk disk5 rec) (mk disk6 rec) ∧
@@ -640,7 +672,7 @@ theorem lose_base : N (mk diskCatalog recCommitted) (mk diskCatalogLost recCommi
 theorem desktop_base : N (mk diskCatalogLost recCommitted) (mk diskCatalogLost recForgotten) :=
   ParaleanProtocol.failure_step theory recoveryTheory encode (.desktop forget_desktop)
 
-theorem lost_ready : ∀ v, (ParaleanRecovery.Label.enumerate () : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool Unit) = .enumerate v →
+theorem lost_ready : ∀ v, (ParaleanRecovery.Label.enumerate idScan : ParaleanRecovery.Label Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan) = .enumerate v →
       ∀ c, recoveryTheory.ready v c = true →
       ParaleanRecovery.StorageReady (ParaleanRecovery.ofAdmission theory recoveryTheory encode).base diskCatalogLost
         (ParaleanRecovery.ofAdmission theory recoveryTheory encode |>.recordObject c) (recoveryTheory.image c) :=
@@ -681,7 +713,7 @@ theorem fenced_recovery_execution :
   have h14 := Reachable.step h13 (hstep0 _ desktop_base rfl)
   have h15 := Reachable.step h14 (hquiet _ (rec_base _ _ _ (.rotateFence true)
     (by intro c epoch h; cases h) (by intro v h; cases h) recovery_steps.2.1))
-  have h16 := Reachable.step h15 (hquiet _ (rec_base _ _ _ (.enumerate ())
+  have h16 := Reachable.step h15 (hquiet _ (rec_base _ _ _ (.enumerate idScan)
     (by intro c epoch h; cases h) lost_ready recovery_steps.2.2.1))
   have h17 := Reachable.step h16 (hquiet _ (rec_base _ _ _ .reconstruct
     (by intro c epoch h; cases h) (by intro v h; cases h) recovery_steps.2.2.2.1))
@@ -722,7 +754,7 @@ theorem unfenced_stale_selection :
     (by intro c epoch h; cases h) (by intro v h; cases h) recovery_steps.2.2.2.2.2.1
   have hack : N (mk diskCatalog2 nRot) (mk diskCatalog nRot) :=
     ack_base _ _ _ (by disk_simp) trivial
-  have henum : N (mk diskCatalog nRot) (mk diskCatalog nScan) := rec_base _ _ _ (.enumerate ())
+  have henum : N (mk diskCatalog nRot) (mk diskCatalog nScan) := rec_base _ _ _ (.enumerate idScan)
     (by intro c epoch h; cases h)
     (ready_on _ (by simp [diskCatalog, ack]) (by simp [diskCatalog, diskCatalog2, diskCatalog1, disk9, ack, put])
       (by intro g; cases g <;> simp [diskCatalog, diskCatalog2, diskCatalog1, disk9, disk8, disk7,
@@ -886,8 +918,8 @@ theorem late_ack_and_repair_execution :
   -- rotation
   have h11 := Reachable.step h10 (hquiet _ (rec_base _ _ _ (.rotateFence true)
     (by intro c epoch h; cases h) (by intro v h; cases h) recovery_steps.2.2.2.2.2.1))
-  have held : StoredSomewhere encode (mk diskCatalog1 nRot) true :=
-    ⟨false, by simp [mk, state, encode, diskCatalog1, put]⟩
+  have held : CopySource encode (mk diskCatalog1 nRot) true :=
+    ⟨false, rfl, by simp [mk, state, encode, diskCatalog1, put]⟩
   have only1 := @only_true_written
   -- repair copy after rotation
   have hrepNew : NewWrite encode (mk diskCatalog1 nRot) (mk diskCatalog2 nRot) true :=
@@ -900,8 +932,8 @@ theorem late_ack_and_repair_execution :
       have := only1 _ _ _ _ (by intro x; simp [diskCatalog2, put]) (by simp [diskCatalog2, put]) c hn
       subst this; exact held))
   -- acknowledgement and commit after rotation
-  have held2 : StoredSomewhere encode (mk diskCatalog2 nRot) true :=
-    ⟨false, by simp [mk, state, encode, diskCatalog2, diskCatalog1, put]⟩
+  have held2 : CopySource encode (mk diskCatalog2 nRot) true :=
+    ⟨false, rfl, by simp [mk, state, encode, diskCatalog2, diskCatalog1, put]⟩
   have hcommit := commit_on (rec := nRot) (rec' := lRec) true late_commit_step
   have h13 := Reachable.step h12 (no_first_write_step theory recoveryTheory encode tok _ hcommit (by
       intro c hn
@@ -911,7 +943,7 @@ theorem late_ack_and_repair_execution :
     Or.inr ⟨by simp [mk, state, encode, diskCatalog, ack], by
       simp [mk, state, encode, diskCatalog2, diskCatalog1, disk9, disk8, disk7, disk6, disk5, disk4,
         disk3, disk2, disk1, disk0, put, ack]⟩
-  refine ⟨by simp [tok, recoveryTheory, nRot], hrepNew, fun h => h.2 held, ⟨_, h12⟩, hackNew,
+  refine ⟨by simp [tok, recoveryTheory, nRot], hrepNew, fun h => h.2 (copySource_stored encode held), ⟨_, h12⟩, hackNew,
     _, h13, rfl, rfl, ?_⟩
   have := ((catalog_objects_fenced theory recoveryTheory encode tok assumptions recovery_assumptions
     h13).2 true rfl).1

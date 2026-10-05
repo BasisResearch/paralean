@@ -10,15 +10,20 @@ which `enumerate` adopts, `automatic` selects and the completion guard accepts.
   `.catalog (encode c)`.
 - `Extra := record → Option Nat`: ghost `writtenAt`, the fence at the first step that
   newly stores or acknowledges the record's object. Set once, never changed.
-- `FirstWrite s t c`: the step newly stores or acknowledges `c`'s object and no replica
-  held its bytes before the step (`¬ StoredSomewhere`). A new copy of bytes that some
-  replica already holds is a repair, not a first write.
+- `NewWrite s t c`: the step newly stores `c`'s object on a replica or newly
+  acknowledges it.
 - `Fenced s c`: `tokenRank (recordToken c) = fence` (pre-step). The `writer` flag of the
   recovery component is not read.
-- `Guard`: every first write is `Fenced`; `e' = update e`. Repair copies, Acks and commits
-  are unconditional here. An Ack is the writer's conclusion that its bytes reached a write
-  quorum, not a store write, so it cannot be conditional. Commit keeps its base check
+- `CopySource s c`: a live replica holds `c`'s bytes. This is a positive read: the
+  writer names the replica it read the bytes from, and that replica answered.
+- `Guard`: every new write is `Fenced` or has a `CopySource` (a repair copy, or the Ack
+  of bytes already on a write quorum); `e' = update e`. The guard reads the fence
+  register, the record's token, the store delta and one live replica the writer read.
+  It never decides that *no* replica holds the bytes. Commit keeps its base check
   `writer ∧ tokenRank epoch = fence`.
+- `FirstWrite s t c` (specification only, not read by the guard): a new write while
+  no replica held the bytes (`¬ StoredSomewhere`). `firstWrite_fenced`: under the guard
+  every first write is `Fenced`, because a first write has no source replica.
 - `Next (s,e) (t,e') := ParaleanProtocol.Next s t ∧ Guard s e t e'`; `guard_stutter`,
   `reachable_protocol` (existing theorems transfer).
 
@@ -31,13 +36,13 @@ which `enumerate` adopts, `automatic` selects and the completion guard accepts.
   was the current fence. Later copies, Acks and commits may happen under a newer fence.
 - `selected_not_stale` / `completion_not_stale`: the same for the selected record
   (automatic or historical) and for the record behind `FinishStep`.
-- `stale_first_write_rejected`: a guard restatement (definitional). A first write of a
-  record whose token rank differs from the fence is not a hardened step.
+- `firstWrite_fenced`, `stale_first_write_rejected`: a first write of a record whose
+  token rank differs from the fence is not a hardened step.
 - `guard_enabled_iff`: the guard reads only the pre-step fence, the record's token,
-  whether some replica holds the record's bytes, and the store delta.
+  the store delta, and for an unfenced write one live replica holding the bytes.
 - `fenced_put_enabled`: a first write whose token has the fence's rank is enabled
   (assumes `encode` injective). `repair_put_enabled`, `ack_unfenced`: a Put or an Ack of
-  a record some replica holds is a hardened step at any fence and any token.
+  a record a live replica holds is a hardened step at any fence and any token.
   `no_first_write_step`, `guard_of_fenced_writes`: step-building helpers.
 - `Example.fenced_recovery_execution`: a writer commits record `true` under fence 0.
   A replica and the desktop are lost; the fence rotates to 1. A first write of a fresh
@@ -48,6 +53,10 @@ which `enumerate` adopts, `automatic` selects and the completion guard accepts.
   replica, then it is acknowledged and committed (base commit under the new epoch). Both
   steps are hardened steps although the token is below the fence; the old
   every-write-fenced guard would reject them. The committed record has `writtenAt = some 0`.
+- The examples above recover with the base model's fixed scan `idScan` (record `true`
+  decoded and ready), checked against ghost acknowledgement by the base guard. They
+  exercise the fence, not readiness; recovery from a scan computed from certificates
+  is in `ParaleanHardened.Example`.
 - `Example.unfenced_stale_selection` (necessity): in the base protocol the fence is
   rotated to 1, then the rank-0 record is first written and acknowledged; `enumerate`
   adopts it and `automatic` selects it. The hardened `Next` rejects that first write.
@@ -76,12 +85,14 @@ which `enumerate` adopts, `automatic` selects and the completion guard accepts.
   [CatalogCertificates](CATALOG-CERTIFICATES.md). There, adoption and commit need
   certificates, and the record's commit certificate is a conditional write on the
   fence. `ParaleanHardened` composes both layers.
-- `FirstWrite` reads whether any replica holds the record's bytes
-  (`StoredSomewhere`). A store cannot evaluate that globally. The TLA model replaces
-  it with a fenced `Put` and a `Repair` that copies bytes read from a named live
-  replica.
+- The unfenced branch needs the writer to have read the bytes from a live replica
+  (`CopySource`). Whether that read happened is not separately modelled: the guard
+  takes the replica as a witness. The TLA model has the same shape (a fenced `Put` and a
+  `Repair` from a named live source replica).
 - The base `enumerate` readiness (`StorageReady`) reads ghost acknowledgement. The
-  hardened path reads certificates instead (`CatalogCertificates.certScanValue`).
+  hardened path reads certificates instead (`CatalogCertificates.certScanValue`), and
+  recovery's implementation step (`CatalogCertificates.ScanEnumerate`) is lifted into
+  a hardened step by `ParaleanHardened.scan_enumerate_hardened`.
 - Per-process tokens are not modelled. "Stale" means a token rank that differs from
   the stored fence. The recovery component's `writer` flag is local authorisation;
   it is not store state and the guard does not read it.

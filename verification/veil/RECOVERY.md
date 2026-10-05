@@ -50,6 +50,15 @@ The generated enumeration coverage guard is the scan adapter specification.
 complete physical scan, then constructs the generated enumeration step. It proves the exact accepted
 output and preserves writer authorization and fence.
 
+The guard quantifies over the ghost `committed` history, and the coupling checks
+ready records against ghost acknowledgement. Both remain in this base model. On the
+hardened path they are discharged rather than assumed: a scan computed from the
+certificates returned by a responding read quorum covers every committed record on
+every reachable state (`CatalogCertificates.certScanValue_covers`), and recovery's
+implementation enumerate (`CatalogCertificates.ScanEnumerate`, the state change
+`scanEffect` with no precondition checked) is a hardened step
+(`ParaleanHardened.scan_enumerate_hardened`). See [HARDENED](HARDENED.md).
+
 ## Heads, conflicts, and selection
 
 `reconstruct` computes every maximal causal record in the accepted catalog.
