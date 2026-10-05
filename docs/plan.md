@@ -2,8 +2,7 @@
 
 This delivery covers design, TLA+ checks, Veil/Lean verification and a P1
 prototype. The prototype (`impl/p1`, [gate report](p1-gate.md)) runs as a library
-and CLI on stock Lean, not a fork; it passes G1 to G6 (G5 with one recorded
-deviation) on 21 fixture files and an 18-module Mathlib sample. The distributed Lean fork itself is subsequent
+and CLI on stock Lean, not a fork; it passes G1 to G6 on 21 fixture files and an 18-module Mathlib sample. The distributed Lean fork itself is subsequent
 implementation work.
 
 The abstract protocol gates now include atomic multi-name groups, receipt/session
