@@ -1,14 +1,24 @@
 # Recorded verification run
 
-Date: 2026-10-05. Host: `aws-dev`, Linux 7.0.0-1012-aws x86_64, 32 cores,
-OpenJDK 25.0.4.1 (details in [toolchain.txt](toolchain.txt)). TLC used eight workers and a 12 GiB heap limit.
-Negative cases used one worker.
+Date: 2026-10-05. The TLC logs come from a later run than the Lean logs.
 
-All fourteen finite TLC scenarios passed. Their distinct-state counts sum to 3,097,826.
-The negative suite made 66 runs, all with their expected outcome: 23 reachability
-witnesses, 41 protocol mutations (38 distinct source edits; three deletions are
-checked against two oracles each) and 2 over-restrictive models that must lose a
-witness. The work witness commits the full B→A→B dependency chain.
+TLC: macOS 26.5.1 on an Apple M4 (10 cores, shared with other jobs), OpenJDK
+17.0.18 ([tlc/toolchain.txt](tlc/toolchain.txt)). Positive scenarios used four
+workers and a 6 GiB heap; negative cases used six workers.
+Lean: host `aws-dev`, Linux 7.0.0-1012-aws x86_64, 32 cores, OpenJDK 25.0.4.1
+([toolchain.txt](toolchain.txt)).
+
+All nineteen finite TLC scenarios passed. Their distinct-state counts sum to 5,484,001.
+Five of them check liveness (`Collision`, `Workspace`, `TargetsLive`,
+`FencingLive`, `CertificatesLive`); the rest are safety + reachability only (see
+the liveness table in the [guard matrix](../TLA-GUARDS.md#liveness)).
+The negative suite made 76 runs, all with their expected outcome: 24 reachability
+witnesses, 45 protocol mutations (42 distinct source edits; three deletions are
+checked against two oracles each), 2 runs of the original design that must fail
+the new liveness properties (the stranded head and the stranded publication), 2
+over-restrictive models that must lose a witness, and 3 deletions that must pass
+(redundant checks). Each temporal mutation checks exactly one property.
+The work witness commits the full B→A→B dependency chain.
 The combined failure witness acknowledges and commits a checkpoint, destroys a
 replica in both acknowledgement quorums, crashes and recovers the worker, then
 recommits the same nonempty checkpoint. Guard mutations use independent closure
@@ -28,7 +38,8 @@ Commands:
 bash scripts/check-tla.sh
 bash scripts/check-tla-negative.sh
 bash scripts/check-veil.sh
-bash scripts/archive-verification.sh
+bash scripts/archive-verification.sh             # or --tla-only, as for this TLC run
+bash scripts/archive-verification.sh --verify    # re-check archived TLC provenance
 ```
 
 The modules cover atomic multi-name groups, packet/receipt binding, completion
@@ -65,15 +76,32 @@ The hardened protocol was revised after review. Revising a collision winner keep
 its name, and only live heads render. Workers that skip validity checks are
 modelled. Target ownership is reassignable and epoch-fenced. Only first catalogue
 writes are fenced. Certificate quorums come from each writer's own replies,
-collected over time. Every TLC, negative and Lean log in this archive comes from
-one run against the final sources, with the Veil build started from an empty
-output directory. The source hashes
-identify final verification models, proofs, component notes and scripts. They
-exclude this results document and the research prose.
+collected over time.
+
+A second revision of the TLA models closes a liveness gap: discovery
+certificates were written after publication by nodes that know the group, so a
+publisher that crashed first stranded its publication, and a stranded target
+head blocked its name forever. Publication now writes the publisher's
+certificate quorum in the same metadata-store transaction (`AtomicCert`), the
+Fencing commit certificate requires committed parents, and recovery counts a
+record as committed only on a fully live write quorum, restored after a loss
+by certificate repair. The Lean modules do not yet model these changes; their
+logs are from the earlier run against the unchanged Lean sources, with the Veil
+build started from an empty output directory.
+
+Every TLC log ends with a provenance block: the SHA256 of each file TLC parsed
+and of the configuration, taken from the run directory TLC actually read, and,
+for a negative case, the SHA256 of every pristine source it was derived from.
+`scripts/archive-verification.sh` archives only complete suite runs, checks
+each block against the current sources before copying, archives exactly the
+current case list (deleting logs of retired cases), and re-checks the archive;
+`scripts/archive-verification.sh --verify` repeats that last check. The source
+hashes identify final verification models, proofs, component notes and
+scripts. They exclude this results document and the research prose.
 
 - [TLC logs](tlc)
 - [Lean proof and axiom logs](lean)
-- [Pinned tool versions](toolchain.txt)
+- [Pinned tool versions](toolchain.txt) (Lean run) and [TLC tool versions](tlc/toolchain.txt)
 - [Verification source SHA256s](source-sha256.txt)
 
 TLC's state fingerprints have a small collision probability; each log records its

@@ -1,27 +1,38 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 21 and seed -4281386591699334614 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1698453] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Certificates.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 70 and seed -3562835748935341395 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 90865] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Certificates/Certificates.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Certificates
-Starting... (2026-10-05 16:19:27)
+Starting... (2026-10-05 15:33:15)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:27.
-Progress(18) at 2026-10-05 16:19:30: 2,921,963 states generated (2,921,963 s/min), 258,808 distinct states found (258,808 ds/min), 106,159 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:33:16.
+Progress(11) at 2026-10-05 15:33:19: 23,282 states generated (23,282 s/min), 3,100 distinct states found (3,100 ds/min), 1,914 states left on queue.
+Progress(16) at 2026-10-05 15:34:19: 1,728,931 states generated (1,705,649 s/min), 147,111 distinct states found (144,011 ds/min), 64,583 states left on queue.
+Progress(17) at 2026-10-05 15:35:19: 3,050,302 states generated (1,321,371 s/min), 233,325 distinct states found (86,214 ds/min), 86,274 states left on queue.
+Progress(18) at 2026-10-05 15:36:19: 4,172,921 states generated (1,122,619 s/min), 296,353 distinct states found (63,028 ds/min), 94,765 states left on queue.
+Progress(18) at 2026-10-05 15:37:19: 5,387,343 states generated (1,214,422 s/min), 361,448 distinct states found (65,095 ds/min), 97,871 states left on queue.
+Progress(19) at 2026-10-05 15:38:19: 6,594,624 states generated (1,207,281 s/min), 407,486 distinct states found (46,038 ds/min), 84,926 states left on queue.
+Progress(21) at 2026-10-05 15:39:19: 9,847,697 states generated (3,253,073 s/min), 519,205 distinct states found (111,719 ds/min), 31,272 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 1.4E-6
-  based on the actual fingerprints:  val = 1.2E-7
-22711736 states generated, 1182911 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 29.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 19s at (2026-10-05 16:19:46)
+  calculated (optimistic):  val = 3.0E-7
+  based on the actual fingerprints:  val = 5.4E-9
+10832390 states generated, 536937 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 25.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 06min 18s at (2026-10-05 15:39:31)
+==== Paralean TLC provenance ====
+module Certificates
+config Certificates.cfg
+expect pass
+checked 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
+checked 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
+==== end provenance ====

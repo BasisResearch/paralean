@@ -8,9 +8,19 @@
    Replies are collected one CertPut at a time. Atomic publication acknowledges
    the marker, so `published` is also the ghost marker acknowledgement.
    ScanReceive reads only certificates on live replicas of a fully live
-   recovery quorum. Commit reads only the committer's own replies. *)
+   recovery quorum. Commit reads only the committer's own replies.
+
+   AtomicCert selects the publication design. FALSE (original): certificates
+   are written by later CertPut steps, each needing local knowledge, so a
+   publisher whose index is erased before any CertPut strands its publication
+   (`PublishedDiscoverable` fails). TRUE (fix): the publication transaction
+   also writes the publisher's certificates on the acknowledging write quorum
+   and records those replies.
+
+   Liveness (FairSpec): certificate writes by a knowing node and scans of a
+   live read quorum are weakly fair; replica loss and index erasure are not. *)
 EXTENDS FiniteSets, TLC
-CONSTANTS Replicas, Groups, Nodes, Writes, Reads
+CONSTANTS Replicas, Groups, Nodes, Writes, Reads, AtomicCert
 VARIABLES marker, live, published, cert, certReply, known, head, erased, rediscovered
 vars == <<marker, live, published, cert, certReply, known, head, erased, rediscovered>>
 
@@ -48,12 +58,20 @@ PutMarker(r, g) == /\ r \in live
                    /\ marker' = [marker EXCEPT ![r] = @ \cup {g}]
                    /\ UNCHANGED <<live, published, cert, certReply, known, head, erased, rediscovered>>
 
-(* Atomic marker quorum acknowledgement plus publication by writer n. *)
+(* Atomic marker quorum acknowledgement plus publication by writer n. Under
+   AtomicCert the same transaction writes n's certificates on the write quorum
+   w that acknowledged the marker, and n records those replies. *)
 AckPublish(n, g, w) == /\ g \notin published
                        /\ \A r \in w : r \in live /\ g \in marker[r]
                        /\ published' = published \cup {g}
                        /\ known' = [known EXCEPT ![n] = @ \cup {g}]
-                       /\ UNCHANGED <<marker, live, cert, certReply, head, erased, rediscovered>>
+                       /\ cert' = IF AtomicCert
+                                  THEN [r \in Replicas |-> IF r \in w THEN cert[r] \cup {g} ELSE cert[r]]
+                                  ELSE cert
+                       /\ certReply' = IF AtomicCert
+                                       THEN [certReply EXCEPT ![n][g] = @ \cup w]
+                                       ELSE certReply
+                       /\ UNCHANGED <<marker, live, head, erased, rediscovered>>
 
 (* Writer n's local knowledge (not a scan) authorises a certificate write; the
    live replica stores it and n records the reply. *)
@@ -99,6 +117,9 @@ Next == \/ \E r \in Replicas, g \in Groups : PutMarker(r, g)
         \/ \E n \in Nodes, g \in Groups, q \in Reads : ScanReceive(n, g, q)
         \/ \E n \in Nodes, S \in SUBSET Groups : Commit(n, S)
 Spec == Init /\ [][Next]_vars
+FairSpec == /\ Spec
+            /\ \A n \in Nodes, r \in Replicas, g \in Groups : WF_vars(CertPut(n, r, g))
+            /\ \A n \in Nodes, g \in Groups : WF_vars(\E q \in Reads : ScanReceive(n, g, q))
 
 ScanFinds(g) == \A q \in Reads : LiveQuorum(q) => \E r \in q : g \in cert[r]
 
@@ -117,6 +138,19 @@ ScanBetween == \A q \in Reads : LiveQuorum(q) =>
 CheckpointCertified == \A n \in Nodes : \A g \in head[n] : CertQuorumBy(n, g)
 CheckpointDiscoverable == \A n \in Nodes : \A g \in head[n] : ScanFinds(g)
 ReceivedPublished == \A n \in Nodes : known[n] \subseteq published
+
+(* Under the fix every publication carries a certificate quorum. *)
+PublishedCertified == AtomicCert => \A g \in published : CertQuorum(g)
+
+(* Liveness. A group in some node's checkpoint is eventually rediscovered by
+   every node, whatever indexes were erased and replicas lost (recovery is
+   possible given a live read quorum). *)
+CommittedDiscoverable ==
+    \A n, m \in Nodes, g \in Groups : g \in head[n] ~> g \in known[m]
+(* Every publication is eventually discoverable by every node. Fails with
+   AtomicCert = FALSE: the stranded publication. *)
+PublishedDiscoverable ==
+    \A m \in Nodes, g \in Groups : g \in published ~> g \in known[m]
 
 (* Witness properties: expected to FAIL in the ordinary model (usefulness). *)
 NeverRediscoveredAfterLoss ==

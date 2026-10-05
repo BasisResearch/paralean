@@ -1,0 +1,31 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 41 and seed 1221416181603227280 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 66908] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/TargetsLagging/Targets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-05 15:07:31)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:07:31.
+Progress(10) at 2026-10-05 15:07:34: 50,921 states generated (50,921 s/min), 20,491 distinct states found (20,491 ds/min), 11,349 states left on queue.
+Progress(16) at 2026-10-05 15:08:34: 2,217,050 states generated (2,166,129 s/min), 571,754 distinct states found (551,263 ds/min), 157,480 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.2E-7
+  based on the actual fingerprints:  val = 4.5E-8
+7243601 states generated, 1299876 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 24.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 01min 40s at (2026-10-05 15:09:09)
+==== Paralean TLC provenance ====
+module Targets
+config TargetsLagging.cfg
+expect pass
+checked 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
+checked f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg
+==== end provenance ====

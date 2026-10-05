@@ -1,16 +1,14 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 75 and seed 5766663554115345729 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1698032] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/CheckpointReuse.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Publication.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Durability.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 45 and seed -6607318427558159694 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 64737] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Integrated.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Publication.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Registry.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Durability.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -20,15 +18,27 @@ Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
 Semantic processing of module CheckpointReuse
-Starting... (2026-10-05 16:19:06)
+Starting... (2026-10-05 15:05:21)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:06.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:05:22.
+Progress(9) at 2026-10-05 15:05:25: 61,852 states generated (61,852 s/min), 7,963 distinct states found (7,963 ds/min), 3,472 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.4E-9
-  based on the actual fingerprints:  val = 7.7E-11
+  based on the actual fingerprints:  val = 4.8E-11
 649369 states generated, 43888 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 4).
-Finished in 01s at (2026-10-05 16:19:07)
+Finished in 24s at (2026-10-05 15:05:43)
+==== Paralean TLC provenance ====
+module CheckpointReuse
+config CheckpointReuse.cfg
+expect pass
+checked 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
+checked f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+checked 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
+checked ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
+checked 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
+checked a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
+==== end provenance ====
