@@ -23,8 +23,15 @@ unsafe def materialize (store : Store) (cat : Catalog) (gids : Array String) : I
   let key := Sha256.hashHex (String.intercalate "," gids.toList).toUTF8
   let out := store.root / "materialized" / (key.take 16).toString
   let mathlib? := (← IO.getEnv "PARALEAN_MATHLIB").map FilePath.mk
-  let (plan, _) ← writeExport cat gids out mathlib?
-  let (ok, log, ms) ← runBuild out
+  -- the directory is keyed by the group IDs, so a successful earlier build is reused
+  let marker := out / ".paralean-built"
+  let (plan, ok, log, ms) ← if ← marker.pathExists then
+      pure ((← exportPlanFor cat gids), true, "", 0)
+    else do
+      let (plan, _) ← writeExport cat gids out mathlib?
+      let (ok, log, ms) ← runBuild out
+      if ok then IO.FS.writeFile marker ""
+      pure (plan, ok, log, ms)
   if !ok then
     return { imports := #[], arts := {}, covered := #[], identOf := fun _ => {}, buildMs := ms
              diags := #[{ severity := "unsupported", code := "materialize-failed",
@@ -33,6 +40,7 @@ unsafe def materialize (store : Store) (cat : Catalog) (gids : Array String) : I
   return {
     imports := plan.modules.map fun m => { module := m.name }
     arts, covered := gids, buildMs := ms
+    pkgs := gids.foldl (fun m gid => let g := cat.get! gid; m.insert gid (g.declId, g.members.map (·.local_))) {}
     identOf := fun env => (exportIdentity cat plan env).1
     diags := #[{ severity := "info", code := "materialized",
                  msg := s!"{gids.size} groups with initializer effects built as {plan.modules.size} module(s) in {ms} ms" }] }

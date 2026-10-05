@@ -1,0 +1,3 @@
+host: Darwin 25.5.0 arm64
+lean: 193c3589a4fc16c4059261ab38cfa365eb24f323 (leanprover/lean4-nightly:nightly-2026-10-03)
+date: 2026-10-05T20:32:47Z

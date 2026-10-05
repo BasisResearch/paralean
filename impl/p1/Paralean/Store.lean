@@ -12,6 +12,9 @@ Local content-addressed store.
 <root>/objects/<gid>.grp   binary group encoding; file name = SHA-256 of the bytes
 <root>/meta/<gid>.json     GroupRec (capsule, deps, diagnostics)
 <root>/files/<seq>.json    FileRec, one per capture run, in capture order
+<root>/audit/objects, <root>/audit/meta
+                           groups that capture rejected: kept for audit (the validator's
+                           kernel re-check of N3), never in the publishable namespace
 ```
 
 Objects are immutable: a write of an existing ID is checked byte-for-byte, and every read
@@ -23,11 +26,23 @@ open Lean System
 
 structure Store where
   root : FilePath
+  /-- Also read the audit namespace (rejected groups); only the audit replay sets it. -/
+  auditRead : Bool := false
 
 namespace Store
 
 def objPath (s : Store) (gid : String) : FilePath := s.root / "objects" / s!"{gid}.grp"
 def metaPath (s : Store) (gid : String) : FilePath := s.root / "meta" / s!"{gid}.json"
+
+/-- Audit namespace for rejected groups: same layout, never published or exported. -/
+def audit (s : Store) : Store := { root := s.root / "audit" }
+
+/-- Where to read an object or metadata file: the publishable namespace, else (audit
+reads only) the audit namespace. -/
+def readPath (s : Store) (p : Store → FilePath) : IO FilePath := do
+  let main := p s
+  if s.auditRead && !(← main.pathExists) then return p s.audit
+  return main
 
 def init (s : Store) : IO Unit := do
   IO.FS.createDirAll (s.root / "objects")
@@ -48,7 +63,7 @@ def putObject (s : Store) (bytes : ByteArray) : IO String := do
   return gid
 
 def getObject (s : Store) (gid : String) : IO ByteArray := do
-  let bytes ← IO.FS.readBinFile (s.objPath gid)
+  let bytes ← IO.FS.readBinFile (← s.readPath (·.objPath gid))
   let h := groupIdOf bytes
   unless h == gid do
     throw <| IO.userError s!"store: object {gid} fails hash verification (got {h})"
@@ -60,7 +75,7 @@ def putMeta (s : Store) (g : GroupRec) : IO Unit :=
   IO.FS.writeFile (s.metaPath g.gid) (toJson g).pretty
 
 def getMeta (s : Store) (gid : String) : IO GroupRec := do
-  let txt ← IO.FS.readFile (s.metaPath gid)
+  let txt ← IO.FS.readFile (← s.readPath (·.metaPath gid))
   match Json.parse txt >>= fromJson? with
   | .ok g => return g
   | .error e => throw <| IO.userError s!"store: bad meta {gid}: {e}"
@@ -126,6 +141,25 @@ def Catalog.load (s : Store) (files : Array FileRec) : IO Catalog := do
   return { metas, order }
 
 def Catalog.get! (c : Catalog) (gid : String) : GroupRec := c.metas.getD gid default
+
+/-- Wire form of references to members of stored groups (OPEN-22/23): a dependency member
+`(package ID, local)` is `(group ID, canonical index)`. -/
+def wireDepOf (lookup : String → Option GroupRec) : String → Name → Option (String × Nat) :=
+  fun pid l => do
+    let g ← lookup pid
+    let i ← g.members.findIdx? (·.local_ == l)
+    pure (g.declId, i)
+
+/-- Inverse wire context of a stored group `g`: its members by canonical index, and a
+dependency's group ID resolved through `g`'s own (kernel and frontend) dependency pins. -/
+def GroupRec.unwire (g : GroupRec) (lookup : String → Option GroupRec) : UnwireCtx where
+  selfLocal i := g.members[i]?.map (·.local_)
+  dep id i := (g.deps ++ g.feDeps).findSome? fun d => do
+    let m ← lookup d
+    if m.declId == id then pure (d, ← m.members[i]?.map (·.local_)) else none
+
+def Catalog.wireDep (c : Catalog) : String → Name → Option (String × Nat) := wireDepOf (c.metas[·]?)
+def Catalog.unwire (c : Catalog) (g : GroupRec) : UnwireCtx := g.unwire (c.metas[·]?)
 
 /-- Dependency closure (kernel + frontend), in catalogue order. -/
 partial def Catalog.closure (c : Catalog) (roots : Array String) (conservative := false) :

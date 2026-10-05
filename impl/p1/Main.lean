@@ -28,7 +28,20 @@ partial def parseFlags (args : List String) (acc : Std.HashMap String String := 
   | [] => (acc, rest)
 
 unsafe def main (args : List String) : IO UInt32 := do
-  let sysroot ← findSysroot
+  -- The base library must be the one this binary was built against: a different
+  -- toolchain's `Init.olean` fails with "incompatible header" much later.
+  let sysroot ← match ← IO.getEnv "PARALEAN_SYSROOT" with
+    | some d => pure (FilePath.mk d)
+    | none => findSysroot
+  let leanBin := sysroot / "bin" / "lean"
+  let gh ← try
+      pure (← IO.Process.output { cmd := leanBin.toString, args := #["--githash"] }).stdout.trimAscii.toString
+    catch _ => pure ""
+  unless gh == Lean.githash do
+    IO.eprintln s!"paralean: the Lean sysroot {sysroot} is commit '{gh}', but this binary was built \
+      with {Lean.githash}. Put the pinned toolchain first (ELAN_TOOLCHAIN=leanprover/lean4-nightly:nightly-2026-10-03, \
+      or source impl/p1/scripts/env.sh) or set PARALEAN_SYSROOT."
+    return 2
   -- this library's own oleans (for `Paralean.Remote`, injected in transparent-workspace mode)
   let app ← IO.appPath
   let libDir : FilePath := match ← IO.getEnv "PARALEAN_LIB" with
@@ -64,7 +77,8 @@ unsafe def main (args : List String) : IO UInt32 := do
   | "replay" :: rest =>
     let (flags, _) := parseFlags rest
     let some storeDir := flags["store"]? | IO.eprintln usage; return 2
-    let store : Store := { root := storeDir }
+    let audit := flags["include-rejected"]? == some "1"
+    let store : Store := { root := storeDir, auditRead := audit }
     let files ← store.currentFiles
     let files := match flags["ws"]? with
       | some w => files.filter (·.workspace == w)
@@ -135,7 +149,9 @@ unsafe def main (args : List String) : IO UInt32 := do
     let some declId := flags["decl"]? | IO.eprintln usage; return 2
     let bytes ← store.getObject declId
     let nameOf (r : Ref) : Except String Name := pure (Name.mkSimple (toString r))
-    match decodeGroup bytes nameOf with
+    let unwire : UnwireCtx := { selfLocal := fun i => some (Name.mkSimple s!"#{i}"),
+                                 dep := fun id i => some ((id.take 12).toString, Name.mkSimple s!"#{i}") }
+    match decodeGroup bytes unwire nameOf with
     | .error e => IO.eprintln e; return 1
     | .ok dg =>
       for (l, c, ci) in dg.members do
@@ -248,6 +264,12 @@ unsafe def main (args : List String) : IO UInt32 := do
       let _ ← a.putObject bytes
     for e in ← (b.root / "meta").readDir do
       IO.FS.writeFile (a.root / "meta" / e.fileName) (← IO.FS.readFile e.path)
+    if ← (b.root / "audit").pathExists then
+      a.audit.init
+      for e in ← (b.root / "audit" / "objects").readDir do
+        let _ ← a.audit.putObject (← IO.FS.readBinFile e.path)
+      for e in ← (b.root / "audit" / "meta").readDir do
+        IO.FS.writeFile (a.root / "audit" / "meta" / e.fileName) (← IO.FS.readFile e.path)
     for (_, r) in ← b.fileRecs do
       let _ ← a.putFileRec r
     for sub in ["receipts", "pubs"] do

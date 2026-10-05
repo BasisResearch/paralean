@@ -189,3 +189,40 @@ Running log. Newest entries at the bottom.
     dependencies. Isolated replay 1186 → 1222/1225; fixtures 120/120; Mathlib 99.7 %.
   - `remote%` cost after the meaning check: ×2.5 local capture (was ×1.22), 0 errors over
     993 groups.
+
+## 2026-10-05 (hardening pass, local re-run)
+
+- **Reproducibility.** The scripts had machine-local defaults (`$HOME/tmp/p1`,
+  `~/p0-deps`, a binary in `~/tmp/p1/bin`). Added `impl/p1/scripts/bootstrap.sh`
+  (elan toolchain checked against `193c3589…`, fixture package, `paralean`, and with
+  `--mathlib` the pinned Mathlib checkout plus `lake exe cache get`, verified with
+  `lake build --no-build`) and `scripts/env.sh` (repo-relative defaults under `.runs/p1`,
+  env overrides, clear failures). `paralean` now refuses to start when its Lean sysroot
+  is a different commit: with the user's default elan toolchain (`v4.29.1`) every
+  capture had failed with "incompatible header" on `Init.olean`. Instructions:
+  `impl/p1/README.md`. Bootstrap ran on a Mac (arm64): the cache fetch worked (8,997
+  files) and nothing was built.
+- **Canonical instance names (OPEN-24).** The first gate classified auto-named instances
+  and deriving outputs as scoped-generated, against the verified design. They are now
+  public. Anonymous instances get `instFoo…_<8 hex of H("v0/insttype", type)>` from a
+  hook on the `declaration` elaborator (`Paralean/InstName.lean`); derived instances keep
+  the handler's spelling and a `_n` on one is rejected. New fixture
+  `impl/p1/fixtures/instdup`: `instance : Inhabited (Nat × String × Bool)` in two
+  workspaces is a `version-conflict` after merging, and in one workspace an
+  `instance name collision` error. See p1-interface-notes.md §6.
+- **G5 "0 staged".** Capture now buffers a file's groups and commits them with the file
+  record. Accepted groups go to `objects/`/`meta/`, rejected ones to `audit/`, which only
+  `replay --include-rejected` reads. A cancelled or `SIGKILL`ed capture leaves nothing
+  (the first gate left 2 and 142 orphaned objects).
+- **G4 additions.** `tools/Axioms.lean` + `scripts/g4.py`: `#print axioms` of every
+  public member of the export vs the reference build, and source/line mapping of every
+  diagnostic of the export modules back to the agent file. The corpus produces no
+  diagnostics on accepted code, so a probe fixture with five known warnings was added
+  (`impl/p1/fixtures/diagmap`).
+- **OPEN-22/23** (decided by the parent): encoding `paralean-group-v2` with canonical
+  member numbering, scoped spellings as metadata, and group-ID dependency pins. See
+  p1-interface-notes.md §7. Internal auxiliaries under a public root (`_proof_n`, …) are
+  now scoped instead of `pubAux`.
+- Full local gate re-run on the Mac with the final binary; results in
+  `impl/p1/results/local-darwin/` and p1-gate.md. The older Linux results stay in
+  `impl/p1/results/` for comparison.

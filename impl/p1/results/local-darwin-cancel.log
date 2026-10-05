@@ -1,0 +1,10 @@
+### cancelled after 4 commands (F03Structure)
+capture F:Fixtures/F03Structure.lean
+uncaught exception: capture cancelled after 4 commands
+exit=1
+objects 0, meta 0, file records 0, audit objects 0
+### SIGKILL mid-file (Mathlib.Order.Basic, 213 groups, killed after 20 s)
+stdout lines written before the kill: 153
+objects 0, meta 0, file records 0, audit objects 0
+### uncancelled reference (F03Structure)
+objects 7, meta 7, file records 1, audit objects 0

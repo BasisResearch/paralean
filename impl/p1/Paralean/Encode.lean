@@ -8,15 +8,22 @@ public import Paralean.Sha256
 /-!
 Canonical, length-delimited encoding of a declaration group.
 
-Constant references are encoded as `Ref`s, never as raw Lean names, so a group's bytes
-do not depend on the module it was elaborated in:
+Constant references are `Ref`s, never raw Lean names, so a group's bytes do not depend on
+the module it was elaborated in. In memory a `Ref` names members by their normalized local
+identity; on the wire (`WireCtx`) members are numbered (p0-interfaces.md §3.4, OPEN-22):
 
 * `base n`     — a constant of the pinned base environment (the file header imports);
-* `self l`     — another member of the same group, by its normalized local name;
-* `dep gid l`  — a member of another, already stored group (exact version pin);
+* `self i`     — member `i` of this group in canonical order (`canonicalOrder`);
+* `dep id i`   — member `i` of another group, pinned by its **group ID** (the declaration
+                 ID of its kernel content; OPEN-23). The package ID that names its capsule
+                 is in the group's `deps` metadata, not in the bytes;
 * `res r s`    — a reserved name `s` realized from the constant `r` (never transported).
 
-Every other `Name` (binder names, level parameters, `mdata` keys) is encoded verbatim.
+Public members carry their name in the bytes (public names are identity and collision
+keys). Scoped members carry none: their spelling (`_private…`, `_proof_n`, `match_n`, …)
+is unhashed metadata, so identity is invariant to relocation and to auxiliary renaming
+such as `_proof_1` vs `_proof_1_1`. Binder names (macro scopes erased), level parameters
+and `mdata` keys are encoded verbatim.
 Expressions, levels and names are hash-consed into tables, so DAG sharing is preserved
 and the encoding of a term is linear in its number of distinct subterms.
 -/
@@ -58,6 +65,16 @@ def NameClass.ofTag : UInt8 → Option NameClass
 
 instance : ToString NameClass := ⟨fun | .pub => "pub" | .pubAux => "pubAux" | .scoped => "scoped"⟩
 
+/-- Wire form of the references (OPEN-22/23): members by index, other groups by group ID. -/
+structure WireCtx where
+  /-- Index of a member of this group, by local identity. -/
+  selfIdx : Name → Option Nat
+  /-- (package ID, local identity) of a dependency ↦ (its group ID, member index). -/
+  dep : String → Name → Option (String × Nat)
+
+/-- Index used for every self-reference when sorting unreferenced scoped members (`self(⊥)`). -/
+def selfBot : Nat := 0xFFFFFFFF
+
 /-- A member of a group, as encoded: its identity within the group and its kernel value. -/
 structure EncMember where
   local_ : Name
@@ -97,7 +114,7 @@ structure EncState where
   exprW : W := {}
   body : W := {}
 
-abbrev EncM := ReaderT (Name → Except String Ref) (StateT EncState (Except String))
+abbrev EncM := ReaderT ((Name → Except String Ref) × WireCtx) (StateT EncState (Except String))
 
 namespace Enc
 
@@ -111,10 +128,15 @@ partial def name (n : Name) : EncM Nat := do
 
 partial def ref (r : Ref) : EncM Nat := do
   if let some i := (← get).refs[r]? then return i
+  let ctx := (← read).2
   let w ← match r with
     | .base n => do let i ← name n; pure (((← get).refW.byte 0).nat i)
-    | .self l => do let i ← name l; pure (((← get).refW.byte 1).nat i)
-    | .dep g l => do let i ← name l; pure (((← get).refW.byte 2).str g |>.nat i)
+    | .self l => do
+      let some k := ctx.selfIdx l | throw s!"encode: {l} is not a member of this group"
+      pure (((← get).refW.byte 1).nat k)
+    | .dep g l => do
+      let some (id, k) := ctx.dep g l | throw s!"encode: no member {l} in dependency {(g.take 12).toString}"
+      pure (((← get).refW.byte 2).str id |>.nat k)
     | .res b sfx => do
       let i ← ref b; let j ← name sfx; pure (((← get).refW.byte 3).nat i |>.nat j)
   modifyGet fun s => let i := s.refs.size; (i, { s with refs := s.refs.insert r i, refW := w })
@@ -125,7 +147,7 @@ def binderName (n : Name) : EncM Nat :=
   name (if n.hasMacroScopes then n.eraseMacroScopes else n)
 
 def constRef (n : Name) : EncM Nat := do
-  match (← read) n with
+  match (← read).1 n with
   | .ok r => ref r
   | .error e => throw e
 
@@ -215,11 +237,14 @@ def hints (w : W) : ReducibilityHints → W
 
 def constantInfo (m : EncMember) : EncM Unit := do
   let ci := m.info
-  let ln ← name m.local_
+  -- public spellings are identity; scoped spellings are metadata only
+  let ln? ← if m.cls == .scoped then pure none else some <$> name m.local_
   let lps ← ci.levelParams.mapM name
   let ty ← expr ci.type
   body fun w => do
-    let w := (w.byte m.cls.tag).nat ln |>.nat lps.length
+    let w := w.byte m.cls.tag
+    let w := match ln? with | some ln => w.nat ln | none => w
+    let w := w.nat lps.length
     let w := lps.foldl W.nat w
     let w := w.nat ty
     match ci with
@@ -279,15 +304,20 @@ def canonLevelParams (ci : ConstantInfo) : ConstantInfo :=
     .recInfo { v with levelParams := ps', type := inst v.type, rules }
 
 /-- Encoding domain tag and format version. -/
-def groupMagic : String := "paralean-group-v1"
+def groupMagic : String := "paralean-group-v2"
+
+/-- Wire context numbering `members` by position, with dependencies given by `dep`. -/
+def WireCtx.ofMembers (members : Array EncMember) (dep : String → Name → Option (String × Nat)) : WireCtx :=
+  let idx : Std.HashMap Name Nat := members.size.fold (init := {}) fun i _ m => m.insert members[i].local_ i
+  { selfIdx := (idx[·]?), dep }
 
 /-- Encode members (already in canonical order) under the given base identity. -/
 def encodeGroup (baseId : String) (members : Array EncMember)
-    (resolve : Name → Except String Ref) : Except String ByteArray := do
+    (resolve : Name → Except String Ref) (wire : WireCtx) : Except String ByteArray := do
   let act : EncM Unit := do
     Enc.body fun w => pure (w.nat members.size)
     for m in members do Enc.constantInfo m
-  let ((), s) ← (act.run resolve).run {}
+  let ((), s) ← (act.run (resolve, wire)).run {}
   let w : W := {}
   let w := (w.str groupMagic).str baseId
   let w := (w.nat s.names.size).bytes s.nameW.out
@@ -296,6 +326,62 @@ def encodeGroup (baseId : String) (members : Array EncMember)
   let w := (w.nat s.exprs.size).bytes s.exprW.out
   let w := w.bytes s.body.out
   return w.out
+
+/-- Lexicographic order on byte arrays. -/
+def bytesLt (a b : ByteArray) : Bool := Id.run do
+  for i in [0:min a.size b.size] do
+    if a[i]! != b[i]! then return a[i]! < b[i]!
+  return a.size < b.size
+
+/-- Constants in `e`, in order of first occurrence in a depth-first, left-to-right walk. -/
+partial def constOrder (e : Expr) (seen : Std.HashSet ExprKey) (acc : Array Name) :
+    Std.HashSet ExprKey × Array Name :=
+  if seen.contains ⟨e⟩ then (seen, acc) else
+  let seen := seen.insert ⟨e⟩
+  match e with
+  | .const n _ => (seen, if acc.contains n then acc else acc.push n)
+  | .app f a => let (s, acc) := constOrder f seen acc; constOrder a s acc
+  | .lam _ t b _ | .forallE _ t b _ => let (s, acc) := constOrder t seen acc; constOrder b s acc
+  | .letE _ t v b _ =>
+    let (s, acc) := constOrder t seen acc; let (s, acc) := constOrder v s acc; constOrder b s acc
+  | .mdata _ b => constOrder b seen acc
+  | .proj s _ b => constOrder b seen (if acc.contains s then acc else acc.push s)
+  | _ => (seen, acc)
+
+/--
+Canonical member numbering (p0-interfaces.md §3.4): public members first, sorted by name;
+then scoped members in order of first reference in a depth-first, left-to-right walk of
+the public members' (type, value) terms; then the remaining scoped members sorted by their
+encoded bytes with every self-reference written as `self(⊥)` (ties, which only identical
+encodings can produce, by spelling).
+-/
+def canonicalOrder (baseId : String) (members : Array EncMember)
+    (resolve : Name → Except String Ref) (dep : String → Name → Option (String × Nat)) :
+    Except String (Array EncMember) := do
+  let pubs := (members.filter (·.cls != .scoped)).qsort fun a b => a.local_.toString < b.local_.toString
+  let scopedMs := members.filter (·.cls == .scoped)
+  let byLocal : Std.HashMap Name EncMember := scopedMs.foldl (fun m x => m.insert x.local_ x) {}
+  let mut out := pubs
+  let mut taken : Std.HashSet Name := {}
+  let mut seen : Std.HashSet ExprKey := {}
+  for p in pubs do
+    let mut cs := #[]
+    (seen, cs) := constOrder p.info.type seen cs
+    if let some v := p.info.value? then (seen, cs) := constOrder v seen cs
+    for c in cs do
+      if let .ok (.self l) := resolve c then
+        if let some m := byLocal[l]? then
+          unless taken.contains l do
+            taken := taken.insert l
+            out := out.push m
+  let bot : WireCtx := { selfIdx := fun _ => some selfBot, dep }
+  let mut rest : Array (ByteArray × EncMember) := #[]
+  for m in scopedMs do
+    unless taken.contains m.local_ do
+      rest := rest.push ((← encodeGroup baseId #[m] resolve bot), m)
+  let sorted := rest.qsort fun a b =>
+    bytesLt a.1 b.1 || (a.1 == b.1 && a.2.local_.toString < b.2.local_.toString)
+  return out ++ sorted.map (·.2)
 
 /-! ## Decoder -/
 
@@ -348,8 +434,14 @@ structure DecodedGroup where
   refs : Array Ref
   members : Array (Name × NameClass × ConstantInfo)
 
+/-- Inverse of `WireCtx` for one stored group: member index ↦ local identity, and
+(group ID, index) of a dependency ↦ (its package ID, local identity). -/
+structure UnwireCtx where
+  selfLocal : Nat → Option Name
+  dep : String → Nat → Option (String × Name)
+
 /-- Decode a group, mapping each `Ref` to a Lean name in the target environment. -/
-def decodeGroup (buf : ByteArray) (nameOf : Ref → Except String Name) :
+def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except String Name) :
     Except String DecodedGroup := Dec.sub buf do
   let magic ← Dec.str
   unless magic == groupMagic do throw s!"decode: bad magic {magic}"
@@ -377,8 +469,15 @@ def decodeGroup (buf : ByteArray) (nameOf : Ref → Except String Name) :
       let t ← Dec.byte
       let r ← match t with
         | 0 => do pure (Ref.base (← Dec.idx names "name"))
-        | 1 => do pure (Ref.self (← Dec.idx names "name"))
-        | 2 => do let g ← Dec.str; pure (Ref.dep g (← Dec.idx names "name"))
+        | 1 => do
+          let k ← Dec.nat
+          let some l := unwire.selfLocal k | throw s!"decode: no member {k}"
+          pure (Ref.self l)
+        | 2 => do
+          let g ← Dec.str
+          let k ← Dec.nat
+          let some (pid, l) := unwire.dep g k | throw s!"decode: no dependency member {(g.take 12).toString}/{k}"
+          pure (Ref.dep pid l)
         | 3 => do let b ← Dec.idx arr "ref"; pure (Ref.res b (← Dec.idx names "name"))
         | _ => throw "decode: bad ref tag"
       arr := arr.push r
@@ -471,11 +570,15 @@ def decodeGroup (buf : ByteArray) (nameOf : Ref → Except String Name) :
       let mut ns := #[]
       for _ in [0:k] do ns := ns.push (← Dec.idx refNames "ref")
       return ns.toList
-    for _ in [0:n] do
+    for i in [0:n] do
       let cls ← match NameClass.ofTag (← Dec.byte) with
         | some c => pure c
         | none => throw "decode: bad class"
-      let localName ← Dec.idx names "name"
+      let localName ← if cls == .scoped then
+          match unwire.selfLocal i with
+          | some l => pure l
+          | none => throw s!"decode: no spelling for scoped member {i}"
+        else Dec.idx names "name"
       let nlp ← Dec.nat
       let mut lps := #[]
       for _ in [0:nlp] do lps := lps.push (← Dec.idx names "name")

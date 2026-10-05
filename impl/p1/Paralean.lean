@@ -15,4 +15,5 @@ import Paralean.Validate
 import Paralean.Crdt
 import Paralean.Workspace
 import Paralean.Hooks
+import Paralean.InstName
 import Paralean.Visibility

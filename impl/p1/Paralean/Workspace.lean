@@ -45,7 +45,7 @@ def git (work : FilePath) (args : Array String) : IO String := do
 
 def copyInit (dir : FilePath) (author : String) : IO Unit := do
   IO.FS.createDirAll (dir / "work")
-  (Store.mk (dir / "store")).init
+  ({ root := dir / "store" } : Store).init
   let _ ← git (dir / "work") #["init", "-q", "-b", "main"]
   let _ ← git (dir / "work") #["config", "user.name", author]
   let _ ← git (dir / "work") #["config", "user.email", s!"{author}@paralean.invalid"]

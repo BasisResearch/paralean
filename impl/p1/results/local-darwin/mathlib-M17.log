@@ -1,0 +1,119 @@
+### M17 Mathlib.Tactic.Attr.Register
+capture M17:Mathlib/Tactic/Attr/Register.lean
+  effect 7b37fa38 moduleDoc L13 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  effect a887873a registerSimpAttr L25 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1547
+  effect 9bfd6adb registerSimpAttr L35 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1537
+  effect a5aec8ec registerSimpAttr L38 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1558
+  effect 7f1ded21 registerSimpAttr L41 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1562
+  effect 69f28f90 registerSimpAttr L44 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1620
+  effect bbd7e383 registerSimpAttr L48 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1650
+  effect 151ca42a registerSimpAttr L52 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1644
+  effect 3d14c1d4 registerSimpAttr L56 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1745
+  effect 1e35b043 registerSimpAttr L65 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1730
+  effect e40fec00 registerSimpAttr L74 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2115
+  effect 0be11728 registerSimpAttr L88 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1558
+  effect 86129dcc registerSimpAttr L91 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1557
+  effect 793cf2f9 registerSimpAttr L94 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1556
+  effect ee732b42 registerSimpAttr L97 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1741
+  effect 786ecd75 registerLabelAttr L102 members=3 pub=1 realized=0 deps=0 fe=0 bytes=614
+  effect a62f17bc registerSimpAttr L105 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1559
+  effect e1c005bf registerSimpAttr L108 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1607
+  effect bdb3dfe7 registerSimpAttr L111 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1607
+  effect 18b02151 registerSimpAttr L114 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1575
+  effect ee126894 registerSimpAttr L117 members=6 pub=2 realized=0 deps=0 fe=0 bytes=3631
+  effect 8f1e6a04 registerSimpAttr L154 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2840
+  => 22 groups, 2 skipped, 40 diagnostics (0 reject)
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:25: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2336186397._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:25: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2336186397._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:35: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3215534580._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:35: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3215534580._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:38: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1568842782._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:38: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1568842782._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:41: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2899626838._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:41: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2899626838._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:44: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.612238087._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:44: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.612238087._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:48: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1503578496._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:48: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1503578496._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:52: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2552594532._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:52: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2552594532._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:56: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1133190711._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:56: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1133190711._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:65: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1988518680._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:65: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1988518680._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:74: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.479538640._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:74: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.479538640._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:88: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3849875863._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:88: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3849875863._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:91: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1131139975._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:91: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1131139975._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:94: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1086225606._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:94: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.1086225606._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:97: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2133673922._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:97: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2133673922._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:105: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3021440532._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:105: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3021440532._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:108: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2016062075._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:108: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2016062075._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:111: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.668879677._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:111: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.668879677._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:114: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3369699945._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:114: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3369699945._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:117: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3059584346._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:117: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3059584346._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:154: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.85691930._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+  [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:154: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.85691930._hygCtx._hyg.22 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+capture-time 1.42 s maxrss 467328 KB
+materialized: 21 initializer groups imported as stock-built modules
+source replay: 22/22 groups reproduce their declaration ID (6557 ms)
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:25: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:35: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:38: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:41: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:44: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:48: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:52: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:56: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:65: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:74: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:88: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:91: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:94: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:97: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:102: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:105: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:108: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:111: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:114: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:117: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:154: initializer group imported as a stock-built module
+kernel replay: 22/22 groups accepted; 0 declarations added, 0 reserved names re-realized (0 ms)
+isolated replay (exact deps only): 22/22
+replay-time 120.19 s maxrss 1493728 KB
+export: 1 modules, 22 groups, 10620 bytes of source
+  Mathlib.ParaleanExport.Tactic.Attr.Register: 22 groups; imports #[Mathlib.Init, Lean.LabelAttribute, Lean.Meta.Tactic.Simp]
+stock lake build: OK (4208 ms)
+verify: 0/21 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:25: stock-built group f893212927f7 ≠ stored 729fcdf0d420
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:35: stock-built group 73dd695ab424 ≠ stored 70a6de213e0d
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:38: stock-built group da1e1db020ce ≠ stored a77d53ceff01
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:41: stock-built group 752a52c4f4b3 ≠ stored 6d695463e7a5
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:44: stock-built group ed2f818f8927 ≠ stored 13fa41b1974d
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:48: stock-built group fe71bce7f017 ≠ stored 72f4a16cd8f4
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:52: stock-built group 3ab65020f3ab ≠ stored 5f501ee25888
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:56: stock-built group 7629afea9853 ≠ stored 2cc0b9988245
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:65: stock-built group ee064091b7ad ≠ stored b8e40a2c695d
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:74: stock-built group 4c898ff0a5d4 ≠ stored fdb81376e2a3
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:88: stock-built group 7e55038c70d8 ≠ stored 56102edd61e6
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:91: stock-built group 8412facc0413 ≠ stored 5cceb23660ad
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:94: stock-built group 6daabbdfc2ec ≠ stored dba9897a0639
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:97: stock-built group 99889882173c ≠ stored 6379c79ad3d1
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:102: stock-built group 2ab37ddc0ca6 ≠ stored 1e001df5aab4
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:105: stock-built group 40905b3601cf ≠ stored 338cc77f518d
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:108: stock-built group 034fa4ef8a3b ≠ stored 5c7a9351e330
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:111: stock-built group faefb821ea84 ≠ stored e5817ae07f57
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:114: stock-built group d271e2c47fbe ≠ stored cb4c0cbcac36
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:117: stock-built group 49269475a03e ≠ stored 94fbd11b0fc6
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:154: stock-built group ba0079b8468e ≠ stored b0e8bd8eb73b
+export-time 9.96 s maxrss 993792 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2317,"median":271,"p95":1512,"sum":10167},"commandBytes":{"max":2161,"median":115,"sum":6776},"diagnostics":[["unsupported:module-dependent-literal",40]],"encodingBytes":{"max":3631,"median":1607,"sum":36627},"groups":22,"ratio":{"p50":2.368421,"p95":3.363636},"rejected":0,"skipped":2}

@@ -3,11 +3,12 @@
 # (B) concurrent unrelated declarations with the same name (rule 4), exchanged in both
 # orders; renamed projections identical; uses renamed; standalone elaboration; export.
 set -u
-here="$(cd "$(dirname "$0")/.." && pwd)"
-W="${1:-$HOME/tmp/p1/transparent2}"
-export TMPDIR="${TMPDIR:-$HOME/tmp}" PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
-export PARALEAN_LIB="$here/.lake/build/lib/lean"
-P="${PARALEAN_BIN:-$here/.lake/build/bin/paralean}"
+source "$(dirname "$0")/env.sh"
+require_bin
+here="$P1_DIR"
+W="${1:-$PARALEAN_RUNS/transparent2}"
+export PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
+P="$PARALEAN_BIN"
 rm -rf "$W"; mkdir -p "$W"
 cp_() { PARALEAN_STORE="$1/store" "$P" "${@:2}"; }
 elab() { rm -rf "$W/es"; PARALEAN_STORE="$1/store" "$P" capture --store "$W/es" --ws check --root "$1/work" --remote 1 "$2" 2>&1 | grep -E "=>|\[reject" | cut -c1-200; }

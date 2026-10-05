@@ -1,0 +1,28 @@
+G4 axioms: 1445/1448 public members have the reference's axiom set (0 differ, 3 missing); all shared constants 2452/2459
+G4 source mappings: 5/5 export diagnostics resolve to an agent file and line (100.0%); 5 reproduce a reference diagnostic at that line (reference total 4)
+  core: axioms equal 135/135 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  crossws: axioms equal 3/3 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  f15: axioms equal 4/4 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  f16: axioms equal 13/13 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  diagmap: axioms equal 10/10 public members (0 differ, 0 missing); diagnostics 5, resolved 5, reproduced at the same agent line 5 (reference has 4)
+  M01: axioms equal 285/285 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M02: axioms equal 52/52 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M03: axioms equal 78/78 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M04: axioms equal 12/12 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M05: axioms equal 18/18 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M06: axioms equal 3/3 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M07: axioms equal 1/1 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M08: axioms equal 1/1 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M09: axioms equal 3/3 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M10: axioms equal 2/2 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M11: axioms equal 18/18 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M12: axioms equal 2/2 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M13: public Pi.instMinForall_d560181b missing in reference
+  M13: public Prod.instMin_5b619f31 missing in reference
+  M13: public ULift.instSemilatticeInf_f02be170 missing in reference
+  M13: axioms equal 166/169 public members (0 differ, 3 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M14: axioms equal 49/49 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M15: axioms equal 67/67 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M16: axioms equal 217/217 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M17: axioms equal 41/41 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)
+  M18: axioms equal 265/265 public members (0 differ, 0 missing); diagnostics 0, resolved 0, reproduced at the same agent line 0 (reference has 0)

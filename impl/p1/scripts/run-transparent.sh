@@ -3,11 +3,12 @@
 # codebase {A.lean, B.lean, Shared.lean}; B→A→B through remote%; concurrent publications
 # exchanged in both orders; projection hashes; standalone elaboration; git projection.
 set -u
-here="$(cd "$(dirname "$0")/.." && pwd)"
-W="${1:-$HOME/tmp/p1/transparent}"
-export TMPDIR="${TMPDIR:-$HOME/tmp}" PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
-P="${PARALEAN_BIN:-$here/.lake/build/bin/paralean}"
-export PARALEAN_LIB="$here/.lake/build/lib/lean"
+source "$(dirname "$0")/env.sh"
+require_bin
+here="$P1_DIR"
+W="${1:-$PARALEAN_RUNS/transparent}"
+export PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
+P="$PARALEAN_BIN"
 rm -rf "$W"; mkdir -p "$W"
 A="$W/alice"; B="$W/bob"
 cp_() { PARALEAN_STORE="$1/store" PARALEAN_REMOTE_LOG="$W/remote.log" "$P" "${@:2}"; }
@@ -70,8 +71,10 @@ done
 echo "### 6. standalone elaboration of every projection file in both copies (remote mode)"
 for c in "$A" "$B"; do for f in A.lean B.lean; do
   rm -rf "$W/elab-store"
-  /usr/bin/time -f "  time %e s" env PARALEAN_STORE="$c/store" PARALEAN_REMOTE_LOG="$W/remote-elab.log" \
-    "$P" capture --store "$W/elab-store" --ws check --root "$c/work" --remote 1 "$f" 2>&1 | grep -E "=>|reject|time"
+  t0=$(python3 -c 'import time; print(time.time())')
+  env PARALEAN_STORE="$c/store" PARALEAN_REMOTE_LOG="$W/remote-elab.log" \
+    "$P" capture --store "$W/elab-store" --ws check --root "$c/work" --remote 1 "$f" 2>&1 | grep -E "=>|reject"
+  python3 -c "import time; print('  time %.2f s' % (time.time() - $t0))"
 done; done
 
 echo "### 7. git projection (bob's copy)"

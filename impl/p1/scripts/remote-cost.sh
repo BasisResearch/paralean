@@ -2,12 +2,14 @@
 # Track B measurements: publish every group of a Mathlib corpus module as one shared file,
 # elaborate the projection (all `remote%`) standalone, and compare with local elaboration.
 set -u
-here="$(cd "$(dirname "$0")/.." && pwd)"; repo="$(cd "$here/../.." && pwd)"
-G="${GATE:-$HOME/tmp/p1/gate/mathlib}"; W="${1:-$HOME/tmp/p1/remote-cost}"
-export TMPDIR="${TMPDIR:-$HOME/tmp}" PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
-export PARALEAN_LIB="$here/.lake/build/lib/lean" PARALEAN_MATHLIB="$repo/.deps/mathlib"
-export LEAN_PATH="$(cd "$repo/.deps/mathlib" && lake env printenv LEAN_PATH)"
-P="${PARALEAN_BIN:-$here/.lake/build/bin/paralean}"
+source "$(dirname "$0")/env.sh"
+require_bin; require_mathlib
+here="$P1_DIR"; repo="$REPO"
+G="${GATE:-$PARALEAN_RUNS/gate/mathlib}"; W="${1:-$PARALEAN_RUNS/remote-cost}"
+[ -d "$G" ] || die "no Mathlib gate stores at $G; run scripts/run-all.sh first (or set GATE)"
+export PARALEAN_RECEIPT_KEY="p1-demo-validator-key" PARALEAN_VISIBILITY=1
+LEAN_PATH="$(mathlib_lean_path)"; export LEAN_PATH
+P="$PARALEAN_BIN"
 rm -rf "$W"; mkdir -p "$W"
 printf "module\tgroups\tremote_elab_s\tlocal_capture_s\tstock_sync_s\tloads_statement\tloads_full\tplaceholders\tobject_reads\terrors\n"
 for m in ${MODS:-M18 M01 M16 M13 M03 M14 M15}; do
