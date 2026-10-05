@@ -69,7 +69,10 @@ written store choice with its refinement argument (signed off 2026-10-05: self-h
 
 Capture completed groups, exact dependencies and frontend capsules. Reconstruct
 compatible environments in one process with a local content-addressed store.
-Replay using the stock kernel before adding network transport.
+Replay using the stock kernel before adding network transport. P1's gate is
+reproducible from a clean checkout with `impl/p1/scripts/bootstrap.sh --mathlib`
+and `run-all.sh` (elan toolchain checked against 193c3589, Mathlib from the cache,
+no full build).
 
 Capture at command granularity. One elaborated command (inductive, structure,
 mutual block, recursive `def`, `instance`) is one group holding every `addDecl` it

@@ -19,8 +19,9 @@ proofs, small Lean boundary experiments and a P1 prototype (`impl/p1`). The
 prototype is a library and CLI on stock Lean `nightly-2026-10-03`, not a fork. It
 captures command groups, replays them from a local content-addressed store, exports
 to a clean stock build and renders `remote%` working copies. Its
-[gate report](docs/p1-gate.md) records G1 to G6 passing (G5 with one deviation) on
-21 fixture files and an 18-module Mathlib sample. There is no Lean fork, network service, object-store adapter or
+[gate report](docs/p1-gate.md) records G1 to G6 passing on
+21 fixture files and an 18-module Mathlib sample; to reproduce it, see
+[impl/p1/README.md](impl/p1/README.md). There is no Lean fork, network service, object-store adapter or
 distributed LSP yet.
 
 The proposed fork base is Lean `nightly-2026-10-03`, paired with its successful

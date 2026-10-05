@@ -152,8 +152,14 @@ So capture records provenance at the point of creation:
 and they gain environment-dependent `_n` suffixes. The fork replaces both with an
 injective, environment-independent scheme, so two instance names collide only for
 the same instance head. Export writes every instance name explicitly.
-**OPEN-24**: the injective scheme (for example the stock name plus a short hash
-of the instance type's canonical encoding).
+**OPEN-24** (decided, §13): the stock name plus a short hash of the instance type's
+canonical encoding. P1 implements this for anonymous `instance` commands
+(`impl/p1/Paralean/InstName.lean`): the type is the elaborated type with binder
+names and `mdata` erased, binder kinds kept, universe parameters numbered by first
+occurrence, and constants spelled by module-independent identity. Derived instances
+keep the deriving handler's spelling until the fork changes `mkInstName`; a
+`_n`-deduplicated derived name is rejected as a collision. Names that attributes
+derive from an instance name (`@[to_dual]`) follow the canonical base name.
 
 **Reuse across groups.** Stock `mkMatcherAuxDefinition` and `mkAuxLemma` reuse an
 existing `match_n`/`_auxLemma` with the same body, which would make a group's term
@@ -202,11 +208,12 @@ macro names have their module replaced by `$M`, hygienic declaration names becom
 `initFn._hyg.<k>` (k = per-group creation order), and generated-instance project
 suffixes are stripped. Groups whose *term-level name literals* are hygienic and
 module-dependent (e.g. `register_simp_attr`'s `initFn` bodies) cannot be
-normalized; P1 reports them as module-dependent. **OPEN-22**: P1 currently puts
-normalized spellings into identity, where this section uses canonical numbering
-and treats spellings as metadata. Both make identity relocation-invariant, and
-canonical numbering is also invariant to auxiliary renaming. Decide before P2;
-until then P1's encoding conforms as long as `Elab.async` is pinned (§4.3).
+normalized; P1 reports them as module-dependent. **OPEN-22** (decided, §13):
+identity uses canonical numbering and treats spellings as metadata, which is
+relocation-invariant and also invariant to auxiliary renaming. P1 implements
+canonical numbering and group-ID dependency pins as encoding `paralean-group-v2`
+([p1-interface-notes.md](p1-interface-notes.md) §7); scoped spellings are unhashed
+metadata.
 
 The exporter must materialize distinct kernel names. A `scoped-private` member
 becomes `_private.<ExportModule>.0.<x>` in its export module. A `scoped-generated`
@@ -472,7 +479,9 @@ The store holds typed immutable objects keyed by `(kind, ID)`:
 (export/snapshot), `catalog`, `marker`, `cert`, `ocert`, `rcert`, `tombstone`. The mutable
 `TargetRecord`s (§7) and the catalogue fence (§9) live in the same linearizable
 metadata store. Put verifies `H(kind domain, bytes)
-= ID` before acknowledging. Types are never confused across kinds.
+= ID` before acknowledging. Types are never confused across kinds. Groups rejected
+at capture are kept only in a separate audit namespace, never in the publishable
+store.
 
 ```
 ReplicaAck   = {replica : ReplicaID, kind, id, verified : true}
@@ -884,8 +893,8 @@ resolution. Rows marked **Decided** were signed off on 2026-10-05 and are record
 | OPEN-19 | Delete authority for file elements | author or controller | P3 | no | |
 | OPEN-20 | Moves (re-insert after tombstone) | not supported in v0 | P3 | no | |
 | OPEN-21 | History-preserving git projection | rewritten `paralean/projection` branch plus immutable snapshot tags | P5 | no | |
-| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 | yes: group-ID bytes | **Decided 2026-10-05.** Canonical numbering (§3.4), spellings as unhashed metadata. It is also invariant to auxiliary renaming, which OPEN-14 needs. P1 changes `self <name>` to `self <memberIdx>`; G4 identity is re-measured |
-| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 | yes: dependency bytes in group IDs and storage deduplication | **Decided 2026-10-05.** Option (a): group ID for kernel `deps`, package ID for `requires` and `frontendDeps`. Byte-identical declarations from different capsules then deduplicate, and replay still finds a capsule through `frontendDeps` |
-| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 | yes: public names enter membership, group IDs and collision keys | **Decided 2026-10-05.** Stock base name without `_n`, then `_` and the first 8 hex of `H("v0/insttype", type term)` with binder names erased, for every auto-named instance. Export writes the name explicitly. A truncated-hash clash is a spurious public-name collision, diagnosed, not unsound |
+| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 | yes: group-ID bytes | **Decided 2026-10-05.** Canonical numbering (§3.4), spellings as unhashed metadata. It is also invariant to auxiliary renaming, which OPEN-14 needs. P1 changes `self <name>` to `self <memberIdx>`; G4 identity is re-measured Implemented in P1 (encoding v2); G1 and G4 re-measured: 1224/1225 and 1116/1142. |
+| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 | yes: dependency bytes in group IDs and storage deduplication | **Decided 2026-10-05.** Option (a): group ID for kernel `deps`, package ID for `requires` and `frontendDeps`. Byte-identical declarations from different capsules then deduplicate, and replay still finds a capsule through `frontendDeps` Implemented in P1 (encoding v2); G1 and G4 re-measured: 1224/1225 and 1116/1142. |
+| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 | yes: public names enter membership, group IDs and collision keys | **Decided 2026-10-05.** Stock base name without `_n`, then `_` and the first 8 hex of `H("v0/insttype", type term)` with binder names erased, for every auto-named instance. Export writes the name explicitly. A truncated-hash clash is a spurious public-name collision, diagnosed, not unsound Implemented in P1 for anonymous instances; derived instances need the fork. |
 | OPEN-25 | Spelling of the reserved fresh-name namespace | a final component the parser rejects in user source | P1 | no (rendering and validation, P3) | |
 | OPEN-26 | Whether a snapshot may commit a rendered collision rename (§11.5) | no: Groups' `buildable` and `current` reject it; resolution is a registry revision or tombstone | P3 | no | |
