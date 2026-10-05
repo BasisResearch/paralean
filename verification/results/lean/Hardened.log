@@ -1,3 +1,5 @@
 'ParaleanHardened.hardened_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanHardened.hardened_certified_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.scan_enumerate_hardened' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.sreachable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanHardened.recorded_head_receivable' depends on axioms: [propext, Classical.choice, Quot.sound]

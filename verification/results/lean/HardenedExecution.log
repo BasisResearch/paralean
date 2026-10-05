@@ -1,2 +1,5 @@
 'ParaleanHardened.Example.instance_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanHardened.Example.hardened_nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.hardened_scan_adoption' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.stale_owner_publish_blocked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.hardened_receipt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]

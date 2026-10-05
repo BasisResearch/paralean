@@ -7,6 +7,10 @@
 'ParaleanCatalogCertificates.uncertified_not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.catReady_storageReady' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.committed_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.catReady_scanReady' does not depend on any axioms
+'ParaleanCatalogCertificates.scanReady_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.scanReady_iff_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.certScanValue_covers' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.certScanValue_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.scan_enumerate_step' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanCatalogCertificates.certified_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]

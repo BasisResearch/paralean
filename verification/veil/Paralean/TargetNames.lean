@@ -952,7 +952,7 @@ def deliveryTheory (rev : Bool) : ParaleanDelivery.Theory Bool Bool Bool Bool Bo
 def theory (rev : Bool) : Theory Bool Bool (Fin 3) Bool Bool Bool Bool Unit Unit :=
   ⟨deliveryTheory rev, groupTheory rev, storageTheory⟩
 
-def recoveryTheory (rev : Bool) : ParaleanRecovery.Theory Bool Unit Bool Bool (Fin 3) Bool Unit where
+def recoveryTheory (rev : Bool) : ParaleanRecovery.Theory Bool Unit Bool Bool (Fin 3) Bool ParaleanCompletionRecovery.Example.Scan where
   tokenRank := fun t => if t then 1 else 0
   identity := ()
   recordWorkspace := fun _ => ()
@@ -965,8 +965,8 @@ def recoveryTheory (rev : Bool) : ParaleanRecovery.Theory Bool Unit Bool Bool (F
   member := (groupTheory rev).member
   contents := (groupTheory rev).contents
   exportable := (groupTheory rev).exportable
-  decoded := fun _ => id
-  ready := fun _ => id
+  decoded := fun v c => ParaleanCompletionRecovery.Example.scanBit v.1 c
+  ready := fun v c => ParaleanCompletionRecovery.Example.scanBit v.2 c
 
 /-- Every request is pinned to name `2`. -/
 def targets (rev : Bool) : TargetAssumptions (theory rev) where
