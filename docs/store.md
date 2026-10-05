@@ -129,16 +129,22 @@ the target record stores the last reassignment's request ID).
 | T2 | Certify `g` | `marker/<g>` | `cert/<g>/<self>` |
 | T3 | Rotate fence | `fence` | `fence := k+1`, `token/<k+1>` |
 | T4 | Reassign target `x` | `target/<x>` | `owner`, `epoch := epoch+1`; `head` unchanged |
-| T5 | Write and commit catalogue record `c` | `fence`; `catalog/<c>`; `ocert/manifest/<m>` | `catalog/<c>`, `rcert/<c>` |
+| T5 | Write and commit catalogue record `c` | `fence`; `catalog/<c>`; `ocert/manifest/<m>`; for each parent `p` of `c`: `rcert/<p>`, `ocert/manifest/<image p>` | `catalog/<c>`, `rcert/<c>` |
 | T6 | Certify object `o` | none | `ocert/<kind>/<o>` |
+| T7 | Repair certificate | an existing `cert`, `rcert` or `ocert` key | the same key on a replacement replica (unconditional, unfenced) |
 
 T1 aborts unless, for every target name, `owner = self`, `epoch` equals the epoch
 the proof was prepared under and `head` equals the head the proof revises. The last
 condition is the compare-and-swap variant of TargetNames' atomicity note; with it
 the owner need not serialize prepare and publish. T1 runs only after every object
 of the package (manifest, chunks, capsule) is acknowledged by S3 and the receipt
-signature has been checked. T5 aborts unless `token(c).rank = fence`. T6 runs only
-after S3 acknowledged `o`.
+signature has been checked. T5 aborts unless `token(c).rank = fence` and every
+parent of `c` is itself committed (its `rcert` and manifest certificate exist), so a
+record is never committed over an acknowledged but uncommitted parent that recovery
+could not adopt. T6 runs only after S3 acknowledged `o`. T7 applies only to
+deployments that replace a metadata replica: a replacement must receive copies of
+existing certificates before it counts towards a write quorum. With FoundationDB as
+the single abstract replica, its own recovery provides this and T7 is not issued.
 
 ## Refinement
 
@@ -192,12 +198,13 @@ previous step produced. The sequences are:
 | Transaction | Abstract steps, in order |
 |---|---|
 | S3 PUT acknowledged | `Put σ o`; `Ack o {σ}` |
-| T1 publish | `Put σ marker`; `Ack marker {σ}`; publish (TargetNames `PublishOk`, `advance` sets `head`); `CertStep.put n σ g` |
+| T1 publish | one hardened step: `Put σ marker`; `Ack marker {σ}`; publish (TargetNames `PublishOk`, `advance` sets `head`) together with the publisher's certificate quorum (AckCertificates `PublishWrite`) |
 | T2 certify | `CertStep.put n σ g` |
 | T3 rotate | fence rotation (the fence register write) |
 | T4 reassign | `reassign e x n` |
-| T5 catalogue | `Put σ c` (a first write when `catalog/<c>` was absent, fenced); `Ack c {σ}`; `CertStep.record σ c` (fenced) |
+| T5 catalogue | `Put σ c` (a first write when `catalog/<c>` was absent, fenced); `Ack c {σ}`; `CertStep.record σ c` (fenced; parents ready) |
 | T6 certify object | `CertStep.object σ o` |
+| T7 repair | `CertStep.repairRecord` / `CertStep.repairObject` |
 
 Each guard holds where it is taken. T1's publish is fenced by the epoch read in the
 same transaction, and its certificate is written by a node that knows `g` as
@@ -207,6 +214,9 @@ first write and commit certificate both see `token.rank = fence`, and the
 certificate follows the writer's acknowledgement of the record bytes, which is
 CatalogCertificates' `acknowledged` premise. T6 follows the S3 acknowledgement of
 `o`. After T1, `CertQuorumBy n g` holds, because `W = {{σ}}` and `certReply n g σ`.
+Writing the certificate inside T1, not in a later T2, is required: TLA
+`target_stranded_head` shows a published head can otherwise become undiscoverable
+and block its target name forever (Lean `published_certified`).
 
 ### Abstractions one by one
 
