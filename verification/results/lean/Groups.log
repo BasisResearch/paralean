@@ -36,7 +36,7 @@
 'ParaleanGroups.reconnect_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroups.heal_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroups.initializer_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:768:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_publication`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:768:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_publication`:
   [DecidableEq node]
   [Inhabited node]
   [DecidableEq group]
@@ -53,7 +53,7 @@ consider restructuring your `variable` declarations so that the variables are no
   group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:774:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_snapshot`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:774:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_snapshot`:
   [DecidableEq node]
   [Inhabited node]
   [DecidableEq group]
@@ -70,13 +70,13 @@ consider restructuring your `variable` declarations so that the variables are no
   group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:1026:52: warning: this tactic is never executed
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:1026:52: warning: this tactic is never executed
 
 Note: This linter can be disabled with `set_option linter.unreachableTactic false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:1026:77: warning: this tactic is never executed
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:1026:77: warning: this tactic is never executed
 
 Note: This linter can be disabled with `set_option linter.unreachableTactic false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:1059:57: warning: this tactic is never executed
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:1059:57: warning: this tactic is never executed
 
 Note: This linter can be disabled with `set_option linter.unreachableTactic false`
 'ParaleanGroups.published_revision_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
@@ -130,7 +130,7 @@ Note: This linter can be disabled with `set_option linter.unreachableTactic fals
 'ParaleanGroupComposition.published_ancestor_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroupComposition.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroupComposition.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:1841:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.commit_fresh`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:1841:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.commit_fresh`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]
@@ -153,7 +153,7 @@ Note: This linter can be disabled with `set_option linter.unusedSectionVars fals
 'ParaleanGroups.dependency_path_conflict_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroups.next_preserves_historical_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroups.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:1952:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.guarded_commit_enabled_iff`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:1952:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.guarded_commit_enabled_iff`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]
@@ -174,7 +174,7 @@ Note: This linter can be disabled with `set_option linter.unusedSectionVars fals
 'ParaleanGroupComposition.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroupComposition.snapshot_no_duplicate_name' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanGroups.Trace.eventual_name_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Groups.lean:2034:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.CommitStep.registry_transition`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Groups.lean:2034:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.CommitStep.registry_transition`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]

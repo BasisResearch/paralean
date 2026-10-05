@@ -129,9 +129,12 @@ theorem hardened_safe (a : ATheory) (r : RTheory) (encode : record → Nat) (cfg
         some (r.tokenRank (cfg.recordToken p.1.recovery.selectedRecord)) ∧
       p.2.2.2.1.certFence p.1.recovery.selectedRecord =
         some (r.tokenRank (cfg.recordToken p.1.recovery.selectedRecord))) ∧
-    -- fix 4: certificates are sound; every checkpoint group has the committer's own
-    -- reply quorum and is found by a scan of any fully live recovery quorum
+    -- fix 4: certificates are sound; every published group has a certificate quorum
+    -- (written atomically with its publication); every checkpoint group has the
+    -- committer's own reply quorum and is found by a scan of any fully live recovery quorum
     (∀ x d, p.2.2.1.cert x d = true → p.1.admission.protocol.registry.published d = true) ∧
+    (∀ d, p.1.admission.protocol.registry.published d = true →
+      ParaleanAckCertificates.CertQuorum a p.2.2.1 d) ∧
     (∀ n d, a.registry.contents (p.1.admission.protocol.registry.head n) d = true →
       ParaleanAckCertificates.CertQuorumBy a p.2.2.1 n d ∧
       ∀ q, (∀ x, a.storage.memberR x q = true → p.1.admission.protocol.storage.live x = true) →
@@ -151,6 +154,7 @@ theorem hardened_safe (a : ATheory) (r : RTheory) (encode : record → Nat) (cfg
       (reachable_fencing a r encode cfg h) hsel).1,
       (ParaleanCatalogCertificates.selected_fenced a r encode cfg.recordToken ha hra h5 hsel).1⟩,
     fun x d hc => (ParaleanAckCertificates.cert_sound a r encode ha h4 x d hc).1,
+    fun d hd => ParaleanAckCertificates.published_certified a r encode ha h4 d hd,
     fun n d hc => ParaleanAckCertificates.checkpoint_contents_discoverable a r encode ha h4 n d hc,
     fun c hc => ParaleanCatalogCertificates.committed_catReady a r encode cfg.recordToken ha h5 c hc⟩
 
@@ -176,7 +180,9 @@ theorem lift_recovery_only (a : ATheory) (r : RTheory) (encode : record → Nat)
   · refine Or.inl ⟨?_, ?_, ?_⟩
     · intro n d h1 h2 _; rw [hreg, h1] at h2; cases h2
     · intro n h; rw [hreg] at h; exact absurd rfl h
-    · exact (ParaleanAckCertificates.clearLost_same s t e.2.1 (by rw [hst])).symm
+    · rw [ParaleanAckCertificates.clearLost_same s t e.2.1 (by rw [hst])]
+      exact ParaleanAckCertificates.publishWrite_quiet a s t e.2.1
+        (ParaleanAckCertificates.no_new_pub_of_same s t (by rw [hreg]))
 
 /-! ## Implementation recovery
 
@@ -302,16 +308,18 @@ theorem receive_registry_effect (th : ParaleanGroups.Theory node group name snap
 
 /-- Target chain from the epoch record and certificates. The head recorded in a
 target's owner/epoch record is a published proof of that name that tops every
-published proof of it. If it has a certificate quorum, every fully live read
-quorum's certificate scan finds it, and any live, online node that does not know
-it (for example a new owner after reassignment, whose index was erased) can
-receive it by a step that passes all five guards. The new owner's prepare must
-then revise exactly that recorded head (`ParaleanTargetNames.guard_observable`). -/
+published proof of it. It has a certificate quorum (written atomically with its
+publication), so every fully live read quorum's certificate scan finds it, and any
+live, online node that does not know it (for example a new owner after
+reassignment, whose index was erased) can receive it by a step that passes all
+five guards. The new owner's prepare must then revise exactly that recorded head
+(`ParaleanTargetNames.guard_observable`). No premise on certificate writes after
+publication is needed: the recorded head can never be stranded. -/
 theorem recorded_head_receivable (a : ATheory) (r : RTheory) (encode : record → Nat)
     (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
     {s : ModelState} {e : XState} (hr : Reachable a r encode cfg (s, e))
     (x : name) (hx : ParaleanTargetNames.IsTarget a cfg.targets x) (h : group)
-    (hh : e.2.2.2.head x = some h) (hcq : ParaleanAckCertificates.CertQuorum a e.2.1 h) :
+    (hh : e.2.2.2.head x = some h) :
     s.admission.protocol.registry.published h = true ∧ a.registry.member h x = true ∧
     (∀ g, s.admission.protocol.registry.published g = true → a.registry.member g x = true →
       g = h ∨ a.registry.revisions h g x = true) ∧
@@ -326,6 +334,7 @@ theorem recorded_head_receivable (a : ATheory) (r : RTheory) (encode : record �
   have hA := reachable_certificates a r encode cfg hr
   have tops := ParaleanTargetNames.recorded_head_tops_chain a cfg.targets r encode ha hT x hx
   obtain ⟨hpub, hmem⟩ := tops.1 h hh
+  have hcq := ParaleanAckCertificates.published_certified a r encode ha hA h hpub
   have hscan : ∀ q, (∀ y, a.storage.memberR y q = true → s.admission.protocol.storage.live y = true) →
       ParaleanAckCertificates.certScan a s e.2.1 q h :=
     fun q hq => ParaleanAckCertificates.scan_complete a r encode ha hA h hcq q hq
@@ -357,6 +366,92 @@ theorem recorded_head_receivable (a : ATheory) (r : RTheory) (encode : record �
       have h2' : s.recovery.committed c = true := h2
       rw [h1] at h2'; cases h2'
 
+theorem groups_prepare_quiet (th : ParaleanGroups.Theory node group name snapshot)
+    (rg rg' : ParaleanGroups.CanonicalState node group name snapshot) (n : node) (d : group)
+    (ht : ParaleanGroups.GroupsNext th rg (.prepare n d) rg') :
+    rg'.known = rg.known ∧ rg'.head = rg.head := by
+  simp only [ParaleanGroups.GroupsNext, ParaleanGroups.Next, ParaleanGroups.NextAct,
+    ParaleanGroups.prepare.ext.derived_eq] at ht
+  dsimp [ParaleanGroups.prepare.ext.tr, getFrom, setIn, readFrom,
+    Veil.FieldRepresentation.get, instIsSubStateOfRefl, instIsSubReaderOfRefl,
+    ParaleanGroups.canonicalFieldRep, Veil.canonicalFieldRepresentation] at ht
+  repeat' rcases ht with ⟨_, ht⟩
+  try subst rg'
+  exact ⟨rfl, rfl⟩
+
+/-- Enabledness after a handover. In every reachable hardened state, let `n` be the
+current owner of target name `x` (for example the new owner after a reassignment)
+and `h` its recorded head. Then:
+- `n` knows `h`, or (if `n` is live and online) receives it by a hardened step: the
+  head was certified atomically with its publication, so it can never be stranded;
+- any base preparation by `n` of a group `d`, holding a verified receipt for `d`,
+  in which `n` owns every target name `d` declares, `d` revises the recorded head
+  of each, and `n` holds no other pending proof of those names, is a hardened step
+  (all five guards hold).
+Together: the new owner can always learn the recorded head, and a revision of it
+that the base protocol can prepare is never blocked by the hardening guards. -/
+theorem owner_prepare_enabled (a : ATheory) (r : RTheory) (encode : record → Nat)
+    (cfg : Config a token record) (ha : ParaleanAdmission.Assumptions a)
+    {s : ModelState} {e : XState} (hr : Reachable a r encode cfg (s, e))
+    (x : name) (hx : ParaleanTargetNames.IsTarget a cfg.targets x) (h : group)
+    (hh : e.2.2.2.head x = some h) :
+    (s.admission.protocol.registry.known (e.2.2.2.owner x) h = true ∨
+      (s.admission.protocol.registry.alive (e.2.2.2.owner x) = true →
+        s.admission.protocol.registry.online (e.2.2.2.owner x) = true →
+        ∃ rg', rg'.known (e.2.2.2.owner x) h = true ∧
+          Next a r encode cfg (s, e)
+            (⟨⟨s.admission.delivery, ⟨rg', s.admission.protocol.storage⟩⟩, s.recovery⟩, e))) ∧
+    (∀ d rg', ParaleanGroups.GroupsNext a.registry s.admission.protocol.registry
+        (.prepare (e.2.2.2.owner x) d) rg' →
+      ∀ t : ModelState, t = ⟨⟨s.admission.delivery, ⟨rg', s.admission.protocol.storage⟩⟩, s.recovery⟩ →
+      ParaleanProtocol.Next a r encode s t →
+      ParaleanPublicationReceipts.HeldReceipt a s.admission.delivery d →
+      (∀ y, a.registry.member d y = true → ParaleanTargetNames.IsTarget a cfg.targets y →
+        e.2.2.2.owner y = e.2.2.2.owner x) →
+      (∀ y, a.registry.member d y = true → ParaleanTargetNames.IsTarget a cfg.targets y →
+        ∀ g, e.2.2.2.head y = some g → g ≠ d → a.registry.revisions d g y = true) →
+      (∀ y, a.registry.member d y = true → ParaleanTargetNames.IsTarget a cfg.targets y →
+        ∀ g, g ≠ d → s.admission.protocol.registry.pending (e.2.2.2.owner x) g = true →
+          a.registry.member g y = false) →
+      Next a r encode cfg (s, e)
+        (t, (e.1, e.2.1, e.2.2.1, ParaleanTargetNames.update a cfg.targets s t e.2.2.2))) := by
+  refine ⟨?_, ?_⟩
+  · by_cases hk : s.admission.protocol.registry.known (e.2.2.2.owner x) h = true
+    · exact Or.inl hk
+    · refine Or.inr fun alive online => ?_
+      exact (recorded_head_receivable a r encode cfg ha hr x hx h hh).2.2.2.2 _ alive online
+        (by simpa using hk)
+  · intro d rg' step t ht hb held hown hrev huniq
+    subst ht
+    obtain ⟨hpub, hpend⟩ := ParaleanTargetNames.groups_prepare_effect a.registry _ _ _ d step
+    obtain ⟨hknown, hhead⟩ := groups_prepare_quiet a.registry _ _ _ d step
+    refine ⟨hb, ?_, ?_, ?_, ?_, ?_⟩
+    · intro n' d' h1 h2
+      rcases (hpend n' d').1 h1 with ⟨rfl, rfl⟩ | hold
+      · exact held
+      · exact absurd hold h2
+    · exact ParaleanTargetNames.common_owner_preparable a cfg.targets r encode e.2.2.2
+        (e.2.2.2.owner x) d rg' step _ rfl hown hrev huniq
+    · have hst : (⟨⟨s.admission.delivery, ⟨rg', s.admission.protocol.storage⟩⟩, s.recovery⟩ :
+          ModelState).admission.protocol.storage = s.admission.protocol.storage := rfl
+      refine ⟨fun c hf => absurd hf (ParaleanCatalogFencing.same_storage_no_write encode hst c), ?_⟩
+      exact (ParaleanCatalogFencing.update_quiet encode e.1
+        (ParaleanCatalogFencing.same_storage_no_write encode hst)).symm
+    · refine Or.inl ⟨?_, ?_, ?_⟩
+      · intro n' d' h1 h2 _
+        have h2' : rg'.known n' d' = true := h2
+        rw [hknown, h1] at h2'; cases h2'
+      · intro n' hne
+        exact absurd (congrFun hhead n') hne
+      · dsimp only
+        rw [ParaleanAckCertificates.clearLost_same _ _ e.2.1 (by rfl)]
+        exact ParaleanAckCertificates.publishWrite_quiet a _ _ e.2.1
+          (ParaleanAckCertificates.no_new_pub_of_same _ _ hpub)
+    · refine Or.inl ⟨?_, (ParaleanCatalogCertificates.advance_same _ _ e.2.2.1 rfl rfl).symm⟩
+      intro c h1 h2
+      have h2' : s.recovery.committed c = true := h2
+      rw [h1] at h2'; cases h2'
+
 end
 end ParaleanHardened
 
@@ -365,3 +460,4 @@ end ParaleanHardened
 #print axioms ParaleanHardened.scan_enumerate_hardened
 #print axioms ParaleanHardened.sreachable_iff
 #print axioms ParaleanHardened.recorded_head_receivable
+#print axioms ParaleanHardened.owner_prepare_enabled

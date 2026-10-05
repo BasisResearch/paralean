@@ -5,7 +5,7 @@
 'ParaleanRegistry.stale_member_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanRegistry.commit_excludes_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
 'ParaleanRegistry.collision_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Commit.lean:137:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_fresh`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Commit.lean:137:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_fresh`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]
@@ -22,7 +22,7 @@ consider restructuring your `variable` declarations so that the variables are no
   obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Commit.lean:149:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_member_not_stale`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Commit.lean:149:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_member_not_stale`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]
@@ -39,7 +39,7 @@ consider restructuring your `variable` declarations so that the variables are no
   obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
 
 Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
-/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a1eab062c1a1dfebc/verification/veil/Paralean/Commit.lean:159:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_excludes_collision`:
+/Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a372d3f261c21d24c/verification/veil/Paralean/Commit.lean:159:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_excludes_collision`:
   [DecidableEq replica]
   [Inhabited replica]
   [DecidableEq obj]

@@ -152,6 +152,11 @@ and after the new owner's proof). No conjunct is redundant.
 - The record read and the preparation are one atomic step (above); a delayed read is
   argued informally, not modelled.
 - Liveness after reassignment: the new owner must know the recorded head to revise it
-  (`prepare` requires known ancestors), so it must first receive it. Under the hardened
-  receive guard that needs a certificate on a live replica; until one exists the new owner
-  is blocked. Safety does not depend on it.
+  (`prepare` requires known ancestors), so it must first receive it. In the hardened model
+  the publication that sets the head also writes the publisher's certificate quorum in the
+  same transaction (`ParaleanAckCertificates.PublishWrite`), so the head is always
+  receivable (`ParaleanHardened.recorded_head_receivable`, no certificate premise) and a
+  base preparation that revises it passes every guard
+  (`ParaleanHardened.owner_prepare_enabled`). With certificates written after publication
+  the head could be stranded and the name blocked forever (TLA `target_stranded_head`).
+  Eventual progress itself (`HandoverProgress`) is checked only in TLA.
