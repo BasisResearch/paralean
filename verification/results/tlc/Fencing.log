@@ -1,27 +1,43 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 55 and seed 6933681160408605293 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1698301] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Fencing.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 64 and seed 415441354583247707 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 71604] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Fencing/Fencing.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-05 16:19:11)
+Starting... (2026-10-05 15:13:52)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:11.
-Progress(17) at 2026-10-05 16:19:14: 1,949,982 states generated (1,949,982 s/min), 245,699 distinct states found (245,699 ds/min), 89,663 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:13:52.
+Progress(10) at 2026-10-05 15:13:55: 15,382 states generated (15,382 s/min), 3,141 distinct states found (3,141 ds/min), 1,777 states left on queue.
+Progress(18) at 2026-10-05 15:14:55: 2,216,036 states generated (2,200,654 s/min), 220,685 distinct states found (217,544 ds/min), 67,813 states left on queue.
+Progress(18) at 2026-10-05 15:15:55: 3,246,259 states generated (1,030,223 s/min), 304,131 distinct states found (83,446 ds/min), 85,982 states left on queue.
+Progress(19) at 2026-10-05 15:16:56: 4,226,294 states generated (980,035 s/min), 377,518 distinct states found (73,387 ds/min), 98,745 states left on queue.
+Progress(20) at 2026-10-05 15:17:56: 5,127,117 states generated (900,823 s/min), 434,684 distinct states found (57,166 ds/min), 106,038 states left on queue.
+Progress(20) at 2026-10-05 15:18:56: 5,850,982 states generated (723,865 s/min), 487,607 distinct states found (52,923 ds/min), 110,321 states left on queue.
+Progress(21) at 2026-10-05 15:19:56: 6,446,149 states generated (595,167 s/min), 523,124 distinct states found (35,517 ds/min), 110,518 states left on queue.
+Progress(21) at 2026-10-05 15:20:56: 7,289,737 states generated (843,588 s/min), 570,848 distinct states found (47,724 ds/min), 110,484 states left on queue.
+Progress(22) at 2026-10-05 15:21:56: 8,313,857 states generated (1,024,120 s/min), 624,803 distinct states found (53,955 ds/min), 101,823 states left on queue.
+Progress(22) at 2026-10-05 15:22:56: 9,555,300 states generated (1,241,443 s/min), 678,773 distinct states found (53,970 ds/min), 83,335 states left on queue.
+Progress(23) at 2026-10-05 15:23:56: 10,381,699 states generated (826,399 s/min), 708,523 distinct states found (29,750 ds/min), 67,630 states left on queue.
+Progress(24) at 2026-10-05 15:24:56: 11,369,215 states generated (987,516 s/min), 736,699 distinct states found (28,176 ds/min), 36,423 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 5.5E-7
-  based on the actual fingerprints:  val = 4.8E-8
-11928037 states generated, 922366 distinct states found, 0 states left on queue.
+  calculated (optimistic):  val = 4.7E-7
+  based on the actual fingerprints:  val = 1.1E-8
+12301947 states generated, 754348 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
-Finished in 15s at (2026-10-05 16:19:26)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 12min 01s at (2026-10-05 15:25:52)
+==== Paralean TLC provenance ====
+module Fencing
+config Fencing.cfg
+expect pass
+checked 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
+checked 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
+==== end provenance ====

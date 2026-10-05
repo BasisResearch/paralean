@@ -1,28 +1,35 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 39 and seed 2625922810334218612 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1697467] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Chain.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Registry.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 75 and seed -3734258437110113281 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 60921] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Chain/Chain.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Chain/Registry.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Chain
-Starting... (2026-10-05 16:18:54)
+Starting... (2026-10-05 15:02:54)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:18:54.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:02:55.
+Progress(12) at 2026-10-05 15:02:58: 99,649 states generated (99,649 s/min), 13,525 distinct states found (13,525 ds/min), 6,136 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.1E-8
-  based on the actual fingerprints:  val = 8.8E-10
+  based on the actual fingerprints:  val = 3.5E-10
 1741289 states generated, 125232 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 01s at (2026-10-05 16:18:55)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 4).
+Finished in 22s at (2026-10-05 15:03:14)
+==== Paralean TLC provenance ====
+module Chain
+config Chain.cfg
+expect pass
+checked 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
+checked 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
+checked 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
+==== end provenance ====

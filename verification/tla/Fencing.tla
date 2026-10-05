@@ -14,10 +14,26 @@ EXTENDS FiniteSets, Naturals, TLC
    - Ack: the writer's conclusion from its own replies that the bytes are on a
      live write quorum. Not a store write, not fenced.
    - CommitCert: the commit record. A per-replica certificate written by a
-     conditional write on the fence register, after the writer's Ack.
+     conditional write on the fence register, after the writer's Ack, and only
+     once every parent is itself committed (reading the parents' certificates).
+   - CertRepair: copies an existing certificate from a live replica to another
+     live replica. Unconditional, like Repair: it creates no new commit.
    - Scan: recovery reads the certificates of every live replica. A record is
-     ready when, for some write quorum, every live member holds its certificate,
-     and its parents are ready. Scan reads no ghost state.
+     ready when every member of some fully live write quorum holds its
+     certificate, and its parents are ready. Scan reads no ghost state.
+   Records: "a" (token 1, root), "m" (token 2, a middle-epoch competitor
+   child of a, written by whichever writer first rotates the fence) and "d"
+   (token 3, child of a, written after a writer acquires the last token; with
+   two rotations by "old" it is the old writer re-acquiring the fence). Each
+   of a and m can be put before a rotation and acknowledged or repaired after
+   it, so the token-1 sibling of earlier versions is subsumed.
+
+   Liveness (FairSpec): scans and certificate repair are weakly fair; writers,
+   rotation, replica loss and desktop loss are not. RecoveryAdopts: a
+   committed record is eventually adopted by recovery, given the live quorum
+   that LoseReplica always leaves. Without the parent-commit guard a record
+   committed over an acknowledged but never committed parent (its writer was
+   fenced out first) is never adoptable.
    writtenAt and certFence are ghost history (the fence at a record's first
    write, reset when every copy is gone, and at its commit certificate).
    lateAcked (records acknowledged while their token was below the fence) and
@@ -26,8 +42,8 @@ EXTENDS FiniteSets, Naturals, TLC
 CONSTANTS Replicas, Records, Writers, Token, Parent
 
 None == "none"
-CaseToken == [c \in {"a", "s", "d"} |-> IF c = "d" THEN 3 ELSE 1]
-CaseParent == [c \in {"a", "s", "d"} |-> IF c = "a" THEN {} ELSE {"a"}]
+CaseToken == [c \in {"a", "m", "d"} |-> IF c = "d" THEN 3 ELSE IF c = "m" THEN 2 ELSE 1]
+CaseParent == [c \in {"a", "m", "d"} |-> IF c = "a" THEN {} ELSE {"a"}]
 ReplicaSymmetry == Permutations(Replicas)
 Tokens == 1..3
 Quorums == {Q \in SUBSET Replicas : 2 * Cardinality(Q) > Cardinality(Replicas)}
@@ -46,8 +62,13 @@ CertFenceOK(w) == fence = holds[w]
 (* What a writer observes from its own write replies. *)
 OnLiveQuorum(c) == \E Q \in Quorums : Q \subseteq live /\ \A r \in Q : c \in stored[r]
 
-(* What recovery reads: certificates on live replicas. *)
-CertDurable(c) == \E W \in Quorums : \A r \in W \cap live : c \in cert[r]
+(* What recovery reads: certificates on every member of a fully live write
+   quorum. A single surviving holder of a quorum that lost a member does not
+   count until CertRepair restores the quorum. *)
+CertDurable(c) == \E W \in Quorums : W \subseteq live /\ \A r \in W : c \in cert[r]
+
+(* The committer reads its parents' certificates. *)
+ParentsCommittedOK(c) == \A p \in Parent[c] : CertDurable(p)
 
 Init ==
     /\ fence = 1
@@ -107,11 +128,21 @@ CommitCert(w, c, r) ==
     /\ Token[c] = holds[w]
     /\ CertFenceOK(w)
     /\ c \in acked
+    /\ ParentsCommittedOK(c)
     /\ r \in live
     /\ c \notin cert[r]
     /\ cert' = [cert EXCEPT ![r] = @ \cup {c}]
     /\ certFence' = IF certFence[c] = 0 THEN [certFence EXCEPT ![c] = fence] ELSE certFence
     /\ UNCHANGED <<desktopLost, fence, holds, live, stored, acked, writtenAt,
+                   known, heads, scanned, reconstructed, selected, lateAcked, lateRepair>>
+
+(* Certificate repair: copy an existing certificate from live replica src. *)
+CertRepair(c, src, r) ==
+    /\ src \in live /\ c \in cert[src]
+    /\ r \in live
+    /\ c \notin cert[r]
+    /\ cert' = [cert EXCEPT ![r] = @ \cup {c}]
+    /\ UNCHANGED <<desktopLost, fence, holds, live, stored, acked, writtenAt, certFence,
                    known, heads, scanned, reconstructed, selected, lateAcked, lateRepair>>
 
 (* Linearizable lease rotation: writer w acquires the next token. *)
@@ -178,6 +209,7 @@ Next ==
     \/ \E c \in Records, src \in Replicas, r \in Replicas : Repair(c, src, r)
     \/ \E w \in Writers, c \in Records : Ack(w, c)
     \/ \E w \in Writers, c \in Records, r \in Replicas : CommitCert(w, c, r)
+    \/ \E c \in Records, src \in Replicas, r \in Replicas : CertRepair(c, src, r)
     \/ \E w \in Writers : RotateFence(w)
     \/ \E r \in Replicas : LoseReplica(r)
     \/ LoseDesktop
@@ -186,6 +218,9 @@ Next ==
     \/ \E c \in Records : Automatic(c)
 
 Spec == Init /\ [][Next]_vars
+FairSpec == /\ Spec
+            /\ WF_vars(\E Q \in SUBSET Replicas : Scan(Q))
+            /\ \A c \in Records, src \in Replicas, r \in Replicas : WF_vars(CertRepair(c, src, r))
 
 TypeOK ==
     /\ fence \in Tokens
@@ -229,6 +264,9 @@ ScanFindsCertified ==
     \A Q \in Quorums : Q \subseteq live =>
         \A c \in Records : CertDurable(c) => \E r \in Q : c \in stored[r]
 
+(* Liveness: a committed record is eventually adopted by recovery. *)
+RecoveryAdopts == \A c \in Records : CertDurable(c) ~> c \in known
+
 (* Coverage: expect a violation, i.e. recovery after rotation, replica loss and
    desktop loss auto-selects the legitimately fenced old-token record. *)
 NeverRecoveredAfterRotation ==
@@ -237,6 +275,10 @@ NeverRecoveredAfterRotation ==
 (* Coverage: a writer re-acquires the fence under a fresh token and its new
    record is recovered. *)
 NeverReacquiredRecovered == ~(selected = "d" /\ holds["old"] = 3)
+
+(* Coverage: the middle-epoch competitor m (token 2) is recovered after the
+   fence moved on to token 3. *)
+NeverMiddleRecovered == ~(selected = "m" /\ fence = 3)
 
 (* Coverage: expect violations. An old-token record put before rotation is
    acknowledged after rotation; an old-token record is repaired after rotation. *)

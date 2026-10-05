@@ -1,24 +1,31 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 67 and seed 213632012378249300 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1698219] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Targets.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 68 and seed 8669875795813147937 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 65508] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Targets/Targets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-05 16:19:09)
+Starting... (2026-10-05 15:05:53)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:09.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:05:54.
+Progress(9) at 2026-10-05 15:05:57: 14,665 states generated (14,665 s/min), 6,701 distinct states found (6,701 ds/min), 4,182 states left on queue.
+Progress(17) at 2026-10-05 15:06:57: 3,237,186 states generated (3,222,521 s/min), 662,811 distinct states found (656,110 ds/min), 125,186 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 5.4E-8
-  based on the actual fingerprints:  val = 1.3E-8
-2778941 states generated, 419214 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 20.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 3).
-Finished in 01s at (2026-10-05 16:19:10)
+  calculated (optimistic):  val = 1.9E-7
+  based on the actual fingerprints:  val = 2.0E-8
+4984733 states generated, 838428 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 21.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 01min 36s at (2026-10-05 15:07:28)
+==== Paralean TLC provenance ====
+module Targets
+config Targets.cfg
+expect pass
+checked 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
+checked d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets.cfg
+==== end provenance ====

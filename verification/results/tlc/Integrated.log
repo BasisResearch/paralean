@@ -1,15 +1,13 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
-(Use the -nowarning option to disable this warning.)
-Running breadth-first search Model-Checking with fp 63 and seed 1903818138763867124 with 8 workers on 32 cores with 12288MB heap and 64MB offheap memory [pid: 1697935] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Publication.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-harden/verification/tla/Durability.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 37 and seed -7926304900099200319 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 64092] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Integrated.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Publication.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Registry.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Durability.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -18,15 +16,26 @@ Semantic processing of module Registry
 Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
-Starting... (2026-10-05 16:19:04)
+Starting... (2026-10-05 15:04:44)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:19:04.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 15:04:44.
+Progress(8) at 2026-10-05 15:04:47: 26,715 states generated (26,715 s/min), 4,543 distinct states found (4,543 ds/min), 2,616 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.4E-9
-  based on the actual fingerprints:  val = 1.7E-10
+  based on the actual fingerprints:  val = 1.5E-10
 1405609 states generated, 89428 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 16 and the 95th percentile is 3).
-Finished in 01s at (2026-10-05 16:19:05)
+Finished in 35s at (2026-10-05 15:05:18)
+==== Paralean TLC provenance ====
+module Integrated
+config Integrated.cfg
+expect pass
+checked f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+checked 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
+checked ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
+checked 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
+checked 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
+==== end provenance ====

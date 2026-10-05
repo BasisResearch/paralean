@@ -22,8 +22,9 @@ EXTENDS FiniteSets, Naturals, Sequences
    Declaration IDs are pre-assigned to authors, files and names so
    publications are bounded and the system quiesces. Agent c publishes
    nothing: it is a third replica that only receives. doc is stored state (so
-   arrival-order rendering is a one-line mutation); intent and firstSeen are
-   ghost history, the latter read only by mutation. *)
+   arrival-order rendering is a one-line mutation); intent, firstSeen and
+   rendered (every declaration an agent has ever rendered) are ghost history;
+   firstSeen is read only by mutation and rendered only by a witness. *)
 
 CONSTANTS Agents, Decls, Files, Names, Author, File, Name, Also, Rev, Tomb, Rank
 
@@ -51,8 +52,8 @@ ASSUME /\ Author \in [Decls -> Agents]
        /\ \A d \in Decls : Tomb[d] => Rev[d] # None
        /\ Rank \in [Agents -> Nat]
 
-VARIABLES ts, anchor, known, doc, intent, firstSeen
-vars == <<ts, anchor, known, doc, intent, firstSeen>>
+VARIABLES ts, anchor, known, doc, intent, firstSeen, rendered
+vars == <<ts, anchor, known, doc, intent, firstSeen, rendered>>
 
 MaxTs == Cardinality(Decls)
 
@@ -129,6 +130,9 @@ Names_(x) == [p \in Decl(known[x]) |-> RName(x, p[1], p[2])]
 SeeName(x, d) == IF firstSeen[x][Name[d]] = None
                  THEN [firstSeen EXCEPT ![x][Name[d]] = d] ELSE firstSeen
 
+(* Ghost: add what x renders after the step (doc' is already determined). *)
+Rendered(x) == [rendered EXCEPT ![x] = @ \cup UNION {Range(doc'[x][f]) : f \in Files}]
+
 Init ==
     /\ ts = [d \in Decls |-> 0]
     /\ anchor = [d \in Decls |-> None]
@@ -136,6 +140,7 @@ Init ==
     /\ doc = [x \in Agents |-> [f \in Files |-> <<>>]]
     /\ intent = [d \in Decls |-> <<>>]
     /\ firstSeen = [x \in Agents |-> [n \in Names |-> None]]
+    /\ rendered = [x \in Agents |-> {}]
 
 (* Fresh declarations anchor at a known lineage root of their file; revisions
    take their root's position, so their anchor field is the file start. *)
@@ -154,6 +159,7 @@ Publish(x, d, p) ==
                     ELSE (Render(known[x] \cup {d}, File[d]))']
     /\ doc' = [doc EXCEPT ![x] = (RenderAll(known[x]))']
     /\ firstSeen' = SeeName(x, d)
+    /\ rendered' = Rendered(x)
 
 Receive(x, d) ==
     /\ ts[d] # 0
@@ -163,6 +169,7 @@ Receive(x, d) ==
     /\ known' = [known EXCEPT ![x] = @ \cup {d}]
     /\ doc' = [doc EXCEPT ![x][File[d]] = Render(known'[x], File[d])]
     /\ firstSeen' = SeeName(x, d)
+    /\ rendered' = Rendered(x)
     /\ UNCHANGED <<ts, anchor, intent>>
 
 Next ==
@@ -211,6 +218,11 @@ NoSupersededRendered ==
     \A x \in Agents, f \in Files : \A i \in DOMAIN doc[x][f] :
         LET d == doc[x][f][i]
         IN ~Tomb[d] /\ ~\E e \in known[x] : d \in Anc(e)
+
+(* Every known live declaration is rendered: causal receive leaves no known
+   declaration invisible for want of its anchor or its lineage root. *)
+RenderComplete ==
+    \A x \in Agents : \A d \in LiveAll(known[x]) : d \in Range(doc[x][File[d]])
 
 NamesUnique ==
     \A x \in Agents :
@@ -273,13 +285,15 @@ NeverWinnerRevised ==
         /\ {"a3", "b1"} \subseteq known[x]
         /\ Newer("a3", "b1")
         /\ RName(x, "a3", "foo") = <<"foo", "">>
-(* A tombstone has removed a rendered declaration. *)
 (* The partial revision a3 has retired a1, and a2 holds bar. *)
 NeverPartialRevisionFreed ==
     ~\E x \in Agents :
         /\ {"a1", "a2", "a3"} \subseteq known[x]
         /\ Newer("a2", "a1")
         /\ RName(x, "a2", "bar") = <<"bar", "">>
+(* A tombstone has removed a declaration the same agent rendered earlier. *)
 NeverDeleted ==
-    ~\E x \in Agents : "b2" \in known[x] /\ Render(known[x], "G") = <<>>
+    ~\E x \in Agents : /\ "b2" \in known[x]
+                       /\ "a2" \in rendered[x]
+                       /\ Render(known[x], "G") = <<>>
 =============================================================================
