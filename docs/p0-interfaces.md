@@ -481,7 +481,7 @@ DurableAck   = {kind, id, acks : set ReplicaAck}   -- acks cover some write quor
 
 Quorum systems are configuration: `W` (write quorums) and `R` (recovery quorums)
 with `meet(w, r)` for every pair. The proofs use this interface, not majority
-arithmetic. **OPEN-9** (resolved, pending sign-off): [store.md](store.md).
+arithmetic. **OPEN-9** (resolved, signed off 2026-10-05): [store.md](store.md).
 FoundationDB holds the metadata kinds, the target records and the fence; S3 holds
 `payload`, `capsule`, `manifest` and chunk objects, written before any metadata
 that names them. The pair is one abstract replica, `W = R = {{σ}}`; physical
@@ -858,34 +858,34 @@ stock tools:
 "Blocks P2" means P2 persists bytes or keys that depend on the decision, or
 implements the behaviour itself; changing it afterwards bumps `format` and
 invalidates P2's stored data and fixtures. For those rows, "Proposed" is a concrete
-resolution for sign-off. It is not a decision; the default column stays in force
-until one is recorded here and in [p0-log.md](p0-log.md).
+resolution. Rows marked **Decided** were signed off on 2026-10-05 and are recorded in
+[p0-log.md](p0-log.md); for them the resolution replaces the v0 default.
 
-| ID | Decision | Default in v0 | Decide by | Blocks P2 | Proposed (not decided) |
+| ID | Decision | Default in v0 | Decide by | Blocks P2 | Resolution |
 |---|---|---|---|---|---|
-| OPEN-1 | PCE vs deterministic CBOR | PCE | P1 start | yes: the bytes of every ID | PCE exactly as §1.1. P1's encoder is brought to §1.1 byte for byte and checked against golden vectors shared with the validator |
-| OPEN-2 | SHA-256 vs BLAKE3; FFI vs pure Lean | SHA-256 | before P2 | yes: every ID and the S3 checksum ([store.md](store.md)) | SHA-256. Capture keeps P1's pure-Lean `Sha256.lean`; the validator and the store client use a native implementation tested against it. Storing the hashed preimage lets S3's `x-amz-checksum-sha256` verify uploads |
+| OPEN-1 | PCE vs deterministic CBOR | PCE | P1 start | yes: the bytes of every ID | **Decided 2026-10-05.** PCE exactly as §1.1. P1's encoder is brought to §1.1 byte for byte and checked against golden vectors shared with the validator |
+| OPEN-2 | SHA-256 vs BLAKE3; FFI vs pure Lean | SHA-256 | before P2 | yes: every ID and the S3 checksum ([store.md](store.md)) | **Decided 2026-10-05.** SHA-256. Capture keeps P1's pure-Lean `Sha256.lean`; the validator and the store client use a native implementation tested against it. Storing the hashed preimage lets S3's `x-amz-checksum-sha256` verify uploads |
 | OPEN-3 | Hook points for "synthesized name" provenance (instances, deriving) | post-hoc "no `declId` supplied" rule, cross-checked against the spelling classifier | P1 | no | |
 | OPEN-4 | Renamed scoped instances: attribute re-application and capsule rewriting | re-apply with original priority | P1 export | no | |
 | OPEN-5 | Whether constant-free commands are groups | P1's choice: global `attribute [...] c` commands are anchored *effect groups* that consumers of `c` depend on (`frontendDeps`); section-local effects (`local notation`, `attribute [local …]`, `open scoped`) are not published and travel as text in later capsules of the section | P1 | no (P1's choice is in force) | |
 | OPEN-6 | Extension coverage list for `FrontendEffects` | list in §4.2; others are unsupported | P1 (measured on corpus) | no; additions bump `format` | |
 | OPEN-7 | Receipt binding to request, epoch and target | slots reserved; required from P3 | P3 | no (slots reserved) | |
 | OPEN-8 | ~~Target ownership transfer and owner failure~~ | resolved: epoch-fenced reassignment with recorded head (§7) | — | n/a | |
-| OPEN-9 | ~~Concrete durable store; quorum configuration~~ | resolved, pending sign-off: [store.md](store.md) (FoundationDB metadata, S3 payloads, one abstract replica) | — | n/a | |
-| OPEN-10 | Fence/rank authority | counter in the catalogue store | P2 | yes: fenced writes are P2 work | `fence` key in FoundationDB, rotated by the controller in one read-modify-write transaction that also writes the signed token `token/<rank>` (store.md T3); never an atomic add |
+| OPEN-9 | ~~Concrete durable store; quorum configuration~~ | resolved, signed off 2026-10-05: [store.md](store.md) (self-hosted FoundationDB metadata, S3-compatible payloads, one abstract replica) | — | n/a | |
+| OPEN-10 | Fence/rank authority | counter in the catalogue store | P2 | yes: fenced writes are P2 work | **Decided 2026-10-05.** `fence` key in FoundationDB, rotated by the controller in one read-modify-write transaction that also writes the signed token `token/<rank>` (store.md T3); never an atomic add |
 | OPEN-11 | Job envelope fields | reserved shape §10 | P3 | no | |
 | OPEN-12 | Whether docstrings and `declRange` belong in capsule metadata or effects | capsule metadata (not hashed) | P1 | no | |
 | OPEN-13 | Treatment of `meta`/`initialize` groups (IO at import) in validators | validator replays `initialize` only for allow-listed effects; others unsupported | P1 | no | |
-| OPEN-14 | Restore asynchronous interactive elaboration (fork target) | `Elab.async = false` everywhere, not overridable (§4.3) | after OPEN-22 and a corpus run of async vs sync IDs | no | |
+| OPEN-14 | Restore asynchronous interactive elaboration (fork target) | **Decided 2026-10-05** for v1: `Elab.async = false` everywhere, not overridable (§4.3) | after OPEN-22 and a corpus run of async vs sync IDs | no | |
 | OPEN-15 | ~~Model and proof for Lamport collision resolution and file sequences~~ | resolved: `Workspace.tla`, `Workspaces.lean`; byte printing and git projection remain unmodelled | — | n/a | |
 | OPEN-16 | `remote_decl%` command form for commands without a term body | as §11.2 | P1/P3 | no | |
 | OPEN-17 | Rewriting capsule text that refers to renamed names | not rewritten; the export may fail with a diagnostic | P1 export | no | |
-| OPEN-18 | RGA vs Fugue | RGA; `rightAnchor` slot reserved | before P3 | yes, if P2 stores §11.1 markers: the marker bytes | Keep RGA; encode `rightAnchor` now as an optional field fixed to `0x00`, so a later switch to Fugue does not change the marker format |
+| OPEN-18 | RGA vs Fugue | RGA; `rightAnchor` slot reserved | before P3 | yes, if P2 stores §11.1 markers: the marker bytes | **Decided 2026-10-05.** Keep RGA; encode `rightAnchor` now as an optional field fixed to `0x00`, so a later switch to Fugue does not change the marker format |
 | OPEN-19 | Delete authority for file elements | author or controller | P3 | no | |
 | OPEN-20 | Moves (re-insert after tombstone) | not supported in v0 | P3 | no | |
 | OPEN-21 | History-preserving git projection | rewritten `paralean/projection` branch plus immutable snapshot tags | P5 | no | |
-| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 | yes: group-ID bytes | Canonical numbering (§3.4), spellings as unhashed metadata. It is also invariant to auxiliary renaming, which OPEN-14 needs. P1 changes `self <name>` to `self <memberIdx>`; G4 identity is re-measured |
-| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 | yes: dependency bytes in group IDs and storage deduplication | Option (a): group ID for kernel `deps`, package ID for `requires` and `frontendDeps`. Byte-identical declarations from different capsules then deduplicate, and replay still finds a capsule through `frontendDeps` |
-| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 | yes: public names enter membership, group IDs and collision keys | Stock base name without `_n`, then `_` and the first 8 hex of `H("v0/insttype", type term)` with binder names erased, for every auto-named instance. Export writes the name explicitly. A truncated-hash clash is a spurious public-name collision, diagnosed, not unsound |
+| OPEN-22 | Identity via canonical numbering vs P1's normalized spellings | P1's normalized spellings accepted while `Elab.async` is pinned | before P2 | yes: group-ID bytes | **Decided 2026-10-05.** Canonical numbering (§3.4), spellings as unhashed metadata. It is also invariant to auxiliary renaming, which OPEN-14 needs. P1 changes `self <name>` to `self <memberIdx>`; G4 identity is re-measured |
+| OPEN-23 | `DepRef` pins group ID or package ID | package ID (P1) accepted | P2 | yes: dependency bytes in group IDs and storage deduplication | **Decided 2026-10-05.** Option (a): group ID for kernel `deps`, package ID for `requires` and `frontendDeps`. Byte-identical declarations from different capsules then deduplicate, and replay still finds a capsule through `frontendDeps` |
+| OPEN-24 | Injective canonical instance-naming scheme | stock name plus a short hash of the instance type's canonical encoding | P1 | yes: public names enter membership, group IDs and collision keys | **Decided 2026-10-05.** Stock base name without `_n`, then `_` and the first 8 hex of `H("v0/insttype", type term)` with binder names erased, for every auto-named instance. Export writes the name explicitly. A truncated-hash clash is a spurious public-name collision, diagnosed, not unsound |
 | OPEN-25 | Spelling of the reserved fresh-name namespace | a final component the parser rejects in user source | P1 | no (rendering and validation, P3) | |
 | OPEN-26 | Whether a snapshot may commit a rendered collision rename (§11.5) | no: Groups' `buildable` and `current` reject it; resolution is a registry revision or tombstone | P3 | no | |

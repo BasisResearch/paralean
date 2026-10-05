@@ -170,6 +170,16 @@ source bytes, 161 reserved and 283 scoped-private constants.
   new: a rendered collision rename is not committable under Groups' `buildable` and
   `current`. Open decisions: 23 (OPEN-8, 9 and 15 resolved; OPEN-26 added).
 
+### Sign-off (later on 2026-10-05)
+
+The user signed off: OPEN-9 (store.md, self-hosted FoundationDB plus an
+S3-compatible payload store; option (a), a consensus database for the few
+coordinated records), OPEN-24 (auto-named instances are public and collide, with
+stable hashed names), OPEN-14 (`Elab.async` off everywhere in v1), and OPEN-1, 2,
+10, 18, 22 and 23 as proposed in [p0-interfaces.md](p0-interfaces.md) §13. P1
+must adopt OPEN-22 (`self <memberIdx>`), OPEN-23 (group-ID kernel deps) and
+OPEN-24 (instance names) and re-measure G2/G4.
+
 ## Gate status
 
 | Item | Status | Numbers |
@@ -181,5 +191,5 @@ source bytes, 161 reserved and 283 scoped-private constants.
 | Boundary experiments on the pinned nightly | PASS | 14/14, output identical to 4.34.1 |
 | Extraction corpus | PASS (defined; stock baseline) | 21 fixture files + 18 Mathlib modules, oracle 0 errors; 6 negatives; gates G1–G6 set for P1 |
 | Protocol verification | PASS (unchanged) | `verification/` not modified; recorded results stand (verification/results/README.md) |
-| Store choice and refinement argument | WRITTEN (awaiting sign-off) | `docs/store.md`: FoundationDB metadata, S3 payloads, payload before metadata; refinement to one abstract replica with stated exclusions; resolves OPEN-9 |
-| Interface freeze | DRAFT | `docs/p0-interfaces.md` v0, 23 OPEN decisions, 7 of them blocking P2 with proposed resolutions (§13) |
+| Store choice and refinement argument | PASS (signed off 2026-10-05) | `docs/store.md`: FoundationDB metadata, S3 payloads, payload before metadata; refinement to one abstract replica with stated exclusions; resolves OPEN-9 |
+| Interface freeze | P2-blocking decisions made | `docs/p0-interfaces.md`: all 7 OPENs that block P2 decided 2026-10-05; the remaining OPENs are P1/P3/P5 work. P1 must adopt OPEN-22/23/24 and re-measure G2/G4 |

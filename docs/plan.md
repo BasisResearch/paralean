@@ -63,7 +63,7 @@ cross-region). DynamoDB is the fallback under the same mapping; etcd is rejected
 size.
 
 Gate: baseline Mathlib build, extraction corpus, protocol verification and a
-written store choice with its refinement argument (written; awaiting sign-off).
+written store choice with its refinement argument (signed off 2026-10-05: self-hosted FoundationDB plus an S3-compatible payload store).
 
 ## P1 — Local declaration replay and stock export
 

@@ -1,20 +1,26 @@
 # Store choice and refinement argument
 
-Status: proposal for the P0 gate ([plan](plan.md) P0), 2026-10-05. It resolves
-OPEN-9 of [p0-interfaces.md](p0-interfaces.md) subject to sign-off. The argument
+Status: decided for the P0 gate ([plan](plan.md) P0), signed off 2026-10-05. It
+resolves OPEN-9 of [p0-interfaces.md](p0-interfaces.md). The argument
 below is written, not mechanised: it maps the store operations of the
 [hardened protocol](../verification/veil/HARDENED.md) to concrete operations and
 argues that every concrete behaviour is a behaviour of the model.
 
 ## Decision
 
+- **Self-hosted by default.** Both stores run on machines we operate (for P2, the
+  aws-dev box); no managed cloud service is required. Moving to a managed
+  S3-compatible service later changes only an endpoint.
 - **Metadata store: FoundationDB** (7.3 series; exact version pinned in P2), one
-  cluster in one region. It holds markers, revisions, receipts, tombstones,
+  self-hosted cluster in one region. FoundationDB is itself replicated with
+  consensus; it is the only coordinated component. It holds markers, revisions, receipts, tombstones,
   publication certificates, catalogue records, commit and object certificates, the
   catalogue fence, issued tokens and target owner/epoch/head records.
-- **Payload store: Amazon S3** (one bucket, one region, no cross-region
-  replication), or an S3-compatible store with strong read-after-write consistency
-  and durable PUT acknowledgement (MinIO for local runs and CI). It holds group
+- **Payload store: a self-hosted S3-compatible store** (MinIO, or Garage/SeaweedFS
+  to avoid MinIO's AGPL licence) with strong read-after-write consistency and
+  durable PUT acknowledgement; Amazon S3 (one bucket, one region, no cross-region
+  replication) is a drop-in alternative. Payloads are immutable and
+  content-addressed, so any copy with the right hash is valid. It holds group
   manifests and term chunks, capsules, export/snapshot manifests and build logs.
 - **Write order**: payload first, verify its hash, then the metadata transaction
   that references it. Metadata never names an object the writer has not seen
