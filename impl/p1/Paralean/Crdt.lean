@@ -46,6 +46,13 @@ def textRenames (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupRec
     for (a, b) in (ren.getD d {}).toList do m := m.insert a b
   return m
 
+/-- Source spelling of a name: components that are not identifiers (the reserved fresh
+names, which contain `✝`) are written `«…»`. Lean's `Name.toString` leaves `✝` unescaped. -/
+def nameSrc (n : Name) : String :=
+  ".".intercalate (n.components.map fun c => match c with
+    | .str _ s => if (s.splitOn "✝").length > 1 then s!"«{s}»" else c.toString
+    | _ => c.toString)
+
 def isIdentChar (c : Char) : Bool :=
   c.isAlphanum || c == '_' || c == '\'' || c == '!' || c == '?' || c == '.' ||
   Lean.isLetterLike c || Lean.isSubScriptAlnum c
@@ -56,9 +63,9 @@ def renameText (ns : Name) (m : Std.HashMap Name Name) (txt : String) : String :
   if m.isEmpty then return txt
   let mut forms : Array (String × String) := #[]
   for (a, b) in m.toList do
-    forms := forms.push (a.toString, b.toString)
+    forms := forms.push (a.toString, nameSrc b)
     if ns.isPrefixOf a && ns != a then
-      forms := forms.push ((a.replacePrefix ns .anonymous).toString, (b.replacePrefix ns .anonymous).toString)
+      forms := forms.push ((a.replacePrefix ns .anonymous).toString, nameSrc (b.replacePrefix ns .anonymous))
   let rewrite (tok : String) : String := Id.run do
     for (f, r) in forms do
       if tok == f then return r

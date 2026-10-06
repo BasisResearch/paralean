@@ -472,19 +472,41 @@ def payloadCheck (g : GroupRec) (closure : Array GroupRec) (proofs : Bool) : Com
       | _, _ => problems := problems.push s!"kind of {pub.name} differs"
   return some problems
 
-/-- Load `g` (dependencies first) unless already present. -/
+/-- Invalidation: a version this copy knows to be superseded is never loaded, so no name in
+this file can bind to it. Dependents of a deleted (tombstoned) group keep loading it. -/
+def checkInvalidated (g : GroupRec) (closure : Array GroupRec) : CommandElabM Unit := do
+  let v ← view
+  for d in closure do
+    if let some mk := v.known.byGroup[d.declId]? then
+      if !v.live.contains d.declId && !Rga.tombstoned v.known mk then
+        let by_ := v.known.markers.find? fun e => (v.graph.anc.getD e.group {}).contains d.declId
+        let what := if d.gid == g.gid then s!"{g.publicNames} ({g.short}) is" else
+          s!"{g.publicNames} ({g.short}) depends on {d.publicNames} ({d.short}), which is"
+        throwError "remote%: invalidated: {what} superseded by \
+          {(by_.map (·.group.take 12 |>.toString)).getD "?"}; revise it against the current version"
+
+/-- Load `g` (dependencies first) unless already present. On failure the environment is
+restored: a group that does not load leaves no constant behind (in particular none that
+Lean's error recovery completed with `sorryAx`). -/
 partial def ensureLoaded (g : GroupRec) : CommandElabM Unit := do
   loadingDepth.modify (· + 1)
+  let env0 ← getEnv
   try ensureLoadedCore g
+  catch e => setEnv env0; throw e
   finally loadingDepth.modify (· - 1)
 where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
   let closure ← closureOf g
   let mm := (← getEnv).mainModule
+  checkInvalidated g closure
   for d in closure do
     if let some ns := (← verifiedCache.get)[(mm, d.gid)]? then
       let env ← getEnv
       if ns.all (fun p => env.contains p.2) then continue
     checkReceipt d
+    -- a capsule that disables or weakens checking is never elaborated here, whatever its receipt
+    for o in [`debug.skipKernelTC, `debug.byAsSorry, `debug.terminalTacticsAsSorry, `debug.proofAsSorry] do
+      if (d.capsule.text ++ String.join d.capsule.scopeCmds.toList).contains o.toString then
+        throwError "remote%: {d.short} ({d.publicNames}) sets {o}; it is never loaded"
     if d.members.isEmpty then
       let t0 ← IO.monoMsNow
       elabSourceAtRoot (capsuleSource (← renames) d false closure) s!"<remote {d.short}>"
@@ -594,6 +616,7 @@ def elabRemoteDecl : CommandElab := fun stx => do
   if gr.capsule.valueStart.isNone then
     throwError "remote%: {g.short} has no value; write `remote_decl% \"{g.declId}\"`"
   let closure ← closureOf g
+  checkInvalidated g closure
   for d in closure do
     if d.gid != g.gid then ensureLoaded d
   let env0 ← getEnv

@@ -318,6 +318,15 @@ unsafe def main (args : List String) : IO UInt32 := do
     let r ← checkGroup { root := storeDir } gids decl targets
     IO.println s!"CHECK {(toJson r).compress}"
     return if r.ok then 0 else 1
+  | "forge-proof" :: rest =>
+    -- test-only (P3 gate): a package whose proof is ill-typed
+    let (flags, _) := parseFlags rest
+    let some storeDir := flags["store"]? | IO.eprintln usage; return 2
+    let some pid := flags["pid"]? | IO.eprintln usage; return 2
+    let (p, g) ← Forge.forgeProof { root := storeDir } pid
+    let c := P3.capsuleIdOf (← IO.FS.readBinFile (({ root := storeDir } : Store).metaPath p))
+    IO.println (Json.mkObj [("pid", p), ("group", g), ("capsule", c)]).compress
+    return 0
   | "ws-init" :: rest =>
     let (flags, _) := parseFlags rest
     let some dir := flags["dir"]? | IO.eprintln usage; return 2

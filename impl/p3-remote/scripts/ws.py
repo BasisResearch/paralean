@@ -65,7 +65,8 @@ def sync(d, pull_args=()):
 
 
 def publish(d, file):
-    run([PLR, "pull", "--cache", cache(d)], d)
+    if not os.environ.get("PARALEAN_NO_PULL"):
+        run([PLR, "pull", "--cache", cache(d)], d)
     cap = run([BIN, "ws-capture", "--dir", d, file], d, file)
     emit("capture", {"packages": len(cap["packages"]), "rejected": cap["rejected"]})
     published = []
@@ -95,7 +96,10 @@ def publish(d, file):
         emit("publish", pub)
         run([PLR, "pull", "--cache", cache(d), "--only", p["group"]], d)
         published.append(p["group"])
-    sync(d)
+    if not os.environ.get("PARALEAN_NO_PULL"):
+        sync(d)
+    else:
+        emit("sync", run([BIN, "ws-sync", "--dir", d], d))
     return published
 
 

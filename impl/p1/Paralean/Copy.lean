@@ -119,7 +119,7 @@ unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit) :
     out := out.push (Json.mkObj [("pid", pid), ("group", g.declId), ("capsule", cid), ("deps", toJson deps),
       ("names", toJson (g.publicNames.map toString)), ("line", g.capsule.startLine)])
   let rejected := r.diags.filter (·.severity == "reject") |>.map toString
-  return Json.mkObj [("packages", Json.arr out), ("rejected", toJson rejected)]
+  return Json.mkObj [("packages", Json.arr out), ("rejected", toJson rejected), ("rejectedPids", toJson r.rejected)]
 
 /-! ## Placement of new records -/
 
@@ -318,6 +318,11 @@ unsafe def sync (dir : FilePath) (log : String → IO Unit) : IO Json := do
     (k.tombs.map fun x => { id := x.id, lamport := x.lamport, author := x.author, file := x.file, isTomb := true, group := x.target })
   let newRecs := (recs.filter fun r => !st.applied.contains r.id).qsort fun a b =>
     keyLt (a.lamport, a.author) (b.lamport, b.author) || ((a.lamport, a.author) == (b.lamport, b.author) && a.id < b.id)
+  -- the working files as the agent left them (drafts), before commits rewrite the tree
+  let mut texts : Std.HashMap String String := {}
+  for f in (v.files ++ (← workFiles work)) do
+    let p := work / f
+    if ← p.pathExists then texts := texts.insert f (← IO.FS.readFile p)
   let mut applied : Std.HashSet String := st.applied.foldl (·.insert ·) {}
   for r in newRecs do
     applied := applied.insert r.id
@@ -359,7 +364,7 @@ unsafe def sync (dir : FilePath) (log : String → IO Unit) : IO Json := do
     st := { st with renamed := st.renamed.push (x.toString, loser) }
   for f in files do
     let path := work / f
-    let cur ← if ← path.pathExists then IO.FS.readFile path else pure ""
+    let cur := texts.getD f ""
     let mut drafts := splitDrafts cur
     if let some pj := pending? then
       if (pj.getObjValAs? String "file").toOption == some f then
@@ -473,8 +478,17 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
   let mut placeholders := #[]
   for (a, _) in axioms.toList do
     if !allowedAxioms.contains a then placeholders := placeholders.push a
+  -- the constants `remote%` loaded (published elements and their closures)
+  let mut elemAxioms : Array Name := #[]
+  let mut nLoaded : Nat := 0
+  for ((m, _), ns) in (← Remote.verifiedCache.get).toList do
+    if m != env.mainModule then continue
+    for (_, n) in ns do
+      nLoaded := nLoaded + 1
+      for a in cache.getD n #[] do unless elemAxioms.contains a do elemAxioms := elemAxioms.push a
   return Json.mkObj [("file", file), ("errors", toJson (← errs.get)), ("constants", nConsts),
     ("axioms", toJson ((axioms.toArray.map (fun (a, us) => (a.toString, us.size))).qsort (·.1 < ·.1))),
-    ("disallowedAxioms", toJson placeholders), ("localAxioms", toJson localAxioms)]
+    ("disallowedAxioms", toJson placeholders), ("localAxioms", toJson localAxioms),
+    ("loadedConstants", toJson nLoaded), ("loadedAxioms", toJson elemAxioms)]
 
 end Paralean.Copy

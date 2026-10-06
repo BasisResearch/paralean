@@ -31,6 +31,8 @@ const USAGE: &str = "usage: plr <command> [args]
   fetch-pkg --cache C GROUP                        a published group's records on demand
   checkpoint --cache C --ws W --revisions R,.. [--predecessor CAT] [--build-ok 0|1] [--files JSON]
   snapshot-get --cache C --ws W [--catalog CAT]   recover a committed snapshot into an empty cache
+  forge --cache C --keys KEYFILE --ws W --pkg G:C [--deps ..]
+                                                   test only: a job and an accepted receipt signed with KEYFILE's keys
   check-receipt GROUP                              P3 control's consumer check of a published group";
 
 type R<T> = std::result::Result<T, String>;
@@ -114,6 +116,7 @@ async fn run(a: &[&str]) -> R<Value> {
         Some("fetch-pkg") => fetch_pkg_cmd(&a[1..]).await,
         Some("checkpoint") => checkpoint(&a[1..]).await,
         Some("snapshot-get") => snapshot_get(&a[1..]).await,
+        Some("forge") => forge(&a[1..]),
         Some("check-receipt") => check_receipt(&a[1..]).await,
         _ => Err(USAGE.into()),
     }
@@ -204,6 +207,39 @@ async fn validate(a: &[&str]) -> R<Value> {
     c.log_transfer("validate", &g, 0, el);
     Ok(json!({"group": g.hex(), "capsule": cap.hex(), "accepted": accepted, "reason": reason,
         "receipt": rc.id().hex(), "job": job.id().hex(), "ms": el}))
+}
+
+/// Test only (forgery suite): issue a job and sign an accepted receipt with the authority
+/// and validator `v0` of another key file, without any check. With an untrusted key file
+/// this is a rogue validator; with the trusted one, a compromised validator.
+fn forge(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let kp = need(a, "--keys")?;
+    let kf: KeyFile = serde_json::from_str(&std::fs::read_to_string(kp).map_err(es)?).map_err(es)?;
+    let ws = need(a, "--ws")?;
+    let (wid, _) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
+    let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
+    let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
+        .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
+    let job = receipt::issue(&kf, wid, g, cap, deps)?;
+    let v = kf.validator_signer("v0").ok_or("no validator v0 seed")?;
+    let rc = Receipt::sign(
+        ReceiptBody {
+            group: g,
+            base: job.body.base,
+            validator_key: v.public(),
+            validator_bin: job.body.checker.0.to_vec(),
+            policy: job.body.policy,
+            request: Some(job.id().0.to_vec()),
+            target: None,
+            verdict: Verdict::Accepted,
+            axioms: vec![],
+        },
+        &v,
+    );
+    c.write_new(&c.receipt(&rc.id()), &rc.to_bytes()).map_err(es)?;
+    c.write_new(&c.job(&job.id()), &job.to_bytes()).map_err(es)?;
+    Ok(json!({"group": g.hex(), "capsule": cap.hex(), "accepted": true, "reason": "", "receipt": rc.id().hex(), "job": job.id().hex()}))
 }
 
 // ---------------------------------------------------------------- publication
