@@ -105,7 +105,7 @@ Record cases requiring larger source capsules. Keep source/line mappings usable.
 Gate: replay and clean export agree with reference behavior. This is the critical
 engineering feasibility gate.
 
-The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `63380ffa`) implements
+The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `dfc13cc6`) implements
 the P1 hooks natively: `Elab.async` pinned off, a per-command declaration collector, no axiom
 fallback after kernel failures, a `simp` used-lemma record and canonical instance names for
 anonymous and derived instances. On the fork the P1 gate gives the same G1–G6 results as on
