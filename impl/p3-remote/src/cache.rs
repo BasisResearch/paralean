@@ -3,7 +3,8 @@
 //! ```text
 //! objects/<group>.grp            group payloads (P1 bytes = PCE), fetched on demand
 //! meta/<pid>.json                P1 GroupRec of each known package (from its capsule)
-//! p3/capsules/<capsule>.json     capsule objects as stored: {"rec": GroupRec, "deps": [[pid, group, capsule]]}
+//! p3/capsules/<capsule>.json     capsule objects as stored (P1 GroupRec JSON)
+//! p3/jobs/<job>.bin              controller-signed job envelopes the receipts answer
 //! p3/records/m-<marker>.json     publication records (markers) delivered by `pull`
 //! p3/records/t-<tombstone>.json  tombstones delivered by `pull`
 //! p3/revisions/<rev>.json        revisions named by known markers
@@ -60,7 +61,7 @@ impl Cache {
         self.root.join("p3")
     }
     pub fn init(&self) -> std::io::Result<()> {
-        for d in ["objects", "meta", "files", "p3/capsules", "p3/records", "p3/fetched", "p3/revisions", "p3/receipts"] {
+        for d in ["objects", "meta", "files", "p3/capsules", "p3/records", "p3/fetched", "p3/revisions", "p3/receipts", "p3/jobs"] {
             std::fs::create_dir_all(self.root.join(d))?;
         }
         Ok(())
@@ -92,6 +93,9 @@ impl Cache {
     pub fn receipt(&self, r: &Id) -> PathBuf {
         self.p3().join("receipts").join(format!("{}.bin", r.hex()))
     }
+    pub fn job(&self, j: &Id) -> PathBuf {
+        self.p3().join("jobs").join(format!("{}.bin", j.hex()))
+    }
     pub fn meta(&self, pid: &str) -> PathBuf {
         self.root.join("meta").join(format!("{pid}.json"))
     }
@@ -104,22 +108,14 @@ impl Cache {
         }
     }
 
-    /// Store a capsule's bytes and its GroupRec under `meta/<pid>.json`; returns the pid.
-    pub fn put_capsule(&self, c: &Id, bytes: &[u8]) -> Result<(String, Vec<(String, Id, Id)>), String> {
+    /// Store a capsule (P1 group metadata JSON, as P3 control publishes it) and its copy
+    /// under `meta/<pid>.json`; returns the pid.
+    pub fn put_capsule(&self, c: &Id, bytes: &[u8]) -> Result<String, String> {
         let v: Value = serde_json::from_slice(bytes).map_err(|e| format!("capsule {c}: {e}"))?;
-        let rec = v.get("rec").ok_or("capsule without rec")?;
-        let pid = rec.get("gid").and_then(|x| x.as_str()).ok_or("capsule rec without gid")?.to_string();
-        let mut deps = Vec::new();
-        for d in v.get("deps").and_then(|x| x.as_array()).ok_or("capsule without deps")? {
-            let a = d.as_array().ok_or("bad dep")?;
-            if a.len() != 3 {
-                return Err("bad dep".into());
-            }
-            deps.push((a[0].as_str().ok_or("bad dep pid")?.to_string(), id_of(&a[1])?, id_of(&a[2])?));
-        }
+        let pid = v.get("gid").and_then(|x| x.as_str()).ok_or("capsule without gid")?.to_string();
         self.write_new(&self.capsule(c), bytes).map_err(|e| e.to_string())?;
-        self.write_new(&self.meta(&pid), rec.to_string().as_bytes()).map_err(|e| e.to_string())?;
-        Ok((pid, deps))
+        self.write_new(&self.meta(&pid), bytes).map_err(|e| e.to_string())?;
+        Ok(pid)
     }
 
 }

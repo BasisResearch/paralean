@@ -1514,6 +1514,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "paralean-remote"
+version = "0.2.0"
+dependencies = [
+ "hex",
+ "paralean-control",
+ "paralean-store",
+ "paralean-validator-api",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "paralean-store"
 version = "0.2.0"
 dependencies = [

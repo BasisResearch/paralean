@@ -72,7 +72,7 @@ def init (dir : FilePath) (agent : String) : IO Unit := do
   let _ ← git (dir / "work") #["init", "-q", "-b", "main"]
   let _ ← git (dir / "work") #["config", "user.name", agent]
   let _ ← git (dir / "work") #["config", "user.email", s!"{agent}@paralean.invalid"]
-  let _ ← git (dir / "work") #["commit", "-q", "--allow-empty", "-m", "paralean: empty workspace"]
+  let _ ← git (dir / "work") #["commit", "-q", "--allow-empty", "--date", "@0 +0000", "-m", "paralean: empty workspace"]
   ({ agent, agentId := id } : State).save dir
 
 /-! ## Capture -/
@@ -89,19 +89,34 @@ unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit) :
   for pid in r.groups do
     if published.contains pid then continue
     let g ← cache.getMeta pid
-    let mut deps := #[]
-    for d in (g.deps ++ g.feDeps).toList.eraseDups do
-      match batch[d]? with
-      | some (gr, c) => deps := deps.push (d, gr, c)
-      | none => match (← Remote.pkgIndex.get)[d]? with
-        | some (gr, c) => deps := deps.push (d, gr, c)
-        | none => throw <| IO.userError s!"capture: dependency {(d.take 12).toString} of {g.short} is neither published nor in this batch"
-    let bytes := capsuleBytes g deps
+    -- the capsule object is the package's metadata JSON, as stored
+    let bytes ← IO.FS.readBinFile (cache.metaPath pid)
     let cid := capsuleIdOf bytes
     IO.FS.createDirAll (cache.root / "p3" / "capsules")
     IO.FS.writeBinFile (cache.root / "p3" / "capsules" / s!"{cid}.json") bytes
     batch := batch.insert pid (g.declId, cid)
-    out := out.push (Json.mkObj [("pid", pid), ("group", g.declId), ("capsule", cid),
+    -- capsules of the exact dependency closure, dependencies first (the job pins them)
+    let mut order : Array String := #[]
+    let mut stack : Array (String × Bool) := (g.deps ++ g.feDeps).reverse.map (·, false)
+    let mut seen : Std.HashSet String := {}
+    while !stack.isEmpty do
+      let (d, post) := stack.back!
+      stack := stack.pop
+      if post then
+        unless order.contains d do order := order.push d
+        continue
+      if seen.contains d then continue
+      seen := seen.insert d
+      stack := stack.push (d, true)
+      let dm ← if batch.contains d then cache.getMeta d else Remote.getMetaIO d
+      for e in (dm.deps ++ dm.feDeps).reverse do
+        unless seen.contains e do stack := stack.push (e, false)
+    let mut deps := #[]
+    for d in order do
+      match batch[d]? <|> (← Remote.pkgIndex.get)[d]? with
+      | some (_, c) => deps := deps.push c
+      | none => throw <| IO.userError s!"capture: dependency {(d.take 12).toString} of {g.short} is neither published nor in this batch"
+    out := out.push (Json.mkObj [("pid", pid), ("group", g.declId), ("capsule", cid), ("deps", toJson deps),
       ("names", toJson (g.publicNames.map toString)), ("line", g.capsule.startLine)])
   let rejected := r.diags.filter (·.severity == "reject") |>.map toString
   return Json.mkObj [("packages", Json.arr out), ("rejected", toJson rejected)]
@@ -128,27 +143,37 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
   let mut st ← State.load dir
   let cache : Store := { root := dir / "cache" }
   let v ← Remote.view
-  let receipts ← readJson receiptsPath
-  let rs ← ofExcept receiptsPath (receipts.getObjValAs? (Array Json) "receipts")
+  let rs ← match ← readJson receiptsPath with
+    | .arr a => pure a
+    | j => pure #[j]
   let txt ← IO.FS.readFile (dir / "work" / file)
+  -- an earlier step of this publication (records already planned and published)
+  let prior : Option Json ← do
+    let p := dir / "pending.json"
+    if ← p.pathExists then pure (some (← readJson p)) else pure none
+  let priorEntries := (prior.bind fun j => (j.getObjValAs? (Array Json) "entries").toOption).getD #[]
+  let txt := (prior.bind fun j => (j.getObjValAs? String "text").toOption).getD txt
   let elems := elementLines txt
   -- accepted packages, in file order
-  let mut pkgs : Array (GroupRec × String × String) := #[]   -- (meta, capsule, receipt blob)
+  let mut pkgs : Array (GroupRec × String × String × String) := #[]   -- (meta, capsule, receipt, job)
   let mut rejected : Array Json := #[]
   for r in rs do
-    let pid ← ofExcept receiptsPath (r.getObjValAs? String "pid")
+    let capsule ← ofExcept receiptsPath (r.getObjValAs? String "capsule")
+    let g ← match ← loadCapsule cache.root capsule with
+      | .ok g => pure g
+      | .error e => throw <| IO.userError e
     let ok := (r.getObjValAs? Bool "accepted").toOption.getD false
     if !ok then
-      rejected := rejected.push (Json.mkObj [("pid", pid), ("reason", (r.getObjValAs? String "reason").toOption.getD "")])
+      rejected := rejected.push (Json.mkObj [("pid", g.gid), ("reason", (r.getObjValAs? String "reason").toOption.getD "")])
       continue
-    pkgs := pkgs.push (← cache.getMeta pid, ← ofExcept receiptsPath (r.getObjValAs? String "capsule"),
-      ← ofExcept receiptsPath (r.getObjValAs? String "blob"))
+    pkgs := pkgs.push (g, capsule, ← ofExcept receiptsPath (r.getObjValAs? String "receipt"),
+      ← ofExcept receiptsPath (r.getObjValAs? String "job"))
   pkgs := pkgs.qsort (fun a b => a.1.capsule.startLine < b.1.capsule.startLine)
   -- stale responses: a remote dependency superseded since the request
   let byPid : Std.HashMap String Marker := v.known.markers.foldl (fun m mk => m.insert mk.pid mk) {}
   let batchPids : Std.HashSet String := pkgs.foldl (fun s p => s.insert p.1.gid) {}
   let mut stale : Std.HashSet String := {}
-  for (g, _, _) in pkgs do
+  for (g, _, _, _) in pkgs do
     for d in g.deps ++ g.feDeps do
       if batchPids.contains d then
         if stale.contains d then stale := stale.insert g.gid
@@ -166,8 +191,17 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
   let mut lam := max st.lamport maxKnown
   let me := st.agentId
   let mut batch : Array (Nat × String × Array (String × Nat × String)) := #[]  -- (line, group, rootPath)
+  for e in priorEntries do
+    let ls := (e.getObjValAs? (Array Nat) "lines").toOption.getD #[0]
+    let rp ← ofExcept receiptsPath (do
+      let a ← e.getObjValAs? (Array Json) "rootPath"
+      a.mapM fun x => do
+        let (g, l, au) ← triple x
+        let gs : String ← fromJson? g
+        return (gs, l, au))
+    batch := batch.push (ls[0]!, (e.getObjValAs? String "group").toOption.getD "", rp)
   let mut entries : Array Json := #[]
-  for (g, capsule, blob) in pkgs do
+  for (g, capsule, rid, jid) in pkgs do
     if stale.contains g.gid then continue
     lam := lam + 1
     let names := Rga.declaredNames g
@@ -204,7 +238,7 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
           else (some p.back!.1, p.push (g.declId, lam, me))
         | none => (none, #[(g.declId, lam, me)])
     batch := batch.push (line, g.declId, rootPath)
-    entries := entries.push (Json.mkObj [("group", g.declId), ("capsule", capsule), ("receiptBlob", blob),
+    entries := entries.push (Json.mkObj [("group", g.declId), ("capsule", capsule), ("receipt", rid), ("job", jid),
       ("file", file), ("anchor", match anchor with | some a => Json.str a | none => Json.null),
       ("lamport", lam), ("author", me), ("rootPath", jsonPath rootPath), ("lineageKeys", Json.arr lkeys),
       ("revisions", Json.arr revs), ("pid", g.gid), ("lines", Json.arr #[g.capsule.startLine, g.capsule.endLine])])
@@ -213,7 +247,7 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
   st.save dir
   IO.FS.writeFile planPath (Json.arr entries).pretty
   -- the original text and the planned ranges, so sync can move published text out of the drafts
-  IO.FS.writeFile (dir / "pending.json") (Json.mkObj [("file", file), ("text", txt), ("entries", Json.arr entries)]).compress
+  IO.FS.writeFile (dir / "pending.json") (Json.mkObj [("file", file), ("text", txt), ("entries", Json.arr (priorEntries ++ entries))]).compress
   return Json.mkObj [("planned", entries.size), ("rejected", Json.arr rejected), ("lamport", lam)]
 
 /-! ## Sync -/

@@ -1,13 +1,10 @@
 [package]
 name = "paralean-remote"
-version = "0.3.0"
-edition = "2021"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+workspace = "../p2"
 description = "P3 transparent remote imports: moves packages, receipts, publication records and tombstones between working copies and the P2 store"
-
-# A workspace of its own, so impl/p2 is unchanged. Build with CARGO_TARGET_DIR=../p2/target
-# to reuse the P2 build of the dependencies.
-[workspace]
 
 [[bin]]
 name = "plr"
@@ -15,20 +12,10 @@ path = "src/main.rs"
 
 [dependencies]
 paralean-store = { path = "../p2/crates/store" }
-foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_3", "embedded-fdb-include"] }
-tokio = { version = "1", features = ["full"] }
+paralean-validator-api = { path = "../p3/crates/validator-api" }
+paralean-control = { path = "../p3/crates/control" }
+tokio.workspace = true
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hex = "0.4"
-sha2 = "0.10"
 rand = "0.8"
-futures = "0.3"
-
-[profile.dev]
-debug = "line-tables-only"
-
-[profile.dev.package."*"]
-debug = false
-
-[profile.release]
-debug = false

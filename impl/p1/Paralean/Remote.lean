@@ -35,7 +35,9 @@ Elaborating it (p0-interfaces §11.2):
    store, independent of the file's imports. A local constant with the same name but other
    content is a version conflict, reported and never rebound.
 4. **Receipt.** Every group of the closure has a receipt that a trusted validator signed
-   (Ed25519) over exactly that group and capsule (`P3.checkReceipt`).
+   (Ed25519), answering a job envelope the controller signed for exactly that group and
+   capsule, with pinned policy and checker (`P3.checkReceipt`, P3 control's staging rule).
+   The job also pins the capsules of the group's exact dependency closure.
 
 Loading fetches the group's payload (`P3.payload`: from the cache, else `plr fetch-group`;
 re-hashed) and decodes its kernel terms.
@@ -101,10 +103,15 @@ def countRecords (root : System.FilePath) : IO Nat := do
 def metaOfCapsule (root : System.FilePath) (capsule : String) : IO GroupRec := do
   match ← loadCapsule root capsule with
   | .error e => throw <| IO.userError s!"remote%: {e}"
-  | .ok (g, deps) =>
-    pkgIndex.modify fun m => deps.foldl (fun m (p, gr, c) => m.insert p (gr, c)) m
+  | .ok g =>
+    pkgIndex.modify (·.insert g.gid (g.declId, capsule))
     metaCache.modify (·.insert g.gid g)
     return g
+
+def metaOfCapsuleOpt (root : System.FilePath) (capsule : String) : IO (Option GroupRec) := do
+  if ← (root / "p3" / "capsules" / s!"{capsule}.json").pathExists then
+    return some (← metaOfCapsule root capsule)
+  return none
 
 def view : IO Rga.View := do
   let root ← storeRoot
@@ -159,8 +166,13 @@ def checkReceipt (g : GroupRec) : IO Unit := do
   let m ← markerOf g.declId
   unless m.pid == g.gid do
     throw <| IO.userError s!"remote%: the record of {g.short} names another package"
-  match ← P3.checkReceipt (← storeRoot) m with
-  | .ok () => pure ()
+  let root ← storeRoot
+  match ← P3.checkReceipt root m with
+  | .ok job =>
+    -- the job pins the capsules of the exact dependency closure: index their packages
+    for c in job.deps do
+      if (← metaOfCapsuleOpt root c).isNone then
+        throw <| IO.userError s!"remote%: dependency capsule {(c.take 12).toString} of {g.short} is not in the cache"
   | .error e => throw <| IO.userError s!"remote%: receipt of {g.short} ({g.publicNames}): {e}"
 
 /-- Lean names in the current environment of a group's members: match normalized local
@@ -397,7 +409,7 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   let dg ← decodeHere g closure self
   let infos : Std.HashMap Name ConstantInfo := dg.members.foldl (fun m (_, _, ci) => m.insert ci.name ci) {}
   let some pubCi := infos[declName]? | throwError "remote_value%: {declName} missing from the payload"
-  let some pubVal := pubCi.value? | throwError "remote_value%: {declName} has no published value"
+  let some pubVal := pubCi.value? (allowOpaque := true) | throwError "remote_value%: {declName} has no published value"
   -- auxiliary members the proof uses (proof_n, match_n, private helpers), added first
   for n in auxOrder infos declName pubVal do
     if (← getEnv).contains n then continue

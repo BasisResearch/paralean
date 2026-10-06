@@ -16,14 +16,14 @@ use paralean_store::recovery::{discover, recover_catalog};
 use paralean_store::*;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
-use receipt::*;
+use paralean_store::receipt::SignedJob;
 use serde_json::{json, Value};
 
 const USAGE: &str = "usage: plr <command> [args]
-  keys-init KEYFILE TRUST --agents a,b,.. --lean-commit C --mathlib-commit M
-  stage --cache C --pkg GROUP:CAPSULE ...          upload payloads and capsules (staged, unpublished)
-  validate --cache VC --validator V --paralean BIN --pkg GROUP:CAPSULE ...
-                                                   validator process: fetch from the store, replay, sign receipts
+  keys-init KEYFILE TRUST ROGUEKEYS --agents a,b,..   keys, pins (policy v1, this checker), trust file for Lean
+  stage --cache C --pkg GROUP:CAPSULE ...          upload payload and capsule (staged, unpublished)
+  validate --cache C --ws W --validator ADDR --pkg GROUP:CAPSULE --deps C1,C2,..
+                                                   issue a job envelope, get the validator's receipt
   publish --cache C --ws W --plan FILE            T1 for each planned record, in order
   tombstone --cache C --ws W --file F --target G --lamport L
   pull --cache C [--only G,..] [--seed S --max N] [--save FILE] [--replay FILE]
@@ -31,7 +31,7 @@ const USAGE: &str = "usage: plr <command> [args]
   fetch-pkg --cache C GROUP                        a published group's records on demand
   checkpoint --cache C --ws W --revisions R,.. [--predecessor CAT] [--build-ok 0|1] [--files JSON]
   snapshot-get --cache C --ws W [--catalog CAT]   recover a committed snapshot into an empty cache
-  check-receipt --trust TRUST --receipt FILE --group G --capsule C";
+  check-receipt GROUP                              P3 control's consumer check of a published group";
 
 type R<T> = std::result::Result<T, String>;
 
@@ -50,19 +50,6 @@ fn open() -> R<(Store, KeyFile)> {
     let kf = keyfile()?;
     let store = Store::open(&cfg, kf.ring(), Faults::none()).map_err(es)?;
     Ok((store, kf))
-}
-
-fn trust_of(path: &str) -> R<Trust> {
-    let v: Value = serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?).map_err(es)?;
-    let h32 = |s: &Value| -> R<[u8; 32]> {
-        hex::decode(s.as_str().ok_or("hex")?).map_err(es)?.try_into().map_err(|_| "32 bytes".to_string())
-    };
-    Ok(Trust {
-        base: Id(h32(&v["base"])?),
-        policy: Id(h32(&v["policy"])?),
-        validators: v["validators"].as_array().ok_or("validators")?.iter().map(h32).collect::<R<_>>()?,
-        allowed_axioms: v["allowedAxioms"].as_array().ok_or("allowedAxioms")?.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
-    })
 }
 
 fn flag<'a>(a: &'a [&'a str], k: &str) -> Option<&'a str> {
@@ -89,9 +76,9 @@ fn need<'a>(a: &'a [&'a str], k: &str) -> R<&'a str> {
     flag(a, k).ok_or(format!("missing {k}"))
 }
 
-fn pkg_arg(s: &str) -> R<CheckRequest> {
+fn pkg_arg(s: &str) -> R<(Id, Id)> {
     let (g, c) = s.split_once(':').ok_or(format!("bad --pkg {s}"))?;
-    Ok(CheckRequest { group: Id::from_hex(g).ok_or("bad group")?, capsule: Id::from_hex(c).ok_or("bad capsule")? })
+    Ok((Id::from_hex(g).ok_or("bad group")?, Id::from_hex(c).ok_or("bad capsule")?))
 }
 
 fn ms(t: Instant) -> f64 {
@@ -127,7 +114,7 @@ async fn run(a: &[&str]) -> R<Value> {
         Some("fetch-pkg") => fetch_pkg_cmd(&a[1..]).await,
         Some("checkpoint") => checkpoint(&a[1..]).await,
         Some("snapshot-get") => snapshot_get(&a[1..]).await,
-        Some("check-receipt") => check_receipt(&a[1..]),
+        Some("check-receipt") => check_receipt(&a[1..]).await,
         _ => Err(USAGE.into()),
     }
 }
@@ -135,28 +122,38 @@ async fn run(a: &[&str]) -> R<Value> {
 // ---------------------------------------------------------------- keys and trust
 
 fn keys_init(a: &[&str]) -> R<Value> {
-    let (kpath, tpath) = (a.first().ok_or(USAGE)?, a.get(1).ok_or(USAGE)?);
+    let (kpath, tpath, rpath) = (a.first().ok_or(USAGE)?, a.get(1).ok_or(USAGE)?, a.get(2).ok_or(USAGE)?);
     let agents: Vec<&str> = need(a, "--agents")?.split(',').filter(|s| !s.is_empty()).collect();
     let mut kf = KeyFile::default();
     let auth = Signer::generate();
     kf.authority = Some(hex::encode(auth.seed()));
     kf.authority_public = hex::encode(auth.public());
     let val = Signer::generate();
-    kf.validators.insert("v0".into(), sign::KeyEntry { id: String::new(), public: hex::encode(val.public()), seed: Some(hex::encode(val.seed())) });
-    // An untrusted key, for the forgery tests: it signs receipts nobody accepts.
-    let rogue = Signer::generate();
-    kf.validators.insert("rogue".into(), sign::KeyEntry { id: String::new(), public: hex::encode(rogue.public()), seed: Some(hex::encode(rogue.seed())) });
+    kf.add_validator("v0", &val);
     for n in &agents {
         let s = Signer::generate();
         kf.workspaces.insert(n.to_string(), sign::KeyEntry { id: WorkspaceId::random().hex(), public: hex::encode(s.public()), seed: Some(hex::encode(s.seed())) });
     }
+    let checker = receipt::checker()?;
+    kf.policies = vec![paralean_store::receipt::Policy::v1().id().hex()];
+    kf.checkers = vec![checker.id().hex()];
     std::fs::write(kpath, serde_json::to_string_pretty(&kf).unwrap()).map_err(es)?;
-    let trust = Trust::new(need(a, "--lean-commit")?, need(a, "--mathlib-commit")?, vec![val.public()]);
+    // An untrusted validator and controller, for the forgery tests: same agents, other keys.
+    let mut rogue = kf.clone();
+    let rv = Signer::generate();
+    rogue.validators.clear();
+    rogue.add_validator("v0", &rv);
+    let ra = Signer::generate();
+    rogue.authority = Some(hex::encode(ra.seed()));
+    rogue.authority_public = hex::encode(ra.public());
+    std::fs::write(rpath, serde_json::to_string_pretty(&rogue).unwrap()).map_err(es)?;
     let tv = json!({
         "validators": [hex::encode(val.public())],
-        "base": trust.base.hex(),
-        "policy": trust.policy.hex(),
-        "allowedAxioms": trust.allowed_axioms,
+        "authority": kf.authority_public,
+        "policies": kf.policies,
+        "checkers": kf.checkers,
+        "base": receipt::base()?.hex(),
+        "allowedAxioms": paralean_store::receipt::ALLOWED_AXIOMS,
         "agents": agents.iter().map(|n| json!([n, kf.workspaces[*n].id])).collect::<Vec<_>>(),
     });
     std::fs::write(tpath, serde_json::to_string_pretty(&tv).unwrap()).map_err(es)?;
@@ -170,114 +167,43 @@ async fn stage(a: &[&str]) -> R<Value> {
     let (st, _) = open()?;
     let mut out = Vec::new();
     for p in flags(a, "--pkg") {
-        let req = pkg_arg(p)?;
+        let (group, capsule) = pkg_arg(p)?;
         let t = Instant::now();
-        let g = std::fs::read(c.object(&req.group)).map_err(|e| format!("payload {}: {e}", req.group))?;
-        let cb = std::fs::read(c.capsule(&req.capsule)).map_err(|e| format!("capsule {}: {e}", req.capsule))?;
+        let g = std::fs::read(c.object(&group)).map_err(|e| format!("payload {}: {e}", group))?;
+        let cb = std::fs::read(c.capsule(&capsule)).map_err(|e| format!("capsule {}: {e}", capsule))?;
         let ga = st.s3.put_opaque(&Opaque::new(Kind::Group, g.clone())).await.map_err(es)?;
         let ca = st.s3.put_opaque(&Opaque::new(Kind::Capsule, cb.clone())).await.map_err(es)?;
-        if ga.id() != req.group || ca.id() != req.capsule {
+        if ga.id() != group || ca.id() != capsule {
             return Err(format!("staged IDs differ from the local ones for {p}"));
         }
-        c.log_transfer("put-group", &req.group, g.len(), 0.0);
-        c.log_transfer("put-capsule", &req.capsule, cb.len(), ms(t));
-        out.push(json!({"group": req.group.hex(), "capsule": req.capsule.hex(), "groupBytes": g.len(), "capsuleBytes": cb.len(), "ms": ms(t)}));
+        c.log_transfer("put-group", &group, g.len(), 0.0);
+        c.log_transfer("put-capsule", &capsule, cb.len(), ms(t));
+        out.push(json!({"group": group.hex(), "capsule": capsule.hex(), "groupBytes": g.len(), "capsuleBytes": cb.len(), "ms": ms(t)}));
     }
     Ok(json!(out))
 }
 
-/// Fetch a package and its dependency closure from the store into `c` (validator side, or
-/// a snapshot restore). Dependencies must be published (marker with a valid certificate)
-/// or listed in `batch`.
-async fn fetch_closure(st: &Store, c: &Cache, roots: &[CheckRequest], batch: &BTreeSet<Id>, require_published: bool) -> R<(Vec<String>, usize)> {
-    let mut todo: Vec<(Id, Id)> = roots.iter().map(|r| (r.group, r.capsule)).collect();
-    let mut seen = BTreeSet::new();
-    let mut pids = Vec::new();
-    let mut bytes = 0;
-    while let Some((g, cap)) = todo.pop() {
-        if !seen.insert((g, cap)) {
-            continue;
-        }
-        let cb = match std::fs::read(c.capsule(&cap)) {
-            Ok(b) => b,
-            Err(_) => {
-                let pre = st.s3.get(Kind::Capsule, &cap).await.map_err(es)?.ok_or(format!("capsule {cap} absent"))?;
-                let b = Kind::Capsule.domain().strip(&pre).map_err(es)?.to_vec();
-                bytes += b.len();
-                b
-            }
-        };
-        let (pid, deps) = c.put_capsule(&cap, &cb)?;
-        if !c.object(&g).exists() {
-            let pre = st.s3.get(Kind::Group, &g).await.map_err(es)?.ok_or(format!("group {g} absent"))?;
-            let b = Kind::Group.domain().strip(&pre).map_err(es)?.to_vec();
-            bytes += b.len();
-            c.write_new(&c.object(&g), &b).map_err(es)?;
-        }
-        pids.push(pid);
-        for (_, dg, dc) in deps {
-            if require_published && !batch.contains(&dg) {
-                let published = st.marker(&dg).await.map_err(es)?.is_some() && !st.certs(&dg).await.map_err(es)?.is_empty();
-                if !published {
-                    return Err(format!("dependency {dg} of {g} is neither published nor in the batch"));
-                }
-            }
-            todo.push((dg, dc));
-        }
-    }
-    Ok((pids, bytes))
-}
-
 async fn validate(a: &[&str]) -> R<Value> {
     let c = Cache::new(need(a, "--cache")?);
-    c.init().map_err(es)?;
-    let vname = need(a, "--validator")?;
-    let bin = need(a, "--paralean")?;
-    let trust = trust_of(&std::env::var("PARALEAN_TRUST").map_err(|_| "PARALEAN_TRUST is not set")?)?;
     let (st, kf) = open()?;
-    let signer = kf.validator_signer(vname).ok_or(format!("no seed for validator {vname}"))?;
-    let reqs: Vec<CheckRequest> = flags(a, "--pkg").into_iter().map(pkg_arg).collect::<R<_>>()?;
-    let batch: BTreeSet<Id> = reqs.iter().map(|r| r.group).collect();
+    let ws = need(a, "--ws")?;
+    let (wid, _) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
+    let addr = need(a, "--validator")?;
+    let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
+    let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
+        .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
     let t = Instant::now();
-    let (_, fetched) = fetch_closure(&st, &c, &reqs, &batch, true).await?;
-    let t_fetch = ms(t);
-    // The roots' package IDs, in request order.
-    let mut roots = Vec::new();
-    for r in &reqs {
-        let cb = std::fs::read(c.capsule(&r.capsule)).map_err(es)?;
-        let v: Value = serde_json::from_slice(&cb).map_err(es)?;
-        roots.push(v["rec"]["gid"].as_str().ok_or("gid")?.to_string());
-    }
-    let out_path = c.p3().join(format!("verdicts-{}.json", std::process::id()));
-    let t2 = Instant::now();
-    let o = std::process::Command::new(bin)
-        .arg("validate-pkgs")
-        .args(["--store", c.root.to_str().unwrap(), "--out", out_path.to_str().unwrap()])
-        .args(&roots)
-        .env("PARALEAN_STORE", &c.root)
-        .output()
-        .map_err(|e| format!("{bin}: {e}"))?;
-    let t_check = ms(t2);
-    let verdicts: Value = serde_json::from_str(&std::fs::read_to_string(&out_path).map_err(|e| {
-        format!("validator produced no verdicts ({e}): {}", String::from_utf8_lossy(&o.stderr))
-    })?)
-    .map_err(es)?;
-    let bin_hash = sha2::Digest::finalize(<sha2::Sha256 as sha2::Digest>::new_with_prefix(std::fs::read(bin).map_err(es)?)).to_vec();
-    let v = Validator { signer, bin_hash, trust };
-    let mut out = Vec::new();
-    for (r, pid) in reqs.iter().zip(&roots) {
-        let vd = &verdicts[pid.as_str()];
-        let res = CheckResult {
-            accepted: vd["ok"].as_bool().unwrap_or(false),
-            reason: vd["reason"].as_str().unwrap_or("no verdict").to_string(),
-            axioms: vd["axioms"].as_array().map(|xs| xs.iter().filter_map(|x| name_of_json(x).ok()).collect()).unwrap_or_default(),
-        };
-        let rc = v.issue(r, &res);
-        let blob = st.s3.put(Kind::Blob, &Domain::Blob.preimage(&rc.to_bytes())).await.map_err(es)?;
-        out.push(json!({"group": r.group.hex(), "capsule": r.capsule.hex(), "pid": pid, "accepted": res.accepted,
-            "reason": res.reason, "receipt": rc.id().hex(), "blob": blob.id().hex()}));
-    }
-    Ok(json!({"receipts": out, "fetchedBytes": fetched, "fetchMs": t_fetch, "checkMs": t_check}))
+    let job = receipt::issue(&kf, wid, g, cap, deps)?;
+    let job = st.meta.issue_job(&job).await.map_err(es)?;
+    let rc = receipt::validate(addr, &job).await?;
+    let el = ms(t);
+    let accepted = rc.body.verdict == Verdict::Accepted;
+    let reason = match &rc.body.verdict { Verdict::Rejected(r) => r.clone(), _ => String::new() };
+    c.write_new(&c.receipt(&rc.id()), &rc.to_bytes()).map_err(es)?;
+    c.write_new(&c.job(&job.id()), &job.to_bytes()).map_err(es)?;
+    c.log_transfer("validate", &g, 0, el);
+    Ok(json!({"group": g.hex(), "capsule": cap.hex(), "accepted": accepted, "reason": reason,
+        "receipt": rc.id().hex(), "job": job.id().hex(), "ms": el}))
 }
 
 // ---------------------------------------------------------------- publication
@@ -294,9 +220,10 @@ async fn publish(a: &[&str]) -> R<Value> {
         let t = Instant::now();
         let g = id_of(&e["group"])?;
         let cap = id_of(&e["capsule"])?;
-        let blob = id_of(&e["receiptBlob"])?;
-        let pre = st.s3.get(Kind::Blob, &blob).await.map_err(es)?.ok_or("receipt blob absent")?;
-        let receipt = Receipt::from_bytes(Domain::Blob.strip(&pre).map_err(es)?).map_err(es)?;
+        let rid = id_of(&e["receipt"])?;
+        let jid = id_of(&e["job"])?;
+        let receipt = Receipt::from_bytes(&std::fs::read(c.receipt(&rid)).map_err(|e| format!("receipt {rid}: {e}"))?).map_err(es)?;
+        let job = SignedJob::from_bytes(&std::fs::read(c.job(&jid)).map_err(|e| format!("job {jid}: {e}"))?).map_err(es)?;
         let gbytes = std::fs::read(c.object(&g)).map_err(|e| format!("payload {g}: {e}"))?;
         let cbytes = std::fs::read(c.capsule(&cap)).map_err(|e| format!("capsule {cap}: {e}"))?;
         let mut revisions = Vec::new();
@@ -323,15 +250,15 @@ async fn publish(a: &[&str]) -> R<Value> {
         if marker.author.0 != wid.0 {
             return Err("a record's author must be the publishing workspace".into());
         }
-        // Receipts are checked by the writer too (§6 staging rule); this adds the request
-        // binding to the capsule.
-        let trust = trust_of(&std::env::var("PARALEAN_TRUST").map_err(|_| "PARALEAN_TRUST is not set")?)?;
-        trust.admits(&receipt, &CheckRequest { group: g, capsule: cap }).map_err(|e| format!("receipt for {g}: {e}"))?;
+        if job.body.capsule != cap {
+            return Err(format!("the job of {g} names another capsule"));
+        }
         let p = Package {
             group: Opaque::new(Kind::Group, gbytes),
             chunks: vec![],
             capsule: Opaque::new(Kind::Capsule, cbytes),
             receipt,
+            job,
             revisions,
             marker: marker.clone(),
             targets: vec![],
@@ -417,22 +344,40 @@ async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) 
         }
     }
     let cap = cap.ok_or("marker without revisions")?;
-    if !c.receipt(&m.receipt).exists() {
-        let rc = st.receipt(&m.receipt).await.map_err(es)?.ok_or("receipt missing")?;
-        let b = rc.to_bytes();
-        bytes += b.len();
-        c.write_new(&c.receipt(&m.receipt), &b).map_err(es)?;
-    }
-    let cb = match std::fs::read(c.capsule(&cap)) {
-        Ok(b) => b,
+    let rc = match std::fs::read(c.receipt(&m.receipt)) {
+        Ok(b) => Receipt::from_bytes(&b).map_err(es)?,
         Err(_) => {
-            let pre = st.s3.get(Kind::Capsule, &cap).await.map_err(es)?.ok_or(format!("capsule {cap} absent"))?;
-            let b = Kind::Capsule.domain().strip(&pre).map_err(es)?.to_vec();
+            let rc = st.receipt(&m.receipt).await.map_err(es)?.ok_or("receipt missing")?;
+            let b = rc.to_bytes();
             bytes += b.len();
-            b
+            c.write_new(&c.receipt(&m.receipt), &b).map_err(es)?;
+            rc
         }
     };
-    let (pid, _) = c.put_capsule(&cap, &cb)?;
+    // The job envelope the receipt answers, and the capsules of the closure it pins.
+    let jid = rc.body.request.as_ref().and_then(|q| <[u8; 32]>::try_from(&q[..]).ok()).map(Id).ok_or("receipt without a request")?;
+    let job = match std::fs::read(c.job(&jid)) {
+        Ok(b) => SignedJob::from_bytes(&b).map_err(es)?,
+        Err(_) => {
+            let v = st.meta.get(st.meta.keys.job(&jid)).await.map_err(es)?.ok_or("job envelope missing")?;
+            bytes += v.len();
+            c.write_new(&c.job(&jid), &v).map_err(es)?;
+            SignedJob::from_bytes(&v).map_err(es)?
+        }
+    };
+    let mut pid = String::new();
+    for cid in job.body.deps.iter().chain(std::iter::once(&cap)) {
+        let cb = match std::fs::read(c.capsule(cid)) {
+            Ok(b) => b,
+            Err(_) => {
+                let pre = st.s3.get(Kind::Capsule, cid).await.map_err(es)?.ok_or(format!("capsule {cid} absent"))?;
+                let b = Kind::Capsule.domain().strip(&pre).map_err(es)?.to_vec();
+                bytes += b.len();
+                b
+            }
+        };
+        pid = c.put_capsule(cid, &cb)?;
+    }
     let v = marker_json(mid, m, &cap, &pid).to_string();
     bytes += v.len();
     c.write_new(&c.p3().join(sub).join(format!("m-{}.json", mid.hex())), v.as_bytes()).map_err(es)?;
@@ -576,7 +521,6 @@ async fn checkpoint(a: &[&str]) -> R<Value> {
     let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
     let w = Writer::new(st.clone(), wid, signer);
     let ctl = Controller::new(st.clone(), kf.authority_signer().ok_or("no authority seed")?);
-    let trust = trust_of(&std::env::var("PARALEAN_TRUST").map_err(|_| "PARALEAN_TRUST is not set")?)?;
     let mut contents: Vec<Id> = need(a, "--revisions")?.split(',').filter(|s| !s.is_empty()).map(|s| Id::from_hex(s).ok_or("bad revision")).collect::<std::result::Result<_, _>>()?;
     contents.sort();
     contents.dedup();
@@ -602,7 +546,7 @@ async fn checkpoint(a: &[&str]) -> R<Value> {
     let token = ctl.rotate(wid, &rand::random::<[u8; 16]>()).await.map_err(es)?;
     let snapshot = Snapshot {
         workspace: wid,
-        base: trust.base,
+        base: receipt::base()?,
         contents,
         predecessors: vec![],
         targets: vec![],
@@ -650,13 +594,11 @@ async fn snapshot_get(a: &[&str]) -> R<Value> {
         "heads": r.heads.iter().map(|h| h.hex()).collect::<Vec<_>>()}))
 }
 
-fn check_receipt(a: &[&str]) -> R<Value> {
-    let trust = trust_of(need(a, "--trust")?)?;
-    let b = std::fs::read(need(a, "--receipt")?).map_err(es)?;
-    let r = Receipt::from_bytes(&b).map_err(es)?;
-    let req = CheckRequest { group: Id::from_hex(need(a, "--group")?).ok_or("group")?, capsule: Id::from_hex(need(a, "--capsule")?).ok_or("capsule")? };
-    match trust.admits(&r, &req) {
-        Ok(()) => Ok(json!({"admits": true, "request": req.id().hex()})),
-        Err(e) => Ok(json!({"admits": false, "reason": e, "request": req.id().hex()})),
+async fn check_receipt(a: &[&str]) -> R<Value> {
+    let (st, _) = open()?;
+    let g = Id::from_hex(a.last().ok_or(USAGE)?).ok_or("bad group")?;
+    match paralean_validator_api::published_receipt(&st, &g).await {
+        Ok((rc, job)) => Ok(json!({"admits": true, "receipt": rc.id().hex(), "job": job.id().hex()})),
+        Err(e) => Ok(json!({"admits": false, "reason": format!("{e:?}")})),
     }
 }

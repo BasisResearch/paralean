@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/store", "crates/cli", "crates/s3-guard", "../p3/crates/validator-api", "../p3/crates/control"]
+members = ["crates/store", "crates/cli", "crates/s3-guard", "../p3/crates/validator-api", "../p3/crates/control", "../p3-remote"]
 
 [workspace.package]
 version = "0.2.0"

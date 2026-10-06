@@ -176,7 +176,10 @@ structure Receipt where
   base : String
   key : ByteArray
   policy : String
+  /-- The checker-version ID (P3 control's `validatorBin` slot). -/
+  checker : ByteArray
   request : Option ByteArray
+  target : Option ByteArray
   accepted : Bool
   reason : String
   axioms : Array Name
@@ -228,29 +231,33 @@ def name : M Name := do
   return out
 end PDec
 
-def receiptPrefix : ByteArray := "paralean\x00v0/receipt\x00".toUTF8
-
-/-- Parse P2's `Signed<ReceiptBody>`: `bytes(preimage) ‖ bytes(sig)`. -/
-def Receipt.parse (raw : ByteArray) : Except String Receipt := do
+/-- Split P2's `Signed<T>` bytes (`bytes(preimage) ‖ bytes(sig)`) of domain `dom`:
+(preimage, body, signature). -/
+def splitSigned (dom : String) (raw : ByteArray) : Except String (ByteArray × ByteArray × ByteArray) := do
+  let pfx := s!"paralean\x00{dom}\x00".toUTF8
   let ((pre, sig), (_, used)) ← (do
       let pre ← PDec.bytes
       let sig ← PDec.bytes
       return (pre, sig) : PDec.M _).run (raw, 0)
-  unless used == raw.size do throw "receipt: trailing bytes"
-  unless sig.size == 64 do throw "receipt: bad signature length"
-  unless pre.size ≥ receiptPrefix.size && pre.extract 0 receiptPrefix.size == receiptPrefix do
-    throw "receipt: not a v0/receipt preimage"
-  let body := pre.extract receiptPrefix.size pre.size
+  unless used == raw.size do throw s!"{dom}: trailing bytes"
+  unless sig.size == 64 do throw s!"{dom}: bad signature length"
+  unless pre.size ≥ pfx.size && pre.extract 0 pfx.size == pfx do
+    throw s!"{dom}: not a {dom} preimage"
+  return (pre, pre.extract pfx.size pre.size, sig)
+
+/-- Parse P2's `Signed<ReceiptBody>`. -/
+def Receipt.parse (raw : ByteArray) : Except String Receipt := do
+  let (pre, body, sig) ← splitSigned "v0/receipt" raw
   let (r, (_, used)) ← (do
       let fmt ← PDec.uv
       unless fmt == 0 do throw s!"receipt: unknown format {fmt}"
       let group ← PDec.id32
       let base ← PDec.id32
       let key ← PDec.id32
-      let _bin ← PDec.bytes
+      let checker ← PDec.bytes
       let policy ← PDec.id32
       let request ← PDec.opt PDec.bytes
-      let _target ← PDec.opt PDec.bytes
+      let target ← PDec.opt PDec.bytes
       let (accepted, reason) ← match ← PDec.byte with
         | 0 => pure (true, "")
         | 1 => pure (false, ← PDec.str)
@@ -259,12 +266,55 @@ def Receipt.parse (raw : ByteArray) : Except String Receipt := do
       let mut axioms := #[]
       for _ in [0:n] do axioms := axioms.push (← PDec.name)
       return ({ id := Sha256.hash pre, group := toHex group, base := toHex base, key, policy := toHex policy
-                request, accepted, reason, axioms, sig } : Receipt) : PDec.M Receipt).run (body, 0)
+                checker, request, target, accepted, reason, axioms, sig } : Receipt) : PDec.M Receipt).run (body, 0)
   unless used == body.size do throw "receipt: trailing body bytes"
   return r
 
+/-- P3 control's controller-signed `JobEnvelope` (`v0/job`). -/
+structure Job where
+  id : ByteArray
+  group : String
+  capsule : String
+  deps : Array String
+  base : String
+  policy : String
+  checker : ByteArray
+  hasTargets : Bool
+  sig : ByteArray
+
+def Job.parse (raw : ByteArray) : Except String Job := do
+  let (pre, body, sig) ← splitSigned "v0/job" raw
+  let (j, (_, used)) ← (do
+      let fmt ← PDec.uv
+      unless fmt == 0 do throw s!"job: unknown format {fmt}"
+      let _request ← PDec.bytes
+      let group ← PDec.id32
+      let capsule ← PDec.id32
+      let n ← PDec.uv
+      let mut deps := #[]
+      for _ in [0:n] do deps := deps.push (toHex (← PDec.id32))
+      let base ← PDec.id32
+      let policy ← PDec.id32
+      let checker ← PDec.id32
+      let _worker ← PDec.bytes
+      let nt ← PDec.uv
+      for _ in [0:nt] do
+        let _ ← PDec.name
+        let _ ← PDec.uv
+        let _ ← PDec.bytes
+      let _deadline ← PDec.uv
+      let _mem ← PDec.uv
+      return ({ id := Sha256.hash pre, group := toHex group, capsule := toHex capsule, deps
+                base := toHex base, policy := toHex policy, checker, hasTargets := nt > 0, sig } : Job) : PDec.M Job).run (body, 0)
+  unless used == body.size do throw "job: trailing body bytes"
+  return j
+
 structure Trust where
   validators : Array String
+  /-- The controller (fence authority) key that signs job envelopes. -/
+  authority : String
+  policies : Array String
+  checkers : Array String
   base : String
   policy : String
   allowedAxioms : Array Name
@@ -278,7 +328,9 @@ def Trust.load : IO Trust := do
   ofExcept p do
     let agents ← (← j.getObjValAs? (Array (Array String)) "agents").mapM fun a =>
       if a.size == 2 then pure (a[1]!, a[0]!) else throw "agents"
-    return { validators := ← jStrs j "validators", base := ← jStr j "base", policy := ← jStr j "policy"
+    return { validators := ← jStrs j "validators", authority := ← jStr j "authority"
+             policies := ← jStrs j "policies", checkers := ← jStrs j "checkers"
+             base := ← jStr j "base", policy := (← jStrs j "policies")[0]!
              allowedAxioms := (← jStrs j "allowedAxioms").map String.toName, agents }
 
 initialize trustCache : IO.Ref (Option Trust) ← IO.mkRef none
@@ -292,48 +344,57 @@ def trust : IO Trust := do
 def Trust.agentName (t : Trust) (id : String) : String :=
   (t.agents.find? (·.1 == id)).map (·.2) |>.getD (id.take 8).toString
 
-/-- The check request a receipt answers (`impl/p3-remote/src/receipt.rs`). -/
-def jobId (group capsule : String) : String :=
-  let w : W := {}
-  domainHash "v0/job" ((w.id group).id capsule).out
-
-/-- §6 staging rule for working copies: `Ok` iff the receipt admits exactly (group, capsule). -/
-def Trust.admits (t : Trust) (r : Receipt) (group capsule : String) : Except String Unit := do
+/-- The staging rule (P3 control's `receipt::check`), checked in the working copy: the
+receipt verifies under a trusted validator key, is accepted, names `group`, answers a job
+envelope the controller signed for exactly this group and `capsule`, repeats the job's base,
+policy and checker, which are pinned, and lists only allowed axioms. Returns the job, whose
+`deps` are the capsules of the group's exact dependency closure. -/
+def Trust.admits (t : Trust) (r : Receipt) (job : Job) (group capsule : String) : Except String Unit := do
   unless r.group == group do throw "the receipt names another group"
-  unless r.request.map toHex == some (jobId group capsule) do
-    throw "the receipt answers another request (group, capsule)"
-  unless r.accepted do throw s!"the validator rejected it: {r.reason}"
   unless t.validators.contains (toHex r.key) do throw "the receipt is signed by an untrusted key"
-  unless r.base == t.base && r.policy == t.policy do throw "the receipt is for another base or policy"
   unless Ed25519.verify r.key r.id r.sig do throw "the receipt's signature does not verify"
+  unless r.accepted do throw s!"the validator rejected it: {r.reason}"
+  unless Ed25519.verify (Ed25519.hexToBytes t.authority |>.getD .empty) job.id job.sig do
+    throw "the job envelope is not signed by the controller"
+  unless r.request.map toHex == some (toHex job.id) do throw "the receipt answers another job"
+  unless job.group == group && job.capsule == capsule do
+    throw "the job envelope is for another group or capsule"
+  unless r.base == job.base && r.policy == job.policy && toHex r.checker == toHex job.checker do
+    throw "the receipt does not repeat its job's base, policy and checker"
+  unless r.target.isNone == !job.hasTargets do throw "the receipt's target binding differs from its job's"
+  unless t.policies.contains job.policy && t.checkers.contains (toHex job.checker) do
+    throw "the job's policy or checker is not pinned"
+  unless job.base == t.base do throw "the job is for another base"
   for a in r.axioms do
     unless t.allowedAxioms.contains a do throw s!"the receipt lists axiom {a} outside the policy"
 
 /-- Verified receipts, by (receipt, group, capsule). -/
 initialize admitted : IO.Ref (Std.HashSet (String × String × String)) ← IO.mkRef {}
 
-def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Unit) := do
-  let key := (m.receipt, m.group, m.capsule)
-  if (← admitted.get).contains key then return .ok ()
+def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Job) := do
   let p := root / "p3" / "receipts" / s!"{m.receipt}.bin"
   unless ← p.pathExists do return .error s!"no receipt {(m.receipt.take 12).toString} in the cache"
-  let raw ← IO.FS.readBinFile p
-  match Receipt.parse raw with
+  match Receipt.parse (← IO.FS.readBinFile p) with
   | .error e => return .error e
   | .ok r =>
     unless toHex r.id == m.receipt do return .error "the cached receipt is not the one the record names"
-    match (← trust).admits r m.group m.capsule with
+    let some req := r.request | return .error "the receipt answers no job"
+    let jp := root / "p3" / "jobs" / s!"{toHex req}.bin"
+    unless ← jp.pathExists do return .error "the receipt's job envelope is not in the cache"
+    match Job.parse (← IO.FS.readBinFile jp) with
     | .error e => return .error e
-    | .ok () =>
-      admitted.modify (·.insert key)
-      return .ok ()
+    | .ok job =>
+      if (← admitted.get).contains (m.receipt, m.group, m.capsule) then return .ok job
+      match (← trust).admits r job m.group m.capsule with
+      | .error e => return .error e
+      | .ok () =>
+        admitted.modify (·.insert (m.receipt, m.group, m.capsule))
+        return .ok job
 
-/-! ## Capsules -/
+/-! ## Capsules
 
-/-- The stored capsule object of a package: `{"rec": GroupRec, "deps": [[pid, group, capsule]]}`. -/
-def capsuleBytes (rec : GroupRec) (deps : Array (String × String × String)) : ByteArray :=
-  (Json.mkObj [("rec", toJson rec),
-    ("deps", Json.arr (deps.map fun (p, g, c) => Json.arr #[p, g, c]))]).compress.toUTF8
+A capsule object is the package's P1 metadata JSON (`meta/<pid>.json`), as P3 control
+publishes P1 groups. -/
 
 def capsuleIdOf (bytes : ByteArray) : String := domainHash "v0/capsule" bytes
 
@@ -348,24 +409,17 @@ def packageIdOf (g : GroupRec) : String :=
 
 /-- A package's metadata from its stored capsule, after re-hashing the capsule against the
 ID the record names and checking that the package ID is the hash of its contents. -/
-def loadCapsule (root : FilePath) (capsule : String) : IO (Except String (GroupRec × Array (String × String × String))) := do
+def loadCapsule (root : FilePath) (capsule : String) : IO (Except String GroupRec) := do
   let p := root / "p3" / "capsules" / s!"{capsule}.json"
   unless ← p.pathExists do return .error s!"capsule {(capsule.take 12).toString} not in the cache"
   let bytes ← IO.FS.readBinFile p
   unless capsuleIdOf bytes == capsule do return .error s!"capsule {(capsule.take 12).toString} fails hash verification"
   let some txt := String.fromUTF8? bytes | return .error "capsule: bad UTF-8"
-  match Json.parse txt with
+  match Json.parse txt >>= fromJson? with
   | .error e => return .error e
-  | .ok j =>
-    match (do
-      let rec_ : GroupRec ← fromJson? (← j.getObjVal? "rec")
-      let deps ← (← j.getObjValAs? (Array (Array String)) "deps").mapM fun a =>
-        if a.size == 3 then pure (a[0]!, a[1]!, a[2]!) else throw "deps"
-      return (rec_, deps) : Except String _) with
-    | .error e => return .error e
-    | .ok r =>
-      unless packageIdOf r.1 == r.1.gid do
-        return .error s!"capsule {(capsule.take 12).toString}: its package ID is not the hash of its contents"
-      return .ok r
+  | .ok (g : GroupRec) =>
+    unless packageIdOf g == g.gid do
+      return .error s!"capsule {(capsule.take 12).toString}: its package ID is not the hash of its contents"
+    return .ok g
 
 end Paralean.P3

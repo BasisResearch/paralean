@@ -212,7 +212,9 @@ def View.header (v : View) (elems : Array Marker) (file : String) : String := Id
   let self := moduleOfFile file
   let mut imps : Array String := #[]
   for g in gs do
-    let ls := if isModule then g.capsule.importSpecs else g.capsule.imports.filter (· != self) |>.map (s!"import {·}")
+    -- `Init` is implicit in a non-module file
+    let ls := if isModule then g.capsule.importSpecs
+      else g.capsule.imports.filter (fun m => m != self && m != `Init) |>.map (s!"import {·}")
     for l in ls do unless imps.contains l do imps := imps.push l
   imps := imps.qsort (· < ·)
   return (if isModule then "module\n" else "") ++ String.join (imps.toList.map (· ++ "\n"))
