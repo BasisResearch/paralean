@@ -32,7 +32,8 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
   catalogue recovery and the audit saw a subset (268 of 445 markers), breaking
   `scan_between` / `certScanValue_covers`; recovery could have selected an older record.
   The scan now continues on `more()`; `paginated_scan_follows_partial_batches` is the
-  regression test. Small test deployments never exceed a batch, which is why the unit
+  regression test. The rule is now a refinement obligation in store.md, under
+  "Physical scan and enumeration" (branch `store-doc`). Small test deployments never exceed a batch, which is why the unit
   tests missed it; the audit caught it at scale.
 
 - A T3/T4 retry resolved only from "the state since my first attempt" misses a late,
@@ -46,7 +47,12 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
 
 ## Deviations from and gaps in store.md (exact places)
 
-1. "Unfenced repair and acknowledgement" says an unknown-outcome T5 that committed before
+Items 1–9 are fixed in docs/store.md on branch `store-doc`. That branch also adds the
+paginated-scan rule (continue while `more()`; never stop on a short batch) as a
+refinement obligation under "Physical scan and enumeration". Item 10 is being fixed
+in P1.
+
+1. **Fixed in store.md (branch store-doc).** "Unfenced repair and acknowledgement" says an unknown-outcome T5 that committed before
    a rotation is retried, aborts, and leaves the record without a commit certificate. With
    T5 as in the Transactions table (record and `rcert` in one transaction) that is wrong:
    a committed T5 wrote the `rcert` too, the retry finds it and succeeds, and the record is
@@ -55,21 +61,21 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
    fixture uses it; `fixture_put_before_rotation_acked_after` exercises both readings.
    Suggested sentence: "The late-acknowledgement case appears as a staging write of the
    record (fenced) whose outcome is resolved after a rotation; the commit T5 then aborts."
-2. Layout: no domain for export manifests; P2 adds `v0/manifest` (sourceRoot, buildReceipt)
+2. **Fixed in store.md (branch store-doc).** Layout: no domain for export manifests; P2 adds `v0/manifest` (sourceRoot, buildReceipt)
    and `v0/token`. T5's `ocert/manifest/<m>` is the record's snapshot, stored as
    `ocert/snapshot/<m>`.
-3. Layout: ">64 kB values replaced in the marker by its ID" would change marker IDs. P2
+3. **Fixed in store.md (branch store-doc).** Layout: ">64 kB values replaced in the marker by its ID" would change marker IDs. P2
    keeps IDs and uses a value envelope `0x01 ‖ objectID ‖ blobID`.
-4. Layout additions: `treq/`, `areq/`, `assign/` (exact T3/T4 resolution, finding above).
-5. §8.2 step 2 ("marker durably acknowledged") has no key; P2 PUTs the marker preimage to
+4. **Fixed in store.md (branch store-doc).** Layout additions: `treq/`, `areq/`, `assign/` (exact T3/T4 resolution, finding above).
+5. **Fixed in store.md (branch store-doc).** §8.2 step 2 ("marker durably acknowledged") has no key; P2 PUTs the marker preimage to
    S3 `obj/marker/<id>` before T1.
-6. T2 additionally requires an existing certificate (a raw marker key is not evidence),
+6. **Fixed in store.md (branch store-doc).** T2 additionally requires an existing certificate (a raw marker key is not evidence),
    following §8.3 "receiving requires a live certificate".
-7. Certificate bodies carry `replica`; a T7 copy to a *replacement* replica keeps σ, so
+7. **Fixed in store.md (branch store-doc).** Certificate bodies carry `replica`; a T7 copy to a *replacement* replica keeps σ, so
    the field cannot name the physical replica. Underspecified in §8.3/§9.
-8. Signed objects (receipts, records, certificates) have ID = H(body); they cannot be stored
+8. **Fixed in store.md (branch store-doc).** Signed objects (receipts, records, certificates) have ID = H(body); they cannot be stored
    as their preimage alone. P2 stores `bytes(preimage(body)) ‖ bytes(sig)`.
-9. store.md calls Garage a way to avoid MinIO's AGPL; Garage is AGPL-3.0 too. MinIO
+9. **Fixed in store.md (branch store-doc).** store.md calls Garage a way to avoid MinIO's AGPL; Garage is AGPL-3.0 too. MinIO
    community binaries are no longer distributed. Garage has no bucket policy or Object
    Lock, so deletes are refused by the `s3-guard` gateway; app credentials hitting Garage's
    port directly could still delete.

@@ -11,14 +11,17 @@ argues that every concrete behaviour is a behaviour of the model.
 - **Self-hosted by default.** Both stores run on machines we operate (for P2, the
   aws-dev box); no managed cloud service is required. Moving to a managed
   S3-compatible service later changes only an endpoint.
-- **Metadata store: FoundationDB** (7.3 series; exact version pinned in P2), one
+- **Metadata store: FoundationDB** (7.3 series; P2 pins 7.3.79, client API version 730), one
   self-hosted cluster in one region. FoundationDB is itself replicated with
   consensus; it is the only coordinated component. It holds markers, revisions, receipts, tombstones,
   publication certificates, catalogue records, commit and object certificates, the
   catalogue fence, issued tokens and target owner/epoch/head records.
-- **Payload store: a self-hosted S3-compatible store** (MinIO, or Garage/SeaweedFS
-  to avoid MinIO's AGPL licence) with strong read-after-write consistency and
-  durable PUT acknowledgement; Amazon S3 (one bucket, one region, no cross-region
+- **Payload store: a self-hosted S3-compatible store** with strong
+  read-after-write consistency and durable PUT acknowledgement. P2 runs Garage
+  (AGPL-3.0, the preferred licence), single node, replication factor 1, consistent
+  mode; MinIO community binaries are no longer distributed. Garage checks
+  `x-amz-checksum-sha256` and echoes it. Clients use only the plain S3 API, so another
+  store is a change of endpoint. Amazon S3 (one bucket, one region, no cross-region
   replication) is a drop-in alternative. Payloads are immutable and
   content-addressed, so any copy with the right hash is valid. It holds group
   manifests and term chunks, capsules, export/snapshot manifests and build logs.
@@ -85,12 +88,35 @@ kind cannot be read as another.
 | `rcert/<catalog id>` | CommitCert | fenced commit-certificate write |
 | `ocert/<kind>/<id>` | ObjectCert | after the object's acknowledgement |
 | `fence` | current rank | controller (rotation) |
-| `token/<rank>` | signed token `{rank, holder}` | rotation transaction |
+| `token/<rank>` | signed token `{rank, holder}` (domain `v0/token`, signed by the fence authority) and the issuing request ID | rotation transaction |
+| `treq/<request>` | the rank T3 issued for this request | rotation transaction |
+| `assign/<name>/<epoch>` | `{owner, request}` of the assignment that set this epoch | reassignment transaction |
+| `areq/<name>/<request>` | the epoch T4 set for this request | reassignment transaction |
 | `lamport/<agent>` | last issued Lamport time (optional; a local fsynced file also suffices) | the agent |
 
-A value over 64 kB (in practice only a deep `rootPath`) is stored as a
-content-addressed `blob` object (new domain `v0/blob`) in S3 and replaced in the marker by its ID. S3 keys
-are `obj/<kind>/<hex id>`.
+`treq/`, `assign/` and `areq/` are grow-only request indexes. They make the
+effect of T3 and T4 recognisable for any retry, including a late duplicate that
+arrives after other rotations or reassignments; the request ID in `token/<rank>` or
+in the target record alone recognises only a retry before the next change.
+
+Values of unsigned objects (markers, revisions, tombstones) are wrapped in an
+envelope: `0x00 ‖ stored bytes`, or, for a value over 64 kB (in practice only a deep
+`rootPath`), `0x01 ‖ object ID ‖ blob ID`. The blob is a content-addressed S3 object
+(domain `v0/blob`) holding the stored bytes, PUT and acknowledged before the
+transaction. The object's bytes and ID are unchanged; only where the bytes live
+differs.
+
+Signed objects (receipts, catalogue records, `cert`, `rcert`, `ocert`, tokens) have
+`ID = H(domain, body)` with the signature outside the ID (§6), so they cannot be
+stored as their preimage alone. Their value is the PCE pair
+`bytes(preimage(body)) ‖ bytes(signature)`, where the signature is Ed25519 over the
+ID. Readers verify both the body's domain and the signature.
+
+S3 keys are `obj/<kind>/<hex id>`, one kind per domain: `group` (`v0/group`),
+`chunk`, `capsule`, `snapshot`, `manifest` (new domain `v0/manifest`: a snapshot's
+`sourceRoot` and `buildReceipt`), `blob`, and `marker` (the acknowledged marker
+copy, below). Object certificates use the same kind names: the certificate of the
+snapshot a catalogue record names is `ocert/snapshot/<m>`.
 
 ## Content-addressed writes
 
@@ -120,18 +146,28 @@ a `200 OK` durable.
 Each concrete operation is one FoundationDB transaction. Every transaction is
 idempotent: it reads whether its effect is already present and, if so, succeeds
 without writing. For T3 and T4, which bump a counter, the effect is recognised by a
-request ID stored with the new value (`token/<rank>` names the holder and request;
-the target record stores the last reassignment's request ID).
+request ID: `token/<rank>` names the holder and request, the target record stores
+the last reassignment's request ID, and the request indexes `treq/` and `areq/`
+recognise any earlier request (see Layout).
 
 | # | Transaction | Reads | Writes |
 |---|---|---|---|
 | T1 | Publish group `g` | `target/<x>` for each target name `x` of `g`; `marker/<g>` | `marker/<g>`, revisions, receipt if absent, `target/<x>.head`, `cert/<g>/<self>` |
-| T2 | Certify `g` | `marker/<g>` | `cert/<g>/<self>` |
-| T3 | Rotate fence | `fence` | `fence := k+1`, `token/<k+1>` |
-| T4 | Reassign target `x` | `target/<x>` | `owner`, `epoch := epoch+1`; `head` unchanged |
-| T5 | Write and commit catalogue record `c` | `fence`; `catalog/<c>`; `ocert/manifest/<m>`; for each parent `p` of `c`: `rcert/<p>`, `ocert/manifest/<image p>` | `catalog/<c>`, `rcert/<c>` |
+| T2 | Certify `g` | `cert/<g>/<self>`; `marker/<g>`; one key of `cert/<g>/*` | `cert/<g>/<self>` |
+| T3 | Rotate fence | `treq/<request>`; `fence` | `fence := k+1`, `token/<k+1>`, `treq/<request>` |
+| T4 | Reassign target `x` | `areq/<x>/<request>`; `target/<x>` | `owner`, `epoch := epoch+1`, `head` unchanged; `assign/<x>/<epoch>`, `areq/<x>/<request>` |
+| T5s | Stage catalogue record `c` (optional) | `catalog/<c>`; `fence`; `token/<rank>` | `catalog/<c>` if absent and `token.rank = fence`; succeeds without writing if present |
+| T5 | Write and commit catalogue record `c` | `rcert/<c>`; `fence`; `token/<rank>`; `catalog/<c>`; `ocert/snapshot/<m>`; for each parent `p` of `c`: `rcert/<p>`, `ocert/snapshot/<image p>` | `catalog/<c>` if absent, `rcert/<c>` |
 | T6 | Certify object `o` | none | `ocert/<kind>/<o>` |
 | T7 | Repair certificate | an existing `cert`, `rcert` or `ocert` key | the same key on a replacement replica (unconditional, unfenced) |
+
+Before T1 the publisher PUTs the marker's preimage to `obj/marker/<hex id>` and
+waits for the acknowledgement. This is §8.2 step 2 ("the marker is durably
+acknowledged"); T1 then writes `marker/<g>`. A copy whose T1 never commits stays
+staged in S3, and discovery never reads it. T2 aborts unless `marker/<g>` exists
+*and* at least one `cert/<g>/*` key exists: the writer must know `g` as published,
+and a marker key alone is not evidence of publication (§8.3; AckCertificates
+`guard_necessity`, TLA `cert_scan_raw_marker`).
 
 T1 aborts unless, for every target name, `owner = self`, `epoch` equals the epoch
 the proof was prepared under and `head` equals the head the proof revises. The last
@@ -139,12 +175,18 @@ condition is the compare-and-swap variant of TargetNames' atomicity note; with i
 the owner need not serialize prepare and publish. T1 runs only after every object
 of the package (manifest, chunks, capsule) is acknowledged by S3 and the receipt
 signature has been checked. T5 aborts unless `token(c).rank = fence` and every
-parent of `c` is itself committed (its `rcert` and manifest certificate exist), so a
+parent of `c` is itself committed (its `rcert` and snapshot certificate exist), so a
 record is never committed over an acknowledged but uncommitted parent that recovery
 could not adopt. T6 runs only after S3 acknowledged `o`. T7 applies only to
 deployments that replace a metadata replica: a replacement must receive copies of
 existing certificates before it counts towards a write quorum. With FoundationDB as
 the single abstract replica, its own recovery provides this and T7 is not issued.
+Where T7 is used (copying into a replacement cluster or namespace), the replacement
+is a new physical copy of the same abstract replica σ. Certificate bodies name σ in
+their `replica` field and are signed by their writers, so a copy keeps its bytes and
+its `replica` field unchanged. A copy is accepted only if its signature verifies and
+the certified object's bytes already exist at the target (the marker or record key,
+or a verified S3 object).
 
 ## Refinement
 
@@ -202,6 +244,7 @@ previous step produced. The sequences are:
 | T2 certify | `CertStep.put n σ g` |
 | T3 rotate | fence rotation (the fence register write) |
 | T4 reassign | `reassign e x n` |
+| T5s stage | `Put σ c` (a first write, fenced) and `Ack c {σ}`; when the bytes are present, `Ack c {σ}` only (unconditional) |
 | T5 catalogue | `Put σ c` (a first write when `catalog/<c>` was absent, fenced); `Ack c {σ}`; `CertStep.record σ c` (fenced; parents ready) |
 | T6 certify object | `CertStep.object σ o` |
 | T7 repair | `CertStep.repairRecord` / `CertStep.repairObject` |
@@ -246,6 +289,15 @@ before the scan started in `S`, and every key in `S` committed at some version. 
 every committed record (`certScanValue_covers`), exactly as for a single-version
 scan. Readiness (`CatReady`) is likewise read per record and is monotone.
 
+Refinement obligation: a page ends only where FoundationDB says the range is
+exhausted. A scan continues from the last returned key while the range read reports
+`more`, and never stops because a batch is shorter than the requested page size.
+FoundationDB returns short batches when byte limits apply. A scan that treats a short
+batch as the end returns a strict subset of the committed keys, which falsifies
+`scan_between` and `certScanValue_covers`; recovery could then select an older
+record. P2 found exactly this bug at 445 markers; regression test
+`paginated_scan_follows_partial_batches`.
+
 **Fence register and fenced first writes.** `fence` is one key. T5 reads it and
 writes the record in one transaction, so it is the model's atomic check-and-write.
 The implementation fences every catalogue write, not only the first. That only
@@ -257,9 +309,17 @@ repair step: the stores' internal re-replication is invisible. A re-PUT of an S3
 object is allowed at any fence; content addressing discharges the
 existing-bytes rule, because the key fixes the bytes. An acknowledgement is a
 client observation, not a write. The late-acknowledgement case of CatalogFencing
-appears as an unknown-outcome T5 that committed before a rotation and is retried
-after it: the retry reads the new fence and aborts, so the record exists without a
-commit certificate and is never adopted (`stale_stays_uncertified`).
+needs the record's bytes to exist without a commit certificate, which a single T5
+(record and `rcert` in one transaction) never produces. If an unknown-outcome T5
+committed before a rotation, it wrote the `rcert` too: the retry finds it and
+succeeds, and adopting the record is correct, because it was fenced at its commit
+version. The case therefore appears as a fenced staging write followed by the
+commit T5. The staging write writes only `catalog/<c>`, conditional on
+`token.rank = fence`. Its outcome is unknown and it committed before a rotation. The
+writer resolves it after the rotation: the retry finds the bytes, an unconditional
+acknowledgement of existing bytes. The commit T5 then reads the new fence and
+aborts. The record exists without a commit certificate and is never adopted
+(`stale_stays_uncertified`).
 
 **Linearizable fence rotation.** T3 reads `fence = k` and writes `k+1` and
 `token/<k+1>`. Two concurrent rotations both read `k`; one fails at commit, so each
@@ -291,7 +351,7 @@ lose committed data. A guard established by reads at earlier versions therefore
 still holds at the commit version of a later transaction. Catalogue commit uses
 this: payload `ObjectCert`s are written by T6 when each object is first
 acknowledged and reused by every later snapshot; T5 itself checks only the fence,
-the record and the manifest certificate. The same applies to the committer's own
+the record and the snapshot certificate (`ocert/snapshot/<m>`). The same applies to the committer's own
 publication certificates before a checkpoint commit. Non-monotone facts (the fence,
 target records) are always read inside the transaction that depends on them.
 
@@ -309,6 +369,14 @@ target records) are always read inside the transaction that depends on them.
 - **Deletion and GC.** The scan and monotonicity arguments need grow-only key
   spaces. The bucket denies `DeleteObject` (or uses Object Lock); no FoundationDB
   role may clear the protocol's prefixes. Garbage collection needs a new model.
+  Garage has neither bucket policies nor Object Lock, and a key with write
+  permission may delete. In P2, deletes are refused by `s3-guard`, a byte-for-byte S3
+  gateway in front of Garage. It refuses every `DELETE`, `POST ?delete` and every
+  change to bucket configuration, and clients reach the store only through it.
+  Credentials that reach Garage's own S3 port directly could still delete, so that
+  port must be locked down. In P2 it is bound to 127.0.0.1, which still admits other
+  users of the same machine. A shared deployment needs a firewall or network policy
+  that admits only the gateway, and must keep Garage's S3 keys away from clients.
 - **Backup and restore.** Restoring a FoundationDB backup rolls committed state
   back: acknowledged writes disappear and the fence can return to an issued rank.
   That violates the failure envelope. A restore is a new deployment, with the fence
@@ -337,8 +405,9 @@ target records) are always read inside the transaction that depends on them.
   with and without the object landing; killing FoundationDB processes within the
   redundancy mode; a paginated scan running across concurrent publications.
 - Regression fixtures from the plan map as follows: a stale writer after rotation
-  (T5 aborts); a put before rotation acknowledged after it (unknown-outcome T5,
-  retried, never certified); a repair copy after rotation (S3 re-PUT, no catalogue
+  (T5 aborts); a put before rotation acknowledged after it (fenced staging write with
+  an unknown outcome resolved after the rotation; the commit T5 aborts; never
+  certified); a repair copy after rotation (S3 re-PUT, no catalogue
   effect); a target published just before a handover (T1 then T4; the head is in
   the record); a surviving marker without certificates (marker key present, no
   `cert/` key; discovery ignores it).
