@@ -102,7 +102,8 @@ id16!(
 );
 
 /// Hash domains. §1.2 lists all but `Blob` (store.md), `Manifest` and `Token` (added by P2,
-/// see docs/p2-log.md).
+/// see docs/p2-log.md), and `Job`, `Policy`, `Checker` and `Revocation` (added by P3's
+/// receipt binding, `receipt.rs`, docs/p3-log.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub enum Domain {
     Group,
@@ -121,6 +122,10 @@ pub enum Domain {
     Blob,
     Manifest,
     Token,
+    Job,
+    Policy,
+    Checker,
+    Revocation,
 }
 
 impl Domain {
@@ -142,6 +147,10 @@ impl Domain {
             Domain::Blob => "v0/blob",
             Domain::Manifest => "v0/manifest",
             Domain::Token => "v0/token",
+            Domain::Job => "v0/job",
+            Domain::Policy => "v0/policy",
+            Domain::Checker => "v0/checker",
+            Domain::Revocation => "v0/revocation",
         }
     }
 

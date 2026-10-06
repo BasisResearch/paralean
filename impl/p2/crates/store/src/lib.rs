@@ -8,6 +8,7 @@
 //! | `meta` | key layout, the idempotent transaction loop, bodies of T1–T7 |
 //! | `store`, `writer` | the store handle; publication, certificates, checkpoints, controller, repair |
 //! | `recovery` | discovery by certificates, head reconstruction, catalogue recovery |
+//! | `receipt` | P3 receipt binding (OPEN-7): job envelopes, policy and checker IDs, revocation, the staging rule |
 //! | `audit` | whole-store invariant checks |
 //! | `faults` | client-side fault injection |
 
@@ -19,6 +20,7 @@ pub mod id;
 pub mod meta;
 pub mod objects;
 pub mod pce;
+pub mod receipt;
 pub mod recovery;
 pub mod s3;
 pub mod sign;
@@ -30,6 +32,7 @@ pub use faults::{CommitFault, CrashMode, Faults, GetFault, PutFault, RandomFault
 pub use id::{AgentId, Domain, Id, Kind, ReplicaId, WorkspaceId};
 pub use meta::{PreparedTarget, PublishOutcome};
 pub use objects::*;
+pub use receipt::{BindingFault, CheckerVersion, JobEnvelope, Pins, Policy, SignedJob, TargetBinding};
 pub use s3::{Acked, S3Config};
 pub use sign::{KeyFile, KeyRing, Signer};
 pub use store::{Store, StoreConfig};

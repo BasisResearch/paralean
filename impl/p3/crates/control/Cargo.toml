@@ -1,0 +1,35 @@
+[package]
+name = "paralean-control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+workspace = "../../../p2"
+description = "Paralean P3 control plane: validators, the controller and workers"
+
+[lib]
+name = "paralean_control"
+
+[[bin]]
+name = "paralean-p3"
+path = "src/main.rs"
+
+[dependencies]
+paralean-store = { path = "../../../p2/crates/store" }
+paralean-validator-api = { path = "../validator-api" }
+tokio.workspace = true
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+libc = "0.2"
+rand = "0.8"
+
+[features]
+# Guard-removal mutations for impl/p3/scripts/check-mutations.sh; never enable otherwise.
+mutate-no-dispatch-owner-check = []
+mutate-no-request-dedup = []
+mutate-validator-skips-dep-check = []
+mutate-validator-ignores-axioms = []
+mutate-no-lease-reassign = []
+
+[dev-dependencies]
+paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }

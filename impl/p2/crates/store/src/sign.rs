@@ -11,6 +11,8 @@ use ed25519_dalek::{Signature, Signer as _, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 use crate::id::{sha256, Id, WorkspaceId};
+use crate::objects::Object;
+use crate::receipt::{CheckerVersion, Pins, Policy};
 
 #[derive(Clone)]
 pub struct Signer {
@@ -52,6 +54,8 @@ pub struct KeyRing {
     pub authority: [u8; 32],
     pub validators: Vec<[u8; 32]>,
     pub writers: BTreeMap<WorkspaceId, [u8; 32]>,
+    /// Policies and checker versions receipts may name (P3 staging rule).
+    pub pins: Pins,
 }
 
 impl KeyRing {
@@ -77,6 +81,12 @@ pub struct KeyFile {
     pub authority_public: String,
     pub validators: BTreeMap<String, KeyEntry>,
     pub workspaces: BTreeMap<String, KeyEntry>,
+    /// Pinned policy IDs (hex). Receipts naming another policy are refused.
+    #[serde(default)]
+    pub policies: Vec<String>,
+    /// Pinned checker-version IDs (hex).
+    #[serde(default)]
+    pub checkers: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -97,6 +107,8 @@ impl KeyFile {
         let mut kf = KeyFile {
             authority: Some(hex::encode(auth.seed())),
             authority_public: hex::encode(auth.public()),
+            policies: vec![Policy::v1().id().hex()],
+            checkers: vec![CheckerVersion::fixture().id().hex()],
             ..Default::default()
         };
         kf.validators.insert(
@@ -128,6 +140,10 @@ impl KeyFile {
                 .values()
                 .filter_map(|e| Some((WorkspaceId::from_hex(&e.id)?, pk(&e.public))))
                 .collect(),
+            pins: Pins {
+                policies: self.policies.iter().filter_map(|h| Id::from_hex(h)).collect(),
+                checkers: self.checkers.iter().filter_map(|h| Id::from_hex(h)).collect(),
+            },
         }
     }
 
@@ -141,6 +157,18 @@ impl KeyFile {
     }
     pub fn validator_signer(&self, name: &str) -> Option<Signer> {
         Self::seed_of(self.validators.get(name)?)
+    }
+    /// Add a validator key (rotation: the old key stays trusted until it is removed or
+    /// revoked). Returns its signer.
+    pub fn add_validator(&mut self, name: &str, signer: &Signer) {
+        self.validators.insert(
+            name.into(),
+            KeyEntry { id: String::new(), public: hex::encode(signer.public()), seed: Some(hex::encode(signer.seed())) },
+        );
+    }
+    /// Retire a validator key: remove it from the configured set.
+    pub fn retire_validator(&mut self, name: &str) -> Option<KeyEntry> {
+        self.validators.remove(name)
     }
     pub fn workspace(&self, name: &str) -> Option<(WorkspaceId, Signer)> {
         let e = self.workspaces.get(name)?;

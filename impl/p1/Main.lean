@@ -7,6 +7,8 @@ def usage : String := "usage:
   paralean replay   --store DIR [--isolated 1] [--include-rejected 1] [--ws NAME]
   paralean export   --store DIR --out DIR [--mathlib DIR] [--ws a,b]
   paralean validate --store DIR                  (receipts; key in PARALEAN_RECEIPT_KEY)
+  paralean check-group --store DIR --gids a,b,... --decl DECLID [--targets NAME=HASH,...]
+                                                 (P3 validator: one group from its closure; prints CHECK <json>)
   paralean stats | contract --names a,b | dump --decl ID | merge --into DIR --from DIR
   paralean fasync --file FAsync.lean --store DIR
   paralean copy-init --copy DIR --author NAME | copy-publish --copy DIR FILE... |
@@ -303,6 +305,19 @@ unsafe def main (args : List String) : IO UInt32 := do
     let (n, refused) ← validateStore { root := storeDir } key (log := IO.println)
     IO.println s!"validate: {n} new receipts; {refused.size} refused"
     return 0
+  | "check-group" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some storeDir := flags["store"]? | IO.eprintln usage; return 2
+    let some decl := flags["decl"]? | IO.eprintln usage; return 2
+    let gids := ((flags.getD "gids" "").splitOn ",").filter (· ≠ "") |>.toArray
+    -- `NAME=HASH` pins a statement; `NAME=` only requires the group to declare NAME
+    let targets : Array TargetContract := ((flags.getD "targets" "").splitOn ",").filter (· ≠ "")
+      |>.toArray.map fun s => match s.splitOn "=" with
+        | [n, h] => { name := n.toName, typeHash := h }
+        | _ => { name := s.toName, typeHash := "" }
+    let r ← checkGroup { root := storeDir } gids decl targets
+    IO.println s!"CHECK {(toJson r).compress}"
+    return if r.ok then 0 else 1
   | "copy-init" :: rest =>
     let (flags, _) := parseFlags rest
     let some dir := flags["copy"]? | IO.eprintln usage; return 2

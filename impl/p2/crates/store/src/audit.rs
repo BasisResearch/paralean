@@ -13,7 +13,9 @@
 //!   issued to that holder and is at most the fence (`record_cert_fenced`);
 //! - no orphan commits: a committed record's predecessor is committed and its snapshot is
 //!   certified (`record_cert_parents_ready`);
-//! - every rank in `1..=fence` was issued exactly once, none above.
+//! - every rank in `1..=fence` was issued exactly once, none above;
+//! - every published group's receipt passes the P3 staging rule against the envelope stored
+//!   with it (`job/<id>`); groups whose validator key was revoked since are listed as suspect.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,6 +34,8 @@ pub struct AuditReport {
     pub violations: Vec<String>,
     /// Marker keys without a certificate (allowed only by fixtures that write them raw).
     pub uncertified_markers: Vec<Id>,
+    /// Published groups whose receipt's validator key has since been revoked.
+    pub suspect_receipts: Vec<Id>,
     pub counts: BTreeMap<&'static str, usize>,
 }
 
@@ -103,8 +107,28 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
         }
         s3_present(store, Kind::StagedMarker, mid, "marker", &mut r).await?;
         s3_present(store, Kind::Group, g, "marker", &mut r).await?;
-        if store.receipt(&m.receipt).await?.is_none() {
-            r.violations.push(format!("marker of {g} names absent receipt"));
+        match store.receipt(&m.receipt).await? {
+            None => r.violations.push(format!("marker of {g} names absent receipt")),
+            Some(rc) => {
+                let job = match rc.body.request.as_ref().and_then(|q| <[u8; 32]>::try_from(&q[..]).ok()) {
+                    Some(jid) => store.meta.get(keys.job(&Id(jid))).await?,
+                    None => None,
+                };
+                match job.map(|v| crate::receipt::SignedJob::from_bytes(&v)).transpose()? {
+                    None => r.violations.push(format!("receipt of {g} names no stored job envelope")),
+                    Some(job) => {
+                        // Epochs were fenced by T1; here the receipt is checked against the
+                        // envelope's own target set.
+                        let prepared = crate::receipt::prepared_of(&job);
+                        if let Err(e) = crate::receipt::check(&rc, &job, g, &prepared, &store.ring) {
+                            r.violations.push(format!("receipt of {g} fails the staging rule: {e}"));
+                        }
+                    }
+                }
+                if store.meta.get(keys.revocation(&rc.body.validator_key)).await?.is_some() {
+                    r.suspect_receipts.push(*g);
+                }
+            }
         }
         for rid in &m.revisions {
             let Some(rv) = store.meta.get(keys.revision(rid)).await? else {

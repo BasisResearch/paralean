@@ -31,6 +31,17 @@ pub enum GuardFailure {
     BadPackage(String),
     #[error("receipt does not admit group {0:?} (PublicationReceipts staging rule)")]
     ReceiptRejected(Id),
+    // --- P3 receipt binding (receipt.rs; OPEN-7)
+    #[error("receipt for {0:?} is not an acceptance")]
+    ReceiptNotAccepted(Id),
+    #[error("receipt binding: {0:?}")]
+    ReceiptBinding(crate::receipt::BindingFault),
+    #[error("validator key {} is revoked", hex::encode(.0))]
+    ValidatorRevoked([u8; 32]),
+    #[error("request {} was cancelled", hex::encode(.0))]
+    JobCancelled(Vec<u8>),
+    #[error("revision names target {0} without a prepared target")]
+    UndeclaredTarget(Name),
     // --- T2 (AckCertificates put: writer knows the group as published)
     #[error("group {0:?} is not published")]
     NotPublished(Id),

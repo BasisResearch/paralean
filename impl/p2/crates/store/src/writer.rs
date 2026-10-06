@@ -16,13 +16,15 @@ use crate::s3::Acked;
 use crate::sign::Signer;
 use crate::store::Store;
 
-/// Everything a publication names. The receipt must admit the group (§6).
+/// Everything a publication names. The receipt must admit the group (§6) and be bound to
+/// `job`, the controller-signed envelope it answers (receipt.rs).
 #[derive(Clone, Debug)]
 pub struct Package {
     pub group: Opaque,
     pub chunks: Vec<Opaque>,
     pub capsule: Opaque,
     pub receipt: Receipt,
+    pub job: crate::receipt::SignedJob,
     pub revisions: Vec<Revision>,
     pub marker: Marker,
     /// Target names the group declares, each with the epoch and head read by the preparer.
@@ -83,9 +85,8 @@ impl Writer {
         if p.marker.receipt != p.receipt.id() {
             return bad("marker names another receipt");
         }
-        if !p.receipt.admits(&g, &self.store.ring) {
-            return Err(GuardFailure::ReceiptRejected(g).into());
-        }
+        // The staging rule: a worker stages only while holding a bound receipt (§6, P3).
+        crate::receipt::check(&p.receipt, &p.job, &g, &p.targets, &self.store.ring)?;
         Ok(g)
     }
 
@@ -94,6 +95,17 @@ impl Writer {
     /// conditional on each target record's owner, epoch and head.
     pub async fn publish(&self, p: &Package) -> Result<PublishOutcome> {
         let g = self.check_package(p)?;
+        self.publish_checked(p, g).await
+    }
+
+    /// Adversarial tests only: publish without the worker-side staging check, so that T1's
+    /// own receipt check is what stands between the package and publication.
+    #[cfg(feature = "adversary")]
+    pub async fn publish_skipping_staging_check(&self, p: &Package) -> Result<PublishOutcome> {
+        self.publish_checked(p, p.group.id()).await
+    }
+
+    async fn publish_checked(&self, p: &Package, g: Id) -> Result<PublishOutcome> {
         self.store.s3.put_opaque(&p.group).await?;
         for c in &p.chunks {
             self.store.s3.put_opaque(c).await?;
@@ -118,6 +130,9 @@ impl Writer {
             revisions,
             receipt_id: p.receipt.id(),
             receipt_value: p.receipt.to_bytes(),
+            receipt: p.receipt.clone(),
+            job: p.job.clone(),
+            ring: self.store.ring.clone(),
             targets: p.targets.clone(),
             cert_value: cert.to_bytes(),
         };
