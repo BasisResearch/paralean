@@ -1,0 +1,38 @@
+[package]
+name = "paralean-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Paralean P2 store: FoundationDB metadata (API 730) and S3-compatible payloads"
+
+[lib]
+name = "paralean_store"
+
+[dependencies]
+tokio.workspace = true
+foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_3", "embedded-fdb-include"] }
+aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest", "default-https-client"] }
+aws-smithy-types = "1"
+aws-credential-types = { version = "1", features = ["hardcoded-credentials"] }
+sha2 = "0.10"
+base64 = "0.22"
+hex = "0.4"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+thiserror = "2"
+futures = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# Guard-removal mutations for scripts/check-mutations.sh. Each deletes one guard; the named
+# tests must then fail. Never enable them otherwise.
+mutate-no-owner-check = []
+mutate-no-epoch-fence = []
+mutate-no-head-cas = []
+mutate-cert-outside-publish = []
+mutate-unfenced-commit = []
+mutate-no-parent-check = []
+
+[dev-dependencies]
+proptest = "1"

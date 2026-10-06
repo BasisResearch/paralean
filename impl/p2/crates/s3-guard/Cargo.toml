@@ -1,0 +1,13 @@
+[package]
+name = "s3-guard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Plain S3 passthrough that refuses deletes (store.md: the bucket denies DeleteObject)"
+
+[dependencies]
+tokio.workspace = true
+hyper = { version = "1", features = ["http1", "server", "client"] }
+hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
+http-body-util = "0.1"
+bytes = "1"

@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = ["crates/store", "crates/cli", "crates/s3-guard"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+
+# Keep build artefacts small on the shared box: no debug info for dependencies.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+debug = false
