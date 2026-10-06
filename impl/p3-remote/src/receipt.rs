@@ -2,8 +2,8 @@
 //! P3 control's `paralean_store::receipt`; validators are its `paralean-p3 validator`
 //! service, reached through `paralean_validator_api`.
 //!
-//! Working copies issue the envelope of each check themselves, signed with the controller
-//! (fence authority) key, for groups that realise no target (P3 control's controller issues
+//! Working copies issue the envelope of each check themselves, signed with their own
+//! job-issuer key, for groups that realise no target (P3 control's controller issues
 //! envelopes for target jobs). The envelope pins the group, its capsule, the capsules of its
 //! exact dependency closure, the base, policy v1 and the pinned checker version.
 
@@ -25,8 +25,14 @@ pub fn base() -> Result<Id, String> {
 
 /// A controller-signed envelope for checking `group` (with `capsule` and the dependency
 /// capsules `deps`, dependencies first).
-pub fn issue(kf: &KeyFile, worker: WorkspaceId, group: Id, capsule: Id, deps: Vec<Id>) -> Result<SignedJob, String> {
-    let auth = kf.authority_signer().ok_or("the key file holds no controller (authority) seed")?;
+/// The envelope is signed with the working copy's job-issuer key (`KeyFile::job_issuers`,
+/// P3 control's `SignedJob::issued_by`), never the authority key: issuer-signed envelopes may
+/// name no target, so target jobs still go through the controller. `issuer` names the key
+/// (a working copy's agent name); without an issuer seed the authority seed is used, which
+/// only the controller and the forgery tests' rogue key files hold.
+pub fn issue(kf: &KeyFile, issuer: &str, worker: WorkspaceId, group: Id, capsule: Id, deps: Vec<Id>) -> Result<SignedJob, String> {
+    let auth = kf.job_issuer_signer(issuer).or_else(|| kf.authority_signer())
+        .ok_or("the key file holds neither a job-issuer seed for this copy nor the controller seed")?;
     let checker = kf.checkers.first().and_then(|h| Id::from_hex(h)).ok_or("no pinned checker in the key file")?;
     let job = JobEnvelope {
         request: rand::random::<[u8; 16]>().to_vec(),

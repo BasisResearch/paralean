@@ -136,11 +136,28 @@ fn keys_init(a: &[&str]) -> R<Value> {
     for n in &agents {
         let s = Signer::generate();
         kf.workspaces.insert(n.to_string(), sign::KeyEntry { id: WorkspaceId::random().hex(), public: hex::encode(s.public()), seed: Some(hex::encode(s.seed())) });
+        kf.add_job_issuer(n, &Signer::generate());
     }
     let checker = receipt::checker()?;
     kf.policies = vec![paralean_store::receipt::Policy::v1().id().hex()];
     kf.checkers = vec![checker.id().hex()];
     std::fs::write(kpath, serde_json::to_string_pretty(&kf).unwrap()).map_err(es)?;
+    // Each working copy's own key file: its workspace and job-issuer seeds only; every other
+    // entry public (no authority, validator or other agents' seeds).
+    let dir = std::path::Path::new(kpath).parent().unwrap_or(std::path::Path::new("."));
+    for n in &agents {
+        let mut own = kf.clone();
+        own.authority = None;
+        for e in own.validators.values_mut() {
+            e.seed = None;
+        }
+        for (k, e) in own.workspaces.iter_mut().chain(own.job_issuers.iter_mut()) {
+            if k != n {
+                e.seed = None;
+            }
+        }
+        std::fs::write(dir.join(format!("keys-{n}.json")), serde_json::to_string_pretty(&own).unwrap()).map_err(es)?;
+    }
     // An untrusted validator and controller, for the forgery tests: same agents, other keys.
     let mut rogue = kf.clone();
     let rv = Signer::generate();
@@ -153,6 +170,7 @@ fn keys_init(a: &[&str]) -> R<Value> {
     let tv = json!({
         "validators": [hex::encode(val.public())],
         "authority": kf.authority_public,
+        "jobIssuers": kf.job_issuers.values().map(|e| e.public.clone()).collect::<Vec<_>>(),
         "policies": kf.policies,
         "checkers": kf.checkers,
         "base": receipt::base()?.hex(),
@@ -196,7 +214,7 @@ async fn validate(a: &[&str]) -> R<Value> {
     let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
         .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
     let t = Instant::now();
-    let job = receipt::issue(&kf, wid, g, cap, deps)?;
+    let job = receipt::issue(&kf, ws, wid, g, cap, deps)?;
     let job = st.meta.issue_job(&job).await.map_err(es)?;
     let rc = receipt::validate(addr, &job).await?;
     let el = ms(t);
@@ -221,7 +239,7 @@ fn forge(a: &[&str]) -> R<Value> {
     let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
     let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
         .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
-    let job = receipt::issue(&kf, wid, g, cap, deps)?;
+    let job = receipt::issue(&kf, "", wid, g, cap, deps)?;
     let v = kf.validator_signer("v0").ok_or("no validator v0 seed")?;
     let rc = Receipt::sign(
         ReceiptBody {

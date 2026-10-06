@@ -8,12 +8,13 @@
     ws.py hash DIR FILE...      published-projection hashes
     ws.py check DIR FILE...     elaborate working files; errors and axioms
 
-Environment (impl/p3-remote/scripts/env.sh): PARALEAN_BIN, PARALEAN_PLR, PARALEAN_KEYS,
+Environment (impl/p3-remote/scripts/env.sh): PARALEAN_BIN, PARALEAN_PLR, PARALEAN_KEYS (at
+init, the copy takes keys-<agent>.json from its directory: own seeds only),
 PARALEAN_TRUST, PARALEAN_DEPLOYMENT, PARALEAN_VALIDATOR (host:port), and the store's.
 Each step is a separate process; nothing is shared between copies except the store.
 Prints one JSON object per step on stdout (prefixed by the step name).
 """
-import json, os, subprocess, sys, time
+import json, os, shutil, subprocess, sys, time
 
 BIN = os.environ["PARALEAN_BIN"]
 PLR = os.environ["PARALEAN_PLR"]
@@ -23,6 +24,10 @@ def env_for(d, file=None):
     e = dict(os.environ)
     e["PARALEAN_STORE"] = os.path.join(d, "cache")
     e["PARALEAN_VISIBILITY"] = "1"
+    own = os.path.join(d, "keys.json")
+    if os.path.exists(own):
+        # the copy's own key file: its workspace and job-issuer seeds, nobody else's
+        e["PARALEAN_KEYS"] = own
     if file:
         e["PARALEAN_VIS_EXCLUDE"] = file
     e.setdefault("PARALEAN_REMOTE_LOG", os.path.join(d, "remote.log"))
@@ -112,6 +117,9 @@ def main():
     if cmd == "init":
         os.makedirs(d, exist_ok=True)
         run([BIN, "ws-init", "--dir", d, "--agent", sys.argv[3]], d)
+        own = os.path.join(os.path.dirname(os.environ["PARALEAN_KEYS"]), f"keys-{sys.argv[3]}.json")
+        if os.path.exists(own):
+            shutil.copy(own, os.path.join(d, "keys.json"))
         with open(os.path.join(d, "agent"), "w") as f:
             f.write(sys.argv[3])
         return
