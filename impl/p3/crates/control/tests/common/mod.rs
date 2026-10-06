@@ -90,6 +90,8 @@ pub struct Opts {
     pub pinned_policies: Vec<Policy>,
     pub validator_max_running: usize,
     pub validator_max_queued: usize,
+    /// Another checker than `CheckerConfig::from_env()` (the fork build).
+    pub checker: Option<CheckerConfig>,
 }
 
 impl Default for Opts {
@@ -106,6 +108,7 @@ impl Default for Opts {
             pinned_policies: vec![Policy::v1()],
             validator_max_running: 2,
             validator_max_queued: 16,
+            checker: None,
         }
     }
 }
@@ -165,7 +168,7 @@ impl Cluster {
         let cfg = StoreConfig::from_env(&deployment(name))
             .expect("PARALEAN_* not set: run through impl/p3/scripts/test.sh after scripts/cluster-up.sh");
         let tmp = scratch(name);
-        let real = CheckerConfig::from_env().expect("checker config (PARALEAN_BIN)");
+        let real = o.checker.clone().unwrap_or_else(|| CheckerConfig::from_env().expect("checker config (PARALEAN_BIN)"));
         let wrapped = o.validators.iter().any(|m| *m != Mode::Real);
         let mut checker = real.clone();
         if wrapped {
@@ -270,6 +273,28 @@ impl Cluster {
             other => panic!("assign: {other:?}"),
         }
     }
+}
+
+/// The fork-mode checker: impl/p1 built against the Paralean fork. `PARALEAN_P3_FORK_BIN`
+/// is that `paralean` binary and `PARALEAN_P3_FORK_PREFIX` the fork installation; `None`
+/// when they are not set.
+pub fn fork_checker() -> Option<CheckerConfig> {
+    let bin = PathBuf::from(std::env::var("PARALEAN_P3_FORK_BIN").ok()?);
+    let prefix = PathBuf::from(std::env::var("PARALEAN_P3_FORK_PREFIX").ok()?);
+    let lean = prefix.join("bin/lean");
+    let out = std::process::Command::new(&lean).arg("--githash").output().ok()?;
+    let path = format!("{}:{}", prefix.join("bin").display(), std::env::var("PATH").unwrap_or_default());
+    Some(CheckerConfig {
+        bin,
+        mode: "fork".into(),
+        lean_githash: String::from_utf8_lossy(&out.stdout).trim().to_string(),
+        env: vec![
+            ("PATH".into(), path),
+            ("PARALEAN_SYSROOT".into(), prefix.display().to_string()),
+            ("LEAN_NUM_THREADS".into(), "2".into()),
+        ],
+        default_memory_mb: 4096,
+    })
 }
 
 pub fn guard<T: std::fmt::Debug>(r: Result<T>) -> GuardFailure {

@@ -225,8 +225,15 @@ impl Validator {
             return inconclusive(&format!("scratch store: {e}"));
         }
         let gids: Vec<String> = groups.iter().map(|g| g.gid.clone()).collect();
-        let targets: Vec<TargetArg> =
-            j.targets.iter().map(|t| TargetArg { name: t.name.clone(), statement: hex::encode(&t.statement) }).collect();
+        // Each target must be declared; its statement is compared when the policy says so.
+        let targets: Vec<TargetArg> = j
+            .targets
+            .iter()
+            .map(|t| TargetArg {
+                name: t.name.clone(),
+                statement: if policy.check_target_statements { hex::encode(&t.statement) } else { String::new() },
+            })
+            .collect();
         let deadline = Duration::from_millis(if j.deadline_ms == 0 { 600_000 } else { j.deadline_ms });
         let memory = if j.memory_mb == 0 { self.cfg.checker.default_memory_mb } else { j.memory_mb };
         let out = checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await;
