@@ -5,6 +5,7 @@ use crate::id::{AgentId, Id, Kind, WorkspaceId};
 use crate::meta::PreparedTarget;
 use crate::objects::*;
 use crate::pce::Enc;
+use crate::receipt::{sort_targets, target_slot, CheckerVersion, JobEnvelope, Policy, SignedJob, TargetBinding};
 use crate::sign::Signer;
 use crate::writer::{Checkpoint, Package};
 
@@ -34,20 +35,8 @@ pub fn package(
     let capsule = Opaque::new(Kind::Capsule, format!("capsule of {tag}").into_bytes());
     let chunks = vec![Opaque::new(Kind::Chunk, format!("chunk of {tag}").into_bytes())];
     let g = group.id();
-    let receipt = Receipt::sign(
-        ReceiptBody {
-            group: g,
-            base: base_id(),
-            validator_key: validator.public(),
-            validator_bin: b"validator-test".to_vec(),
-            policy: Id(crate::id::sha256(b"policy")),
-            request: None,
-            target: None,
-            verdict: Verdict::Accepted,
-            axioms: vec![Name::parse("propext")],
-        },
-        validator,
-    );
+    let job = job_for(tag, g, capsule.id(), workspace, target.as_slice());
+    let receipt = receipt_for(&job, validator, Verdict::Accepted);
     let mut parents = parents;
     parents.sort();
     parents.dedup();
@@ -64,7 +53,52 @@ pub fn package(
         root_path: vec![],
         lineage_keys: vec![(name.clone(), lamport, author)],
     };
-    Package { group, chunks, capsule, receipt, revisions: vec![rev], marker, targets: target.into_iter().collect() }
+    Package { group, chunks, capsule, receipt, job, revisions: vec![rev], marker, targets: target.into_iter().collect() }
+}
+
+/// The controller key of the demo key set (`KeyFile::demo`).
+pub fn authority() -> Signer {
+    Signer::derive("authority")
+}
+
+/// A controller-signed envelope for a fixture group, bound to the prepared targets.
+pub fn job_for(tag: &str, group: Id, capsule: Id, worker: WorkspaceId, targets: &[PreparedTarget]) -> SignedJob {
+    let mut ts: Vec<TargetBinding> =
+        targets.iter().map(|t| TargetBinding { name: t.name.clone(), epoch: t.epoch, statement: vec![] }).collect();
+    sort_targets(&mut ts);
+    let env = JobEnvelope {
+        request: format!("fixture/{tag}/{}", worker.hex()).into_bytes(),
+        group,
+        capsule,
+        deps: vec![],
+        base: base_id(),
+        policy: Policy::v1().id(),
+        checker: CheckerVersion::fixture().id(),
+        worker,
+        targets: ts,
+        deadline_ms: 0,
+        memory_mb: 0,
+    };
+    SignedJob::sign(env, &authority())
+}
+
+/// A receipt answering `job`, as a validator holding `validator` would sign it.
+pub fn receipt_for(job: &SignedJob, validator: &Signer, verdict: Verdict) -> Receipt {
+    let j = &job.body;
+    Receipt::sign(
+        ReceiptBody {
+            group: j.group,
+            base: j.base,
+            validator_key: validator.public(),
+            validator_bin: j.checker.0.to_vec(),
+            policy: j.policy,
+            request: Some(job.id().0.to_vec()),
+            target: target_slot(&j.targets),
+            verdict,
+            axioms: vec![Name::parse("propext")],
+        },
+        validator,
+    )
 }
 
 /// A checkpoint over the given revisions.

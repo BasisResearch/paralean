@@ -28,6 +28,9 @@ structure ReplayRes where
   replayedDeclId : Option String := none
   /-- Provided by a stock-built module (initializer groups), not re-elaborated in-process. -/
   materialized : Bool := false
+  /-- The group this replay re-captured (its members carry re-derived statement hashes);
+      `none` unless the replayed command produced a group. -/
+  replayed : Option GroupRec := none
   deriving Inhabited
 
 /-- Elaborate a source chunk into the session, routing the command at byte offset `mainAt`
@@ -66,7 +69,7 @@ unsafe def replayCapsule (sess : Session) (fc : FileCtx) (g : GroupRec) (src : S
               o.local_ == m.local_ && o.hash == m.hash).map (·.local_)}"
           file := g.capsule.file, line := g.capsule.startLine }
         resRef.set {
-          gid := g.gid, ok := ok, replayedDeclId := some g'.declId
+          gid := g.gid, ok := ok, replayedDeclId := some g'.declId, replayed := some g'
           diags := if ok then #[] else #[d] }
       | .failed ds =>
         let ds' := ds.map fun (d : Diag) => { d with

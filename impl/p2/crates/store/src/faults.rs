@@ -34,6 +34,8 @@ pub enum Txn {
     T5Stage,
     T6ObjectCert,
     T7Repair,
+    /// P3 job records (receipt.rs: J1 issue, J2 receipt, J3 cancel, R1 revoke).
+    P3Job,
 }
 
 pub type Hook = Arc<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>;

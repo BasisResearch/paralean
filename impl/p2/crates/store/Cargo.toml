@@ -33,6 +33,15 @@ mutate-no-head-cas = []
 mutate-cert-outside-publish = []
 mutate-unfenced-commit = []
 mutate-no-parent-check = []
+# P3 receipt-binding mutations (impl/p3/scripts/check-mutations.sh).
+mutate-no-receipt-check = []
+mutate-no-revocation-check = []
+mutate-no-cancel-check = []
+mutate-no-undeclared-target = []
+mutate-no-epoch-binding = []
+# Exposes `Writer::publish_skipping_staging_check` for P3's adversarial tests. Never enable
+# it in a deployment.
+adversary = []
 
 [dev-dependencies]
 proptest = "1"

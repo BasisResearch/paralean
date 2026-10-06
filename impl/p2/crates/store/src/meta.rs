@@ -220,7 +220,7 @@ pub struct Meta {
     pub max_attempts: usize,
 }
 
-async fn get(trx: &Transaction, key: &[u8]) -> Result<Option<Vec<u8>>> {
+pub(crate) async fn get(trx: &Transaction, key: &[u8]) -> Result<Option<Vec<u8>>> {
     Ok(trx.get(key, false).await?.map(|v| v.to_vec()))
 }
 
@@ -669,6 +669,9 @@ pub(crate) struct PublishArgs {
     pub revisions: Vec<(Id, Revision, Vec<u8>)>,
     pub receipt_id: Id,
     pub receipt_value: Vec<u8>,
+    pub receipt: Receipt,
+    pub job: crate::receipt::SignedJob,
+    pub ring: Arc<crate::sign::KeyRing>,
     pub targets: Vec<PreparedTarget>,
     pub cert_value: Vec<u8>,
 }
@@ -689,6 +692,32 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
             return Ok(Step::Done(PublishOutcome { marker: a.marker_id, fresh: false }));
         }
         return Err(GuardFailure::AlreadyPublished { group: a.group, existing }.into());
+    }
+    // P3 staging rule (receipt.rs, OPEN-7): the receipt verifies under a configured validator
+    // key, is accepted, names this group, and is bound to a controller-issued envelope with
+    // pinned policy and checker and exactly the prepared target names and epochs.
+    if !cfg!(feature = "mutate-no-receipt-check") {
+        crate::receipt::check(&a.receipt, &a.job, &a.group, &a.targets, &a.ring)?;
+    }
+    // Revocation and cancellation are read in this transaction, so a revocation or a
+    // cancellation that commits first stops every later publication.
+    let vkey = a.receipt.body.validator_key;
+    if !cfg!(feature = "mutate-no-revocation-check") && get(trx, &k.revocation(&vkey)).await?.is_some() {
+        return Err(GuardFailure::ValidatorRevoked(vkey).into());
+    }
+    let request = &a.job.body.request;
+    if !cfg!(feature = "mutate-no-cancel-check") && get(trx, &k.job_cancel(request)).await?.is_some() {
+        return Err(GuardFailure::JobCancelled(request.clone()).into());
+    }
+    // A revision of a name that has a target record must be a prepared target (TargetNames:
+    // every group declaring a target name is guarded, whatever the publisher lists).
+    for (_, rev, _) in &a.revisions {
+        if a.targets.iter().any(|t| t.name == rev.name) || cfg!(feature = "mutate-no-undeclared-target") {
+            continue;
+        }
+        if get(trx, &k.target(&rev.name)).await?.is_some() {
+            return Err(GuardFailure::UndeclaredTarget(rev.name.clone()).into());
+        }
     }
     // TargetNames PublishOk (epoch fence) and the head compare-and-swap.
     for t in &a.targets {
@@ -733,6 +762,11 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     let rk = k.receipt(&a.receipt_id);
     if trx.get(&rk, true).await?.is_none() {
         trx.set(&rk, &a.receipt_value);
+    }
+    // The envelope the receipt is bound to, so the binding can be re-checked later.
+    let jk = k.job(&a.job.id());
+    if trx.get(&jk, true).await?.is_none() {
+        trx.set(&jk, &a.job.to_bytes());
     }
     for t in &a.targets {
         let tk = k.target(&t.name);

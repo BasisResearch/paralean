@@ -1500,6 +1500,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "paralean-control"
+version = "0.2.0"
+dependencies = [
+ "hex",
+ "libc",
+ "paralean-store",
+ "paralean-validator-api",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "paralean-store"
 version = "0.2.0"
 dependencies = [
@@ -1517,6 +1531,17 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "paralean-validator-api"
+version = "0.2.0"
+dependencies = [
+ "hex",
+ "paralean-store",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 
