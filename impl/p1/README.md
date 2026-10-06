@@ -66,6 +66,25 @@ elan alone. To use a source build instead, put it first on `PATH`, set
 `PARALEAN_SYSROOT` and `PARALEAN_LAKE` to it, and use a Mathlib built by it (the cache's
 `.olean` headers carry the release version string).
 
+## On the Paralean Lean fork
+
+`fork/build.sh` builds the fork; then `PARALEAN_LEAN=fork` makes every script use it instead of
+elan's toolchain (its `lean`/`lake` first on `PATH`, `fork/GITHASH` as the pin, Mathlib in
+`.deps/mathlib-fork`, work in `.runs/p1-fork`):
+
+```sh
+fork/build.sh
+PARALEAN_LEAN=fork impl/p1/scripts/bootstrap.sh --mathlib   # builds only the corpus' Mathlib closure
+PARALEAN_LEAN=fork PARALEAN_RESULTS=impl/p1/results/fork impl/p1/scripts/run-all.sh
+```
+
+`Paralean/Fork.lean` selects at build time: compiled against the fork, P1 uses the fork's
+hooks in place of its library workarounds (collector, `simp` record, canonical instance names
+including derived ones, no axiom fallback); compiled against stock Lean, nothing changes.
+`PARALEAN_FORK_HOOKS` selects per hook at run time (`0` = library workarounds; a list such as
+`sync,noaxiom,instnames,collector`). Exports then build with the fork in Paralean mode, so
+deriving handlers regenerate the canonical names. Results: [docs/fork-log.md](../../docs/fork-log.md).
+
 ## Layout
 
 | file | role |
@@ -73,6 +92,7 @@ elan alone. To use a source build instead, put it first on `PATH`, set
 | `Paralean/Capture.lean` | per-command capture: membership, name classes, dependencies, capsule |
 | `Paralean/InstName.lean` | canonical instance names (hook on the `declaration` elaborator) |
 | `Paralean/Hooks.lean` | process-wide elaborator hooks (`simp` used-lemma record, instance names) |
+| `Paralean/Fork.lean` | bridge to the fork's hooks (build-time and per-hook run-time selection) |
 | `Paralean/Driver.lean` | capture driver, transparent prelude, commit of a file's groups |
 | `Paralean/Store.lean` | content-addressed store; `audit/` holds rejected groups |
 | `Paralean/Replay.lean` | source and kernel replay |

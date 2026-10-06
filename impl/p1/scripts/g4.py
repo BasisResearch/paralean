@@ -55,8 +55,17 @@ def norm(comps, canon2stock):
         i = c.index(0) if 0 in c else 0
         c = c[i + 1:]
     c = [x for x in c if not (isinstance(x, str) and x.startswith("_pl_"))]
-    n = ".".join(map(str, c))
-    return canon2stock.get(n, n)
+    return to_stock(".".join(map(str, c)), canon2stock)
+
+def to_stock(n, canon2stock):
+    """Canonical instance name -> stock spelling, including deriving auxiliaries named after a
+    canonical instance on the fork (`instReprBox_<hex>.repr`)."""
+    if n in canon2stock:
+        return canon2stock[n]
+    for cn, st in canon2stock.items():
+        if n.startswith(cn + "."):
+            return st + n[len(cn):]
+    return n
 
 def metas(store):
     out = {}
@@ -145,7 +154,7 @@ for s in sets():
             if m.get("stock"):
                 canon2stock[".".join(map(str, m["name"]))] = ".".join(map(str, m["stock"]))
         pubs |= {norm(n, {}) for n in g["publicNames"]}
-    pubs = {canon2stock.get(n, n) for n in pubs}
+    pubs = {to_stock(n, canon2stock) for n in pubs}
     emods = export_modules(exp)
     # reference build
     tmp = None
