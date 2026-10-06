@@ -47,6 +47,9 @@ pub enum CommitFault {
     UnknownCommitted,
     /// Run an action after the transaction's reads and before its commit.
     Interleave(Hook),
+    /// Commit (or not), run an action, then report `commit_unknown_result`: the writer's
+    /// retry happens after the action (e.g. a fence rotation between a put and its ack).
+    UnknownThen { committed: bool, hook: Hook },
     CrashBeforeCommit,
     CrashAfterCommit,
 }
@@ -58,6 +61,8 @@ impl std::fmt::Debug for CommitFault {
             CommitFault::UnknownNotCommitted => "UnknownNotCommitted",
             CommitFault::UnknownCommitted => "UnknownCommitted",
             CommitFault::Interleave(_) => "Interleave",
+            CommitFault::UnknownThen { committed: true, .. } => "UnknownThen(committed)",
+            CommitFault::UnknownThen { committed: false, .. } => "UnknownThen(not committed)",
             CommitFault::CrashBeforeCommit => "CrashBeforeCommit",
             CommitFault::CrashAfterCommit => "CrashAfterCommit",
         };

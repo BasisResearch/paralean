@@ -284,6 +284,25 @@ impl Meta {
                     continue;
                 }
                 CommitFault::Interleave(hook) => hook().await,
+                CommitFault::UnknownThen { committed, hook } => {
+                    if committed {
+                        match trx.commit().await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                last = e.to_string();
+                                trx = e.on_error().await?;
+                                continue;
+                            }
+                        }
+                    } else {
+                        drop(trx.cancel());
+                    }
+                    hook().await;
+                    self.faults.count("unknown-result-resolved");
+                    last = format!("injected commit_unknown_result (committed: {committed})");
+                    trx = self.db.create_trx()?;
+                    continue;
+                }
                 CommitFault::CrashBeforeCommit => {
                     drop(trx.cancel());
                     return Err(self.faults.crash(&format!("{txn:?}:before-commit")));

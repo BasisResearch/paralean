@@ -91,3 +91,52 @@ pub fn guard_of<T: std::fmt::Debug>(r: Result<T>) -> GuardFailure {
 pub fn rev_id(p: &Package) -> Id {
     p.revisions[0].id()
 }
+
+/// Publish one plain group from writer `wi` and build a checkpoint over its revision.
+pub async fn one_snapshot(e: &Env, wi: usize, tag: &str, token: TokenRef, pred: Option<Id>) -> Checkpoint {
+    let p = e.plain_package(wi, &format!("N.{tag}"), tag);
+    e.w[wi].publish(&p).await.unwrap();
+    fixture::checkpoint(e.w[wi].id, vec![rev_id(&p)], pred, token, tag)
+}
+
+/// Put a checkpoint's manifests and snapshot and certify them (everything T5 needs except
+/// the record), returning the snapshot ID.
+pub async fn prepare_snapshot(e: &Env, wi: usize, cp: &Checkpoint) -> Id {
+    let st = &e.store;
+    for rid in &cp.snapshot.contents {
+        let rev = st.revision(rid).await.unwrap().unwrap();
+        e.w[wi].certify_existing(Kind::Group, &rev.group).await.unwrap();
+        e.w[wi].certify_existing(Kind::Capsule, &rev.capsule).await.unwrap();
+    }
+    for m in [&cp.source_root, &cp.build_receipt] {
+        let a = st.s3.put_object(Kind::Manifest, m).await.unwrap();
+        e.w[wi].certify_object(a).await.unwrap();
+    }
+    let a = st.s3.put_object(Kind::Snapshot, &cp.snapshot).await.unwrap();
+    e.w[wi].certify_object(a).await.unwrap();
+    a.id()
+}
+
+/// A hook that rotates the fence to `holder`.
+pub fn rotate_hook(ctl: &Controller, holder: WorkspaceId, request: &str) -> faults::Hook {
+    let ctl = ctl.clone();
+    let request = request.as_bytes().to_vec();
+    std::sync::Arc::new(move || {
+        let (ctl, request) = (ctl.clone(), request.clone());
+        Box::pin(async move {
+            ctl.rotate(holder, &request).await.unwrap();
+        })
+    })
+}
+
+/// A hook that reassigns a target name.
+pub fn reassign_hook(ctl: &Controller, name: Name, owner: WorkspaceId, request: &str) -> faults::Hook {
+    let ctl = ctl.clone();
+    let request = request.as_bytes().to_vec();
+    std::sync::Arc::new(move || {
+        let (ctl, request, name) = (ctl.clone(), request.clone(), name.clone());
+        Box::pin(async move {
+            ctl.reassign(&name, owner, &request).await.unwrap();
+        })
+    })
+}

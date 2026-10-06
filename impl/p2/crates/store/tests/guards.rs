@@ -163,12 +163,6 @@ async fn t4_reassign_bumps_epoch_keeps_head() {
 
 // ------------------------------------------------------------------ T5
 
-async fn one_snapshot(e: &Env, wi: usize, tag: &str, token: TokenRef, pred: Option<Id>) -> Checkpoint {
-    let p = e.plain_package(wi, &format!("N.{tag}"), tag);
-    e.w[wi].publish(&p).await.unwrap();
-    fixture::checkpoint(e.w[wi].id, vec![rev_id(&p)], pred, token, tag)
-}
-
 #[tokio::test]
 async fn t5_fenced_commit_and_its_guards() {
     let e = Env::new("t5", 2);
