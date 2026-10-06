@@ -288,3 +288,26 @@ async fn s3_checksum_delete_and_corruption() {
     e.store.s3.put_opaque(&o).await.unwrap();
     assert!(e.store.s3.get(Kind::Chunk, &o.id()).await.unwrap().is_some());
 }
+
+// ------------------------------------------------------------------ scans
+
+/// Regression (found by `scripts/fdb-kill-test.sh`): FDB returns partial range batches
+/// (byte limits) with `more = true`. A scan that stops at a short batch silently drops keys,
+/// which breaks `scan_between` / `certScanValue_covers`. 2000 keys of 400 bytes exceed one
+/// batch.
+#[tokio::test]
+async fn paginated_scan_follows_partial_batches() {
+    let e = Env::new("scan", 1);
+    let sub = e.store.meta.keys.sub("scantest");
+    for chunk in 0..10u64 {
+        let trx = e.store.meta.db.create_trx().unwrap();
+        for i in 0..200u64 {
+            trx.set(&sub.pack(&(chunk * 200 + i)), &[0xab; 400]);
+        }
+        trx.commit().await.unwrap();
+    }
+    for page in [3usize, 500, 10_000] {
+        let kvs = e.store.meta.scan(&sub, page, |_| None).await.unwrap();
+        assert_eq!(kvs.len(), 2000, "page {page}");
+    }
+}

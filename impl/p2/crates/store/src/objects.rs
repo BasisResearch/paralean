@@ -40,7 +40,7 @@ pub trait Object: Pce {
 
 // ---------------------------------------------------------------- Lean names
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum NameComp {
     Str(String),
     Num(u128),

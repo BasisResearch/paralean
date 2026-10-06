@@ -255,6 +255,7 @@ impl Meta {
                 Ok(Step::Commit(v)) => v,
                 Err(StoreError::Fdb(e)) => {
                     last = e.to_string();
+                    self.faults.count("fdb-retry");
                     trx = trx.on_error(e).await?;
                     continue;
                 }
@@ -317,6 +318,8 @@ impl Meta {
                 Err(e) => {
                     if e.is_maybe_committed() {
                         self.faults.count("real-commit-unknown-result");
+                    } else {
+                        self.faults.count("fdb-retry");
                     }
                     last = e.to_string();
                     // Retryable (not_committed, commit_unknown_result, ...): the body re-reads
@@ -366,23 +369,25 @@ impl Meta {
         let mut n = 0;
         loop {
             let (b0, e0) = (begin.clone(), end.clone());
-            let kvs: Vec<(Vec<u8>, Vec<u8>)> = self
+            // One batch per transaction. FDB may return fewer than `page` pairs (byte
+            // limits) while more remain: continue on `more()`, never on the batch size.
+            let (kvs, more): (Vec<(Vec<u8>, Vec<u8>)>, bool) = self
                 .read(move |trx| {
                     let (b0, e0) = (b0.clone(), e0.clone());
                     Box::pin(async move {
                         let r = range(trx, b0, e0, page).await?;
-                        Ok(r.iter().map(|kv| (kv.key().to_vec(), kv.value().to_vec())).collect())
+                        Ok((r.iter().map(|kv| (kv.key().to_vec(), kv.value().to_vec())).collect(), r.more()))
                     })
                 })
                 .await?;
-            let full = kvs.len() == page;
             if let Some(last) = kvs.last() {
                 begin = last.0.clone();
                 begin.push(0);
             }
+            let empty = kvs.is_empty();
             out.extend(kvs);
             n += 1;
-            if !full {
+            if !more || empty {
                 return Ok(out);
             }
             if let Some(f) = between(n) {

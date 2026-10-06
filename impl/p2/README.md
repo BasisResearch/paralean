@@ -12,6 +12,8 @@ scripts/bootstrap.sh     # user-space FDB 7.3.79 + Garage 2.4.1 under $PARALEAN_
 scripts/up.sh            # fdbserver (ssd, port 4689), Garage (18439-18441), s3-guard (18433)
 scripts/test.sh          # cargo test --workspace against the live services
 scripts/check-mutations.sh   # guard-removal mutations; the listed tests must fail
+scripts/fdb-kill-test.sh     # SIGKILL fdbserver under stress workers, restart, audit
+scripts/p1-golden.sh         # SHA-256 vectors from P1's Sha256.lean (hard-coded in id.rs tests)
 scripts/down.sh
 ```
 `up.sh` lowers FDB's operating-space reserve (`min_available_space_ratio`), because /data on
@@ -44,7 +46,8 @@ the shared box is ~98% full and the default 5% reserve throttles all writes.
 
 ## Tests (all against the live FDB and Garage)
 
-`guards.rs` (12, one per transaction guard and S3 rule), `fixtures.rs` (9 regression
+library unit tests (PCE strictness, domains, objects, P1 golden vectors), `guards.rs` (13: one
+per transaction guard and S3 rule, plus partial-batch scans), `fixtures.rs` (9 regression
 fixtures), `faults.rs` (10 fault-injection scenarios), `property.rs` (proptest interleavings
 with faults, invariants after each step), `crates/cli/tests/multiprocess.rs` (12 worker
 processes with injected aborts and SIGKILLs).

@@ -6,17 +6,34 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
 
 ## Results (2026-10-06, live services)
 
-- guards 12/12, fixtures 9/9, faults 10/10, property test 150 cases / 0 failures,
+- library unit tests 9/9 (PCE, IDs, objects, P1 golden vectors), s3-guard 1/1,
+  guards 13/13, fixtures 9/9, faults 10/10, property test 150 cases / 0 failures,
   multi-process 1/1 (12 workers; 4 aborted at injected crash points, 2 SIGKILLed; audit clean,
   at most one head per target, selected records fenced).
 - Garage checks: wrong `x-amz-checksum-sha256` is rejected (InvalidDigest), the checksum is
   echoed, 300 back-to-back PUT→GET read-after-write checks passed. No client-side fallback
   was needed; the client also re-hashes before PUT and after GET.
-- Mutations (`scripts/check-mutations.sh`): removing the parent check is detected by
-  `fixture_orphan_commit_rejected` and `t5_fenced_commit_and_its_guards`. The script's
-  verdict parsing was fixed at the end and the full mutation table was not re-run.
+- Mutations (`scripts/check-mutations.sh`, the counterpart of TLA-GUARDS.md): all 11
+  cases detected. Removing the owner check, the epoch fence, the head CAS, the atomic
+  publisher certificate (lagging design), the T5 fence check or the T5 parent check each
+  makes the named tests fail.
+- FDB process kill (`scripts/fdb-kill-test.sh`): fdbserver SIGKILLed with 4 stress
+  workers running, restarted after 4 s; every worker resolved its in-flight transactions
+  (FDB errors retried, including real `commit_unknown_result`) and finished; audit clean.
+- SHA-256 golden vectors computed by running P1's `Sha256.lean` with P1's toolchain
+  (`scripts/p1-golden.sh`) match the Rust implementation, including a §1.2 preimage.
 
 ## Fault-injection findings
+
+- **Paginated scans truncated silently (fixed).** The first FDB kill run reported
+  certificates without markers and multiple target heads. The cause was the scan, not the
+  kill: it stopped at a batch shorter than its page size, but FDB returns partial batches
+  (byte limits) with `more = true`. Once a key space exceeded one batch, discovery,
+  catalogue recovery and the audit saw a subset (268 of 445 markers), breaking
+  `scan_between` / `certScanValue_covers`; recovery could have selected an older record.
+  The scan now continues on `more()`; `paginated_scan_follows_partial_batches` is the
+  regression test. Small test deployments never exceed a batch, which is why the unit
+  tests missed it; the audit caught it at scale.
 
 - A T3/T4 retry resolved only from "the state since my first attempt" misses a late,
   reordered duplicate and issues a second rank / reverts ownership. Fixed with grow-only
@@ -63,11 +80,10 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
 
 ## Not done
 
-- FoundationDB process kills (single-process cluster; no `triple` multi-process run).
-- Tombstone discovery; receipt binding (P3); buildability beyond the build-receipt verdict.
-- Golden vectors computed by running P1's `Sha256.lean` (Rust is checked against FIPS
-  vectors and P1's LEB128 writer re-implemented in a unit test).
-- Full `check-mutations.sh` table re-run after the parsing fix.
+- FDB kills *within* a redundancy mode: the P2 cluster is one process in `single` mode,
+  so a kill is an outage and restart (tested), not a tolerated fault.
+- Tombstone storage/discovery (§11.4); receipt binding (P3); buildability beyond the
+  build-receipt verdict; anti-entropy between deployments beyond T7 and S3 repair copies.
 
 ## Sentences for plan.md / README.md
 

@@ -246,6 +246,27 @@ mod tests {
         assert!(Domain::Capsule.strip(&p).is_err());
     }
 
+    /// Output of `scripts/p1-golden.sh`: P1's pure-Lean `Sha256.lean` run with P1's
+    /// toolchain (nightly-2026-10-03) on the same inputs.
+    #[test]
+    fn matches_p1_lean_sha256() {
+        let range: Vec<u8> = (0..1000u32).map(|i| (i % 251) as u8).collect();
+        let cases: [(&[u8], &str); 5] = [
+            (b"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+            (b"abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+            (b"paralean\x00v0/group\x00xyz", "5129d1688c87166c5dd0698ff36f43ebb72b809ba925c6d9ae283f773f18b067"),
+            (&range, "4e4c294b331f7a2099a379bec34b9f9fc03dc46ab465d998f4d683da53487e6d"),
+            (
+                b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+            ),
+        ];
+        for (input, want) in cases {
+            assert_eq!(hex::encode(sha256(input)), want);
+        }
+        assert_eq!(Domain::Group.hash(b"xyz").hex(), cases[2].1, "preimage hashing agrees with P1");
+    }
+
     #[test]
     fn sha256_vectors() {
         // FIPS 180-4 test vectors.
