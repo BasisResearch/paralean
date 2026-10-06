@@ -2,8 +2,8 @@
 
 Date 2026-10-06, aws-dev (Linux x86-64, 32 cores, shared; builds at `-j12`). The fork is
 Lean `193c3589` (`nightly-2026-10-03`) plus six patches ([fork/](../fork/README.md)), commit
-**`63380ffa`** (`fork/GITHASH`). Hooks and the workarounds they replace:
-[p1-fork-hooks.md](p1-fork-hooks.md#implemented-in-the-fork-fork-63380ffa).
+**`dfc13cc6`** (`fork/GITHASH`). Hooks and the workarounds they replace:
+[p1-fork-hooks.md](p1-fork-hooks.md#implemented-in-the-fork-fork-dfc13cc6).
 
 ## Hooks and patch sizes
 
@@ -16,10 +16,10 @@ All hooks are off unless `LEAN_PARALEAN` (or `Lean.Paralean.setConfig`) enables 
 | 0003 | 2 per-command declaration collector | `Lean/Environment.lean` `Environment.declMark`, `Environment.addedDeclsSince` | 56 / 0 | 0 |
 | 0004 | 3 no axiom fallback | `Lean/AddDecl.lean` `addDeclCore.doAdd` | 5 / 2 | 136 |
 | 0005 | 4 `simp` used-lemma record | `Lean/Elab/Tactic/Simp.lean` `recordSimpUsed` (called from `evalSimp`, `evalSimpAll`) | 21 / 0 | 42 |
-| 0006 | 5 canonical instance names | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | 435 / 3 | 109 |
-| | total | 12 source files | **611 / 9** | 344 |
+| 0006 | 5 canonical instance names | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | 451 / 3 | 107 |
+| | total | 12 source files | **627 / 9** | 342 |
 
-Of hook 5's 435 lines, about 170 are the SHA-256 and canonical type text ported byte for byte
+Of hook 5's 451 lines, about 170 are the SHA-256 and canonical type text ported byte for byte
 from `impl/p1/Paralean/InstName.lean`.
 
 ## Build
@@ -27,7 +27,8 @@ from `impl/p1/Paralean/InstName.lean`.
 - `fork/build.sh` from an empty directory: clone `lean4-nightly` at the pin (depth 1), `git am`
   the patches (committer = author, committer date = author date), `cmake --preset release`,
   `make stage1 -j12`. **15 min 56 s** wall (nice 5, shared machine), exit 0; `lean --githash` =
-  `63380ffa…` = `fork/GITHASH`. Applying the patches in a second clone gave the same commit hash,
+  `63380ffa…` = `fork/GITHASH` at the time (the fork is now `dfc13cc6`, see the §1.1/§1.2 section
+  below). Applying the patches in a second clone gave the same commit hash,
   so the githash is reproducible from the patches alone. The build tree is 6.2 GB.
 - Development tree: `/data/home/kirancodes/Documents/code/lean4-paralean`, branch `paralean`
   (its build was removed after `build.sh` reproduced it, for disk).
@@ -74,7 +75,7 @@ regenerate the canonical names (a stock build cannot, see below). Recorded stock
 | G2 membership/classes | 1122/1127, 5 explained instance spellings; 78 anonymous instances canonical | **1122/1127**, the same 5 (M13 `@[to_dual]` ×3, M16 stock `_1` ×2); **90** canonical instances: the same 78 anonymous ones with byte-identical names, plus **12 derived** instances (F03, F04, F08 ×5, F09, M11 ×3, M15) that the prototype had to leave stock; 0 reserved published; anchors complete |
 | G3 capsules | max 390 B fixtures, 2,868 B Mathlib | identical sizes (`results/fork/summary.md`) |
 | G4 export | 22/22 builds; identity 1116/1142; axioms 1445/1448; mappings 5/5 | **22/22** builds (fork `lake`, Paralean mode); identity **1116/1142**; axioms **1445/1448** (same 3 `@[to_dual]` names); mappings **5/5** |
-| G5 negatives | 6/6, 0 staged; version conflict; duplicate instance | **same outcomes**, only IDs differ (the base githash is part of identity); duplicate-instance name `…_91913918` byte-identical |
+| G5 negatives | 6/6, 0 staged; version conflict; duplicate instance | **same outcomes**, only IDs differ (the base githash is part of identity); duplicate-instance name `…_91913918` byte-identical (`…_c8ba7066` since the §1.2 prefix) |
 | G6 B→A→B | pass | **pass** (`helper_c` fails on `helper`; 3 modules, 3/3 identical) |
 | F-async | kernel-rejected theorem re-added as an axiom; its user elaborates without error | the user fails in the kernel (`unknown constant`), and capture rejects it as `kernel-rejected` through the collector even where the host saw no error |
 
@@ -109,6 +110,49 @@ deriving handlers write as anonymous `instance` commands, got their name from th
 prediction with **one** elaboration. The prototype elaborates each of them twice. All **10**
 `mkInstName` derived instances took **two** handler runs (first under the stock name, then the
 canonical one).
+
+## §1.1/§1.2 encoding (2026-10-06, branch `p1-encoding`)
+
+P2 found that P1's IDs did not follow p0-interfaces.md §1.1/§1.2 (p2-log.md deviation 10). P1 now
+computes every ID as `H(domain, PCE(x))`: group (`v0/group`), capsule (`v0/capsule`), package
+(`v0/package`, over group and capsule IDs as §4.1 says), publication record (`v0/marker`) and the
+instance-type digest (`v0/insttype`). The group encoding is `paralean-group-v3`: a leading
+`format` 0, §1.1 big-endian `nat` for every Lean `Nat` value, and dependency IDs as 32 raw bytes
+(details in [p1-interface-notes.md](p1-interface-notes.md) §7). The fork's hook 5 hashes the same
+preimage, so patch 0006 changed. The fork is now **`dfc13cc6`** (`fork/GITHASH`), and hook 5 is
+451/3 source lines. `build.sh` reproduced the hash, and the 5 fork tests pass, with the new
+expected names in `paraleanInstNames`. I did not rerun the whole Lean suite, since only the
+digest preimage on the Paralean-mode path changed.
+
+Both gates were rerun from fresh bootstraps (`impl/p1/results/aws-stock/` with the elan nightly,
+`impl/p1/results/fork/` with `dfc13cc6`). IDs changed and every count stayed the same:
+
+| | recorded (v2) | stock, v3 | fork, v3 |
+|---|---|---|---|
+| G1 source / kernel / isolated | 1224/1225, 1225/1225, 1224/1225 | same | same |
+| G2 | 1122/1127, 78 canonical | 1122/1127, 78 | 1122/1127, 90 (78 + 12 derived) |
+| G3, per-set table | | identical | identical |
+| G4 builds / identity / axioms / mappings | 22/22, 1116/1142, 1445/1448, 5/5 | same | same |
+| G5, G6 | pass | same outcomes (only IDs and the ID-sorted order of conflict lines differ) | same |
+| encoding bytes, whole corpus | 1,815,451 | 1,754,345 (−3.4 %) | 1,754,453 (+108 = 12 derived names × 9 bytes) |
+
+The stock library and the fork still name instances byte-identically: the 78 anonymous canonical
+names are identical in both runs, `instance-name-mismatch` is 0, and the duplicate-instance
+fixture gives `…_c8ba7066`/`…_92742698` in both. `F08.instFooNat` is now `…_3b90afc0`.
+
+**P1 and P2 IDs now agree.** P2's new `paralean-p2 check-p1` (offline) recomputes
+`H("v0/group", bytes)` for every P1 group object and compares it with P1's `declId`:
+**1,171/1,171** objects of the 23 stock-gate stores and **1,171/1,171** of the 23 fork-gate stores
+match, with 0 mismatches. `import-p1` runs the same check first, and against the live
+FoundationDB/Garage deployment it uploaded the fork's core store (86 groups) with every
+acknowledged ID equal to P1's `declId`. `impl/p2/scripts/p1-golden.sh` is now this equality
+check (by default on a fresh capture of F01–F13). `id::tests::p1_group_id_matches` pins one real
+`v3` group (F01 `two_eq`, which has nat literals) and its ID.
+
+The rerun's `results/fork/simp-cost.tsv` has dry-run/native ratios of 0.94–1.08 (the box was
+busier; the table above is from the first run), with package IDs equal in all five modules.
+
+`docs/plan.md` still names the fork commit `63380ffa`; it should say `dfc13cc6` (sentence below).
 
 ## Prototype workarounds removed on the fork
 
@@ -156,7 +200,7 @@ The workarounds stay in the library for stock Lean. A fork build selects per hoo
 
 For plan.md, P1 (after "Gate: replay and clean export agree with reference behavior."):
 
-> The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `63380ffa`) implements
+> The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `dfc13cc6`) implements
 > the P1 hooks natively: `Elab.async` pinned off, a per-command declaration collector, no axiom
 > fallback after kernel failures, a `simp` used-lemma record and canonical instance names for
 > anonymous and derived instances. On the fork the P1 gate gives the same G1–G6 results as on

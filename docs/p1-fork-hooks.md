@@ -1,7 +1,7 @@
 # P1: places where the fork needs a hook
 
 P1 runs on the stock nightly (`193c3589`) as a library, with no patches, and on the Paralean
-fork of that commit ([fork/](../fork/README.md), commit `63380ffa`). The first two tables list
+fork of that commit ([fork/](../fork/README.md), commit `dfc13cc6`). The first two tables list
 each workaround P1 uses on stock Lean and the Lean source location a fork hook replaces. The
 last section lists what the fork implements and which workarounds P1 drops on it. Paths are
 relative to `src/` of the Lean checkout at the pinned commit.
@@ -36,7 +36,7 @@ M16 `bicompl_map_eq_of_injective`). Their proof terms differ in isolation even w
 every same-file simp/grind-set lemma in the closure; the same-file prefix fixes them.
 Exact fix: hook 11 for `grind`.
 
-## Implemented in the fork (fork/, `63380ffa`)
+## Implemented in the fork (fork/, `dfc13cc6`)
 
 The fork carries five hooks, all off unless the process enables them (`LEAN_PARALEAN=1`, or
 `Lean.Paralean.setConfig`), so it behaves as stock Lean otherwise. impl/p1 detects the fork

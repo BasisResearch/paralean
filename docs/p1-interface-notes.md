@@ -85,14 +85,15 @@ source is named
     <ns>.<stock base name, no `_n`, no project suffix>_<first 8 hex of H("v0/insttype", τ)>
 
 where `τ` is the elaborated instance type (all binders, including section variables,
-auto-bound implicits and instance arguments) and `H` is SHA-256 over the domain tag, a NUL
-byte and an injective text of `τ`: every `Expr` constructor has its own tag, binder names
+auto-bound implicits and instance arguments) and `H` is the §1.2 hash (SHA-256 over
+`"paralean" NUL "v0/insttype" NUL` and the PCE string of an injective text of `τ`): every `Expr` constructor has its own tag, binder names
 and `mdata` are erased, binder kinds are kept, universe parameters are numbered by first
 occurrence, and constants are spelled by their module-independent identity (`normName`).
-Example: `instance : Foo Nat` in `F08` is `F08.instFooNat_7d9f17e6`. The two instances
+Example: `instance : Foo Nat` in `F08` is `F08.instFooNat_3b90afc0`. The two instances
 `Inhabited (ULift.{1} Nat)` and `Inhabited (ULift.{2} Nat)`, which stock Lean names
 `instInhabitedULiftNat` and `instInhabitedULiftNat_1` depending on order, get
-`…_2672ce46` and `…_ad3bb490`.
+`…_92742698` and `…_06ff4481`. (Hashes since the §1.2 domain prefix, §7. Before it the
+examples were `F08.instFooNat_7d9f17e6`, and `…_2672ce46`/`…_ad3bb490` for the pair.)
 
 Implementation: `Paralean/InstName.lean` (fork-hooks item 14). Capture records the stock
 spelling as metadata (`MemberRec.stock`) for the G2 oracle comparison only.
@@ -131,12 +132,13 @@ instance explicitly.
   the canonical name instead. No corpus file does: all 18 Mathlib modules and the fixtures
   capture with 0 rejections under the canonical scheme.
 - Attributes that derive names from an instance's name (`@[to_dual]`) derive them from the
-  canonical name (`Pi.instMinForall_d560181b` from `Pi.instMaxForall_d560181b`). Such a
+  canonical name (`Pi.instMinForall_9122ed72` from `Pi.instMaxForall_9122ed72`). Such a
   derived name is a function of the base name, so it collides exactly when the base does.
 
 ## 7. Group identity: canonical numbering and group-ID pins (OPEN-22, OPEN-23, implemented)
 
-The group encoding is now `paralean-group-v2`:
+The group encoding is now `paralean-group-v3` (v2 plus the §1.1/§1.2 changes at the end of
+this section):
 
 - `self` references carry the member's canonical index, not its spelling. Members are
   numbered as p0-interfaces.md §3.4 says: public members by name; then scoped members in
@@ -156,3 +158,33 @@ The group encoding is now `paralean-group-v2`:
 
 Effect on G4: the export is verified against the stored group ID by matching scoped
 members to constants by spelling; identities are unchanged by relocation as before.
+
+**§1.1/§1.2 conformance (OPEN-1/OPEN-2, p2-log.md deviation 10, fixed 2026-10-06).** Every ID
+P1 computes is `H(domain, x) = SHA-256("paralean" NUL domain NUL ‖ PCE(x))`
+(`Encode.domainHash`):
+
+| ID | domain | preimage `x` |
+|---|---|---|
+| group (`declId`) | `v0/group` | the group bytes |
+| capsule | `v0/capsule` | record: `format` 0, the capsule (P1's JSON rendering, a `string`), frontend dependencies as a `set` of package IDs |
+| package | `v0/package` | record: group ID, capsule ID (§4.1) |
+| publication record | `v0/marker` | record: package ID, file, anchor (option of a package ID), Lamport time (`uvarint`), author |
+| instance type digest | `v0/insttype` | the type text as a PCE `string` (`uvarint` length, UTF-8); the fork computes the same bytes |
+
+IDs inside PCE are `bytes` of the 32-byte digest. In the group bytes, the encoding starts
+with `format : uvarint = 0` (§1.4). Lean `Nat` values use §1.1 `nat` (minimal big-endian
+magnitude as `bytes`): name `num` components, `bvar` indices, nat literals (previously decimal
+strings), `DataValue.ofNat`, `proj` indices and the `Nat` fields of inductive, constructor and
+recursor infos (`numParams`, `numIndices`, `numNested`, `cidx`, `numFields`, `numMotives`,
+`numMinors`, `nfields`). Counts, lengths, table indices, tags and bounded machine integers
+(`ReducibilityHints.regular` height, a `UInt32`) stay `uvarint`. Dependency group IDs are 32
+raw bytes instead of a hex string. The decoder rejects non-minimal `uvarint`s and `nat`s, IDs
+that are not 32 bytes, unknown formats and trailing bytes. P2's `check-p1`/`import-p1`
+recompute `H("v0/group", bytes)` for every group and require it to equal P1's `declId`.
+
+Still not the §4/§5 schemas: the group's field layout is P1's term table, not the
+`GroupManifest` record list (effects are metadata, not bytes); `baseID` is the string
+`lean:<commit>`, not a `v0/base` manifest ID; the capsule's body is P1's JSON rather than the
+§5 field list; `DataValue.ofInt`/`ofSyntax` are strings (§1.1 has no integer type). Content
+hashes that are not object IDs (the rendered projection's hash, the materialization cache key)
+and the receipt HMAC (a stand-in for signatures) are unchanged.

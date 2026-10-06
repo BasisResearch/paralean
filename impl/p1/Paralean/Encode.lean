@@ -84,14 +84,38 @@ structure EncMember where
 
 /-! ## Byte writer -/
 
+/-- Bytes of a lowercase hex string (an ID's text form without its `kind:` prefix). -/
+def hexBytes (h : String) : ByteArray := Id.run do
+  let d (c : Char) : UInt8 :=
+    if '0' ≤ c && c ≤ '9' then (c.toNat - '0'.toNat).toUInt8 else (c.toNat - 'a'.toNat + 10).toUInt8
+  let cs := h.toList.toArray
+  let mut out := ByteArray.emptyWithCapacity (cs.size / 2)
+  for i in [0:cs.size / 2] do
+    out := out.push (d cs[2*i]! * 16 + d cs[2*i+1]!)
+  return out
+
 structure W where
   out : ByteArray := ByteArray.emptyWithCapacity 1024
 
 namespace W
 @[inline] def byte (w : W) (b : UInt8) : W := { out := w.out.push b }
-partial def nat (w : W) (n : Nat) : W :=
-  if n < 128 then w.byte n.toUInt8 else (w.byte ((n % 128).toUInt8 ||| 0x80)).nat (n / 128)
-def bytes (w : W) (b : ByteArray) : W := { out := (w.nat b.size).out ++ b }
+/-- §1.1 `uvarint`: unsigned LEB128, minimal. Counts, lengths, table indices, tags and bounded
+machine integers. -/
+partial def uv (w : W) (n : Nat) : W :=
+  if n < 128 then w.byte n.toUInt8 else (w.byte ((n % 128).toUInt8 ||| 0x80)).uv (n / 128)
+def bytes (w : W) (b : ByteArray) : W := { out := (w.uv b.size).out ++ b }
+/-- Minimal big-endian magnitude of `n` (empty for zero). -/
+def natBE (n : Nat) : ByteArray := Id.run do
+  let mut out : List UInt8 := []
+  let mut k := n
+  while k > 0 do
+    out := (k % 256).toUInt8 :: out
+    k := k / 256
+  return ⟨out.toArray⟩
+/-- §1.1 `nat` (a Lean `Nat`, unbounded): `bytes` of the minimal big-endian magnitude. -/
+def nat (w : W) (n : Nat) : W := w.bytes (natBE n)
+/-- A 32-byte ID (§1.2) given in hex, as `bytes`. -/
+def id (w : W) (hex : String) : W := w.bytes (hexBytes hex)
 def str (w : W) (s : String) : W := w.bytes s.toUTF8
 def bool (w : W) (b : Bool) : W := w.byte (if b then 1 else 0)
 end W
@@ -122,23 +146,23 @@ partial def name (n : Name) : EncM Nat := do
   if let some i := (← get).names[n]? then return i
   let w ← match n with
     | .anonymous => pure ((← get).nameW.byte 0)
-    | .str p s => do let i ← name p; pure (((← get).nameW.byte 1).nat i |>.str s)
-    | .num p k => do let i ← name p; pure (((← get).nameW.byte 2).nat i |>.nat k)
+    | .str p s => do let i ← name p; pure (((← get).nameW.byte 1).uv i |>.str s)
+    | .num p k => do let i ← name p; pure (((← get).nameW.byte 2).uv i |>.nat k)
   modifyGet fun s => let i := s.names.size; (i, { s with names := s.names.insert n i, nameW := w })
 
 partial def ref (r : Ref) : EncM Nat := do
   if let some i := (← get).refs[r]? then return i
   let ctx := (← read).2
   let w ← match r with
-    | .base n => do let i ← name n; pure (((← get).refW.byte 0).nat i)
+    | .base n => do let i ← name n; pure (((← get).refW.byte 0).uv i)
     | .self l => do
       let some k := ctx.selfIdx l | throw s!"encode: {l} is not a member of this group"
-      pure (((← get).refW.byte 1).nat k)
+      pure (((← get).refW.byte 1).uv k)
     | .dep g l => do
       let some (id, k) := ctx.dep g l | throw s!"encode: no member {l} in dependency {(g.take 12).toString}"
-      pure (((← get).refW.byte 2).str id |>.nat k)
+      pure (((← get).refW.byte 2).id id |>.uv k)
     | .res b sfx => do
-      let i ← ref b; let j ← name sfx; pure (((← get).refW.byte 3).nat i |>.nat j)
+      let i ← ref b; let j ← name sfx; pure (((← get).refW.byte 3).uv i |>.uv j)
   modifyGet fun s => let i := s.refs.size; (i, { s with refs := s.refs.insert r i, refW := w })
 
 /-- Binder names are irrelevant to the kernel; hygienic ones embed the module name and a
@@ -155,12 +179,12 @@ partial def level (l : Level) : EncM Nat := do
   if let some i := (← get).levels[l]? then return i
   let w ← match l with
     | .zero => pure ((← get).levelW.byte 0)
-    | .succ a => do let i ← level a; pure (((← get).levelW.byte 1).nat i)
+    | .succ a => do let i ← level a; pure (((← get).levelW.byte 1).uv i)
     | .max a b => do
-      let i ← level a; let j ← level b; pure (((← get).levelW.byte 2).nat i |>.nat j)
+      let i ← level a; let j ← level b; pure (((← get).levelW.byte 2).uv i |>.uv j)
     | .imax a b => do
-      let i ← level a; let j ← level b; pure (((← get).levelW.byte 3).nat i |>.nat j)
-    | .param n => do let i ← name n; pure (((← get).levelW.byte 4).nat i)
+      let i ← level a; let j ← level b; pure (((← get).levelW.byte 3).uv i |>.uv j)
+    | .param n => do let i ← name n; pure (((← get).levelW.byte 4).uv i)
     | .mvar _ => throw "level metavariable in a completed declaration"
   modifyGet fun s => let i := s.levels.size; (i, { s with levels := s.levels.insert l i, levelW := w })
 
@@ -170,8 +194,8 @@ def binderInfo : BinderInfo → UInt8
 def dataValue (w : W) : DataValue → EncM W
   | .ofString s => pure ((w.byte 0).str s)
   | .ofBool b => pure ((w.byte 1).bool b)
-  | .ofName n => do let i ← name n; pure ((w.byte 2).nat i)
-  | .ofNat n => pure ((w.byte 3).str (toString n))
+  | .ofName n => do let i ← name n; pure ((w.byte 2).uv i)
+  | .ofNat n => pure ((w.byte 3).nat n)
   | .ofInt i => pure ((w.byte 4).str (toString i))
   | .ofSyntax stx => pure ((w.byte 5).str (toString stx))
 
@@ -181,36 +205,36 @@ partial def expr (e : Expr) : EncM Nat := do
     | .bvar k => pure (((← get).exprW.byte 0).nat k)
     | .fvar _ => throw "free variable in a completed declaration"
     | .mvar _ => throw "metavariable in a completed declaration"
-    | .sort u => do let i ← level u; pure (((← get).exprW.byte 1).nat i)
+    | .sort u => do let i ← level u; pure (((← get).exprW.byte 1).uv i)
     | .const n us => do
       let r ← constRef n
       let ls ← us.mapM level
-      let mut w := ((← get).exprW.byte 2).nat r |>.nat ls.length
-      for l in ls do w := w.nat l
+      let mut w := ((← get).exprW.byte 2).uv r |>.uv ls.length
+      for l in ls do w := w.uv l
       pure w
     | .app f a => do
-      let i ← expr f; let j ← expr a; pure (((← get).exprW.byte 3).nat i |>.nat j)
+      let i ← expr f; let j ← expr a; pure (((← get).exprW.byte 3).uv i |>.uv j)
     | .lam n t b bi => do
       let k ← binderName n; let i ← expr t; let j ← expr b
-      pure (((← get).exprW.byte 4).nat k |>.nat i |>.nat j |>.byte (binderInfo bi))
+      pure (((← get).exprW.byte 4).uv k |>.uv i |>.uv j |>.byte (binderInfo bi))
     | .forallE n t b bi => do
       let k ← binderName n; let i ← expr t; let j ← expr b
-      pure (((← get).exprW.byte 5).nat k |>.nat i |>.nat j |>.byte (binderInfo bi))
+      pure (((← get).exprW.byte 5).uv k |>.uv i |>.uv j |>.byte (binderInfo bi))
     | .letE n t v b nd => do
       let k ← binderName n; let i ← expr t; let j ← expr v; let l ← expr b
-      pure (((← get).exprW.byte 6).nat k |>.nat i |>.nat j |>.nat l |>.bool nd)
-    | .lit (.natVal v) => pure (((← get).exprW.byte 7).str (toString v))
+      pure (((← get).exprW.byte 6).uv k |>.uv i |>.uv j |>.uv l |>.bool nd)
+    | .lit (.natVal v) => pure (((← get).exprW.byte 7).nat v)
     | .lit (.strVal v) => pure (((← get).exprW.byte 8).str v)
     | .mdata d b => do
       let i ← expr b
-      let mut w := ((← get).exprW.byte 9).nat i |>.nat d.entries.length
+      let mut w := ((← get).exprW.byte 9).uv i |>.uv d.entries.length
       for (k, v) in d.entries do
         let ki ← name k
-        w ← dataValue (w.nat ki) v
+        w ← dataValue (w.uv ki) v
       pure w
     | .proj s idx b => do
       let r ← constRef s; let i ← expr b
-      pure (((← get).exprW.byte 10).nat r |>.nat idx |>.nat i)
+      pure (((← get).exprW.byte 10).uv r |>.nat idx |>.uv i)
   modifyGet fun s => let i := s.exprs.size; (i, { s with exprs := s.exprs.insert ⟨e⟩ i, exprW := w })
 
 def body (f : W → EncM W) : EncM Unit := do
@@ -218,13 +242,13 @@ def body (f : W → EncM W) : EncM Unit := do
   modify fun s => { s with body := w }
 
 def names (w : W) (ns : List Name) : EncM W := do
-  let mut w := w.nat ns.length
-  for n in ns do w := w.nat (← name n)
+  let mut w := w.uv ns.length
+  for n in ns do w := w.uv (← name n)
   return w
 
 def refsOf (w : W) (ns : List Name) : EncM W := do
-  let mut w := w.nat ns.length
-  for n in ns do w := w.nat (← constRef n)
+  let mut w := w.uv ns.length
+  for n in ns do w := w.uv (← constRef n)
   return w
 
 def safety : DefinitionSafety → UInt8
@@ -233,7 +257,7 @@ def safety : DefinitionSafety → UInt8
 def hints (w : W) : ReducibilityHints → W
   | .opaque => w.byte 0
   | .abbrev => w.byte 1
-  | .regular h => (w.byte 2).nat h.toNat
+  | .regular h => (w.byte 2).uv h.toNat
 
 def constantInfo (m : EncMember) : EncM Unit := do
   let ci := m.info
@@ -243,22 +267,22 @@ def constantInfo (m : EncMember) : EncM Unit := do
   let ty ← expr ci.type
   body fun w => do
     let w := w.byte m.cls.tag
-    let w := match ln? with | some ln => w.nat ln | none => w
-    let w := w.nat lps.length
-    let w := lps.foldl W.nat w
-    let w := w.nat ty
+    let w := match ln? with | some ln => w.uv ln | none => w
+    let w := w.uv lps.length
+    let w := lps.foldl W.uv w
+    let w := w.uv ty
     match ci with
     | .axiomInfo v => pure ((w.byte 0).bool v.isUnsafe)
     | .defnInfo v => do
       let val ← expr v.value
-      let w := (hints ((w.byte 1).nat val) v.hints).byte (safety v.safety)
+      let w := (hints ((w.byte 1).uv val) v.hints).byte (safety v.safety)
       refsOf w v.all
     | .thmInfo v => do
       let val ← expr v.value
-      refsOf ((w.byte 2).nat val) v.all
+      refsOf ((w.byte 2).uv val) v.all
     | .opaqueInfo v => do
       let val ← expr v.value
-      refsOf (((w.byte 3).nat val).bool v.isUnsafe) v.all
+      refsOf (((w.byte 3).uv val).bool v.isUnsafe) v.all
     | .quotInfo v =>
       pure ((w.byte 4).byte (match v.kind with
         | .type => 0 | .ctor => 1 | .lift => 2 | .ind => 3))
@@ -269,15 +293,15 @@ def constantInfo (m : EncMember) : EncM Unit := do
       pure (((w.nat v.numNested).bool v.isRec |>.bool v.isUnsafe).bool v.isReflexive)
     | .ctorInfo v => do
       let i ← constRef v.induct
-      pure ((w.byte 6).nat i |>.nat v.cidx |>.nat v.numParams |>.nat v.numFields |>.bool v.isUnsafe)
+      pure ((w.byte 6).uv i |>.nat v.cidx |>.nat v.numParams |>.nat v.numFields |>.bool v.isUnsafe)
     | .recInfo v => do
       let w ← refsOf (w.byte 7) v.all
       let mut w := w.nat v.numParams |>.nat v.numIndices |>.nat v.numMotives |>.nat v.numMinors
-        |>.nat v.rules.length
+        |>.uv v.rules.length
       for r in v.rules do
         let c ← constRef r.ctor
         let rhs ← expr r.rhs
-        w := w.nat c |>.nat r.nfields |>.nat rhs
+        w := w.uv c |>.nat r.nfields |>.uv rhs
       pure ((w.bool v.k).bool v.isUnsafe)
 
 end Enc
@@ -304,7 +328,10 @@ def canonLevelParams (ci : ConstantInfo) : ConstantInfo :=
     .recInfo { v with levelParams := ps', type := inst v.type, rules }
 
 /-- Encoding domain tag and format version. -/
-def groupMagic : String := "paralean-group-v2"
+def groupMagic : String := "paralean-group-v3"
+
+/-- §1.4 format of the group encoding. -/
+def groupFormat : Nat := 0
 
 /-- Wire context numbering `members` by position, with dependencies given by `dep`. -/
 def WireCtx.ofMembers (members : Array EncMember) (dep : String → Name → Option (String × Nat)) : WireCtx :=
@@ -315,15 +342,15 @@ def WireCtx.ofMembers (members : Array EncMember) (dep : String → Name → Opt
 def encodeGroup (baseId : String) (members : Array EncMember)
     (resolve : Name → Except String Ref) (wire : WireCtx) : Except String ByteArray := do
   let act : EncM Unit := do
-    Enc.body fun w => pure (w.nat members.size)
+    Enc.body fun w => pure (w.uv members.size)
     for m in members do Enc.constantInfo m
   let ((), s) ← (act.run (resolve, wire)).run {}
   let w : W := {}
-  let w := (w.str groupMagic).str baseId
-  let w := (w.nat s.names.size).bytes s.nameW.out
-  let w := (w.nat s.refs.size).bytes s.refW.out
-  let w := (w.nat s.levels.size).bytes s.levelW.out
-  let w := (w.nat s.exprs.size).bytes s.exprW.out
+  let w := ((w.uv groupFormat).str groupMagic).str baseId
+  let w := (w.uv s.names.size).bytes s.nameW.out
+  let w := (w.uv s.refs.size).bytes s.refW.out
+  let w := (w.uv s.levels.size).bytes s.levelW.out
+  let w := (w.uv s.exprs.size).bytes s.exprW.out
   let w := w.bytes s.body.out
   return w.out
 
@@ -399,17 +426,33 @@ def byte : DecM UInt8 := do
     set { r with pos := r.pos + 1 }; return r.buf[r.pos]
   else throw "decode: unexpected end of input"
 
-partial def nat : DecM Nat := do
+/-- §1.1 `uvarint`; rejects non-minimal encodings (a trailing `0x00` group). -/
+partial def uv : DecM Nat := do
   let b ← byte
   if b < 128 then return b.toNat
-  else return (b &&& 0x7f).toNat + 128 * (← nat)
+  else
+    let rest ← uv
+    if rest == 0 then throw "decode: non-minimal uvarint"
+    return (b &&& 0x7f).toNat + 128 * rest
 
 def bytes : DecM ByteArray := do
-  let n ← nat
+  let n ← uv
   let r ← get
   if r.pos + n > r.buf.size then throw "decode: truncated bytes"
   set { r with pos := r.pos + n }
   return r.buf.extract r.pos (r.pos + n)
+
+/-- §1.1 `nat`: minimal big-endian magnitude; rejects a leading zero byte. -/
+def nat : DecM Nat := do
+  let b ← bytes
+  if b.size > 0 && b[0]! == 0 then throw "decode: non-minimal nat"
+  return b.foldl (fun n x => n * 256 + x.toNat) 0
+
+/-- A 32-byte ID, returned in hex. -/
+def id : DecM String := do
+  let b ← bytes
+  unless b.size == 32 do throw "decode: ID is not 32 bytes"
+  return b.foldl (fun s x => s ++ (if x < 16 then "0" else "") ++ (Nat.toDigits 16 x.toNat).asString) ""
 
 def str : DecM String := do
   match String.fromUTF8? (← bytes) with
@@ -424,7 +467,7 @@ def sub (b : ByteArray) (x : DecM α) : Except String α := do
   return a
 
 def idx (arr : Array α) [Inhabited α] (what : String) : DecM α := do
-  let i ← nat
+  let i ← uv
   if h : i < arr.size then return arr[i] else throw s!"decode: bad {what} index {i}"
 
 end Dec
@@ -443,11 +486,13 @@ structure UnwireCtx where
 /-- Decode a group, mapping each `Ref` to a Lean name in the target environment. -/
 def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except String Name) :
     Except String DecodedGroup := Dec.sub buf do
+  let fmt ← Dec.uv
+  unless fmt == groupFormat do throw s!"decode: unknown format {fmt}"
   let magic ← Dec.str
   unless magic == groupMagic do throw s!"decode: bad magic {magic}"
   let baseId ← Dec.str
   -- names
-  let nn ← Dec.nat
+  let nn ← Dec.uv
   let nameBytes ← Dec.bytes
   let names ← liftM <| Dec.sub nameBytes do
     let mut arr : Array Name := Array.mkEmpty nn
@@ -461,7 +506,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
       arr := arr.push n
     return arr
   -- refs
-  let nr ← Dec.nat
+  let nr ← Dec.uv
   let refBytes ← Dec.bytes
   let refs ← liftM <| Dec.sub refBytes do
     let mut arr : Array Ref := Array.mkEmpty nr
@@ -470,12 +515,12 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
       let r ← match t with
         | 0 => do pure (Ref.base (← Dec.idx names "name"))
         | 1 => do
-          let k ← Dec.nat
+          let k ← Dec.uv
           let some l := unwire.selfLocal k | throw s!"decode: no member {k}"
           pure (Ref.self l)
         | 2 => do
-          let g ← Dec.str
-          let k ← Dec.nat
+          let g ← Dec.id
+          let k ← Dec.uv
           let some (pid, l) := unwire.dep g k | throw s!"decode: no dependency member {(g.take 12).toString}/{k}"
           pure (Ref.dep pid l)
         | 3 => do let b ← Dec.idx arr "ref"; pure (Ref.res b (← Dec.idx names "name"))
@@ -484,7 +529,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
     return arr
   let refNames ← liftM (refs.mapM nameOf)
   -- levels
-  let nl ← Dec.nat
+  let nl ← Dec.uv
   let levelBytes ← Dec.bytes
   let levels ← liftM <| Dec.sub levelBytes do
     let mut arr : Array Level := Array.mkEmpty nl
@@ -500,7 +545,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
       arr := arr.push l
     return arr
   -- exprs
-  let ne ← Dec.nat
+  let ne ← Dec.uv
   let exprBytes ← Dec.bytes
   let exprs ← liftM <| Dec.sub exprBytes do
     let mut arr : Array Expr := Array.mkEmpty ne
@@ -513,7 +558,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
         | 1 => do pure (Expr.sort (← Dec.idx levels "level"))
         | 2 => do
           let n ← Dec.idx refNames "ref"
-          let k ← Dec.nat
+          let k ← Dec.uv
           let mut us := #[]
           for _ in [0:k] do us := us.push (← Dec.idx levels "level")
           pure (Expr.const n us.toList)
@@ -530,15 +575,11 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
           let v ← Dec.idx arr "expr"
           let b ← Dec.idx arr "expr"
           pure (Expr.letE n ty v b (← Dec.bool))
-        | 7 => do
-          let s ← Dec.str
-          match s.toNat? with
-          | some v => pure (Expr.lit (.natVal v))
-          | none => throw "decode: bad nat literal"
+        | 7 => do pure (Expr.lit (.natVal (← Dec.nat)))
         | 8 => do pure (Expr.lit (.strVal (← Dec.str)))
         | 9 => do
           let b ← Dec.idx arr "expr"
-          let k ← Dec.nat
+          let k ← Dec.uv
           let mut d : KVMap := {}
           for _ in [0:k] do
             let key ← Dec.idx names "name"
@@ -547,7 +588,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
               | 0 => do pure (DataValue.ofString (← Dec.str))
               | 1 => do pure (DataValue.ofBool (← Dec.bool))
               | 2 => do pure (DataValue.ofName (← Dec.idx names "name"))
-              | 3 => do pure (DataValue.ofNat ((← Dec.str).toNat!))
+              | 3 => do pure (DataValue.ofNat (← Dec.nat))
               | 4 => do pure (DataValue.ofInt ((← Dec.str).toInt!))
               | 5 => throw "decode: syntax-valued mdata cannot be reconstructed"
               | _ => throw "decode: bad mdata tag"
@@ -563,10 +604,10 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
   -- body
   let bodyBytes ← Dec.bytes
   let members ← liftM <| Dec.sub bodyBytes do
-    let n ← Dec.nat
+    let n ← Dec.uv
     let mut out := #[]
     let refsOf : DecM (List Name) := do
-      let k ← Dec.nat
+      let k ← Dec.uv
       let mut ns := #[]
       for _ in [0:k] do ns := ns.push (← Dec.idx refNames "ref")
       return ns.toList
@@ -579,7 +620,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
           | some l => pure l
           | none => throw s!"decode: no spelling for scoped member {i}"
         else Dec.idx names "name"
-      let nlp ← Dec.nat
+      let nlp ← Dec.uv
       let mut lps := #[]
       for _ in [0:nlp] do lps := lps.push (← Dec.idx names "name")
       let ty ← Dec.idx exprs "expr"
@@ -593,7 +634,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
           let hints ← match (← Dec.byte) with
             | 0 => pure ReducibilityHints.opaque
             | 1 => pure ReducibilityHints.abbrev
-            | 2 => do pure (ReducibilityHints.regular (← Dec.nat).toUInt32)
+            | 2 => do pure (ReducibilityHints.regular (← Dec.uv).toUInt32)
             | _ => throw "decode: bad hints"
           let safety ← match (← Dec.byte) with
             | 0 => pure DefinitionSafety.unsafe
@@ -638,7 +679,7 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
           let numIndices ← Dec.nat
           let numMotives ← Dec.nat
           let numMinors ← Dec.nat
-          let nrules ← Dec.nat
+          let nrules ← Dec.uv
           let mut rules := #[]
           for _ in [0:nrules] do
             let ctor ← Dec.idx refNames "ref"
@@ -654,7 +695,12 @@ def decodeGroup (buf : ByteArray) (unwire : UnwireCtx) (nameOf : Ref → Except 
     return out
   return { baseId, refs, members }
 
-/-- Content address of an encoded group. -/
-def groupIdOf (bytes : ByteArray) : String := Sha256.hashHex bytes
+/-- `H(domain, x)` of docs/p0-interfaces.md §1.2 for `x` already in PCE:
+`SHA-256("paralean\x00" ‖ domain ‖ "\x00" ‖ pce)`, as lowercase hex. -/
+def domainHash (domain : String) (pce : ByteArray) : String :=
+  Sha256.hashHex ("paralean\x00".toUTF8 ++ domain.toUTF8 ++ "\x00".toUTF8 ++ pce)
+
+/-- Group ID of an encoded group (§1.2 domain `v0/group`). -/
+def groupIdOf (bytes : ByteArray) : String := domainHash "v0/group" bytes
 
 end Paralean

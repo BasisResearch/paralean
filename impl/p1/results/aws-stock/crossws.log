@@ -1,0 +1,31 @@
+capture B:ws_b/B.lean
+  decl 57a57195 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=274
+  [reject:elab-error] ws_b/B.lean:7: ws_b/B.lean:8:6: error(lean.unknownIdentifier): Unknown identifier `helper`
+  [reject:elab-error] ws_b/B.lean:7: ws_b/B.lean:7:62: error: unsolved goals
+n : Nat
+⊢ helper_b (helper_b n) = n + 2
+  => 1 groups, 3 skipped, 2 diagnostics (2 reject)
+  [reject:elab-error] ws_b/B.lean:7: ws_b/B.lean:8:6: error(lean.unknownIdentifier): Unknown identifier `helper`
+  [reject:elab-error] ws_b/B.lean:7: ws_b/B.lean:7:62: error: unsolved goals
+n : Nat
+⊢ helper_b (helper_b n) = n + 2
+capture A:ws_a/A.lean
+  decl 9c547423 declaration L4 members=1 pub=1 realized=0 deps=1 fe=0 bytes=350
+prelude: 1/1 groups replayed with identical declaration IDs
+  => 1 groups, 3 skipped, 0 diagnostics (0 reject)
+capture B:ws_b/B.lean
+  decl 57a57195 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=274
+  prelude (deferred) 9c547423 ok
+  decl 73db30df declaration L7 members=1 pub=1 realized=0 deps=2 fe=0 bytes=536
+prelude: 1/1 groups replayed with identical declaration IDs
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+source replay: 3/3 groups reproduce their declaration ID (135 ms)
+kernel replay: 3/3 groups accepted; 3 declarations added, 0 reserved names re-realized (1 ms)
+isolated replay (exact deps only): 3/3
+export: 3 modules, 3 groups, 1517 bytes of source
+  ws_b.B: 1 groups; imports #[]
+  ws_a.A: 1 groups; imports #[ws_b.B]
+  ws_b.B.Part2: 1 groups; imports #[ws_a.A, ws_b.B]
+stock lake build: OK (538 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 0 effect-only groups (build-checked)
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":227,"median":202,"p95":227,"sum":608},"commandBytes":{"max":85,"median":60,"sum":182},"diagnostics":[],"encodingBytes":{"max":536,"median":350,"sum":1160},"groups":3,"ratio":{"p50":3.366667,"p95":4.837838},"rejected":0,"skipped":6}

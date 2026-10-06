@@ -1,17 +1,17 @@
 capture D:DiagMap.lean
-  effect a7b3b138 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl b76b5e02 declaration L6 members=1 pub=1 realized=0 deps=0 fe=0 bytes=270
-  decl 7b933bde declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=206
-  decl 9bb24cb8 declaration L11 members=1 pub=1 realized=0 deps=1 fe=0 bytes=387
-  decl 74211b9b declaration L13 members=1 pub=1 realized=0 deps=0 fe=0 bytes=290
-  decl 468a7c6e declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=405
-  decl 737a5e42 declaration L26 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1573
-  decl 267fc6b7 declaration L29 members=1 pub=1 realized=0 deps=2 fe=0 bytes=416
+  effect 4bde1e0c moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 4a5887e2 declaration L6 members=1 pub=1 realized=0 deps=0 fe=0 bytes=271
+  decl 28c93ed1 declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=175
+  decl 75bd0384 declaration L11 members=1 pub=1 realized=0 deps=1 fe=0 bytes=356
+  decl 6d3115e0 declaration L13 members=1 pub=1 realized=0 deps=0 fe=0 bytes=292
+  decl f76c2279 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=376
+  decl a1a83fff declaration L26 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1590
+  decl 9859f7f0 declaration L29 members=1 pub=1 realized=0 deps=2 fe=0 bytes=319
   => 8 groups, 6 skipped, 0 diagnostics (0 reject)
-source replay: 8/8 groups reproduce their declaration ID (219 ms)
+source replay: 8/8 groups reproduce their declaration ID (210 ms)
 kernel replay: 8/8 groups accepted; 15 declarations added, 0 reserved names re-realized (2 ms)
 isolated replay (exact deps only): 8/8
 export: 1 modules, 8 groups, 2129 bytes of source
   DiagMap: 8 groups; imports #[]
-stock lake build: OK (456 ms)
+stock lake build: OK (378 ms)
 verify: 7/7 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

@@ -1,67 +1,67 @@
 ### M14 Mathlib.Data.List.Defs
 capture M14:Mathlib/Data/List/Defs.lean
-  effect f7abe148 moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 9ace9a74 declaration L31 members=1 pub=1 realized=0 deps=0 fe=0 bytes=298
-  decl f0f7ad1c declaration L34 members=1 pub=1 realized=0 deps=0 fe=0 bytes=271
-  decl d9899c8a declaration L39 members=2 pub=1 realized=0 deps=0 fe=0 bytes=559
-  decl cc65be58 declaration L44 members=1 pub=1 realized=0 deps=1 fe=0 bytes=329
-  decl 283765a4 declaration L45 members=1 pub=1 realized=0 deps=1 fe=1 bytes=356
-  decl e0628a0a declaration L47 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2142
-  decl cc9772db declaration L54 members=1 pub=1 realized=0 deps=0 fe=2 bytes=276
-  decl 2345109b declaration L59 members=1 pub=1 realized=0 deps=0 fe=2 bytes=428
-  decl 39d0304c declaration L64 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1813
-  decl 1d354dbe declaration L80 members=1 pub=1 realized=0 deps=0 fe=2 bytes=253
-  decl cc81c77a declaration L86 members=1 pub=1 realized=0 deps=0 fe=2 bytes=254
-  decl 0085c240 declaration L98 members=1 pub=1 realized=0 deps=0 fe=2 bytes=622
-  decl 21703417 declaration L106 members=1 pub=1 realized=0 deps=0 fe=2 bytes=622
-  decl 04ae885a declaration L122 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1898
-  decl eeb64fdd declaration L127 members=1 pub=1 realized=0 deps=1 fe=2 bytes=450
-  decl f3b498df declaration L134 members=6 pub=1 realized=9 deps=1 fe=2 bytes=1918
-  decl db1075bd declaration L144 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2111
-  decl 2fd5f93f declaration L162 members=9 pub=1 realized=5 deps=0 fe=3 bytes=14399
-  decl 7fe550e7 declaration L173 members=1 pub=1 realized=0 deps=2 fe=3 bytes=640
-  decl c066c49c declaration L179 members=1 pub=1 realized=0 deps=1 fe=3 bytes=288
-  decl 70089b7d declaration L190 members=4 pub=1 realized=6 deps=1 fe=3 bytes=928
-  decl 1fe902ab declaration L209 members=4 pub=1 realized=3 deps=2 fe=3 bytes=879
-  decl 5a44d5c6 declaration L226 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1554
-  decl cb6dd1a2 declaration L236 members=1 pub=1 realized=0 deps=0 fe=0 bytes=289
-  decl 56a68843 declaration L240 members=1 pub=1 realized=0 deps=0 fe=5 bytes=336
-  decl c5c05441 declaration L251 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1374
-  decl 73cdb24f declaration L260 members=2 pub=1 realized=0 deps=1 fe=0 bytes=672
-  decl ee4a7499 declaration L271 members=11 pub=1 realized=0 deps=0 fe=0 bytes=6456
-  decl 627a0385 declaration L285 members=1 pub=1 realized=0 deps=1 fe=5 bytes=523
-  decl 2810a56d declaration L293 members=6 pub=1 realized=0 deps=1 fe=0 bytes=1714
-  decl 85f8a3dd declaration L310 members=5 pub=1 realized=8 deps=0 fe=5 bytes=2165
-  decl 1690e2ef declaration L329 members=1 pub=1 realized=0 deps=1 fe=5 bytes=450
-  decl 0f3db68b declaration L344 members=4 pub=1 realized=4 deps=1 fe=5 bytes=1440
-  decl f4b701be declaration L362 members=1 pub=1 realized=0 deps=1 fe=6 bytes=426
-  decl 4d982657 declaration L378 members=1 pub=1 realized=0 deps=0 fe=7 bytes=563
-  effect 92f79c6a moduleDoc L384 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl de071da9 declaration L393 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2861
-  decl 497fe303 declaration L398 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2820
-  decl 1455ba91 declaration L403 members=5 pub=1 realized=0 deps=1 fe=0 bytes=3446
-  decl c8629c73 declaration L408 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2235
-  decl d2f1769a declaration L417 members=5 pub=1 realized=6 deps=0 fe=7 bytes=982
-  decl 4211aa79 declaration L423 members=5 pub=2 realized=3 deps=1 fe=7 bytes=1057
-  decl e16bdd0e declaration L435 members=1 pub=1 realized=0 deps=2 fe=7 bytes=1712
-  decl ad90404f declaration L439 members=1 pub=1 realized=0 deps=3 fe=7 bytes=683
-  decl a6a36ac6 declaration L446 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1747
-  decl 48b266c3 declaration L454 members=3 pub=1 realized=0 deps=1 fe=9 bytes=2133
-  decl 77f0d89e declaration L461 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2377
-  decl e018ad37 declaration L470 members=3 pub=1 realized=0 deps=1 fe=10 bytes=3571
-  decl e3f9aba0 declaration L487 members=1 pub=1 realized=0 deps=0 fe=11 bytes=235
+  effect c9e6bb9d moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl af4a5af9 declaration L31 members=1 pub=1 realized=0 deps=0 fe=0 bytes=300
+  decl 0caecebe declaration L34 members=1 pub=1 realized=0 deps=0 fe=0 bytes=275
+  decl eb0a7041 declaration L39 members=2 pub=1 realized=0 deps=0 fe=0 bytes=565
+  decl 77d0a907 declaration L44 members=1 pub=1 realized=0 deps=1 fe=0 bytes=299
+  decl 9b8565e0 declaration L45 members=1 pub=1 realized=0 deps=1 fe=1 bytes=328
+  decl a7163595 declaration L47 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2155
+  decl 8b0f5b1e declaration L54 members=1 pub=1 realized=0 deps=0 fe=2 bytes=280
+  decl 586778ef declaration L59 members=1 pub=1 realized=0 deps=0 fe=2 bytes=433
+  decl 8eacd68d declaration L64 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1792
+  decl 437aa42f declaration L80 members=1 pub=1 realized=0 deps=0 fe=2 bytes=256
+  decl b8e8c374 declaration L86 members=1 pub=1 realized=0 deps=0 fe=2 bytes=257
+  decl 0b90e862 declaration L98 members=1 pub=1 realized=0 deps=0 fe=2 bytes=630
+  decl 72cc5eba declaration L106 members=1 pub=1 realized=0 deps=0 fe=2 bytes=630
+  decl 05972e94 declaration L122 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1910
+  decl 489fe87f declaration L127 members=1 pub=1 realized=0 deps=1 fe=2 bytes=422
+  decl de18cf1c declaration L134 members=6 pub=1 realized=9 deps=1 fe=2 bytes=1895
+  decl f7222252 declaration L144 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2125
+  decl 4d5064d1 declaration L162 members=9 pub=1 realized=5 deps=0 fe=3 bytes=14422
+  decl 9bd35f5d declaration L173 members=1 pub=1 realized=0 deps=2 fe=3 bytes=585
+  decl 87ff019a declaration L179 members=1 pub=1 realized=0 deps=1 fe=3 bytes=258
+  decl 83df793e declaration L190 members=4 pub=1 realized=6 deps=1 fe=3 bytes=903
+  decl 3a69cf04 declaration L209 members=4 pub=1 realized=3 deps=2 fe=3 bytes=820
+  decl 83801fa4 declaration L226 members=5 pub=1 realized=0 deps=1 fe=0 bytes=1532
+  decl 88301176 declaration L236 members=1 pub=1 realized=0 deps=0 fe=0 bytes=291
+  decl 0bcd6410 declaration L240 members=1 pub=1 realized=0 deps=0 fe=5 bytes=341
+  decl 03c605a6 declaration L251 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1385
+  decl 1bd72cc9 declaration L260 members=2 pub=1 realized=0 deps=1 fe=0 bytes=646
+  decl d791d72b declaration L271 members=11 pub=1 realized=0 deps=0 fe=0 bytes=6473
+  decl 8e27c93b declaration L285 members=1 pub=1 realized=0 deps=1 fe=5 bytes=497
+  decl b0f39a85 declaration L293 members=6 pub=1 realized=0 deps=1 fe=0 bytes=1694
+  decl 57dfb848 declaration L310 members=5 pub=1 realized=8 deps=0 fe=5 bytes=2177
+  decl 2db962ee declaration L329 members=1 pub=1 realized=0 deps=1 fe=5 bytes=424
+  decl f83c5667 declaration L344 members=4 pub=1 realized=4 deps=1 fe=5 bytes=1419
+  decl 5ff55726 declaration L362 members=1 pub=1 realized=0 deps=1 fe=6 bytes=400
+  decl 67f068c6 declaration L378 members=1 pub=1 realized=0 deps=0 fe=7 bytes=568
+  effect 188eabb3 moduleDoc L384 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl a771dc13 declaration L393 members=6 pub=1 realized=0 deps=0 fe=0 bytes=2875
+  decl 8373ab41 declaration L398 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2807
+  decl 3e4ccd6a declaration L403 members=5 pub=1 realized=0 deps=1 fe=0 bytes=3437
+  decl ccd1b8d1 declaration L408 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2251
+  decl c8821be3 declaration L417 members=5 pub=1 realized=6 deps=0 fe=7 bytes=989
+  decl f66d3341 declaration L423 members=5 pub=2 realized=3 deps=1 fe=7 bytes=1034
+  decl 434e637f declaration L435 members=1 pub=1 realized=0 deps=2 fe=7 bytes=1656
+  decl 76c66345 declaration L439 members=1 pub=1 realized=0 deps=3 fe=7 bytes=590
+  decl 59b0c5ce declaration L446 members=5 pub=1 realized=0 deps=0 fe=0 bytes=1759
+  decl 12eadc97 declaration L454 members=3 pub=1 realized=0 deps=1 fe=9 bytes=2115
+  decl 25b57687 declaration L461 members=5 pub=1 realized=0 deps=0 fe=0 bytes=2392
+  decl b0eac07b declaration L470 members=3 pub=1 realized=0 deps=1 fe=10 bytes=3558
+  decl 26e26fd7 declaration L487 members=1 pub=1 realized=0 deps=0 fe=11 bytes=237
   => 50 groups, 25 skipped, 3 diagnostics (0 reject)
   [note:provenance] Mathlib/Data/List/Defs.lean:134: _private.Mathlib.Data.List.Defs.0.List.Forall.match_1.splitter._sparseCasesOn_1 was created by realizeConst but is not spelled as a reserved name
   [note:provenance] Mathlib/Data/List/Defs.lean:162: _private.Mathlib.Data.List.Defs.0.PSigma.casesOn._arg_pusher was created by realizeConst but is not spelled as a reserved name
   [note:provenance] Mathlib/Data/List/Defs.lean:162: _private.Mathlib.Data.List.Defs.0.List.permutationsAux.rec.match_1._arg_pusher was created by realizeConst but is not spelled as a reserved name
-capture-time 1.15 s maxrss 676496 KB
-source replay: 50/50 groups reproduce their declaration ID (1394 ms)
+capture-time 1.35 s maxrss 666672 KB
+source replay: 50/50 groups reproduce their declaration ID (1616 ms)
 kernel replay: 50/50 groups accepted; 155 declarations added, 1 reserved names re-realized (50 ms)
 isolated replay (exact deps only): 50/50
-replay-time 7.71 s maxrss 675392 KB
+replay-time 9.00 s maxrss 670588 KB
 export: 1 modules, 50 groups, 29363 bytes of source
   Mathlib.ParaleanExport.Data.List.Defs: 50 groups; imports #[Batteries.Data.List.Basic, Batteries.Logic, Mathlib.Basic.SProd, Mathlib.Control.Functor, Mathlib.Data.Nat.Notation]
-stock lake build: OK (2882 ms)
+stock lake build: OK (3129 ms)
 verify: 48/48 declaration groups identical in the stock-built oleans; 2 effect-only groups (build-checked)
-export-time 5.12 s maxrss 1300292 KB
-STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1043,"median":514,"p95":953,"sum":28836},"commandBytes":{"max":744,"median":272,"sum":16403},"diagnostics":[["note:provenance",3]],"encodingBytes":{"max":14399,"median":879,"sum":75703},"groups":50,"ratio":{"p50":1.916667,"p95":3.242991},"rejected":0,"skipped":25}
+export-time 5.36 s maxrss 1292576 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1043,"median":514,"p95":953,"sum":28836},"commandBytes":{"max":744,"median":272,"sum":16403},"diagnostics":[["note:provenance",3]],"encodingBytes":{"max":14422,"median":820,"sum":75237},"groups":50,"ratio":{"p50":1.916667,"p95":3.242991},"rejected":0,"skipped":25}

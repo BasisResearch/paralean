@@ -18,9 +18,9 @@ export: 19 modules, 103 groups, 30703 bytes of source
   Fixtures.F13InitDecl: 4 groups; imports #[Lean]
   Fixtures.F13InitUse: 1 groups; imports #[]
   Fixtures.F13InitUse.Part1: 3 groups; imports #[Fixtures.F13InitDecl, Fixtures.F13InitUse, Fixtures.F10SimpAttrDecl]
-stock lake build: OK (3474 ms)
+stock lake build: OK (2867 ms)
 verify: 81/85 declaration groups identical in the stock-built oleans; 18 effect-only groups (build-checked)
-  [reject:export-mismatch] Fixtures/F10SimpAttrDecl.lean:4: stock-built group 5f2679c5c607 ≠ stored 31da7009bf11
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:6: stock-built group 5ab915b26522 ≠ stored 3e652944f7ad
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:8: stock-built group b678a03df925 ≠ stored c021e816bbaf
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:10: stock-built group 539f589531ed ≠ stored c372cfa908fd
+  [reject:export-mismatch] Fixtures/F10SimpAttrDecl.lean:4: stock-built group 1520c26827f6 ≠ stored 2cb453be7de5
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:6: stock-built group ceab74274d8b ≠ stored 9416a4c616b5
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:8: stock-built group f743b319265d ≠ stored 39c06086b391
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:10: stock-built group 1dc1224dc415 ≠ stored 2a61123b4b8f

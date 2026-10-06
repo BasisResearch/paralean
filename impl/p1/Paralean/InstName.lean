@@ -11,7 +11,7 @@ Scheme. An anonymous instance with final type `τ`, declared in namespace `ns`, 
 
 * `inst<Heads>` is Lean's own head-symbol base name (`NameGen.mkBaseNameWithSuffix "inst" τ`),
   with no project suffix and no `_n` deduplication. It keeps names readable and greppable.
-* `h` is the first 8 hex digits of `H("v0/insttype", canonTypeText τ)` (SHA-256 over the domain tag, a NUL byte and the text), an injective
+* `h` is the first 8 hex digits of `H("v0/insttype", canonTypeText τ)` (§1.2: SHA-256 over `"paralean" NUL "v0/insttype" NUL` and the PCE string of the text), an injective
   serialization of `τ` that ignores binder names and `mdata`, numbers universe parameters by
   first occurrence, and spells constants by their module-independent identity (`normName`:
   no `_private.<Module>.0` prefix, no `_pl_*` relocation component).
@@ -44,6 +44,20 @@ def hexDigits : Nat := 8
 
 /-- Domain tag of the digest (OPEN-24: `H("v0/insttype", type)`). -/
 def domainTag : String := "v0/insttype"
+
+/-- §1.1 `uvarint` (unsigned LEB128, minimal). -/
+def uvarint (n : Nat) : ByteArray := Id.run do
+  let mut out := ByteArray.empty
+  let mut k := n
+  while k ≥ 128 do
+    out := out.push ((k % 128).toUInt8 ||| 0x80)
+    k := k / 128
+  return out.push k.toUInt8
+
+/-- Preimage of `H("v0/insttype", text)` (p0-interfaces.md §1.2):
+`"paralean" NUL "v0/insttype" NUL ‖ PCE(text)`, where the PCE of a string is `uvarint len ‖ UTF-8`. -/
+def instTypePreimage (text : String) : ByteArray :=
+  "paralean\x00".toUTF8 ++ domainTag.toUTF8 ++ "\x00".toUTF8 ++ uvarint text.utf8ByteSize ++ text.toUTF8
 
 partial def levelText (lps : IO.Ref (Std.HashMap Name Nat)) : Level → IO String
   | .zero => pure "0"
@@ -95,7 +109,7 @@ def canonicalName (ty : Expr) : MetaM Name := do
   if suf != "" && s.endsWith suf && s != "inst" ++ suf then
     s := (s.dropEnd suf.length).toString
   let text ← canonTypeText main (← instantiateMVars ty)
-  let h := ((Sha256.hashHex (domainTag ++ "\x00" ++ text).toUTF8).take hexDigits).toString
+  let h := ((Sha256.hashHex (instTypePreimage text)).take hexDigits).toString
   return Name.mkSimple s!"{s}_{h}"
 
 /-- `instance` node of a `declaration` command, if it has no name and was written in the

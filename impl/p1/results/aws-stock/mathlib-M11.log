@@ -1,0 +1,25 @@
+### M11 Mathlib.Data.Ineq
+capture M11:Mathlib/Data/Ineq.lean
+  effect d9b95ae8 moduleDoc L10 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect e144bd07 moduleDoc L24 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl f475233c declaration L26 members=31 pub=11 realized=0 deps=0 fe=0 bytes=4065
+  decl c1bdfc58 declaration L34 members=3 pub=1 realized=0 deps=1 fe=0 bytes=1385
+  decl 621bc21c declaration L45 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2045
+  decl 23470389 declaration L54 members=2 pub=1 realized=0 deps=1 fe=0 bytes=614
+  decl c6b84d74 declaration L60 members=1 pub=1 realized=0 deps=2 fe=0 bytes=244
+  decl 0b129769 declaration L62 members=1 pub=1 realized=0 deps=2 fe=0 bytes=288
+  effect 533cd5d0 moduleDoc L66 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 09be05e1 declaration L71 members=2 pub=1 realized=0 deps=1 fe=0 bytes=2209
+  decl 768e00fa declaration L90 members=3 pub=1 realized=0 deps=2 fe=0 bytes=3102
+  => 11 groups, 9 skipped, 0 diagnostics (0 reject)
+capture-time 0.50 s maxrss 364412 KB
+source replay: 11/11 groups reproduce their declaration ID (337 ms)
+kernel replay: 11/11 groups accepted; 44 declarations added, 0 reserved names re-realized (8 ms)
+isolated replay (exact deps only): 11/11
+replay-time 0.97 s maxrss 370320 KB
+export: 1 modules, 11 groups, 5115 bytes of source
+  Mathlib.ParaleanExport.Data.Ineq: 11 groups; imports #[Mathlib.Lean.Expr.Basic]
+stock lake build: OK (2612 ms)
+verify: 8/8 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)
+export-time 4.94 s maxrss 882576 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":883,"median":376,"p95":883,"sum":4771},"commandBytes":{"max":663,"median":178,"sum":2555},"diagnostics":[],"encodingBytes":{"max":4065,"median":614,"sum":14177},"groups":11,"ratio":{"p50":2.140449,"p95":9.826087},"rejected":0,"skipped":9}

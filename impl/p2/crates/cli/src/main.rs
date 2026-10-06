@@ -25,7 +25,8 @@ const USAGE: &str = "usage: paralean-p2 <command> [args]
   discover                                      groups by certificates, heads and conflicts
   recover <workspace>                           enumerate the catalogue and select by certificates
   audit                                         whole-store invariant audit (exit 1 on violations)
-  import-p1 <p1-store-root>                     upload a P1 store's objects/*.grp as group payloads
+  check-p1 <p1-store-root>                      offline: P2's group ID of every objects/*.grp equals P1's declId
+  import-p1 <p1-store-root>                     check-p1, then upload them as group payloads (acked ID = declId)
   stress --worker I --ops N --seed S [--crash-p P] [--fault-p P]
                                                 random operations (multi-process tests)";
 
@@ -60,6 +61,38 @@ fn controller(store: &Store, kf: &KeyFile) -> R<Controller> {
 
 fn request_id() -> Vec<u8> {
     rand::random::<[u8; 16]>().to_vec()
+}
+
+/// P1 group objects of a P1 store (`objects/<declId>.grp`), each with P1's `declId` (the file
+/// name), P2's group ID `H("v0/group", bytes)` of the same bytes, and the bytes.
+fn p1_groups(root: &str) -> R<Vec<(String, Id, Vec<u8>)>> {
+    let dir = std::path::Path::new(root).join("objects");
+    let mut out = Vec::new();
+    for e in std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
+        let p = e.map_err(|e| e.to_string())?.path();
+        if p.extension().and_then(|x| x.to_str()) != Some("grp") {
+            continue;
+        }
+        let p1_id = p.file_stem().and_then(|x| x.to_str()).unwrap_or_default().to_string();
+        let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
+        out.push((p1_id, Domain::Group.hash(&bytes), bytes));
+    }
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(out)
+}
+
+/// Print one line per P1 group and return the number whose IDs differ.
+fn check_p1(groups: &[(String, Id, Vec<u8>)]) -> usize {
+    let mut bad = 0;
+    for (p1, p2, _) in groups {
+        if *p1 == p2.hex() {
+            println!("p1 {p1} = group:{}", p2.hex());
+        } else {
+            println!("MISMATCH p1 {p1} != group:{}", p2.hex());
+            bad += 1;
+        }
+    }
+    bad
 }
 
 fn kind(s: &str) -> R<Kind> {
@@ -190,22 +223,30 @@ async fn run(args: Vec<String>) -> R<ExitCode> {
             }
             println!("audit ok");
         }
-        ["import-p1", root] => {
-            let (st, _) = open(Faults::none())?;
-            let dir = std::path::Path::new(root).join("objects");
-            let mut n = 0;
-            for e in std::fs::read_dir(&dir).map_err(|e| format!("{}: {e}", dir.display()))? {
-                let p = e.map_err(|e| e.to_string())?.path();
-                if p.extension().and_then(|x| x.to_str()) != Some("grp") {
-                    continue;
-                }
-                let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
-                let p1_id = hex::encode(id::sha256(&bytes));
-                let ack = st.s3.put_opaque(&Opaque::new(Kind::Group, bytes)).await.map_err(es)?;
-                println!("p1 {p1_id} -> group:{}", ack.id().hex());
-                n += 1;
+        ["check-p1", root] => {
+            let groups = p1_groups(root)?;
+            let bad = check_p1(&groups);
+            println!("{} groups, {} with P1 declId = P2 group ID, {bad} mismatches", groups.len(), groups.len() - bad);
+            if bad > 0 || groups.is_empty() {
+                return Ok(ExitCode::from(1));
             }
-            println!("imported {n} groups");
+        }
+        ["import-p1", root] => {
+            let groups = p1_groups(root)?;
+            let bad = check_p1(&groups);
+            if bad > 0 {
+                println!("{bad} mismatches; nothing imported");
+                return Ok(ExitCode::from(1));
+            }
+            let (st, _) = open(Faults::none())?;
+            for (p1, _, bytes) in groups.iter() {
+                let ack = st.s3.put_opaque(&Opaque::new(Kind::Group, bytes.clone())).await.map_err(es)?;
+                if ack.id().hex() != *p1 {
+                    println!("MISMATCH acked group:{} for p1 {p1}", ack.id().hex());
+                    return Ok(ExitCode::from(1));
+                }
+            }
+            println!("imported {} groups; every acknowledged group ID equals P1's declId", groups.len());
         }
         ["stress", rest @ ..] => return stress(rest).await,
         _ => {

@@ -1,27 +1,27 @@
 ### M17 Mathlib.Tactic.Attr.Register
 capture M17:Mathlib/Tactic/Attr/Register.lean
-  effect 7678c32b moduleDoc L13 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect 1db772c4 registerSimpAttr L25 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1547
-  effect 6f2b610a registerSimpAttr L35 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1537
-  effect c8c0743a registerSimpAttr L38 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1558
-  effect 33cd67eb registerSimpAttr L41 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1562
-  effect 7052d10d registerSimpAttr L44 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1620
-  effect a73d633a registerSimpAttr L48 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1650
-  effect 616263f6 registerSimpAttr L52 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1644
-  effect 412d0aef registerSimpAttr L56 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1745
-  effect 3bfb1f9d registerSimpAttr L65 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1730
-  effect 8f86853c registerSimpAttr L74 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2115
-  effect 30ad4962 registerSimpAttr L88 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1558
-  effect 2cbff6dd registerSimpAttr L91 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1557
-  effect 41d2532a registerSimpAttr L94 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1556
-  effect 942e3121 registerSimpAttr L97 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1741
-  effect 11ccbfac registerLabelAttr L102 members=3 pub=1 realized=0 deps=0 fe=0 bytes=614
-  effect 0108cd98 registerSimpAttr L105 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1559
-  effect 21f4edc2 registerSimpAttr L108 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1607
-  effect c5977917 registerSimpAttr L111 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1607
-  effect 750cbf9f registerSimpAttr L114 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1575
-  effect 1deed009 registerSimpAttr L117 members=6 pub=2 realized=0 deps=0 fe=0 bytes=3631
-  effect 1ca8667d registerSimpAttr L154 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2840
+  effect e4959a28 moduleDoc L13 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect 175b00b5 registerSimpAttr L25 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1539
+  effect 634b2c98 registerSimpAttr L35 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1529
+  effect 56f30b03 registerSimpAttr L38 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1550
+  effect 6f74016f registerSimpAttr L41 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1554
+  effect 2e130022 registerSimpAttr L44 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1613
+  effect fe7b6fc0 registerSimpAttr L48 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1642
+  effect af4c88d4 registerSimpAttr L52 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1636
+  effect 14bf5deb registerSimpAttr L56 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1737
+  effect 2a650555 registerSimpAttr L65 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1722
+  effect 1e6e7c6b registerSimpAttr L74 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2108
+  effect 8343bc84 registerSimpAttr L88 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1550
+  effect cbf22249 registerSimpAttr L91 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1549
+  effect 0013a3a6 registerSimpAttr L94 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1548
+  effect 5bf63eb9 registerSimpAttr L97 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1733
+  effect 791f8cb0 registerLabelAttr L102 members=3 pub=1 realized=0 deps=0 fe=0 bytes=613
+  effect 27fcd3cb registerSimpAttr L105 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1551
+  effect 39069392 registerSimpAttr L108 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1599
+  effect 72ba328c registerSimpAttr L111 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1600
+  effect 503fe87c registerSimpAttr L114 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1567
+  effect 6abc9bf9 registerSimpAttr L117 members=6 pub=2 realized=0 deps=0 fe=0 bytes=3623
+  effect 600ae6e6 registerSimpAttr L154 members=6 pub=2 realized=0 deps=0 fe=0 bytes=2834
   => 22 groups, 2 skipped, 40 diagnostics (0 reject)
   [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:25: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2336186397._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
   [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:25: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.2336186397._hygCtx._hyg.28 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
@@ -63,9 +63,9 @@ capture M17:Mathlib/Tactic/Attr/Register.lean
   [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:117: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.3059584346._hygCtx._hyg.28 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
   [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:154: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.85691930._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
   [unsupported:module-dependent-literal] Mathlib/Tactic/Attr/Register.lean:154: _private.Mathlib.Tactic.Attr.Register.0.initFn._@.Mathlib.Tactic.Attr.Register.85691930._hygCtx._hyg.28 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
-capture-time 0.74 s maxrss 628916 KB
+capture-time 0.81 s maxrss 620632 KB
 materialized: 21 initializer groups imported as stock-built modules
-source replay: 22/22 groups reproduce their declaration ID (3359 ms)
+source replay: 22/22 groups reproduce their declaration ID (3232 ms)
   [info:materialized] Mathlib/Tactic/Attr/Register.lean:25: initializer group imported as a stock-built module
   [info:materialized] Mathlib/Tactic/Attr/Register.lean:35: initializer group imported as a stock-built module
   [info:materialized] Mathlib/Tactic/Attr/Register.lean:38: initializer group imported as a stock-built module
@@ -89,32 +89,32 @@ source replay: 22/22 groups reproduce their declaration ID (3359 ms)
   [info:materialized] Mathlib/Tactic/Attr/Register.lean:154: initializer group imported as a stock-built module
 kernel replay: 22/22 groups accepted; 0 declarations added, 0 reserved names re-realized (0 ms)
 isolated replay (exact deps only): 22/22
-replay-time 62.55 s maxrss 1626752 KB
+replay-time 60.45 s maxrss 1620064 KB
 export: 1 modules, 22 groups, 10620 bytes of source
   Mathlib.ParaleanExport.Tactic.Attr.Register: 22 groups; imports #[Mathlib.Init, Lean.LabelAttribute, Lean.Meta.Tactic.Simp]
-stock lake build: OK (2307 ms)
+stock lake build: OK (2277 ms)
 verify: 0/21 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:25: stock-built group 1d624f6031d2 ≠ stored fba3acea5183
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:35: stock-built group 970c555ef5d0 ≠ stored 2b39f43f2dfd
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:38: stock-built group e6d9248f107e ≠ stored 14ef9465b925
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:41: stock-built group f920773a41a7 ≠ stored 43f871e9c959
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:44: stock-built group 5e40b6b692be ≠ stored 46df8e472381
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:48: stock-built group 6f58879ad6a1 ≠ stored da28f99a500d
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:52: stock-built group 5cc81f202004 ≠ stored 4fadb520e4e8
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:56: stock-built group 38fdd01daa72 ≠ stored f052fa481b9b
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:65: stock-built group 2d05bef45389 ≠ stored 3c9fd288b875
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:74: stock-built group b26a1467b2d7 ≠ stored 14151fc388d4
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:88: stock-built group b8731469f7ef ≠ stored 8f09410eb383
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:91: stock-built group 60316fa85ea3 ≠ stored 9eef58d6060e
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:94: stock-built group 5c4d1fea7d10 ≠ stored de725b3ad0d8
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:97: stock-built group 5cf06dbafac6 ≠ stored 2f02b8da73af
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:102: stock-built group 11b7eabc5530 ≠ stored 5721a7fd9473
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:105: stock-built group 70992285fc8e ≠ stored 6ca5b99abbd3
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:108: stock-built group 4df00ec5d1cd ≠ stored 2b2318f16a52
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:111: stock-built group d459ca7a7e31 ≠ stored ed792d6ecc2f
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:114: stock-built group 6ec6f7a3ce84 ≠ stored d99262519d12
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:117: stock-built group 8c29533130f5 ≠ stored c2cf585985cb
-  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:154: stock-built group dcc2097401f4 ≠ stored 0db86b7553f6
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:25: stock-built group 61a0454e2947 ≠ stored 1fc1c8d00d65
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:35: stock-built group 8e2387a318cf ≠ stored 1cf56b00ced9
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:38: stock-built group 89f86e1329d3 ≠ stored e3f52307c62e
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:41: stock-built group 15cd8ac11fb8 ≠ stored 718729f4f0ff
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:44: stock-built group 09de4eddfa63 ≠ stored 821cf20e1248
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:48: stock-built group 54416581c2aa ≠ stored 550bd9dd3a29
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:52: stock-built group 7a745661d364 ≠ stored 8b58bc1ebcc4
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:56: stock-built group 1e7cb1b22d14 ≠ stored 76bc1d27426f
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:65: stock-built group 8bac613682ed ≠ stored 2c0629b454ef
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:74: stock-built group 7473ae401db6 ≠ stored 5e23deb485b9
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:88: stock-built group a18510cb75ba ≠ stored 86412684bb7d
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:91: stock-built group b87003720c0e ≠ stored 367660e5ac8f
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:94: stock-built group 2cac4e6bdfd7 ≠ stored 6c54910efcb2
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:97: stock-built group d2189058fafd ≠ stored 73ee6b1c08bc
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:102: stock-built group a373f7cff8a0 ≠ stored a6cc8eeeb925
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:105: stock-built group 51f5959dc6d4 ≠ stored 5a696ba965b3
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:108: stock-built group f62765dbd0aa ≠ stored 9baee81fe330
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:111: stock-built group 0a433b1394cb ≠ stored fc1435809c62
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:114: stock-built group 84c2e463bf37 ≠ stored 5755d7397d23
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:117: stock-built group 503913638a03 ≠ stored d1d1eb169a8a
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:154: stock-built group c2567b836d4d ≠ stored 70e83472f9e5
 Command exited with non-zero status 1
-export-time 4.22 s maxrss 1256004 KB
-STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2317,"median":271,"p95":1512,"sum":10167},"commandBytes":{"max":2161,"median":115,"sum":6776},"diagnostics":[["unsupported:module-dependent-literal",40]],"encodingBytes":{"max":3631,"median":1607,"sum":36627},"groups":22,"ratio":{"p50":2.368421,"p95":3.363636},"rejected":0,"skipped":2}
+export-time 4.07 s maxrss 1249324 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":2317,"median":271,"p95":1512,"sum":10167},"commandBytes":{"max":2161,"median":115,"sum":6776},"diagnostics":[["unsupported:module-dependent-literal",40]],"encodingBytes":{"max":3623,"median":1599,"sum":36472},"groups":22,"ratio":{"p50":2.368421,"p95":3.363636},"rejected":0,"skipped":2}

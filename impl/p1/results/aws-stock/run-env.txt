@@ -1,0 +1,4 @@
+host: Linux 7.0.0-1012-aws x86_64
+lean: 193c3589a4fc16c4059261ab38cfa365eb24f323 (PARALEAN_LEAN=stock; leanprover/lean4-nightly:nightly-2026-10-03)
+fork hooks: all available
+date: 2026-10-06T14:39:05Z

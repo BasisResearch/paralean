@@ -1,4 +1,4 @@
-From 63380ffaac81086e0a55feb6a45a763a619b092b Mon Sep 17 00:00:00 2001
+From dfc13cc6be6563cc399d306887c2d8df294e001c Mon Sep 17 00:00:00 2001
 From: Kiran Gopinathan <kiran@basis.ai>
 Date: Tue, 6 Oct 2026 01:00:46 +0000
 Subject: [PATCH 6/6] feat: Paralean hook 5, canonical instance names
@@ -7,8 +7,10 @@ Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 
 With `canonicalInstNames`, instances the elaborator names are named
-`<stock base without project suffix>_<first 8 hex of SHA-256("v0/insttype" NUL text(τ))>`
-for their final type τ, never deduplicated with `_n` (a clash is an error):
+`<stock base without project suffix>_<first 8 hex of H("v0/insttype", text(τ))>`
+for their final type τ, where H is Paralean's domain-separated hash
+(SHA-256 of "paralean" NUL "v0/insttype" NUL ‖ uvarint length ‖ UTF-8 text),
+never deduplicated with `_n` (a clash is an error):
 
 * `instance` without a name (`elabDeclaration`): the name predicted from the
   header is used, checked against the final type, and the command is elaborated
@@ -22,13 +24,13 @@ Every choice is logged with the stock name (`Lean.Paralean.takeInstNameLog`).
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 ---
  src/Lean.lean                             |   1 +
- src/Lean/Elab/Declaration.lean            |  47 +++-
+ src/Lean/Elab/Declaration.lean            |  47 ++-
  src/Lean/Elab/Deriving/Basic.lean         |  57 +++-
  src/Lean/Elab/Deriving/Util.lean          |  12 +-
- src/Lean/Paralean/InstName.lean           | 321 ++++++++++++++++++++++
- tests/elab/paraleanInstNames.lean         | 107 ++++++++
+ src/Lean/Paralean/InstName.lean           | 337 ++++++++++++++++++++++
+ tests/elab/paraleanInstNames.lean         | 105 +++++++
  tests/elab/paraleanInstNames.lean.init.sh |   2 +
- 7 files changed, 544 insertions(+), 3 deletions(-)
+ 7 files changed, 558 insertions(+), 3 deletions(-)
  create mode 100644 src/Lean/Paralean/InstName.lean
  create mode 100644 tests/elab/paraleanInstNames.lean
  create mode 100644 tests/elab/paraleanInstNames.lean.init.sh
@@ -241,10 +243,10 @@ index 3d3bf9c..c764553 100644
    let indVal ← getConstInfoInduct typeName
 diff --git a/src/Lean/Paralean/InstName.lean b/src/Lean/Paralean/InstName.lean
 new file mode 100644
-index 0000000..d295430
+index 0000000..af4461c
 --- /dev/null
 +++ b/src/Lean/Paralean/InstName.lean
-@@ -0,0 +1,321 @@
+@@ -0,0 +1,337 @@
 +/-
 +Copyright (c) 2026 Basis Research Institute. All rights reserved.
 +Released under Apache 2.0 license as described in the file LICENSE.
@@ -270,7 +272,9 @@ index 0000000..d295430
 +
 +* `inst<Heads>` is Lean's head-symbol base name (`NameGen.mkBaseNameWithSuffix "inst" τ`) without
 +  the project suffix and without `_n` deduplication;
-+* `h` is the first 8 hex digits of SHA-256 over `"v0/insttype"`, a NUL byte and `canonTypeText τ`,
++* `h` is the first 8 hex digits of `H("v0/insttype", canonTypeText τ)` (Paralean's
++  docs/p0-interfaces.md §1.2: SHA-256 over `"paralean" NUL "v0/insttype" NUL` and the PCE
++  string of the text, `uvarint length ‖ UTF-8`),
 +  an injective text of `τ` that erases binder names and `mdata`, keeps binder kinds, numbers
 +  universe parameters by first occurrence and spells constants by their module-independent identity
 +  (`normName`).
@@ -405,6 +409,20 @@ index 0000000..d295430
 +/-- Domain tag of the type digest (OPEN-24: `H("v0/insttype", type)`). -/
 +def instTypeDomainTag : String := "v0/insttype"
 +
++/-- PCE `uvarint` (unsigned LEB128, minimal). -/
++private def uvarint (n : Nat) : ByteArray := Id.run do
++  let mut out := ByteArray.empty
++  let mut k := n
++  while k ≥ 128 do
++    out := out.push ((k % 128).toUInt8 ||| 0x80)
++    k := k / 128
++  return out.push k.toUInt8
++
++/-- Preimage of `H("v0/insttype", text)`: `"paralean" NUL "v0/insttype" NUL ‖ uvarint len ‖ UTF-8`. -/
++def instTypePreimage (text : String) : ByteArray :=
++  "paralean\x00".toUTF8 ++ instTypeDomainTag.toUTF8 ++ "\x00".toUTF8 ++
++    uvarint text.utf8ByteSize ++ text.toUTF8
++
 +private abbrev TextM := StateM (Std.HashMap Name Nat)
 +
 +private def levelText : Level → TextM String
@@ -463,7 +481,7 @@ index 0000000..d295430
 +  if suf != "" && s.endsWith suf && s != "inst" ++ suf then
 +    s := (s.dropEnd suf.length).toString
 +  let text := canonTypeText main (← instantiateMVars ty)
-+  let h := ((Sha256.hashHex (instTypeDomainTag ++ "\x00" ++ text).toUTF8).take instHashDigits).toString
++  let h := ((Sha256.hashHex (instTypePreimage text)).take instHashDigits).toString
 +  return Name.mkSimple s!"{s}_{h}"
 +
 +/-! ## Record of the names chosen -/
@@ -568,15 +586,15 @@ index 0000000..d295430
 +end Lean.Paralean
 diff --git a/tests/elab/paraleanInstNames.lean b/tests/elab/paraleanInstNames.lean
 new file mode 100644
-index 0000000..6e42cc6
+index 0000000..ee259bb
 --- /dev/null
 +++ b/tests/elab/paraleanInstNames.lean
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,105 @@
 +import Lean
 +
 +/-!
 +Paralean hook 5: with `LEAN_PARALEAN`, instances the elaborator names get canonical names
-+`<stock base>_<8 hex of SHA-256("v0/insttype" NUL text(type))>`: anonymous `instance`s, deriving
++`<stock base>_<8 hex of H("v0/insttype", text(type))>` (SHA-256 of `"paralean" NUL "v0/insttype" NUL ‖ PCE(text)`): anonymous `instance`s, deriving
 +handlers (`mkInstName`) and delta deriving. Names never take a `_n` suffix; a second instance of
 +the same type is a collision.
 +-/
@@ -614,65 +632,63 @@ index 0000000..6e42cc6
 +  return names.filter (fun n => (env.getModuleIdxFor? n).isNone && !n.isInternal) |>.toArray.qsort Name.lt
 +
 +/--
-+info: [instBEqBox_da01943a,
-+ instBEqColor_537e1cd8,
-+ instDecidableEqColor_6d84891d,
-+ instFooList_1a45524d,
-+ instFooNat_4769696d,
-+ instFooOption_bf4c1003,
-+ instHashableColor_4d8304f7,
-+ instInhabitedMyNat_4cb1727d,
-+ instInhabitedULiftNat_2672ce46,
-+ instInhabitedULiftNat_ad3bb490,
-+ instOrdColor_8d3325d0,
-+ instReprBox_3eee15de,
-+ instReprColor_483d3a61]
++info: [instBEqBox_cebe9d10,
++ instBEqColor_66baa0d4,
++ instDecidableEqColor_2b9ec6f5,
++ instFooList_70b5f0bb,
++ instFooNat_c7b916fb,
++ instFooOption_bc12a9e6,
++ instHashableColor_aaa7160b,
++ instInhabitedMyNat_21b31b6f,
++ instInhabitedULiftNat_06ff4481,
++ instInhabitedULiftNat_92742698,
++ instOrdColor_6e5d2c45,
++ instReprBox_4eb02076,
++ instReprColor_1139f21f]
 +-/
 +#guard_msgs in
 +run_cmd logInfo m!"{← instNames}"
 +
 +-- deriving auxiliaries follow the canonical name
 +/--
-+info: @[instance_reducible] def instReprColor_483d3a61 : Repr Color :=
-+{ reprPrec := instReprColor_483d3a61.repr }
++info: @[instance_reducible] def instReprColor_1139f21f : Repr Color :=
++{ reprPrec := instReprColor_1139f21f.repr }
 +-/
 +#guard_msgs in
-+#print instReprColor_483d3a61
++#print instReprColor_1139f21f
 +
-+-- a duplicate instance is a collision, not `instFooNat_4769696d_1`
-+/--
-+error: instance name collision: instFooNat_4769696d is already declared (a duplicate instance of the same type; canonical instance names never take a `_n` suffix)
-+-/
++-- a duplicate instance is a collision, not `instFooNat_c7b916fb_1`
++/-- error: instance name collision: instFooNat_c7b916fb is already declared (a duplicate instance of the same type; canonical instance names never take a `_n` suffix) -/
 +#guard_msgs in
 +instance : Foo Nat := ⟨1⟩
 +
 +-- every choice is recorded for the host, with the stock name
 +/--
-+info: instBEqBox_da01943a stock=instBEqBox passes=2 derived=true
++info: instBEqBox_cebe9d10 stock=instBEqBox passes=2 derived=true
 +---
-+info: instBEqColor_537e1cd8 stock=instBEqColor passes=2 derived=true
++info: instBEqColor_66baa0d4 stock=instBEqColor passes=2 derived=true
 +---
-+info: instDecidableEqColor_6d84891d stock=instDecidableEqColor passes=1 derived=false
++info: instDecidableEqColor_2b9ec6f5 stock=instDecidableEqColor passes=1 derived=false
 +---
-+info: instFooList_1a45524d stock=instFooList passes=1 derived=false
++info: instFooList_70b5f0bb stock=instFooList passes=1 derived=false
 +---
-+info: instFooNat_4769696d stock=instFooNat passes=1 derived=false
++info: instFooNat_c7b916fb stock=instFooNat passes=1 derived=false
 +---
-+info: instFooOption_bf4c1003 stock=instFooOption passes=1 derived=false
++info: instFooOption_bc12a9e6 stock=instFooOption passes=1 derived=false
 +---
-+info: instHashableColor_4d8304f7 stock=instHashableColor passes=2 derived=true
++info: instHashableColor_aaa7160b stock=instHashableColor passes=2 derived=true
 +---
-+info: instInhabitedMyNat_4cb1727d stock=instInhabitedMyNat passes=1 derived=true
++info: instInhabitedMyNat_21b31b6f stock=instInhabitedMyNat passes=1 derived=true
 +---
-+info: instInhabitedULiftNat_2672ce46 stock=instInhabitedULiftNat_elab passes=1 derived=false
++info: instInhabitedULiftNat_06ff4481 stock=instInhabitedULiftNat_elab passes=1 derived=false
 +---
-+info: instInhabitedULiftNat_ad3bb490 stock=instInhabitedULiftNat_elab passes=1 derived=false
++info: instInhabitedULiftNat_92742698 stock=instInhabitedULiftNat_elab passes=1 derived=false
 +---
-+info: instOrdColor_8d3325d0 stock=instOrdColor passes=2 derived=true
++info: instOrdColor_6e5d2c45 stock=instOrdColor passes=2 derived=true
 +---
-+info: instReprBox_3eee15de stock=instReprBox passes=2 derived=true
++info: instReprBox_4eb02076 stock=instReprBox passes=2 derived=true
 +---
-+info: instReprColor_483d3a61 stock=instReprColor passes=2 derived=true
++info: instReprColor_1139f21f stock=instReprColor passes=2 derived=true
 +-/
 +#guard_msgs in
 +run_cmd do

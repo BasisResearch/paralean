@@ -20,8 +20,10 @@ Garage 2.4.1 (replication 1, consistent mode) behind `s3-guard`.
 - FDB process kill (`scripts/fdb-kill-test.sh`): fdbserver SIGKILLed with 4 stress
   workers running, restarted after 4 s; every worker resolved its in-flight transactions
   (FDB errors retried, including real `commit_unknown_result`) and finished; audit clean.
-- SHA-256 golden vectors computed by running P1's `Sha256.lean` with P1's toolchain
-  (`scripts/p1-golden.sh`) match the Rust implementation, including a §1.2 preimage.
+- SHA-256 golden vectors computed by running P1's `Sha256.lean` with P1's toolchain match
+  the Rust implementation, including a §1.2 preimage (`id::tests::matches_p1_lean_sha256`).
+  Since deviation 10 was fixed, `scripts/p1-golden.sh` checks P1's group IDs against P2's
+  for whole P1 stores instead (below).
 
 ## Fault-injection findings
 
@@ -79,10 +81,16 @@ in P1.
    community binaries are no longer distributed. Garage has no bucket policy or Object
    Lock, so deletes are refused by the `s3-guard` gateway; app credentials hitting Garage's
    port directly could still delete.
-10. P1 deviates from §1.2: P1 group IDs are SHA-256 of the raw `paralean-group-v2` bytes
-    (no `"paralean\0v0/group\0"` prefix), and `H("v0/insttype")` omits the prefix. P1 also
-    encodes Lean `Nat` as LEB128, not §1.1 big-endian `nat`. P2 follows §1.2/§1.1; P2's
-    group ID of a P1 group differs from P1's `declId` (`import-p1` prints both).
+10. **Fixed (2026-10-06, branch `p1-encoding`).** P1 deviated from §1.2: P1 group IDs were
+    SHA-256 of the raw `paralean-group-v2` bytes (no `"paralean\0v0/group\0"` prefix), and
+    `H("v0/insttype")` omitted the prefix. P1 also encoded Lean `Nat` as LEB128, not §1.1
+    big-endian `nat`. P1 now uses `H(domain, PCE(x))` for every ID it computes (`v0/group`,
+    `v0/capsule`, `v0/package`, `v0/marker`, `v0/insttype`; the fork's instance hash too) and
+    encoding `paralean-group-v3` with §1.1 `nat` for Lean `Nat` values
+    ([p1-interface-notes.md](p1-interface-notes.md) §7). `import-p1` and the new offline
+    `check-p1` require P2's group ID to equal P1's `declId` for every group (they did for all
+    groups of the P1 gate stores; numbers in [fork-log.md](fork-log.md)), and
+    `scripts/p1-golden.sh` is that equality check.
 
 ## Not done
 
