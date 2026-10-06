@@ -173,6 +173,15 @@ impl Faults {
         self.state.lock().unwrap().crash_points.push((label.to_string(), skip));
     }
 
+    /// Drop every pending one-shot rule (random mode is unaffected).
+    pub fn clear_rules(&self) {
+        let mut s = self.state.lock().unwrap();
+        s.commit.clear();
+        s.put.clear();
+        s.get.clear();
+        s.crash_points.clear();
+    }
+
     pub fn stats(&self) -> BTreeMap<String, u64> {
         self.state.lock().unwrap().stats.clone()
     }

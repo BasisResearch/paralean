@@ -453,6 +453,29 @@ impl Meta {
         .await
     }
 
+    /// Mutation support only (`mutate-cert-outside-publish`): write a certificate with no
+    /// guard, as the lagging design's separate certificate transaction.
+    #[cfg(feature = "mutate-cert-outside-publish")]
+    pub(crate) async fn t2_raw_cert(&self, group: Id, writer: WorkspaceId, cert: Vec<u8>) -> Result<bool> {
+        let key = self.keys.cert(&group, &writer);
+        let cert = Arc::new(cert);
+        self.run(
+            Txn::T2Certify,
+            Box::new(move |trx| {
+                let (key, cert) = (key.clone(), cert.clone());
+                Box::pin(async move {
+                    trx.set(&key, &cert);
+                    Ok(Step::Commit(true))
+                })
+            }),
+        )
+        .await
+    }
+    #[cfg(not(feature = "mutate-cert-outside-publish"))]
+    pub(crate) async fn t2_raw_cert(&self, _: Id, _: WorkspaceId, _: Vec<u8>) -> Result<bool> {
+        unreachable!()
+    }
+
     // ============================================================ T3 rotate
 
     /// Read-modify-write of `fence` (never an atomic add), writing `token/<k+1>` and the
@@ -657,7 +680,7 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     let ck = k.cert(&a.group, &a.writer);
     if let Some(v) = get(trx, &mk).await? {
         let existing = envelope_object_id(&v)?;
-        if existing == a.marker_id && get(trx, &ck).await?.is_some() {
+        if existing == a.marker_id && (cfg!(feature = "mutate-cert-outside-publish") || get(trx, &ck).await?.is_some()) {
             return Ok(Step::Done(PublishOutcome { marker: a.marker_id, fresh: false }));
         }
         return Err(GuardFailure::AlreadyPublished { group: a.group, existing }.into());
@@ -668,13 +691,13 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
             return Err(GuardFailure::NoTargetRecord(t.name.clone()).into());
         };
         let rec = TargetRecord::from_pce(&v)?;
-        if rec.owner != a.writer {
+        if rec.owner != a.writer && !cfg!(feature = "mutate-no-owner-check") {
             return Err(GuardFailure::NotOwner { name: t.name.clone() }.into());
         }
-        if rec.epoch != t.epoch {
+        if rec.epoch != t.epoch && !cfg!(feature = "mutate-no-epoch-fence") {
             return Err(GuardFailure::StaleEpoch { name: t.name.clone(), prepared: t.epoch, current: rec.epoch }.into());
         }
-        if rec.head != t.head {
+        if rec.head != t.head && !cfg!(feature = "mutate-no-head-cas") {
             return Err(GuardFailure::HeadMoved { name: t.name.clone(), prepared: t.head, current: rec.head }.into());
         }
         let Some((_, rev, _)) = a.revisions.iter().find(|(_, r, _)| r.name == t.name) else {
@@ -713,7 +736,9 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
         rec.head = Some(*rid);
         trx.set(&tk, &rec.to_pce());
     }
-    trx.set(&ck, &a.cert_value);
+    if !cfg!(feature = "mutate-cert-outside-publish") {
+        trx.set(&ck, &a.cert_value);
+    }
     Ok(Step::Commit(PublishOutcome { marker: a.marker_id, fresh: true }))
 }
 
@@ -743,7 +768,7 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
         None => 0,
         Some(v) => dec_u64(&v)?,
     };
-    if rec.token.rank != fence {
+    if rec.token.rank != fence && !(commit && cfg!(feature = "mutate-unfenced-commit")) {
         return Err(GuardFailure::StaleToken { rank: rec.token.rank, fence }.into());
     }
     match get(trx, &k.token(rec.token.rank)).await? {
@@ -756,7 +781,7 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
             return Err(GuardFailure::ManifestUncertified(rec.snapshot).into());
         }
         // Every parent is committed: its commit and manifest certificates exist.
-        if let Some(p) = rec.predecessor {
+        if let Some(p) = rec.predecessor.filter(|_| !cfg!(feature = "mutate-no-parent-check")) {
             if get(trx, &k.rcert(&p)).await?.is_none() {
                 return Err(GuardFailure::ParentUncommitted(p).into());
             }

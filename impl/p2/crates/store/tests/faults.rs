@@ -46,6 +46,28 @@ async fn crash_between_payload_and_metadata_then_restart() {
     }
 }
 
+/// TLA `target_stranded_head` / `cert_stranded_publication`: the publisher dies right
+/// after its publication. Its certificate was written by the publication itself, so the
+/// head stays discoverable and the new owner can revise it. (Under the lagging design,
+/// `--features mutate-cert-outside-publish`, this test must fail.)
+#[tokio::test]
+async fn publisher_crash_right_after_publish_leaves_head_discoverable() {
+    let e = Env::new("fi-stranded", 2);
+    e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
+    let faults = Faults::none();
+    faults.crash_at("publish:before-cert", 0);
+    let p = e.prepare(0, &x(), "p1", 1).await.unwrap();
+    let _ = e.writer_with(0, faults).publish(&p).await; // dies after T1, if the point exists
+    e.ctl.reassign(&x(), e.w[1].id, b"handover").await.unwrap();
+    let d = discover(&e.store).await.unwrap();
+    assert_eq!(d.heads.get(&x()), Some(&vec![rev_id(&p)]), "the recorded head is discoverable");
+    let a = paralean_store::audit::audit(&e.store).await.unwrap();
+    assert!(a.uncertified_markers.is_empty(), "published group without a certificate: {:?}", a.uncertified_markers);
+    let p2 = e.prepare(1, &x(), "p2", 2).await.unwrap();
+    e.w[1].publish(&p2).await.unwrap();
+    e.audit_ok().await;
+}
+
 #[tokio::test]
 async fn crash_during_checkpoint_then_retry() {
     let e = Env::new("fi-crash-cp", 1);

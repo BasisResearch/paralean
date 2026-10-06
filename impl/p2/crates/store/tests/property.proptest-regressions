@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc d3f0e1c1fff8ddfec6b99850cb68acbaec10ca8b6844ff744e4bc9861e7bc559 # shrinks to ops = [(Rotate { to: 1 }, None), (PublishFree { w: 1 }, None), (Prepare { w: 0, t: 0 }, None), (Commit { w: 1 }, InterleaveRotate(0))]

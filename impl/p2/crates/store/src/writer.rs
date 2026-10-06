@@ -121,7 +121,15 @@ impl Writer {
             targets: p.targets.clone(),
             cert_value: cert.to_bytes(),
         };
-        self.store.meta.t1_publish(Arc::new(args)).await
+        let _ = &cert;
+        let out = self.store.meta.t1_publish(Arc::new(args)).await?;
+        if cfg!(feature = "mutate-cert-outside-publish") {
+            // The lagging design (TLA `AtomicCert = FALSE`): certify in a later transaction.
+            self.store.faults.point("publish:before-cert")?;
+            let v = cert.to_bytes();
+            self.store.meta.t2_raw_cert(g, self.id, v).await?;
+        }
+        Ok(out)
     }
 
     /// T2: certify a group already published (and certified by someone).
