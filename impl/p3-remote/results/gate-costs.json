@@ -1,0 +1,128 @@
+{
+ "steps_ms": {
+  "paralean ws-capture": {
+   "n": 13,
+   "median": 1101,
+   "p95": 1302,
+   "max": 1302
+  },
+  "paralean ws-check": {
+   "n": 42,
+   "median": 1121.0,
+   "p95": 1406,
+   "max": 1509
+  },
+  "paralean ws-delete": {
+   "n": 1,
+   "median": 99,
+   "p95": 99,
+   "max": 99
+  },
+  "paralean ws-init": {
+   "n": 9,
+   "median": 129,
+   "p95": 202,
+   "max": 202
+  },
+  "paralean ws-plan": {
+   "n": 17,
+   "median": 102,
+   "p95": 182,
+   "max": 182
+  },
+  "paralean ws-sync": {
+   "n": 83,
+   "median": 114,
+   "p95": 193,
+   "max": 311
+  },
+  "plr publish": {
+   "n": 15,
+   "median": 85,
+   "p95": 116,
+   "max": 116
+  },
+  "plr pull": {
+   "n": 109,
+   "median": 73,
+   "p95": 131,
+   "max": 145
+  },
+  "plr stage": {
+   "n": 17,
+   "median": 65,
+   "p95": 125,
+   "max": 125
+  },
+  "plr tombstone": {
+   "n": 1,
+   "median": 60,
+   "p95": 60,
+   "max": 60
+  },
+  "plr validate": {
+   "n": 17,
+   "median": 434,
+   "p95": 499,
+   "max": 499
+  }
+ },
+ "transfers": {
+  "fetch-group": {
+   "n": 62,
+   "bytes": 22163,
+   "bytes_median": 360.0,
+   "ms_median": 4.1
+  },
+  "fetch-pkg": {
+   "n": 1,
+   "bytes": 753,
+   "bytes_median": 753,
+   "ms_median": 1.5
+  },
+  "pull": {
+   "n": 82,
+   "bytes": 299190,
+   "bytes_median": 2922.0,
+   "ms_median": 17.6
+  },
+  "put-capsule": {
+   "n": 18,
+   "bytes": 21892,
+   "bytes_median": 1174.0,
+   "ms_median": 14.9
+  },
+  "put-group": {
+   "n": 18,
+   "bytes": 6012,
+   "bytes_median": 352.0,
+   "ms_median": 0.0
+  },
+  "validate": {
+   "n": 17,
+   "bytes": 0,
+   "bytes_median": 0,
+   "ms_median": 381.3
+  }
+ },
+ "remote_loads_ms": {
+  "fetched-proof": {
+   "n": 146,
+   "median": 4.0,
+   "p95": 95,
+   "max": 174
+  },
+  "elaborated": {
+   "n": 24,
+   "median": 2.0,
+   "p95": 3,
+   "max": 5
+  },
+  "check": {
+   "n": 170,
+   "median": 0.0,
+   "p95": 1,
+   "max": 84
+  }
+ }
+}

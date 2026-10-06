@@ -457,6 +457,7 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
   let (sess, inputCtx, ps, _, hdr, _) ← openSession input file (moduleOf file)
     (extraImports := #[{ module := `Paralean.Remote }])
   let errs ← IO.mkRef (hdr.map toString)
+  let t0 ← IO.monoMsNow
   let st ← runCommands sess.cmdState inputCtx ps fun r => do
     for m in r.msgs do
       if m.severity == .error then
@@ -464,6 +465,7 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
         errs.modify (·.push s!"{file}:{pos.line}: {(← m.data.toString).take 6000}")
     return none
   let env := st.env
+  let t1 ← IO.monoMsNow
   -- `#print axioms` of every constant of the file: Lean's `collectAxioms`, which follows
   -- module-system interfaces of imports by provenance
   let ctx : Core.Context := { fileName := "<check>", fileMap := default, maxHeartbeats := 0 }
@@ -492,7 +494,8 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
   return Json.mkObj [("file", file), ("errors", toJson (← errs.get)), ("constants", nConsts),
     ("axioms", toJson ((axioms.toArray.map (fun (a, k) => (a.toString, k))).qsort (·.1 < ·.1))),
     ("disallowedAxioms", toJson placeholders), ("localAxioms", toJson localAxioms),
-    ("loadedConstants", toJson nLoaded), ("loadedAxioms", toJson elemAxioms)]
+    ("loadedConstants", toJson nLoaded), ("loadedAxioms", toJson elemAxioms),
+    ("elabMs", t1 - t0), ("auditMs", (← IO.monoMsNow) - t1)]
 
 /-! ## Export -/
 

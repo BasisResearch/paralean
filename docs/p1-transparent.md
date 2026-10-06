@@ -1,9 +1,25 @@
 # Track B: transparent workspaces prototype (`remote%`, placement CRDT, git projection)
 
 Date 2026-10-05. Design: [architecture.md § Transparent workspaces](architecture.md).
-Code: `impl/p1/Paralean/{Remote,Crdt,Workspace,Receipt,Validate}.lean`. Scripts:
-`impl/p1/scripts/{run-transparent,remote-forgery,remote-cost}.sh`. Logs:
+Code at the time: `impl/p1/Paralean/{Remote,Crdt,Workspace,Receipt,Validate}.lean`.
+Scripts: `impl/p1/scripts/{run-transparent,remote-forgery,remote-cost}.sh`. Logs:
 `impl/p1/results/{transparent.log,remote-forgery.log,remote-cost.tsv}`.
+
+**Status (2026-10-06): superseded by P3 v1** ([p3-remote-log.md](p3-remote-log.md),
+branch `p3-remote`). This document records the prototype as it was. P3 replaced every
+shortcut listed below:
+
+| Prototype | P3 v1 |
+|---|---|
+| theorems in working copies: statement only, receipt-backed placeholder axiom `<thm>._remote_proof` | the published proof is fetched from the store, decoded, and kernel-checked by `addDecl`; no placeholder exists, and a working copy's `#print axioms` shows only `propext`, `Classical.choice`, `Quot.sound` |
+| receipts: HMAC-SHA256 under a shared key over (package, declaration ID) | P3 control's receipts: Ed25519 by a trusted validator, bound to a signed job envelope (group, capsule, dependency closure, base, policy, checker); verified in Lean by `remote%` itself |
+| store: a directory per copy, anti-entropy by copying files (`copy-pull`) | the P2 store (FoundationDB + Garage) through `plr`; publication is T1 and discovery is by certificates. Payloads are fetched on demand, metadata by anti-entropy |
+| records `{pid, file, anchor, lamport, author}`; RGA with unknown anchors attached to the file start; no revisions or tombstones | §11.1 markers with `rootPath` and `lineageKeys`; revisions and author-signed tombstones; rendering reads only carried fields (Workspaces) |
+| collisions: lowest (Lamport, author, package) wins; loser renamed `<name>_<author>_<lamport>` (not reserved) | lineage keys per name over live heads; losers get the reserved fresh name `x✝pl<8 hex>` (written `«…»`), which validators reject in declared names; the losing author gets a diagnostic and a rename of their drafts |
+| `remote% "<package id>"` | `remote% "<group id>"` (and `remote_decl%` for commands without a value) |
+
+The prototype scripts and the `copy-*` commands were removed. The measurements below are
+the prototype's; P3's are in [p3-remote-log.md](p3-remote-log.md#measured-costs).
 
 The P1 host process stands in for the fork. It injects `import Paralean.Remote` and runs
 with `Elab.async` off. Everything else is the stock nightly.
@@ -197,6 +213,12 @@ Both copies elaborate the file standalone. A draft can use `Shared.dup_bob_1` an
 `Shared.use_dup := Shared.dup_bob_1`.
 
 ## Limitations found (remaining)
+
+P3 status of each item: the last two (placeholder axioms, HMAC) are gone. The first
+four still hold in P3 v1: visibility is still built at process start, but every working
+copy step is a new process; renaming is still token-based; capsule elaboration still sees
+root-scope local state (a forgery test now hits it, failing closed); scope tracking is
+still line-based.
 
 - **Visibility** is registered at host start-up from the store as it was then.
   Publications that arrive later in the same process are visible after the next process
