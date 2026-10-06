@@ -56,6 +56,9 @@ pub struct KeyRing {
     pub writers: BTreeMap<WorkspaceId, [u8; 32]>,
     /// Policies and checker versions receipts may name (P3 staging rule).
     pub pins: Pins,
+    /// Keys that may sign job envelopes besides the authority (working copies issuing
+    /// envelopes for non-target groups). They never sign tokens or revocations.
+    pub job_issuers: Vec<[u8; 32]>,
 }
 
 impl KeyRing {
@@ -87,6 +90,10 @@ pub struct KeyFile {
     /// Pinned checker-version IDs (hex).
     #[serde(default)]
     pub checkers: Vec<String>,
+    /// Job-envelope issuer keys (`KeyRing::job_issuers`); a working copy holds one of these
+    /// seeds, never the authority seed.
+    #[serde(default)]
+    pub job_issuers: BTreeMap<String, KeyEntry>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -144,6 +151,7 @@ impl KeyFile {
                 policies: self.policies.iter().filter_map(|h| Id::from_hex(h)).collect(),
                 checkers: self.checkers.iter().filter_map(|h| Id::from_hex(h)).collect(),
             },
+            job_issuers: self.job_issuers.values().map(|e| pk(&e.public)).collect(),
         }
     }
 
@@ -165,6 +173,16 @@ impl KeyFile {
             name.into(),
             KeyEntry { id: String::new(), public: hex::encode(signer.public()), seed: Some(hex::encode(signer.seed())) },
         );
+    }
+    /// Add a job-envelope issuer key.
+    pub fn add_job_issuer(&mut self, name: &str, signer: &Signer) {
+        self.job_issuers.insert(
+            name.into(),
+            KeyEntry { id: String::new(), public: hex::encode(signer.public()), seed: Some(hex::encode(signer.seed())) },
+        );
+    }
+    pub fn job_issuer_signer(&self, name: &str) -> Option<Signer> {
+        Self::seed_of(self.job_issuers.get(name)?)
     }
     /// Retire a validator key: remove it from the configured set.
     pub fn retire_validator(&mut self, name: &str) -> Option<KeyEntry> {

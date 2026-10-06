@@ -13,8 +13,8 @@ binding itself. Log, decisions and deviations: [docs/p3-log.md](../../docs/p3-lo
 ```
 impl/p2/scripts/bootstrap.sh       # once: FDB 7.3 + Garage binaries (P2)
 impl/p3/scripts/cluster-up.sh      # this instance: FDB :4989, Garage :18739-18741, s3-guard :18733
-impl/p3/scripts/test.sh            # builds impl/p1 and its fixture stores if missing; 20 tests
-impl/p3/scripts/check-mutations.sh # 13 check-removal mutations; each named test must fail
+impl/p3/scripts/test.sh            # builds impl/p1 and its fixture stores if missing; 21 tests
+impl/p3/scripts/check-mutations.sh # 14 check-removal mutations; each named test must fail
 impl/p3/scripts/cluster-down.sh
 ```
 
@@ -31,7 +31,7 @@ read the P1 stores of `impl/p1/scripts/run-core.sh` (F01–F13) and `run-negativ
 | `impl/p2/crates/store/src/receipt.rs` | **receipt format and staging rule** (`paralean_store::receipt`): job envelope, policy, checker version, target bindings, revocation, `check`, P3's write-once transactions J1–J3 and R1 |
 | `crates/validator-api` | **validator API** (`paralean-validator-api`): wire types, `validate` client, framing, `published_receipt` for consumers |
 | `crates/control` | `paralean-control` library and the `paralean-p3` binary: `checker`, `validator`, `controller`, `worker`, `p1`, `server` |
-| `crates/control/tests` | `adversarial.rs` (12), `control.rs` (6), `processes.rs` (1), `fork.rs` (1; fork-mode validators, skipped without a fork build), `measure.rs` (ignored; check costs on F01–F13) |
+| `crates/control/tests` | `adversarial.rs` (13), `control.rs` (6), `processes.rs` (1), `fork.rs` (1; fork-mode validators, skipped without a fork build), `measure.rs` (ignored; check costs on F01–F13) |
 | `impl/p1` `check-group` | the validator's Lean side: one group from its exact closure; source replay, stock-kernel replay, axioms from the kernel, re-derived statement hashes |
 
 Both crates are members of impl/p2's cargo workspace (`impl/p2/Cargo.toml`), so they share
@@ -48,7 +48,9 @@ The §6 receipt body is unchanged in shape; P3 fixes the contents of three slots
 | `targetID` | PCE `set` of `TargetBinding {name, epoch, statement}`, or none |
 
 `JobEnvelope {request, group, capsule, deps, base, policy, checker, worker, targets,
-deadlineMs, memoryMb}` is signed by the controller (the fence authority key). The staging
+deadlineMs, memoryMb}` is signed by the controller (the fence authority key), or, for a
+target-free job, by a configured job-issuer key (`KeyRing.job_issuers`; working copies hold
+an issuer seed, never the authority seed). The staging
 rule `receipt::check` requires a receipt signed by a configured validator key, accepted,
 naming the group, bound to a controller-signed envelope whose group, base, policy, checker
 and targets equal the receipt's, a pinned policy and checker, and exactly the target names
@@ -67,6 +69,7 @@ paralean-p3 validator  --listen 127.0.0.1:7002 --key v1
 paralean-p3 controller --listen 127.0.0.1:7000 --validators 127.0.0.1:7001,127.0.0.1:7002
 paralean-p3 worker --name w0 --controller 127.0.0.1:7000 --p1-store .runs/p1-core/store
 paralean-p3 submit --controller 127.0.0.1:7000 --request r1 --target F04.red_ne_green
+paralean-p3 keys add-issuer keys.json i0       # an envelope-issuer key for a working copy
 paralean-p3 keys add-validator keys.json v2 | keys retire-validator keys.json v0 | keys revoke-validator v0 "reason"
 ```
 

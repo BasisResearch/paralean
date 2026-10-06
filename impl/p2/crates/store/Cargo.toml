@@ -39,6 +39,7 @@ mutate-no-revocation-check = []
 mutate-no-cancel-check = []
 mutate-no-undeclared-target = []
 mutate-no-epoch-binding = []
+mutate-issuer-signs-targets = []
 # Exposes `Writer::publish_skipping_staging_check` for P3's adversarial tests. Never enable
 # it in a deployment.
 adversary = []

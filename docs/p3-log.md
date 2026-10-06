@@ -52,6 +52,14 @@ cluster instance on aws-dev: FoundationDB 7.3.79 on port 4989, Garage 2.4.1 on p
   - **Backpressure.** Both queues are bounded and answer `Busy`.
   - **Failover between validators.** `Busy`, inconclusive results, timeouts, invalid
     receipts and per-validator refusals move on to the next validator.
+- **Job-envelope issuer keys** (`KeyRing.job_issuers`, `KeyFile.job_issuers`,
+  `keys add-issuer`). Added at the request of the remote-imports work, so that working
+  copies never hold the authority seed, which also signs fence tokens and revocations.
+  - `SignedJob::issued_by` stays a pure Ed25519 check over the envelope ID, under the
+    authority key or any listed issuer key.
+  - The staging rule additionally requires an envelope that binds a target to be signed by
+    the authority itself. The controller stamps those from the target record; issuer keys
+    sign target-free envelopes only.
 - **Workers** (`crates/control/src/worker.rs`). A worker publishes a group's dependencies
   first, each with its own receipt. It stages only with a bound receipt and publishes with
   T1.
@@ -106,9 +114,9 @@ owner/epoch record already fences publication. Recorded in p0-interfaces §6, §
 
 ## Results (2026-10-06, live services)
 
-**P3 tests:** `impl/p3/scripts/test.sh`, 20 tests, all pass.
+**P3 tests:** `impl/p3/scripts/test.sh`, 21 tests, all pass.
 
-Adversarial (`tests/adversarial.rs`, 12 tests). Each attack is refused both by the
+Adversarial (`tests/adversarial.rs`, 13 tests). Each attack is refused both by the
 worker-side staging check and by T1 alone (through `publish_skipping_staging_check`, test
 feature `adversary`). Nothing is published, and the audit is clean.
 
@@ -129,6 +137,7 @@ feature `adversary`). Nothing is published, and the audit is clean.
 | A good group's receipt reused for N3 | `ReceiptRejected` |
 | Stale owner after lease expiry | target reassigned within one lease, epoch bumped; the stale owner's publication fails with `NotOwner`/`StaleEpoch`; re-reading the record fails with `NotOwner`; the controller refuses it a target job; a target-free receipt for the same group published without listing the target fails with `UndeclaredTarget`; the new owner publishes and is the head |
 | Dependency not yet published | validator refuses |
+| Job-issuer keys: a target-free envelope signed by an issuer key is checked and publishes; an unlisted key is refused by the validator; an issuer-signed envelope binding a target (at the owner's current epoch) gets a receipt but never stages or publishes | `ReceiptBinding(JobNotIssued)` |
 | Strict policy (propext only) | `F06.fib_pos` (Classical.choice) rejected; `F02.classify_two` accepted |
 | Pinned target statement changed | rejected |
 
@@ -164,7 +173,7 @@ fork build from the `paralean-fork` clone, P1 copy built in `.runs/p1-fork-build
 signed a fork-captured F04 target with dependencies. They rejected N3. The receipts name the
 fork checker version.
 
-**Mutations:** `impl/p3/scripts/check-mutations.sh`, 13 of 13 detected. Each removes one
+**Mutations:** `impl/p3/scripts/check-mutations.sh`, 14 of 14 detected. Each removes one
 check, and the named test fails at the intended assertion (spot-checked: a forged receipt
 publishes, a stale owner gets a receipt, a sneaked publication succeeds).
 
@@ -172,6 +181,7 @@ publishes, a stale owner gets a receipt, a sneaked publication succeeds).
 |---|---|
 | T1's receipt check | `forged_receipts_fail_closed`, `worker_that_skips_validation_cannot_publish`, `receipt_for_another_group_policy_checker_base_or_target_fails_closed` |
 | The epoch binding | `receipt_for_another_epoch_fails_closed` |
+| Authority-only signing of target envelopes | `job_issuer_keys_sign_target_free_envelopes_only` |
 | The revocation read | `revoked_or_retired_validator_key_fails_closed` |
 | The cancellation read | `receipt_for_another_or_cancelled_request_fails_closed` |
 | The undeclared-target guard | `stale_owner_after_lease_expiry_cannot_publish` |
@@ -238,7 +248,8 @@ validated and published in dependency order through the controller and two stock
    - the `pins` field on `KeyRing` (and on `KeyFile`, with serde defaults);
    - the write-once transactions J1–J3 and R1 (`Meta::put_once`; `Txn::P3Job`);
    - an audit check of every published receipt;
-   - six cargo features: five mutations and `adversary`.
+   - the `job_issuers` field on `KeyRing` and `KeyFile`;
+   - seven cargo features: six mutations and `adversary`.
 
    P2's fixtures now build bound receipts, signed by the demo authority key.
 3. **The memory limit is a resident-set watchdog, not `RLIMIT_AS`** (finding above).

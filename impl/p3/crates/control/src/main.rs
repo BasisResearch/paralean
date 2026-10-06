@@ -22,6 +22,7 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   keys init <path> [--validators N] [--workspaces N] [--demo]
                                    write a key file pinning policy v1 and this machine's checker
   keys add-validator <path> <name> rotation: add a validator key (the old ones stay trusted)
+  keys add-issuer <path> <name>    add a job-envelope issuer key (target-free envelopes only)
   keys retire-validator <path> <name>
                                    rotation: remove a validator key from the configured set
   keys revoke-validator <name|public-hex> <reason>
@@ -119,6 +120,13 @@ async fn run(args: Vec<String>) -> R<()> {
             kf.add_validator(name, &s);
             write_keys(path, &kf)?;
             println!("added validator {name}: {}", hex::encode(s.public()));
+        }
+        ["keys", "add-issuer", path, name] => {
+            let mut kf: KeyFile = serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            let s = Signer::generate();
+            kf.add_job_issuer(name, &s);
+            write_keys(path, &kf)?;
+            println!("added job issuer {name}: {}", hex::encode(s.public()));
         }
         ["keys", "retire-validator", path, name] => {
             let mut kf: KeyFile = serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;

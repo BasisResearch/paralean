@@ -491,3 +491,57 @@ async fn changed_target_statement_is_rejected() {
     let r = Receipt::from_bytes(&hex::decode(receipt).unwrap()).unwrap();
     assert!(matches!(r.body.verdict, Verdict::Rejected(_)), "{:?}", r.body.verdict);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn job_issuer_keys_sign_target_free_envelopes_only() {
+    let issuer = Signer::derive("p3-issuer-0");
+    let c = Cluster::start("issuer", Opts { job_issuers: vec![issuer.clone()], ..Opts::default() }).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let small = w.group_declaring(&n("F01.small")).unwrap().clone();
+    upload(&w.writer, &small).await;
+    let env = |request: &str, g: &paralean_control::p1::P1Group, deps: Vec<Id>, targets: Vec<TargetBinding>| paralean_store::receipt::JobEnvelope {
+        request: request.as_bytes().to_vec(),
+        group: g.decl,
+        capsule: g.capsule_id(),
+        deps,
+        base: paralean_control::checker::base_id(&c.checker.lean_githash),
+        policy: paralean_store::receipt::Policy::v1().id(),
+        checker: c.validators[0].checker_id(),
+        worker: w.id(),
+        targets,
+        deadline_ms: 120_000,
+        memory_mb: 0,
+    };
+    let ask = |j: SignedJob| {
+        let addr = c.vaddrs[0].clone();
+        async move {
+            match paralean_validator_api::validate(&addr, &j, Duration::from_secs(300)).await.unwrap() {
+                paralean_validator_api::ValidatorResponse::Receipt { receipt } => Ok(paralean_validator_api::decode_receipt(&receipt).unwrap()),
+                other => Err(other),
+            }
+        }
+    };
+    // A working copy issues a target-free envelope with its issuer key: the validator
+    // checks it and the receipt publishes.
+    let j = SignedJob::sign(env("issuer/small", &small, vec![], vec![]), &issuer);
+    let r = ask(j.clone()).await.unwrap();
+    w.writer.publish(&w.package(&small, r, j, vec![])).await.unwrap();
+    // A key that is not a configured issuer: the validator refuses.
+    let other = Signer::derive("not-an-issuer");
+    let two = w.group_declaring(&n("F01.two_eq")).unwrap().clone();
+    upload(&w.writer, &two).await;
+    assert!(matches!(ask(SignedJob::sign(env("issuer/two", &two, vec![], vec![]), &other)).await, Err(paralean_validator_api::ValidatorResponse::Refused { .. })));
+    // An issuer-signed envelope binding a target (even at the owner's current epoch):
+    // validators sign it, but no worker stages it and T1 refuses it.
+    let t = n("F01.uses_small");
+    let epoch = c.assign(&t.to_string(), w.id()).await;
+    let g = w.group_declaring(&t).unwrap().clone();
+    upload(&w.writer, &g).await;
+    let tb = TargetBinding { name: t.clone(), epoch, statement: hex::decode(g.statement(&t).unwrap()).unwrap() };
+    let j = SignedJob::sign(env("issuer/target", &g, vec![small.capsule_id()], vec![tb]), &issuer);
+    let r = ask(j.clone()).await.unwrap();
+    assert_eq!(r.body.verdict, Verdict::Accepted);
+    let pt = w.writer.prepare_target(&t).await.unwrap();
+    refused_both_ways(&w.writer, &w.package(&g, r, j, vec![pt]), |f| *f == GuardFailure::ReceiptBinding(BindingFault::JobNotIssued), "issuer-signed target envelope").await;
+    c.audit_ok().await;
+}

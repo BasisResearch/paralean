@@ -14,6 +14,7 @@ cases=(
   "paralean-store/mutate-no-receipt-check|adversarial|worker_that_skips_validation_cannot_publish"
   "paralean-store/mutate-no-receipt-check|adversarial|receipt_for_another_group_policy_checker_base_or_target_fails_closed"
   "paralean-store/mutate-no-epoch-binding|adversarial|receipt_for_another_epoch_fails_closed"
+  "paralean-store/mutate-issuer-signs-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
   "paralean-store/mutate-no-revocation-check|adversarial|revoked_or_retired_validator_key_fails_closed"
   "paralean-store/mutate-no-cancel-check|adversarial|receipt_for_another_or_cancelled_request_fails_closed"
   "paralean-store/mutate-no-undeclared-target|adversarial|stale_owner_after_lease_expiry_cannot_publish"

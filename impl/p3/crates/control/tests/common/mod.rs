@@ -92,6 +92,8 @@ pub struct Opts {
     pub validator_max_queued: usize,
     /// Another checker than `CheckerConfig::from_env()` (the fork build).
     pub checker: Option<CheckerConfig>,
+    /// Job-envelope issuer keys in the key ring.
+    pub job_issuers: Vec<Signer>,
 }
 
 impl Default for Opts {
@@ -109,6 +111,7 @@ impl Default for Opts {
             validator_max_running: 2,
             validator_max_queued: 16,
             checker: None,
+            job_issuers: vec![],
         }
     }
 }
@@ -184,6 +187,9 @@ impl Cluster {
         }
         kf.policies = o.pinned_policies.iter().map(|p| p.id().hex()).collect();
         kf.checkers = vec![checker_id.hex()];
+        for (i, s) in o.job_issuers.iter().enumerate() {
+            kf.add_job_issuer(&format!("i{i}"), s);
+        }
         let store = Store::open(&cfg, kf.ring(), Faults::none()).unwrap();
         let base = base_id(&real.lean_githash);
         let mut tasks = Vec::new();
