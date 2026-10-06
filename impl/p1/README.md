@@ -52,8 +52,9 @@ Per-set scripts: `run-core.sh` (F01–F13), `run-crossws.sh` (F14), `run-mathlib
 [M01 …]`, `run-negative.sh` (N1–N6, version conflict, duplicate instance). Gate summaries:
 `scripts/g2.py WORKDIR` (membership and name classes), `scripts/g4.py WORKDIR [SET…]`
 (`#print axioms` and source/line mappings of the export), `scripts/summarize.py`. The
-Track B scripts (`run-transparent*.sh`, `remote-*.sh`, `async-cost.sh`) use GNU `time`
-and were run on Linux only.
+Track B script `async-cost.sh` uses GNU `time` and was run on Linux only. The
+transparent-workspace prototype scripts were replaced in P3 by `impl/p3-remote/scripts/`
+([docs/p3-remote-log.md](../../docs/p3-remote-log.md)).
 
 ### Toolchain provenance
 
@@ -98,5 +99,7 @@ deriving handlers regenerate the canonical names. Results: [docs/fork-log.md](..
 | `Paralean/Replay.lean` | source and kernel replay |
 | `Paralean/Export.lean`, `Materialize.lean` | stock export, initializer modules |
 | `Paralean/Encode.lean`, `Sha256.lean` | canonical encoding and IDs |
+| `Paralean/Remote.lean`, `P3.lean`, `Rga.lean`, `Copy.lean`, `Visibility.lean`, `Crdt.lean` | P3 transparent workspaces: `remote%`, receipts and records, RGA and naming, working copies ([p3-remote-log](../../docs/p3-remote-log.md)) |
+| `Paralean/Ed25519.lean`, `Forge.lean` | Ed25519/SHA-512 verification; test-only forged packages |
 | `tools/Axioms.lean` | axiom dump used by `g4.py` |
 | `fixtures/` | P1-only fixtures (F-async, N4/N5 inputs, conflict, duplicate instance) |

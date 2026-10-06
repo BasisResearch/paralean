@@ -739,8 +739,11 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   -- start of the declaration value (for the `remote%` header form)
   let valueKinds := [``Lean.Parser.Command.declValSimple, ``Lean.Parser.Command.declValEqns,
     ``Lean.Parser.Command.whereStructInst]
+  -- `lemma` (Mathlib) is a macro for `theorem`: its value starts the same way
+  let declLike := kind == ``Lean.Parser.Command.declaration ||
+    (kind.components.getLast?.map (·.toString == "lemma")).getD false
   let mut valueStart : Option Nat :=
-    if kind == ``Lean.Parser.Command.declaration then
+    if declLike then
       (findNodes r.stx (fun s => valueKinds.contains s.getKind))[0]?.bind fun v =>
         v.getPos?.map (·.byteIdx - r.startPos)
     else none

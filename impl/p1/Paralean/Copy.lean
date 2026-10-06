@@ -461,7 +461,7 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
     for m in r.msgs do
       if m.severity == .error then
         let pos := m.pos
-        errs.modify (·.push s!"{file}:{pos.line}: {(← m.data.toString).take 300}")
+        errs.modify (·.push s!"{file}:{pos.line}: {(← m.data.toString).take 6000}")
     return none
   let env := st.env
   -- `#print axioms` of every constant of the file: Lean's `collectAxioms`, which follows

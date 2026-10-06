@@ -311,8 +311,10 @@ def Job.parse (raw : ByteArray) : Except String Job := do
 
 structure Trust where
   validators : Array String
-  /-- The controller (fence authority) key that signs job envelopes. -/
+  /-- The controller (fence authority) key, and the job-envelope issuer keys: an envelope
+  is valid under either (P3 control's `SignedJob::issued_by`). -/
   authority : String
+  jobIssuers : Array String := #[]
   policies : Array String
   checkers : Array String
   base : String
@@ -329,6 +331,7 @@ def Trust.load : IO Trust := do
     let agents ← (← j.getObjValAs? (Array (Array String)) "agents").mapM fun a =>
       if a.size == 2 then pure (a[1]!, a[0]!) else throw "agents"
     return { validators := ← jStrs j "validators", authority := ← jStr j "authority"
+             jobIssuers := (jStrs j "jobIssuers").toOption.getD #[]
              policies := ← jStrs j "policies", checkers := ← jStrs j "checkers"
              base := ← jStr j "base", policy := (← jStrs j "policies")[0]!
              allowedAxioms := (← jStrs j "allowedAxioms").map String.toName, agents }
@@ -354,8 +357,8 @@ def Trust.admits (t : Trust) (r : Receipt) (job : Job) (group capsule : String) 
   unless t.validators.contains (toHex r.key) do throw "the receipt is signed by an untrusted key"
   unless Ed25519.verify r.key r.id r.sig do throw "the receipt's signature does not verify"
   unless r.accepted do throw s!"the validator rejected it: {r.reason}"
-  unless Ed25519.verify (Ed25519.hexToBytes t.authority |>.getD .empty) job.id job.sig do
-    throw "the job envelope is not signed by the controller"
+  unless (#[t.authority] ++ t.jobIssuers).any (fun k => Ed25519.verify (Ed25519.hexToBytes k |>.getD .empty) job.id job.sig) do
+    throw "the job envelope is not signed by the controller or a job issuer"
   unless r.request.map toHex == some (toHex job.id) do throw "the receipt answers another job"
   unless job.group == group && job.capsule == capsule do
     throw "the job envelope is for another group or capsule"

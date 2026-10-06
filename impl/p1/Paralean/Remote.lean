@@ -89,6 +89,8 @@ initialize metaCache : IO.Ref (Std.HashMap String GroupRec) ← IO.mkRef {}
 initialize verifiedCache : IO.Ref (Std.HashMap (Name × String) (Array (Name × Name))) ← IO.mkRef {}
 /-- The copy's view (records count, view), recomputed when records arrive. -/
 initialize viewCache : IO.Ref (Nat × Option Rga.View) ← IO.mkRef (0, none)
+/-- (module, package) ↦ the member names `remote_value%` gave the members it added. -/
+initialize fetchedNames : IO.Ref (Std.HashMap (Name × String) (Std.HashMap Name Name)) ← IO.mkRef {}
 /-- Decoded payloads per package (immutable). -/
 initialize payloadCache : IO.Ref (Std.HashMap String ByteArray) ← IO.mkRef {}
 
@@ -180,6 +182,10 @@ identities (and the relocation tag) against this file's constants. -/
 def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
   let env ← getEnv
   let mm := env.mainModule
+  -- members `remote_value%` added itself: exactly the names it chose
+  if let some m := (← fetchedNames.get)[(mm, g.gid)]? then
+    let m := m.fold (fun acc l n => if env.contains n then acc.insert l n else acc) {}
+    if !m.isEmpty then return m
   let own := (← renames).getD g.gid {}
   if !g.capsule.relocate then
     let mut fast : Std.HashMap Name Name := {}
@@ -405,6 +411,7 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   let mut self : Std.HashMap Name Name := {}
   for m in g.members do
     self := self.insert m.local_ (if m.local_ == main.local_ then declName else auxName mm own m)
+  fetchedNames.modify (·.insert (mm, g.gid) self)
   let closure ← liftCommandElabM (closureOf g)
   let dg ← decodeHere g closure self
   let infos : Std.HashMap Name ConstantInfo := dg.members.foldl (fun m (_, _, ci) => m.insert ci.name ci) {}
@@ -462,7 +469,12 @@ def payloadCheck (g : GroupRec) (closure : Array GroupRec) (proofs : Bool) : Com
         problems := problems.push s!"statement of {pub.name} differs"
         continue
       match pub, here with
-      | .defnInfo a, .defnInfo b => unless a.value == b.value do problems := problems.push s!"body of {pub.name} differs"
+      | .defnInfo a, .defnInfo b =>
+        -- interface equality (§5): bodies of Prop-typed auxiliaries (a recursive theorem's
+        -- `_f`) are proofs and may differ, e.g. by a matcher reused at capture
+        let isPropTy ← liftTermElabM (Meta.isProp a.type)
+        unless isPropTy || a.value == b.value do
+          problems := problems.push s!"body of {pub.name} differs: published {(toString a.value).take 2000} vs here {(toString b.value).take 2000}"
       | .thmInfo a, .thmInfo b =>
         if proofs then unless a.value == b.value do problems := problems.push s!"proof of {pub.name} differs from the fetched one"
       | .opaqueInfo _, .opaqueInfo _ | .inductInfo _, .inductInfo _ | .ctorInfo _, .ctorInfo _
