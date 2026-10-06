@@ -77,6 +77,6 @@ if ! command -v cargo >/dev/null 2>&1; then
   curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
 fi
 cargo --version
-# --- Build the workspace (CLI and the s3-guard gateway) so up.sh can start the gateway.
-( cd "$here/.." && cargo build --release --bins )
+# --- Build the s3-guard gateway (release) so up.sh can start it.
+( cd "$here/.." && cargo build --release -p s3-guard )
 echo "bootstrap done: $P"

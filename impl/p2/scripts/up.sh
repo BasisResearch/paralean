@@ -12,24 +12,29 @@ engine="${PARALEAN_FDB_ENGINE:-ssd}"
 alive() { [ -f "$P/run/$1.pid" ] && kill -0 "$(cat "$P/run/$1.pid")" 2>/dev/null; }
 
 # --- FoundationDB
+# FDB's ratekeeper keeps 5% of the disk as operating space by default; on the shared box
+# /data is ~98% full, so that reserve alone throttles every write to zero. Lower it.
+knobs="${PARALEAN_FDB_KNOBS:---knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000}"
 mkdir -p "$P/fdb/data" "$P/fdb/log"
 [ -f "$PARALEAN_FDB_CLUSTER" ] || echo "paralean:p2$(head -c 6 /dev/urandom | od -An -tx1 | tr -d ' \n')@127.0.0.1:$PARALEAN_FDB_PORT" > "$PARALEAN_FDB_CLUSTER"
 if ! alive fdbserver; then
   setsid nohup "$P/bin/fdbserver" -p "127.0.0.1:$PARALEAN_FDB_PORT" -C "$PARALEAN_FDB_CLUSTER" \
-    -d "$P/fdb/data" -L "$P/fdb/log" --knob_disable_posix_kernel_aio=1 \
+    -d "$P/fdb/data" -L "$P/fdb/log" --knob_disable_posix_kernel_aio=1 $knobs \
     > "$P/fdb/log/stdout.log" 2>&1 < /dev/null &
   echo $! > "$P/run/fdbserver.pid"
 fi
-fdbcli() { "$P/bin/fdbcli" -C "$PARALEAN_FDB_CLUSTER" --timeout 10 "$@"; }
-for i in $(seq 1 30); do
-  if fdbcli --exec "status minimal" 2>/dev/null | grep -q "The database is available"; then break; fi
-  if fdbcli --exec "status minimal" 2>/dev/null | grep -q "unavailable\|no database"; then
-    # First start: create the database.
-    fdbcli --exec "configure new single $engine" >/dev/null 2>&1 || true
-  fi
+fdbcli() { "$P/bin/fdbcli" -C "$PARALEAN_FDB_CLUSTER" "$@"; }
+if [ ! -f "$P/fdb/.configured" ]; then
+  # First start: create the database (single redundancy, one process).
+  fdbcli --timeout 60 --exec "configure new single $engine"
+  touch "$P/fdb/.configured"
+fi
+for i in $(seq 1 60); do
+  st="$(fdbcli --timeout 5 --exec "status minimal" 2>/dev/null || true)"
+  case "$st" in *"The database is available"*) break ;; esac
   sleep 1
 done
-fdbcli --exec "status minimal"
+fdbcli --timeout 5 --exec "status minimal"
 
 # --- Garage
 if ! alive garage; then
