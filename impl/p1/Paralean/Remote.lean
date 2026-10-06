@@ -271,7 +271,9 @@ def capsuleSource (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupR
       match g.capsule.valueStart with
       | some v =>
         let hdr := String.fromUTF8! (g.capsule.text.toUTF8.extract 0 v)
-        { g with capsule := { g.capsule with text := hdr.trimAsciiEnd.toString ++ s!" := remote_value% \"{g.gid}\"" } }
+        -- no implicit lambdas: the stored value is exactly the fetched proof, not an
+        -- eta-expansion of it
+        { g with capsule := { g.capsule with text := hdr.trimAsciiEnd.toString ++ s!" := no_implicit_lambda% (remote_value% \"{g.gid}\")" } }
       | none => g
     else g
   let ds := g.deps ++ g.feDeps
@@ -310,11 +312,11 @@ def decodeHere (g : GroupRec) (closure : Array GroupRec) (self : Std.HashMap Nam
   let deps' := deps
   let rec nameOf : Ref → Except String Name
     | .base n => .ok n
-    | .self l => .ok (self.getD l (`_paralean_missing ++ l))
+    | .self l => .ok (self.getD l (Name.appendCore `_paralean_missing l))
     | .dep pid l => match deps'[(pid, l)]? with
       | some n => .ok n
       | none => .error s!"dependency member {l} of {(pid.take 8).toString} is not loaded"
-    | .res r s => do return (← nameOf r) ++ s
+    | .res r s => do return Name.appendCore (← nameOf r) s
   match decodeGroup bytes (g.unwire lookup) nameOf with
   | .ok dg =>
     -- reserved names the terms use are re-realized here, never taken from the store
@@ -447,8 +449,10 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   -- local in scope (`include`d section variables)
   for xs in [← neededVars cands ty false, ← neededVars cands ty true, cands] do
     let t ← instantiateMVars (← mkForallFVars xs ty)
-    if t == pubTy then
-      return (inst pubVal).beta xs
+    -- syntactic equality, or unification at reducible transparency when the header still
+    -- has metavariables (auto-bound universes): it assigns them the published levels
+    if t == pubTy || (← withReducible (isDefEq t pubTy)) then
+      return (← instantiateMVars (inst pubVal)).beta xs
   let xs ← neededVars cands ty false
   throwError "remote_value%: the statement elaborated here is not the published statement of {declName}:{indentExpr (← mkForallFVars xs ty)}\nvs published{indentExpr pubTy}"
 
@@ -484,7 +488,10 @@ def payloadCheck (g : GroupRec) (closure : Array GroupRec) (proofs : Bool) : Com
         -- proofs `remote_value%` took from the payload must be the payload's; members that
         -- Lean had already realized here (reserved names such as `induct_unfolding`, §3.3)
         -- only need the published statement
-        if proofs && (← fetchedAdded.get).contains pub.name then unless a.value == b.value do problems := problems.push s!"proof of {pub.name} differs from the fetched one"
+        if proofs && (← fetchedAdded.get).contains pub.name then unless a.value == b.value do
+          let dbg := if (← IO.getEnv "PARALEAN_DEBUG_PROOFS").isSome then
+            s!": fetched {(toString a.value).take 3000} vs here {(toString b.value).take 3000}" else ""
+          problems := problems.push s!"proof of {pub.name} differs from the fetched one{dbg}"
       | .opaqueInfo _, .opaqueInfo _ | .inductInfo _, .inductInfo _ | .ctorInfo _, .ctorInfo _
       | .recInfo _, .recInfo _ | .axiomInfo _, .axiomInfo _ | .quotInfo _, .quotInfo _ => pure ()
       | .thmInfo _, .defnInfo _ | .defnInfo _, .thmInfo _ =>
