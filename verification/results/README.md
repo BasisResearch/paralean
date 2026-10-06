@@ -4,18 +4,22 @@ Date: 2026-10-05. The TLC logs come from a later run than the Lean logs.
 
 TLC: macOS 26.5.1 on an Apple M4 (10 cores, shared with other jobs), OpenJDK
 17.0.18 ([tlc/toolchain.txt](tlc/toolchain.txt)). Positive scenarios used four
-workers and a 6 GiB heap; negative cases used six workers.
+workers and a 6 GiB heap; negative cases used four workers.
 Lean: host `aws-dev`, Linux 7.0.0-1012-aws x86_64, 32 cores, OpenJDK 25.0.4.1
 ([toolchain.txt](toolchain.txt)).
 
-All nineteen finite TLC scenarios passed. Their distinct-state counts sum to 5,484,001.
-Five of them check liveness (`Collision`, `Workspace`, `TargetsLive`,
-`FencingLive`, `CertificatesLive`); the rest are safety + reachability only (see
-the liveness table in the [guard matrix](../TLA-GUARDS.md#liveness)).
-The negative suite made 76 runs, all with their expected outcome: 24 reachability
-witnesses, 45 protocol mutations (42 distinct source edits; three deletions are
+All twenty finite TLC scenarios passed. Their distinct-state counts sum to 5,526,366.
+Six of them check liveness (`Collision`, `Workspace`, `WorkspacePending`,
+`TargetsLive`, `FencingLive`, `CertificatesLive`); the rest are safety +
+reachability only (see the liveness table in the
+[guard matrix](../TLA-GUARDS.md#liveness)).
+The four larger-scope scenarios (`check-tla.sh --wide`, logs in
+[tlc/wide](tlc/wide)) also passed; see the scope table in the
+[verification README](../README.md#larger-scopes).
+The negative suite made 81 runs, all with their expected outcome: 26 reachability
+witnesses, 47 protocol mutations (44 distinct source edits; three deletions are
 checked against two oracles each), 2 runs of the original design that must fail
-the new liveness properties (the stranded head and the stranded publication), 2
+the new liveness properties (the stranded head and the stranded publication), 3
 over-restrictive models that must lose a witness, and 3 deletions that must pass
 (redundant checks). Each temporal mutation checks exactly one property.
 The work witness commits the full B→A→B dependency chain.
@@ -36,6 +40,7 @@ Commands:
 
 ```sh
 bash scripts/check-tla.sh
+bash scripts/check-tla.sh --wide                 # larger scopes, optional
 bash scripts/check-tla-negative.sh
 bash scripts/check-veil.sh
 bash scripts/archive-verification.sh             # or --tla-only, as for this TLC run

@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 52 and seed -5305270556292272723 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 64024] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Quorums/Quorums.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Quorums/Durability.tla
+Running breadth-first search Model-Checking with fp 115 and seed 382277598030676234 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 1484] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Quorums/Quorums.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Quorums/Durability.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,17 +12,17 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Durability
 Semantic processing of module Quorums
-Starting... (2026-10-05 15:04:40)
+Starting... (2026-10-05 19:54:12)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 15:04:41.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:12.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 7.2E-14
 3457 states generated, 439 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 10.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 3).
-Finished in 01s at (2026-10-05 15:04:41)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 00s at (2026-10-05 19:54:12)
 ==== Paralean TLC provenance ====
 module Quorums
 config Quorums.cfg

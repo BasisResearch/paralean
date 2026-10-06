@@ -1,0 +1,45 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 24 and seed 8324207659898139943 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 34261] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/TargetsWide/TargetsWide.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/TargetsWide/Targets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Semantic processing of module TLC
+Semantic processing of module TargetsWide
+Starting... (2026-10-05 20:09:32)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 20:09:32.
+Progress(12) at 2026-10-05 20:09:35: 365,346 states generated (365,346 s/min), 95,671 distinct states found (95,671 ds/min), 55,497 states left on queue.
+Progress(17) at 2026-10-05 20:10:35: 13,187,241 states generated (12,821,895 s/min), 2,342,869 distinct states found (2,247,198 ds/min), 943,611 states left on queue.
+Progress(19) at 2026-10-05 20:11:35: 26,204,951 states generated (13,017,710 s/min), 4,189,052 distinct states found (1,846,183 ds/min), 1,413,300 states left on queue.
+Progress(20) at 2026-10-05 20:12:35: 38,660,227 states generated (12,455,276 s/min), 5,780,589 distinct states found (1,591,537 ds/min), 1,688,343 states left on queue.
+Progress(20) at 2026-10-05 20:13:35: 50,634,094 states generated (11,973,867 s/min), 7,150,571 distinct states found (1,369,982 ds/min), 1,799,456 states left on queue.
+Progress(21) at 2026-10-05 20:14:35: 61,576,588 states generated (10,942,494 s/min), 8,323,589 distinct states found (1,173,018 ds/min), 1,799,126 states left on queue.
+Progress(21) at 2026-10-05 20:15:36: 70,246,171 states generated (8,669,583 s/min), 9,193,581 distinct states found (869,992 ds/min), 1,734,296 states left on queue.
+Progress(22) at 2026-10-05 20:16:36: 77,426,416 states generated (7,180,245 s/min), 9,841,638 distinct states found (648,057 ds/min), 1,603,013 states left on queue.
+Progress(23) at 2026-10-05 20:17:36: 86,778,058 states generated (9,351,642 s/min), 10,669,727 distinct states found (828,089 ds/min), 1,400,572 states left on queue.
+Progress(23) at 2026-10-05 20:18:36: 97,024,096 states generated (10,246,038 s/min), 11,444,438 distinct states found (774,711 ds/min), 1,028,568 states left on queue.
+Progress(24) at 2026-10-05 20:19:36: 106,032,243 states generated (9,008,147 s/min), 12,039,056 distinct states found (594,618 ds/min), 581,616 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 6.8E-5
+  based on the actual fingerprints:  val = 2.4E-6
+113659398 states generated, 12400854 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 28.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
+Finished in 10min 53s at (2026-10-05 20:20:25)
+==== Paralean TLC provenance ====
+module TargetsWide
+config TargetsWide.cfg
+expect pass
+checked 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
+checked 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+checked fe4c3b0752a606261551319aad053ab8b817a1253defbdaa2e03dbbd0db6637a  TargetsWide.cfg
+==== end provenance ====

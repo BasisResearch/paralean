@@ -160,20 +160,64 @@ Axioms: `propext`, `Classical.choice`, `Quot.sound` only.
 
 ## TLA+ (`verification/tla/Workspace.tla`)
 
-Three agents (one receive-only), two files, five declarations: `a1` declares `foo` and
-`bar`, `a1` and `b1` collide on `foo`, `a3` revises `a1` for `foo` only, `a2` declares `bar`,
-`b2` is a tombstone of `a2`. A declaration has a primary name `Name[d]` and extra names
-`Also[d]`; a revision revises for the primary name. Invariants `SameKnownSameRender`,
-`NameAgreement`, `AnchorBefore`, `NoSupersededRendered`, `NamesUnique`, `NameHeld` (a name
-declared by a rendered declaration is kept by a rendered declaration); action properties
-`RenderStable`, `DisappearOnlySuperseded`, `IntentionPreserved`, `WinnerLineageKeepsName`;
-liveness `EventuallyIdentical` under one weak-fairness condition on receives. 23,932
-distinct states. Coverage witnesses `NeverWinnerRevised`, `NeverPartialRevisionFreed` (after
-`a3`, `a2` holds `bar` although `a1` is older) and `NeverDeleted` are expected to fail.
-Mutation `workspace_superseded_holds_name` (heads for a name exclude only declarations revised
-for that name) violates `NameHeld`. Receive in the TLA model is causal for anchors and revision
-ancestors, and publication is atomic (no pending state), so the own-pending anchor rule is
-covered by the Lean witnesses only.
+Authors stage a declaration (pending) and publish it later. Staging fixes the record: a Lamport
+timestamp from the author's clock (a state variable, raised on every receive), the anchor, and
+the anchor path of the lineage root. A fresh declaration anchors at the file start, at a
+published lineage root of its file that the author knows, or at one of the author's own pending
+lineage roots (as `Staged`; the dependency clause is not modelled). `Publish` requires the
+anchor to be known to the publisher (`PublishGuard`). Receive is in any order for anchors and
+causal only for the revision ancestor. Rendering orders lineage roots by their carried paths
+(`Positions`), so a record received before its anchor still renders at its position. The
+rendered file is a function of the known (published) set; pending declarations are drafts and
+are not rendered. The intended render (`intent`) is computed at staging over the author's known
+and pending declarations, as in `intention_preserved`.
+
+Configurations:
+
+- `Workspace.cfg`: three agents (one receive-only), two files, five declarations: `a1`
+  declares `foo` and `bar`, `a1` and `b1` collide on `foo`, `a3` revises `a1` for `foo` only,
+  `a2` declares `bar`, `b2` is a tombstone of `a2`. 62,098 distinct states.
+- `WorkspacePending.cfg`: `a` stages `a1` and `a4` and may anchor `a4` at `a1` while `a1` is
+  pending; `b1` collides with `a1` on `foo`; `c` only receives. 4,199 distinct states.
+- `WorkspaceWide.cfg` (larger-scope list, not the default suite): three publishing authors in
+  one file; `c1` (by `c`) revises `b1`. Safety and action properties only. 25,725 distinct
+  states.
+
+Invariants: `TypeOK`, `KeysUnique` (no two staged records share `(ts, author)`), `ClockCovers`
+(the clock is at least every timestamp the author knows or has pending), `AnchorClosed` (a
+published declaration's anchor is published, as `anchor_closed`), `PendingAnchor` (a pending
+declaration's anchor is published or the author's own pending one), `CarriedPathAgrees` (the
+path order equals the anchor-tree preorder wherever the anchors are present),
+`SameKnownSameRender`, `NameAgreement`, `AnchorBefore`, `NoSupersededRendered`, `NamesUnique`,
+`NameHeld` and `RenderComplete` (every known live declaration is rendered, including one whose
+anchor has not arrived). Action properties `RenderStable`, `DisappearOnlySuperseded`,
+`IntentionPreserved`, `WinnerLineageKeepsName`. Liveness `EventuallyIdentical` under one
+weak-fairness condition on receives; staging and publication get none. With `AnchorBefore`
+and `IntentionPreserved`, `WorkspacePending` checks that `a1` (or its lineage) precedes `a4` in
+every copy that renders both when `a4` was anchored at `a1`.
+
+Coverage witnesses (expected to fail): `NeverConcurrentConverged`, `NeverCollisionResolved`,
+`NeverWinnerRevised`, `NeverPartialRevisionFreed` (after `a3`, `a2` holds `bar` although `a1` is
+older), `NeverDeleted`, and on `WorkspacePending` `NeverOwnPendingAnchor` (an author has a
+pending declaration anchored at its own pending one) and `NeverEarlyArrivalRendered` (an agent
+renders a declaration whose anchor it has not received, ordered against another declaration as
+its author orders them).
+
+Mutations, each with a named violation: arrival-order rendering (`SameKnownSameRender`),
+first-seen winner (`SameKnownSameRender`), a per-author counter clock (`IntentionPreserved`),
+own-key winner (`WinnerLineageKeepsName`), rendering superseded declarations
+(`NoSupersededRendered`), heads that exclude only declarations revised for that name
+(`NameHeld`), non-causal receive of the revision ancestor (`RenderComplete`), and on
+`WorkspacePending`: no `PublishGuard` (`AnchorClosed`: `a4` is published before `a1`, the TLA
+counterpart of `publish_guard_needed`), a clock read from the known set only, which ignores the
+author's pending declarations (`KeysUnique`), rendering by the anchor tree of the known records
+instead of carried paths (`RenderComplete`, the counterpart of `render_reads_unknown_anchor`).
+Anchoring only on known (published) declarations loses `NeverOwnPendingAnchor` (the
+counterpart of `own_pending_anchor`).
+
+Differences from the Lean model: receive is causal for revision ancestors (Lean's is not);
+there is no crash, so the clock's persistence is checked only as covering the author's pending
+declarations; pending declarations are never discarded.
 
 ## Not established
 

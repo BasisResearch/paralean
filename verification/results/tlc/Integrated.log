@@ -1,11 +1,11 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 37 and seed -7926304900099200319 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 64092] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Integrated.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Publication.tla
+Running breadth-first search Model-Checking with fp 122 and seed -4239335094520283246 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 1621] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Integrated/Integrated.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Integrated/Publication.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Registry.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Integrated/Durability.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Integrated/Registry.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Integrated/Durability.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
@@ -16,19 +16,19 @@ Semantic processing of module Registry
 Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
-Starting... (2026-10-05 15:04:44)
+Starting... (2026-10-05 19:54:14)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 15:04:44.
-Progress(8) at 2026-10-05 15:04:47: 26,715 states generated (26,715 s/min), 4,543 distinct states found (4,543 ds/min), 2,616 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:14.
+Progress(13) at 2026-10-05 19:54:17: 570,340 states generated (570,340 s/min), 46,939 distinct states found (46,939 ds/min), 9,802 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.4E-9
-  based on the actual fingerprints:  val = 1.5E-10
+  based on the actual fingerprints:  val = 5.0E-10
 1405609 states generated, 89428 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 16 and the 95th percentile is 3).
-Finished in 35s at (2026-10-05 15:05:18)
+Finished in 06s at (2026-10-05 19:54:19)
 ==== Paralean TLC provenance ====
 module Integrated
 config Integrated.cfg

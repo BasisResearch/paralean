@@ -10,7 +10,10 @@
 # parsed; they are checked against the current sources before archiving:
 # positive runs must have checked exactly the current files, and negative runs
 # must have been derived from the current files. The archived set is exactly
-# the manifest: logs of retired cases are deleted.
+# the manifest: logs of retired cases are deleted. Larger-scope logs
+# (check-tla.sh --wide) are archived in verification/results/tlc/wide only from
+# a complete wide run (.runs/tla/wide/MANIFEST); without one that directory is
+# removed, so archived logs always match the current sources.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=scripts/tla-common.sh
@@ -20,6 +23,13 @@ mode="${1:-all}"
 case "$mode" in all|--tla-only|--verify) ;; *) echo "usage: $0 [--tla-only|--verify]" >&2; exit 2;; esac
 
 expected_scenarios() { for entry in "${TLA_SCENARIOS[@]}"; do scenario_name "$entry"; done; }
+expected_wide() { for entry in "${TLA_WIDE_SCENARIOS[@]}"; do scenario_name "$entry"; done; }
+
+# Wide logs are positive logs with no negative counterpart.
+check_wide() {
+  : > "$tmp/noneg"
+  check_logs "$1" "$2" - "$tmp/noneg" -
+}
 
 # check_logs <positive-log-dir> <positive-names-file> <negative-log-dir> <negative-names-file> <run-dirs?>
 check_logs() {
@@ -109,6 +119,10 @@ if [[ $mode == --verify ]]; then
   expected_scenarios > "$tmp/pos"
   (cd verification/results/tlc/negative && ls -- *.log | sed 's/\.log$//') > "$tmp/neg"
   check_logs verification/results/tlc "$tmp/pos" verification/results/tlc/negative "$tmp/neg" -
+  if [[ -d verification/results/tlc/wide ]]; then
+    expected_wide > "$tmp/wide"
+    check_wide verification/results/tlc/wide "$tmp/wide"
+  fi
   exit 0
 fi
 
@@ -126,6 +140,16 @@ while IFS= read -r label; do
   cp ".runs/tla/negative/$label/result.log" "$tmp/neglogs/$label.log"
 done < .runs/tla/negative/MANIFEST
 check_logs .runs/tla .runs/tla/MANIFEST "$tmp/neglogs" .runs/tla/negative/MANIFEST .runs/tla/negative
+wide=
+if [[ -f .runs/tla/wide/MANIFEST ]]; then
+  expected_wide > "$tmp/wide"
+  if ! cmp -s "$tmp/wide" .runs/tla/wide/MANIFEST; then
+    echo "Wide TLC manifest does not match the wide scenario list" >&2
+    exit 1
+  fi
+  check_wide .runs/tla/wide .runs/tla/wide/MANIFEST
+  wide=1
+fi
 
 mkdir -p verification/results/tlc/negative verification/results/lean
 rm -f verification/results/tlc/*.log verification/results/tlc/negative/*.log
@@ -133,6 +157,15 @@ while IFS= read -r scenario; do
   cp ".runs/tla/$scenario.log" "verification/results/tlc/$scenario.log"
 done < .runs/tla/MANIFEST
 cp "$tmp"/neglogs/*.log verification/results/tlc/negative/
+rm -rf verification/results/tlc/wide
+if [[ -n $wide ]]; then
+  mkdir -p verification/results/tlc/wide
+  while IFS= read -r scenario; do
+    cp ".runs/tla/wide/$scenario.log" "verification/results/tlc/wide/$scenario.log"
+  done < .runs/tla/wide/MANIFEST
+else
+  echo "No complete wide TLC run (.runs/tla/wide/MANIFEST): wide logs not archived" >&2
+fi
 {
   echo "host: $(uname -srm)"
   java -version 2>&1
@@ -160,3 +193,6 @@ rg --files verification/tla verification/veil scripts verification/README.md \
 expected_scenarios > "$tmp/pos"
 (cd verification/results/tlc/negative && ls -- *.log | sed 's/\.log$//') > "$tmp/neg"
 check_logs verification/results/tlc "$tmp/pos" verification/results/tlc/negative "$tmp/neg" -
+if [[ -n $wide ]]; then
+  check_wide verification/results/tlc/wide "$tmp/wide"
+fi

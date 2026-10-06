@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 6 and seed -6749958173444131632 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 61625] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Collision/Collision.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Collision/Registry.tla
+Running breadth-first search Model-Checking with fp 17 and seed -8385662390827526277 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 251] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Collision/Collision.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Collision/Registry.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,25 +12,25 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Collision
-Starting... (2026-10-05 15:03:16)
+Starting... (2026-10-05 19:53:43)
 Implied-temporal checking--satisfiability problem has 6 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 15:03:17.
-Checking 6 branches of temporal properties for the current state space with 15214 total distinct states at (2026-10-05 15:03:20)
-Finished checking temporal properties in 00s at 2026-10-05 15:03:21
-Progress(9) at 2026-10-05 15:03:21: 16,401 states generated (16,401 s/min), 2,755 distinct states found (2,755 ds/min), 1,316 states left on queue.
-Progress(19) at 2026-10-05 15:03:31: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
-Checking 6 branches of temporal properties for the complete state space with 95568 total distinct states at (2026-10-05 15:03:31)
-Finished checking temporal properties in 01s at 2026-10-05 15:03:33
+Finished computing initial states: 1 distinct state generated at 2026-10-05 19:53:43.
+Checking 6 branches of temporal properties for the current state space with 63905 total distinct states at (2026-10-05 19:53:46)
+Finished checking temporal properties in 00s at 2026-10-05 19:53:47
+Progress(12) at 2026-10-05 19:53:47: 99,591 states generated (99,591 s/min), 11,059 distinct states found (11,059 ds/min), 2,448 states left on queue.
+Progress(20) at 2026-10-05 19:53:48: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
+Checking 6 branches of temporal properties for the complete state space with 95568 total distinct states at (2026-10-05 19:53:48)
+Finished checking temporal properties in 01s at 2026-10-05 19:53:50
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.5E-10
-  based on the actual fingerprints:  val = 9.0E-12
+  based on the actual fingerprints:  val = 6.9E-12
 186121 states generated, 15928 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 19.
+The depth of the complete state graph search is 20.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 18s at (2026-10-05 15:03:33)
+Finished in 07s at (2026-10-05 19:53:50)
 ==== Paralean TLC provenance ====
 module Collision
 config Collision.cfg

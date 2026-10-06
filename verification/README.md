@@ -33,9 +33,9 @@ remains an implementation obligation.
 
 ## TLC results
 
-Exhaustive finite-state checks ran on 2026-10-05 on `aws-dev` (Linux x86_64,
-32 cores, OpenJDK 25.0.4.1) with TLC2 2.19 (see [toolchain](results/toolchain.txt))
-and eight TLC workers. These are full reachable-state searches
+Exhaustive finite-state checks ran on 2026-10-05 on a shared Apple M4 (macOS,
+OpenJDK 17.0.18) with TLC2 2.19 (see [toolchain](results/tlc/toolchain.txt))
+and four TLC workers. These are full reachable-state searches
 for the listed finite instances, not proofs for arbitrary cluster sizes.
 
 | Scenario | Configuration | Distinct states | Checked properties |
@@ -53,17 +53,41 @@ for the listed finite instances, not proofs for arbitrary cluster sizes.
 | Targets | 2 workers, one target name, 3 proofs, crash, owner reassignment (2 epochs), head kept in the owner record | 419,214 | Target proofs form a chain; unique head across handovers; the recorded head tops the chain |
 | Fencing | 3 replicas (symmetry-reduced), fence register with re-acquisition (tokens 1..3), fenced first writes, repair from a named live source, fenced commit certificates, scan of live certificates | 922,366 | Stale first writes never stored; commit certificates, adopted and selected records committed under the fence; a late-acknowledged stale record is never adopted; certified records are found by every fully live scan |
 | Certificates | 3 replicas, 2 groups, 2 nodes, loss and index erasure (symmetry-reduced) | 1,182,911 | Certificates sound; replies survive; scans between quorum and published; checkpoints certified and discoverable |
-| Workspace | 3 agents, 2 files, 5 declarations, a two-name group revised for one name, collision, winner revision, tombstone | 23,932 | Same known set renders identically; only live heads render; a superseded group holds no name; stable order; revised winner keeps its name; intention preserved; eventually identical |
+| Workspace | 3 agents, 2 files, 5 declarations, a two-name group revised for one name, collision, winner revision, tombstone; staging and publication are separate steps, receive is in any order for anchors | 62,098 | Same known set renders identically; only live heads render; a superseded group holds no name; stable order; revised winner keeps its name; intention preserved; published anchors are published; eventually identical |
+| WorkspacePending | 3 agents, 1 file, 3 declarations; an author stages two declarations, the second anchored at the first while it is pending | 4,199 | As Workspace; the anchor is published first and renders above in every copy; a record received before its anchor renders at its carried position |
 
-The suite explores 3,097,826 distinct states across fourteen separate scenarios. Fingerprint
+The suite explores 5,526,366 distinct states across twenty separate scenarios. Fingerprint
 collision estimates, seeds, timings and state counts are retained in the raw logs.
 No state/depth constraints hide behaviors. `Certificates` uses symmetry reduction
 over replicas, groups and nodes, and `Fencing` over replicas; both check only
 invariants, for which this is sound.
 
-`scripts/check-tla-negative.sh` makes 66 TLC runs:
+### Larger scopes
 
-- 23 coverage witnesses: a `Never*` invariant or action property that must fail.
+`scripts/check-tla.sh --wide` runs larger instances of the same models
+(`TLA_WIDE_SCENARIOS` in `scripts/tla-common.sh`). They are not in the default
+suite because of their runtime. All are invariant-only (Workspace also checks its
+action properties); symmetry is used only where noted. Runtimes are from the
+archived run on a shared Apple M4 with four workers and a 6 GiB heap; under heavier
+load TargetsWide took 23min 28s and FencingWide 9min 21s.
+
+| Scenario | Bump over the default instance | Distinct states | Runtime |
+|---|---|---:|---:|
+| ReceiptsWide | 3 workers (was 2) | 1,513 | under 1s |
+| TargetsWide | 3 workers, 3 epochs (was 2, 2); symmetry over proofs and the non-initial workers | 12,400,854 | 10min 53s |
+| FencingWide | 4 replicas (was 3), majority (3-member) quorums; replica symmetry | 1,860,196 | 10min 54s |
+| WorkspaceWide | 3 publishing authors in one file (was 2), a collision, a cross-author revision and an own-pending anchor; no symmetry | 25,725 | 47s |
+
+Not feasible here: `Certificates` with 3 nodes (stopped after 20 minutes at
+3,873,820 distinct states, 2,118,416 queued) and with 3 groups (stopped after 20
+minutes at 6,080,122 distinct states, 3,272,152 queued). `Certificates` is still
+checked only at 3 replicas, 2 groups and 2 nodes. Not attempted: Fencing with a
+fourth token, Targets with 2 target names (the model has one name), Fencing with
+5 replicas. The liveness instances keep their small constants.
+
+`scripts/check-tla-negative.sh` makes 81 TLC runs:
+
+- 26 coverage witnesses: a `Never*` invariant or action property that must fail.
   They establish full B→A→B dependency-chain commitment, dependent publication,
   collisions, acknowledgements, disk loss, integrated commitment, checkpoint reuse
   after loss and admission despite export rejection. The hardening models add
@@ -72,9 +96,11 @@ invariants, for which this is sound.
   after the writer re-acquired the fence, an acknowledgement and a repair after
   rotation, certificate rediscovery after loss, a commit after a replying replica
   is lost, converged concurrent inserts, a resolved name collision, a revised
-  winner, a deletion and a partial revision that frees a name.
-- 41 mutations, each expecting a named invariant or temporal violation. They
-  make 38 distinct source edits: three deletions are run twice against different
+  winner, a deletion, a partial revision that frees a name, an author anchoring at
+  its own pending declaration, and a declaration rendered before its anchor arrives.
+- 49 mutations, each expecting a named invariant or temporal violation (two of
+  them run the original design against the new liveness properties). They
+  make 46 distinct source edits: three deletions are run twice against different
   oracles (`unreceipted_staging`/`unreceipted_publication`,
   `unknown_ancestor`/`unclosed_ancestors`,
   `fencing_unfenced_commit`/`fencing_unfenced_commit_selected`).
@@ -87,9 +113,12 @@ invariants, for which this is sound.
   certificate fence, the commit certificate's Ack precondition and the repair
   source read, make recovery adopt on byte quorums instead of certificates,
   remove the publication certificate scan, commit and writer-knowledge guards,
-  and break the workspace rendering, lineage winner, live-head, name-holding and
-  Lamport-clock rules.
-- 2 missing-witness runs: an over-restrictive model must lose a useful-work witness.
+  break the workspace rendering, lineage winner, live-head, name-holding and
+  Lamport-clock rules, remove the workspace publication guard, read the clock
+  from published declarations only, and render by the anchor tree instead of
+  carried paths.
+- 3 missing-witness runs: an over-restrictive model must lose a useful-work witness.
+- 3 redundant-check deletions that must pass.
 The harness requires the intended invariant/temporal error, not merely nonzero exit.
 The deliberately over-restrictive models must lose their dependent-work and
 checkpoint-reuse witnesses.

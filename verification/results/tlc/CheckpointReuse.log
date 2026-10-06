@@ -1,12 +1,12 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 45 and seed -6607318427558159694 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 64737] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Integrated.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Publication.tla
+Running breadth-first search Model-Checking with fp 60 and seed 5296137744031239163 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 1874] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/CheckpointReuse/Integrated.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/CheckpointReuse/Publication.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Registry.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/CheckpointReuse/Durability.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/CheckpointReuse/Registry.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/CheckpointReuse/Durability.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
 Semantic processing of module Naturals
@@ -18,19 +18,19 @@ Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
 Semantic processing of module CheckpointReuse
-Starting... (2026-10-05 15:05:21)
+Starting... (2026-10-05 19:54:20)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 15:05:22.
-Progress(9) at 2026-10-05 15:05:25: 61,852 states generated (61,852 s/min), 7,963 distinct states found (7,963 ds/min), 3,472 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:21.
+Progress(15) at 2026-10-05 19:54:24: 523,927 states generated (523,927 s/min), 37,461 distinct states found (37,461 ds/min), 3,922 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.4E-9
-  based on the actual fingerprints:  val = 4.8E-11
+  based on the actual fingerprints:  val = 5.3E-11
 649369 states generated, 43888 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 4).
-Finished in 24s at (2026-10-05 15:05:43)
+Finished in 04s at (2026-10-05 19:54:24)
 ==== Paralean TLC provenance ====
 module CheckpointReuse
 config CheckpointReuse.cfg

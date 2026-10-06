@@ -127,7 +127,11 @@ Each hardening model has its own mutations in `scripts/check-tla-negative.sh`.
 | Certificates | Publication writes the publisher's certificates atomically | `cert_stranded_publication` (`AtomicCert = FALSE`), on `CertificatesLive` | `PublishedDiscoverable` (only property) |
 | Workspace | Render from the known set; lineage winner; Lamport clock; live heads | `workspace_arrival_order`, `workspace_first_seen_winner`, `workspace_counter_clock`, `workspace_own_key_winner`, `workspace_render_superseded` | `SameKnownSameRender`, `IntentionPreserved`, `WinnerLineageKeepsName`, `NoSupersededRendered` |
 | Workspace | A group superseded for any name holds no name | `workspace_superseded_holds_name` | `NameHeld` |
-| Workspace | Receive needs the anchor known; receive needs the revision ancestor known | `workspace_receive_unknown_anchor`, `workspace_receive_unknown_revision` | `RenderComplete` |
+| Workspace | Receive needs the revision ancestor known | `workspace_receive_unknown_revision` | `RenderComplete` |
+| WorkspacePending | Render by carried anchor paths, not the anchor tree of known records | `workspace_render_tree_order` | `RenderComplete` |
+| WorkspacePending | Publish only once the anchor is known to the publisher (`PublishGuard`) | `workspace_no_publish_guard` | `AnchorClosed` |
+| WorkspacePending | The clock covers the author's pending declarations | `workspace_known_clock` | `KeysUnique` |
+| WorkspacePending | Staging may anchor at the author's own pending declaration (over-restriction) | `workspace_anchor_published_only` | loses `NeverOwnPendingAnchor` |
 
 Every target guard conjunct is independently necessary. Each hardening model also
 has reachability witnesses so a mutation cannot pass by blocking work: target
@@ -152,11 +156,15 @@ publication can land between its scan and its next prepare), whereas the
 record read and the conditional write are one store operation. This model
 makes Prepare atomic and so cannot show that difference.
 
-The two Workspace receive guards matter only for completeness: rendering
-ignores a declaration whose anchor or lineage root is unknown, so deleting either
-guard keeps every ordering and naming invariant but leaves a known live
-declaration invisible. `RenderComplete` states that every known live declaration
-is rendered.
+Workspace receive is in any order for anchors: rendering reads the anchor
+path each record carries, so a declaration received before its anchor renders
+at its position (`NeverEarlyArrivalRendered` must fail). Rendering by the anchor
+tree of the known records instead drops it (`workspace_render_tree_order`).
+Receive stays causal for the revision ancestor; deleting that guard keeps every
+ordering and naming invariant but leaves a known live revision invisible.
+`RenderComplete` states that every known live declaration is rendered. The
+counter-clock mutation drops `ClockCovers` from its configuration, since that
+invariant restates the Lamport rule; its oracle is `IntentionPreserved`.
 
 `Fencing` no longer reads global state in its guards. Repair names its source
 replica, and `Scan` reads certificates on live replicas. The ghost `writtenAt`
@@ -171,15 +179,15 @@ quorum. The record set is `a` (token 1), the middle-epoch competitor `m`
 Lean necessity witnesses for the Lean-only guards are listed in
 the component notes (`scan_check_unsafe`, `partial_revision_frees_name`,
 `own_pending_anchor`, `publish_guard_needed`, `render_reads_unknown_anchor`,
-`reserved_check_needed`). The workspace guards for anchoring through the author's pending groups are
-Lean-only: the TLA model has no pending state.
+`reserved_check_needed`). The workspace guards for anchoring through the author's pending groups
+also have TLA counterparts on `WorkspacePending` (above).
 
 ## Liveness
 
 | Scenario | Property | Fairness | Model |
 |---|---|---|---|
 | `Collision` | `EventualDelivery`, `Convergence`, `EventualCollision` | `Heal`, every receive | Registry |
-| `Workspace` | `EventuallyIdentical` | receive | Workspace |
+| `Workspace`, `WorkspacePending` | `EventuallyIdentical` | receive | Workspace |
 | `TargetsLive` | `HandoverProgress`: once stable, while a fresh proof id remains, the recorded head is eventually revised by a published proof | stabilization, the owner's prepare, publish, abandon, certify, receive | Targets, `AtomicCert = TRUE` |
 | `FencingLive` | `RecoveryAdopts`: a record committed on a fully live write quorum is eventually adopted by recovery | scan, certificate repair | Fencing, records `a`, `d` |
 | `CertificatesLive` | `CommittedDiscoverable`: a group in any checkpoint is eventually rediscovered by every node; `PublishedDiscoverable`: every publication is eventually discoverable by every node | certificate puts, scans | Certificates, `AtomicCert = TRUE`, one group |
@@ -195,6 +203,8 @@ Safety + reachability only: `Chain`, `Revision`, `Revert`, `Rejected`,
 `Quorums`, `Integrated`, `CheckpointReuse`, `ExportRejected`, `Receipts`, and
 the safety instances `Targets`, `TargetsLagging`, `Fencing`, `Certificates`,
 `CertificatesLagging`.
+The larger-scope instances (`ReceiptsWide`, `TargetsWide`, `FencingWide`,
+`WorkspaceWide`; `check-tla.sh --wide`) are safety only and run no mutations.
 
 ## The stranded head and its fix
 

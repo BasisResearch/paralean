@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 105 and seed -5958192346538815679 with 6 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 36584] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/negative/workspace_arrival_order/Workspace.tla
+Running breadth-first search Model-Checking with fp 74 and seed 1289990198078336096 with 4 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 32381] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/negative/workspace_arrival_order/Workspace.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
@@ -8,10 +8,10 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-05 16:13:20)
+Starting... (2026-10-05 20:09:00)
 Implied-temporal checking--satisfiability problem has 1 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 16:13:21.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 20:09:00.
 Error: Invariant SameKnownSameRender is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -20,69 +20,136 @@ State 1: <Initial predicate>
   c |-> [F |-> <<>>, G |-> <<>>] ]
 /\ rendered = [a |-> {}, b |-> {}, c |-> {}]
 /\ intent = [a1 |-> <<>>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {}, c |-> {}]
 /\ ts = [a1 |-> 0, a2 |-> 0, a3 |-> 0, b1 |-> 0, b2 |-> 0]
 /\ known = [a |-> {}, b |-> {}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "none", bar |-> "none"],
   b |-> [foo |-> "none", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [a1 |-> <<>>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
 /\ anchor = [a1 |-> "none", a2 |-> "none", a3 |-> "none", b1 |-> "none", b2 |-> "none"]
+/\ lamport = [a |-> 0, b |-> 0, c |-> 0]
 
-State 2: <Publish line 148, col 5 to line 162, col 30 of module Workspace>
+State 2: <Stage line 199, col 5 to line 216, col 53 of module Workspace>
 /\ doc = [ a |-> [F |-> <<>>, G |-> <<>>],
-  b |-> [F |-> <<"b1">>, G |-> <<>>],
+  b |-> [F |-> <<>>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
-/\ rendered = [a |-> {}, b |-> {"b1"}, c |-> {}]
-/\ intent = [a1 |-> <<>>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
-/\ ts = [a1 |-> 0, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
-/\ known = [a |-> {}, b |-> {"b1"}, c |-> {}]
+/\ rendered = [a |-> {}, b |-> {}, c |-> {}]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
+/\ pending = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 0, b2 |-> 0]
+/\ known = [a |-> {}, b |-> {}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "none", bar |-> "none"],
-  b |-> [foo |-> "b1", bar |-> "none"],
+  b |-> [foo |-> "none", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
-/\ anchor = [a1 |-> "none", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ path = [a1 |-> <<<<1, 1>>>>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<>>, b2 |-> <<>>]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "none", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 0, c |-> 0]
 
-State 3: <Publish line 148, col 5 to line 162, col 30 of module Workspace>
+State 3: <Stage line 199, col 5 to line 216, col 53 of module Workspace>
+/\ doc = [ a |-> [F |-> <<>>, G |-> <<>>],
+  b |-> [F |-> <<>>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ rendered = [a |-> {}, b |-> {}, c |-> {}]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
+/\ known = [a |-> {}, b |-> {}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "none", bar |-> "none"],
+  b |-> [foo |-> "none", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [ a1 |-> <<<<1, 1>>>>,
+  a2 |-> <<>>,
+  a3 |-> <<>>,
+  b1 |-> <<<<1, 2>>>>,
+  b2 |-> <<>> ]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
+
+State 4: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
+/\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
+  b |-> [F |-> <<>>, G |-> <<>>],
+  c |-> [F |-> <<>>, G |-> <<>>] ]
+/\ rendered = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {"b1"}, c |-> {}]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
+/\ known = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
+  b |-> [foo |-> "none", bar |-> "none"],
+  c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [ a1 |-> <<<<1, 1>>>>,
+  a2 |-> <<>>,
+  a3 |-> <<>>,
+  b1 |-> <<<<1, 2>>>>,
+  b2 |-> <<>> ]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
+
+State 5: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
 /\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
   b |-> [F |-> <<"b1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
 /\ rendered = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
 /\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {}, c |-> {}]
 /\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
 /\ known = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
   b |-> [foo |-> "b1", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [ a1 |-> <<<<1, 1>>>>,
+  a2 |-> <<>>,
+  a3 |-> <<>>,
+  b1 |-> <<<<1, 2>>>>,
+  b2 |-> <<>> ]
 /\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
-State 4: <Receive line 165, col 5 to line 173, col 39 of module Workspace>
+State 6: <Receive line 232, col 5 to line 240, col 54 of module Workspace>
 /\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
   b |-> [F |-> <<"b1", "a1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
 /\ rendered = [a |-> {"a1"}, b |-> {"a1", "b1"}, c |-> {}]
 /\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {}, c |-> {}]
 /\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
 /\ known = [a |-> {"a1"}, b |-> {"a1", "b1"}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
   b |-> [foo |-> "b1", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [ a1 |-> <<<<1, 1>>>>,
+  a2 |-> <<>>,
+  a3 |-> <<>>,
+  b1 |-> <<<<1, 2>>>>,
+  b2 |-> <<>> ]
 /\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
-State 5: <Receive line 165, col 5 to line 173, col 39 of module Workspace>
+State 7: <Receive line 232, col 5 to line 240, col 54 of module Workspace>
 /\ doc = [ a |-> [F |-> <<"a1", "b1">>, G |-> <<>>],
   b |-> [F |-> <<"b1", "a1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
 /\ rendered = [a |-> {"a1", "b1"}, b |-> {"a1", "b1"}, c |-> {}]
 /\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {}, c |-> {}]
 /\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
 /\ known = [a |-> {"a1", "b1"}, b |-> {"a1", "b1"}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
   b |-> [foo |-> "b1", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
+/\ path = [ a1 |-> <<<<1, 1>>>>,
+  a2 |-> <<>>,
+  a3 |-> <<>>,
+  b1 |-> <<<<1, 2>>>>,
+  b2 |-> <<>> ]
 /\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
-162 states generated, 112 distinct states found, 78 states left on queue.
-The depth of the complete state graph search is 6.
-The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 7 and the 95th percentile is 6).
-Finished in 02s at (2026-10-05 16:13:22)
+479 states generated, 275 distinct states found, 160 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 5 and the 95th percentile is 5).
+Finished in 01s at (2026-10-05 20:09:01)
 ==== Paralean TLC provenance ====
 module Workspace
 config Workspace.cfg
@@ -103,7 +170,8 @@ source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejecte
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
 source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
-source 641e02a7d94130ee9e46a0bd219fb3c9a17cd8cb5e1c505f4e63778d16e1e097  Workspace.tla
+source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
 source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
 source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  CertificatesLive.cfg
@@ -113,16 +181,21 @@ source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collisi
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
+source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
+source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
 source d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets.cfg
 source f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg
 source 7d37881f7c64a9662c4a59fb7387cdce59d584f0717fb309994584e9af1b49fa  TargetsLive.cfg
-source 111811ad8db4e442f89283c47d3098cd04cd96d4556bbf305bf7363433bf8be2  Workspace.cfg
-checked 3ad3f1b52a5a2299048544947ecb2526f49c18d9f4f877f9bd84921ad97aad1b  Workspace.tla
-checked 111811ad8db4e442f89283c47d3098cd04cd96d4556bbf305bf7363433bf8be2  Workspace.cfg
+source fe4c3b0752a606261551319aad053ab8b817a1253defbdaa2e03dbbd0db6637a  TargetsWide.cfg
+source 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
+source 654555d4c765c137034dc9b421494c14f3c5d359d16d27bdc6c5dc46d4fc674e  WorkspacePending.cfg
+source f7a76167b4e53afbda35d82f95683dfd7eb63231082d1c078d683afd9d2f9481  WorkspaceWide.cfg
+checked 783b195e02e442312f4300ff118c5c1464934f7f1371ea301d7bed3c136ea898  Workspace.tla
+checked 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
 ==== end provenance ====

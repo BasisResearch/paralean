@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 44 and seed -1902793763165031632 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 65416] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/agent-a8e7db9c68a6832a7/.runs/tla/run/Receipts/Receipts.tla
+Running breadth-first search Model-Checking with fp 45 and seed -867871566491642591 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 2195] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Receipts/Receipts.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
@@ -8,17 +8,17 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Receipts
-Starting... (2026-10-05 15:05:50)
+Starting... (2026-10-05 19:54:27)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 15:05:50.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:27.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.9E-14
 2083 states generated, 181 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 15.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 2).
-Finished in 01s at (2026-10-05 15:05:50)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 3 and the 95th percentile is 2).
+Finished in 00s at (2026-10-05 19:54:27)
 ==== Paralean TLC provenance ====
 module Receipts
 config Receipts.cfg

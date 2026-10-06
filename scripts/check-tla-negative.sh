@@ -576,10 +576,13 @@ case_workspace_first_seen_winner() {
   run_expected_failure workspace_first_seen_winner Workspace 'Invariant SameKnownSameRender is violated'
 }
 
+# A per-author counter instead of the Lamport clock.
 defcase workspace_counter_clock
 case_workspace_counter_clock() {
   prepare_case workspace_counter_clock
-  edit_once "$neg/workspace_counter_clock/Workspace.tla" 'Clock(x) == 1 + KnownMax(known[x])' 'Clock(x) == 1 + Cardinality({d \in known[x] : Author[d] = x})'
+  edit_once "$neg/workspace_counter_clock/Workspace.tla" 'Clock(x) == 1 + lamport[x]' 'Clock(x) == 1 + Cardinality({d \in View(x) : Author[d] = x})'
+  # ClockCovers states the Lamport rule itself; drop it so the oracle is intention.
+  edit_once "$neg/workspace_counter_clock/Workspace.cfg" ' ClockCovers' ''
   run_expected_failure workspace_counter_clock Workspace 'Action property IntentionPreserved is violated'
 }
 
@@ -612,18 +615,61 @@ case_workspace_superseded_holds_name() {
   run_expected_failure workspace_superseded_holds_name Workspace 'Invariant NameHeld is violated'
 }
 
-# Receive is causal for the anchor and for the revision ancestor.
-defcase workspace_receive_unknown_anchor
-case_workspace_receive_unknown_anchor() {
-  prepare_case workspace_receive_unknown_anchor
-  edit_once "$neg/workspace_receive_unknown_anchor/Workspace.tla" $'\\notin known[x]\n    /\\ anchor[d] = Root \\/ anchor[d] \\in known[x]\n' $'\\notin known[x]\n'
-  run_expected_failure workspace_receive_unknown_anchor Workspace 'Invariant RenderComplete is violated'
+# Pending state (WorkspacePending.cfg): an author anchors at its own pending
+# declaration; an agent renders a declaration received before its anchor.
+pending_witness() {
+  local label="$1" invariant="$2"
+  prepare_case "$label"
+  finite_witness_config "$neg/$label/WorkspacePending.cfg" "$invariant"
+  run_expected_failure "$label" Workspace "Invariant $invariant is violated" WorkspacePending
+}
+defcase workspace_own_pending_anchor
+case_workspace_own_pending_anchor() { pending_witness workspace_own_pending_anchor NeverOwnPendingAnchor; }
+defcase workspace_early_arrival
+case_workspace_early_arrival() { pending_witness workspace_early_arrival NeverEarlyArrivalRendered; }
+
+# A clock rebuilt from the known (published) set alone, as after a restart
+# without a persisted clock, reuses the timestamp of an own pending declaration.
+defcase workspace_known_clock
+case_workspace_known_clock() {
+  prepare_case workspace_known_clock
+  edit_once "$neg/workspace_known_clock/Workspace.tla" 'Clock(x) == 1 + lamport[x]' 'Clock(x) == 1 + (IF known[x] = {} THEN 0 ELSE CHOOSE t \in {ts[e] : e \in known[x]} : \A e \in known[x] : ts[e] <= t)'
+  run_expected_failure workspace_known_clock Workspace 'Invariant KeysUnique is violated' WorkspacePending
 }
 
+# PublishGuard: without it a declaration is published before its author's
+# own pending anchor.
+defcase workspace_no_publish_guard
+case_workspace_no_publish_guard() {
+  prepare_case workspace_no_publish_guard
+  edit_once "$neg/workspace_no_publish_guard/Workspace.tla" $'    /\\ d \\in pending[x]\n    /\\ anchor[d] = Root \\/ anchor[d] \\in known[x]\n' $'    /\\ d \\in pending[x]\n'
+  run_expected_failure workspace_no_publish_guard Workspace 'Invariant AnchorClosed is violated' WorkspacePending
+}
+
+# Anchoring only on published declarations loses the own-pending-anchor work.
+defcase workspace_anchor_published_only
+case_workspace_anchor_published_only() {
+  local d="$neg/workspace_anchor_published_only"
+  prepare_case workspace_anchor_published_only
+  edit_once "$d/Workspace.tla" '{e \in View(x) : File[e] = File[d] /\ Rev[e] = None}' '{e \in known[x] : File[e] = File[d] /\ Rev[e] = None}'
+  finite_witness_config "$d/WorkspacePending.cfg" NeverOwnPendingAnchor
+  run_expected_missing_witness workspace_anchor_published_only Workspace WorkspacePending
+}
+
+# Rendering by the anchor tree of the known records (instead of the carried
+# paths) drops a declaration received before its anchor.
+defcase workspace_render_tree_order
+case_workspace_render_tree_order() {
+  prepare_case workspace_render_tree_order
+  edit_once "$neg/workspace_render_tree_order/Workspace.tla" 'Positions(K, f) == ByPath(Roots(K, f))' 'Positions(K, f) == TreeOrder(K, f)'
+  run_expected_failure workspace_render_tree_order Workspace 'Invariant RenderComplete is violated' WorkspacePending
+}
+
+# Receive is causal for the revision ancestor.
 defcase workspace_receive_unknown_revision
 case_workspace_receive_unknown_revision() {
   prepare_case workspace_receive_unknown_revision
-  edit_once "$neg/workspace_receive_unknown_revision/Workspace.tla" $'\\in known[x]\n    /\\ Rev[d] = None \\/ Rev[d] \\in known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ doc\'' $'\\in known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ doc\''
+  edit_once "$neg/workspace_receive_unknown_revision/Workspace.tla" $'\\notin known[x]\n    /\\ Rev[d] = None \\/ Rev[d] \\in known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ lamport\'' $'\\notin known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ lamport\''
   run_expected_failure workspace_receive_unknown_revision Workspace 'Invariant RenderComplete is violated'
 }
 
