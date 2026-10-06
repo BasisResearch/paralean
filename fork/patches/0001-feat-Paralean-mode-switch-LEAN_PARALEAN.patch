@@ -1,0 +1,152 @@
+From d7a6641ab40dcc1143994fa9e0b01127ee331e88 Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 1/6] feat: Paralean mode switch (LEAN_PARALEAN)
+
+Adds `Lean.Paralean.Config`, a process-wide switch for the Paralean fork hooks
+(distributed declaration sharing). Every hook is off by default, so a process that
+does not set `LEAN_PARALEAN` (or call `Lean.Paralean.setConfig`) behaves as stock
+Lean. `Lean.Paralean.apiVersion` lets libraries detect the fork.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean.lean               |  1 +
+ src/Lean/Paralean/Mode.lean | 80 +++++++++++++++++++++++++++++++++++++
+ tests/elab/paraleanOff.lean | 29 ++++++++++++++
+ 3 files changed, 110 insertions(+)
+ create mode 100644 src/Lean/Paralean/Mode.lean
+ create mode 100644 tests/elab/paraleanOff.lean
+
+diff --git a/src/Lean.lean b/src/Lean.lean
+index 5b80403..260f1f2 100644
+--- a/src/Lean.lean
++++ b/src/Lean.lean
+@@ -51,3 +51,4 @@ public import Lean.ExtraModUses
+ public import Lean.OriginalConstKind
+ public import Lean.PostprocessTraces
+ public import Lean.Cadical
++public import Lean.Paralean.Mode
+diff --git a/src/Lean/Paralean/Mode.lean b/src/Lean/Paralean/Mode.lean
+new file mode 100644
+index 0000000..f80d7d0
+--- /dev/null
++++ b/src/Lean/Paralean/Mode.lean
+@@ -0,0 +1,80 @@
++/-
++Copyright (c) 2026 Basis Research Institute. All rights reserved.
++Released under Apache 2.0 license as described in the file LICENSE.
++-/
++module
++
++prelude
++public import Init.System.IO
++public import Init.Data.String.Legacy
++public import Init.Data.String.TakeDrop
++
++public section
++
++/-!
++# Paralean mode
++
++Process-wide switch for the Paralean fork hooks (distributed declaration sharing). Every hook is
++off by default, so a process that never enables them behaves exactly like stock Lean.
++
++The hooks are enabled by the environment variable `LEAN_PARALEAN`, read once at start-up, or by a
++host calling `Lean.Paralean.setConfig` before it creates an environment:
++
++* `LEAN_PARALEAN=1` (or `all`) enables every hook;
++* otherwise it is a comma-separated list of hook names: `sync`, `noaxiom`, `simp`, `instnames`.
++
++The switch is not an option, so `set_option` in user source cannot change it.
++-/
++
++namespace Lean.Paralean
++
++/-- Version of the fork's Paralean API. Libraries test for the constant `Lean.Paralean.apiVersion`
++to detect that they are compiled against the fork. -/
++def apiVersion : Nat := 1
++
++/-- The active Paralean hooks. -/
++structure Config where
++  /-- Hook 1: `Elab.async` is forced to `false` by the command-line frontend and the language server,
++  and `set_option Elab.async` is an error. -/
++  pinSync : Bool := false
++  /-- Hook 3: a declaration the kernel rejects is not re-added as an axiom. -/
++  noAxiomFallback : Bool := false
++  /-- Hook 4: `simp` and `simp_all` record the declarations they used as a `SimpUsedInfo` info leaf. -/
++  simpUsed : Bool := false
++  /-- Hook 5: instances named by the elaborator or by a deriving handler get canonical names
++  (`Lean.Paralean.canonicalInstanceName`). -/
++  canonicalInstNames : Bool := false
++  deriving Inhabited, Repr, BEq
++
++/-- Every hook enabled. -/
++def Config.all : Config :=
++  { pinSync := true, noAxiomFallback := true, simpUsed := true, canonicalInstNames := true }
++
++/-- Whether any hook is enabled. -/
++def Config.any (c : Config) : Bool :=
++  c.pinSync || c.noAxiomFallback || c.simpUsed || c.canonicalInstNames
++
++/-- Parses the value of `LEAN_PARALEAN`. Unknown hook names are ignored. -/
++def Config.parse (s : String) : Config :=
++  let s := s.trimAscii.toString
++  if s == "1" || s == "all" then .all
++  else (s.splitOn ",").foldl (init := {}) fun c h =>
++    match h.trimAscii.toString with
++    | "sync" => { c with pinSync := true }
++    | "noaxiom" => { c with noAxiomFallback := true }
++    | "simp" => { c with simpUsed := true }
++    | "instnames" => { c with canonicalInstNames := true }
++    | _ => c
++
++private builtin_initialize configRef : IO.Ref Config ← do
++  IO.mkRef <| match (← IO.getEnv "LEAN_PARALEAN") with
++    | some s => Config.parse s
++    | none => {}
++
++/-- The active hooks. -/
++def getConfig : BaseIO Config := configRef.get
++
++/-- Sets the active hooks for this process. Hosts call it before creating environments. -/
++def setConfig (c : Config) : BaseIO Unit := configRef.set c
++
++end Lean.Paralean
+diff --git a/tests/elab/paraleanOff.lean b/tests/elab/paraleanOff.lean
+new file mode 100644
+index 0000000..ac3bc84
+--- /dev/null
++++ b/tests/elab/paraleanOff.lean
+@@ -0,0 +1,29 @@
++import Lean
++
++/-!
++Without `LEAN_PARALEAN` every Paralean hook is off and Lean behaves as stock: `Elab.async` may be set,
++instance names are the stock ones (with `_n` deduplication), and `simp` adds no info leaf.
++-/
++open Lean Elab Command
++
++/-- info: true -/
++#guard_msgs in
++#eval return (← Paralean.getConfig) == ({} : Paralean.Config)
++
++set_option Elab.async true in
++example : True := trivial
++
++class Foo (α : Type) where foo : α
++instance : Inhabited (ULift.{1} Nat) := ⟨⟨0⟩⟩
++instance : Inhabited (ULift.{2} Nat) := ⟨⟨1⟩⟩
++inductive Color where
++  | red | green
++  deriving Repr
++
++/-- info: true -/
++#guard_msgs in
++run_cmd logInfo m!"{(← getEnv).contains `instInhabitedULiftNat_elab && (← getEnv).contains `instInhabitedULiftNat_elab_1 && (← getEnv).contains `instReprColor}"
++
++/-- info: 0 -/
++#guard_msgs in
++#eval return (← Paralean.takeInstNameLog).size
+-- 
+2.53.0
+
