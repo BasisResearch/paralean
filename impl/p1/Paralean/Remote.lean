@@ -91,6 +91,9 @@ initialize verifiedCache : IO.Ref (Std.HashMap (Name × String) (Array (Name × 
 initialize viewCache : IO.Ref (Nat × Option Rga.View) ← IO.mkRef (0, none)
 /-- (module, package) ↦ the member names `remote_value%` gave the members it added. -/
 initialize fetchedNames : IO.Ref (Std.HashMap (Name × String) (Std.HashMap Name Name)) ← IO.mkRef {}
+/-- Constants `remote_value%` added from a payload (and the theorems it completed): their
+proofs are the fetched ones. -/
+initialize fetchedAdded : IO.Ref NameSet ← IO.mkRef {}
 /-- Decoded payloads per package (immutable). -/
 initialize payloadCache : IO.Ref (Std.HashMap String ByteArray) ← IO.mkRef {}
 
@@ -428,6 +431,8 @@ def elabRemoteValue : TermElab := fun stx expected? => do
       | .axiomInfo _ => throwError "remote_value%: {g.short} contains an axiom {n}"
       | _ => throwError "remote_value%: auxiliary {n} of {g.short} is not a theorem or definition"
     addDecl d
+    fetchedAdded.modify (·.insert n)
+  fetchedAdded.modify (·.insert declName)
   -- universe levels and the leading binders of the published statement
   let lvl := matchLevels pubCi.type ty {}
   let inst (e : Expr) : Expr :=
@@ -476,7 +481,10 @@ def payloadCheck (g : GroupRec) (closure : Array GroupRec) (proofs : Bool) : Com
         unless isPropTy || a.value == b.value do
           problems := problems.push s!"body of {pub.name} differs: published {(toString a.value).take 2000} vs here {(toString b.value).take 2000}"
       | .thmInfo a, .thmInfo b =>
-        if proofs then unless a.value == b.value do problems := problems.push s!"proof of {pub.name} differs from the fetched one"
+        -- proofs `remote_value%` took from the payload must be the payload's; members that
+        -- Lean had already realized here (reserved names such as `induct_unfolding`, §3.3)
+        -- only need the published statement
+        if proofs && (← fetchedAdded.get).contains pub.name then unless a.value == b.value do problems := problems.push s!"proof of {pub.name} differs from the fetched one"
       | .opaqueInfo _, .opaqueInfo _ | .inductInfo _, .inductInfo _ | .ctorInfo _, .ctorInfo _
       | .recInfo _, .recInfo _ | .axiomInfo _, .axiomInfo _ | .quotInfo _, .quotInfo _ => pure ()
       | .thmInfo _, .defnInfo _ | .defnInfo _, .thmInfo _ =>

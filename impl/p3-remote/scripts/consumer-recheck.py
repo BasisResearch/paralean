@@ -16,6 +16,7 @@ BIN = os.environ["PARALEAN_BIN"]
 R = os.path.abspath(sys.argv[1])
 os.environ["PARALEAN_KEYS"] = os.path.join(R, "keys.json")
 os.environ["PARALEAN_TRUST"] = os.path.join(R, "trust.json")
+os.environ["PARALEAN_DEPLOYMENT"] = open(os.path.join(R, "deployment")).read().strip()
 mathlib = os.environ["PARALEAN_MATHLIB"]
 os.environ["LEAN_PATH"] = subprocess.run(["lake", "env", "printenv", "LEAN_PATH"], cwd=mathlib,
                                          capture_output=True, text=True).stdout.strip()

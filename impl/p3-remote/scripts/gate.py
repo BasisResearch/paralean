@@ -175,6 +175,7 @@ def main():
     keys, trust, rogue = (os.path.join(R, n) for n in ("keys.json", "trust.json", "rogue.json"))
     os.environ["PARALEAN_DEPLOYMENT"] = os.environ.get("PARALEAN_DEPLOYMENT") or f"p3gate{int(time.time())}"
     os.environ["PARALEAN_KEYS"], os.environ["PARALEAN_TRUST"] = keys, trust
+    open(os.path.join(R, "deployment"), "w").write(os.environ["PARALEAN_DEPLOYMENT"])
     sh([PLR, "keys-init", keys, trust, rogue, "--agents", "alice,bob,carol"])
     port = os.environ.get("PARALEAN_VALIDATOR_PORT", "18591")
     os.environ["PARALEAN_VALIDATOR"] = f"127.0.0.1:{port}"

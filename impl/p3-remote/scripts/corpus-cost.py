@@ -48,6 +48,7 @@ def main():
     lean_path = subprocess.run(["lake", "env", "printenv", "LEAN_PATH"], cwd=mathlib, capture_output=True, text=True).stdout.strip()
     os.environ["LEAN_PATH"] = lean_path
     os.environ["PARALEAN_DEPLOYMENT"] = os.environ.get("PARALEAN_DEPLOYMENT") or f"p3cost{int(time.time())}"
+    open(os.path.join(R, "deployment"), "w").write(os.environ["PARALEAN_DEPLOYMENT"])
     keys, trust, rogue = (os.path.join(R, n) for n in ("keys.json", "trust.json", "rogue.json"))
     os.environ["PARALEAN_KEYS"], os.environ["PARALEAN_TRUST"] = keys, trust
     sh([PLR, "keys-init", keys, trust, rogue, "--agents", "alice,bob"])
