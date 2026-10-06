@@ -30,7 +30,7 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   validator --listen ADDR --key NAME [--max-running N] [--max-queued N] [--workdir DIR]
   controller --listen ADDR --validators A,B [--lease-ms N] [--max-work-queue N]
              [--max-validations N] [--deadline-ms N] [--memory-mb N] [--attempts N]
-  worker --name W --controller ADDR --p1-store DIR [--capacity-mb N]
+  worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
   submit --controller ADDR --request R --target NAME [--memory-mb N]
   assign --controller ADDR --target NAME --worker W
   cancel --controller ADDR --request R
@@ -202,7 +202,7 @@ async fn run(args: Vec<String>) -> R<()> {
             };
             println!("worker {name} ({}) registered, lease {lease} ms", id.hex());
             let _hb = w.spawn_heartbeats(Duration::from_millis(lease / 3));
-            Arc::clone(&w).run(Duration::from_millis(200)).await;
+            Arc::clone(&w).run(Duration::from_millis(200), Duration::from_millis(num(&f, "hold-ms", 0)?)).await;
         }
         ["submit", ..] => {
             let r = ctl_call(
