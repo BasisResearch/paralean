@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 68 and seed -7759427980409357452 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 1077] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Revert/Revert.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Revert/Registry.tla
+Running breadth-first search Model-Checking with fp 94 and seed 5439020571204880427 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 91011] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/Revert/Revert.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/Revert/Registry.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,19 +12,19 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Revert
-Starting... (2026-10-05 19:54:03)
+Starting... (2026-10-05 21:20:17)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:03.
-Progress(16) at 2026-10-05 19:54:06: 532,462 states generated (532,462 s/min), 55,351 distinct states found (55,351 ds/min), 14,468 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:20:17.
+Progress(17) at 2026-10-05 21:20:20: 840,900 states generated (840,900 s/min), 77,120 distinct states found (77,120 ds/min), 13,169 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.6E-9
-  based on the actual fingerprints:  val = 2.5E-10
+  based on the actual fingerprints:  val = 1.0E-10
 1314857 states generated, 99756 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 26.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 4).
-Finished in 06s at (2026-10-05 19:54:09)
+Finished in 04s at (2026-10-05 21:20:21)
 ==== Paralean TLC provenance ====
 module Revert
 config Revert.cfg

@@ -18,6 +18,12 @@ written argument ([store.md](../docs/store.md)), not a proof.
 - [Publication](tla/Publication.tla): composition. Publication requires an acknowledged
   package; checkpoint advancement requires an acknowledged manifest. Storage steps
   leave registry state unchanged and vice versa.
+- [Hardened](tla/Hardened.tla): the receipt, target, publication-certificate and
+  catalogue guards on one shared store (three replicas, two workers, one target
+  record and fence), with a lagging read of the target record, owner handover,
+  fence rotation and re-acquisition, one replica loss and one index erasure. The
+  separate hardening models (`Receipts`, `Targets`, `Certificates`, `Fencing`)
+  check one guard family each. See [HARDENED-TLA.md](tla/HARDENED-TLA.md).
 
 Quorums are sets with a supplied intersection member. No numeric majority formula
 is used. TLC instantiates three replicas and intersecting two-member sets; Veil
@@ -50,9 +56,9 @@ for the listed finite instances, not proofs for arbitrary cluster sizes.
 | CheckpointReuse | Restricted spec: a staged ordering of Integrated's actions (committed checkpoint, acknowledged-replica loss, worker restart) | 43,888 | Surviving copies and repeated commit on that restricted execution only |
 | ExportRejected | Closed snapshot rejected by exporter | 22 | Export rejection despite dependency closure |
 | Receipts | 2 workers, valid/dependent/invalid groups, Byzantine staging; the receipt guard is on staging only, publish is the base publish | 181 | Staged and published groups valid, receipted, dependency-closed |
-| Targets | 2 workers, one target name, 3 proofs, crash, owner reassignment (2 epochs), head kept in the owner record | 419,214 | Target proofs form a chain; unique head across handovers; the recorded head tops the chain |
-| Fencing | 3 replicas (symmetry-reduced), fence register with re-acquisition (tokens 1..3), fenced first writes, repair from a named live source, fenced commit certificates, scan of live certificates | 922,366 | Stale first writes never stored; commit certificates, adopted and selected records committed under the fence; a late-acknowledged stale record is never adopted; certified records are found by every fully live scan |
-| Certificates | 3 replicas, 2 groups, 2 nodes, loss and index erasure (symmetry-reduced) | 1,182,911 | Certificates sound; replies survive; scans between quorum and published; checkpoints certified and discoverable |
+| Targets | 2 workers, one target name, 3 proofs, crash, owner reassignment (2 epochs), head kept in the owner record | 838,428 | Target proofs form a chain; unique head across handovers; the recorded head tops the chain |
+| Fencing | 3 replicas (symmetry-reduced), fence register with re-acquisition (tokens 1..3), fenced first writes, repair from a named live source, fenced commit certificates, scan of live certificates | 754,348 | Stale first writes never stored; commit certificates, adopted and selected records committed under the fence; a late-acknowledged stale record is never adopted; certified records are found by every fully live scan |
+| Certificates | 3 replicas, 2 groups, 2 nodes, loss and index erasure (symmetry-reduced) | 536,937 | Certificates sound; replies survive; scans between quorum and published; checkpoints certified and discoverable |
 | Workspace | 3 agents, 2 files, 5 declarations, a two-name group revised for one name, collision, winner revision, tombstone; staging and publication are separate steps, receive is in any order for anchors | 62,098 | Same known set renders identically; only live heads render; a superseded group holds no name; stable order; revised winner keeps its name; intention preserved; published anchors are published; eventually identical |
 | WorkspacePending | 3 agents, 1 file, 3 declarations; an author stages two declarations, the second anchored at the first while it is pending | 4,199 | As Workspace; the anchor is published first and renders above in every copy; a record received before its anchor renders at its carried position |
 
@@ -69,14 +75,14 @@ invariants, for which this is sound.
 suite because of their runtime. All are invariant-only (Workspace also checks its
 action properties); symmetry is used only where noted. Runtimes are from the
 archived run on a shared Apple M4 with four workers and a 6 GiB heap; under heavier
-load TargetsWide took 23min 28s and FencingWide 9min 21s.
+load TargetsWide took up to 23min 28s and FencingWide up to 10min 54s.
 
 | Scenario | Bump over the default instance | Distinct states | Runtime |
 |---|---|---:|---:|
 | ReceiptsWide | 3 workers (was 2) | 1,513 | under 1s |
-| TargetsWide | 3 workers, 3 epochs (was 2, 2); symmetry over proofs and the non-initial workers | 12,400,854 | 10min 53s |
-| FencingWide | 4 replicas (was 3), majority (3-member) quorums; replica symmetry | 1,860,196 | 10min 54s |
-| WorkspaceWide | 3 publishing authors in one file (was 2), a collision, a cross-author revision and an own-pending anchor; no symmetry | 25,725 | 47s |
+| TargetsWide | 3 workers, 3 epochs (was 2, 2); symmetry over proofs and the non-initial workers | 12,400,854 | 5min 00s |
+| FencingWide | 4 replicas (was 3), majority (3-member) quorums; replica symmetry | 1,860,196 | 5min 41s |
+| WorkspaceWide | 3 publishing authors in one file (was 2), a collision, a cross-author revision and an own-pending anchor; no symmetry | 25,725 | 24s |
 
 Not feasible here: `Certificates` with 3 nodes (stopped after 20 minutes at
 3,873,820 distinct states, 2,118,416 queued) and with 3 groups (stopped after 20
@@ -84,6 +90,33 @@ minutes at 6,080,122 distinct states, 3,272,152 queued). `Certificates` is still
 checked only at 3 replicas, 2 groups and 2 nodes. Not attempted: Fencing with a
 fourth token, Targets with 2 target names (the model has one name), Fencing with
 5 replicas. The liveness instances keep their small constants.
+
+### Combined hardened model
+
+`scripts/check-tla-hardened.sh` checks [Hardened](tla/Hardened.tla), which puts
+the receipt, target, certificate and catalogue guards on one shared store. It is
+opt-in: neither `check-tla.sh` nor `check-tla-negative.sh` runs it. A complete run
+writes `.runs/tla/hardened/MANIFEST`; `archive-verification.sh` then archives its
+29 logs in [results/tlc/hardened](results/tlc/hardened), and `--verify` checks
+each archived log's provenance and expected outcome. Without a complete run that
+directory is removed. Both instances use replica symmetry and check invariants
+only (safety and reachability, no liveness). Runtimes are from the archived run,
+four workers, 6 GiB heap, on the shared machine.
+
+| Instance | Configuration | Distinct states | Depth | Runtime | Checked properties |
+|---|---|---:|---:|---:|---|
+| Hardened | 3 replicas, 2 workers, proofs `p1`, `p2`, invalid group `x`; one owner handover (`MaxEpoch = 1`), one fence rotation (`MaxFence = 2`); one replica loss, one index erasure | 3,104,542 | 35 | 7min 28s | Receipts (`StagedValid`, `StagedReceipted`, `PublishedValid`, `PublishedReceipted`); targets (`TargetChain`, `HeadUnique`, `RecordTopsChain`); certificates (`CertSound`, `ReceivedPublished`, `PublishedDiscoverable`, `CheckpointDiscoverable`); catalogue (`StaleNeverStored`, `CertFenced`, `ReadyCommitFenced`, `ReadyFirstWriteFenced`, `ReadySnapshotSound`); `CompletedRecoverable`; `FailureEnvelope`, `TypeOK` |
+| HardenedReacquire | As Hardened, no handover (`MaxEpoch = 0`), fence rotated away and re-acquired (`MaxFence = 3`) | 280,614 | 30 | 57s | As Hardened |
+
+The same script runs 8 coverage witnesses (each `Never*` property must fail), 16
+single-guard mutations (each must report its named invariant violation) and 3
+redundancy probes (each guard deletion must leave the listed invariants intact;
+`r_unfenced_put_adoption`, `r_commit_without_own_quorum` and
+`r_ready_without_object_certs`: 3,766,968, 7,628,232 and 3,104,542 distinct
+states in 9min 59s, 17min 22s and 7min 53s). The
+whole suite took 44min 29s. Findings are in the
+[guard matrix](TLA-GUARDS.md#combined-hardened-model); the model, its restrictions
+and what it leaves out are in [HARDENED-TLA.md](tla/HARDENED-TLA.md).
 
 `scripts/check-tla-negative.sh` makes 81 TLC runs:
 
@@ -261,6 +294,7 @@ checkout. Use this repository as the working directory:
 bash scripts/bootstrap-verification.sh
 bash scripts/check-tla.sh
 bash scripts/check-tla-negative.sh
+bash scripts/check-tla-hardened.sh   # optional, about 45 minutes
 bash scripts/check-veil.sh
 ```
 

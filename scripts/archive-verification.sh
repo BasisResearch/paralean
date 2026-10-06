@@ -13,7 +13,11 @@
 # the manifest: logs of retired cases are deleted. Larger-scope logs
 # (check-tla.sh --wide) are archived in verification/results/tlc/wide only from
 # a complete wide run (.runs/tla/wide/MANIFEST); without one that directory is
-# removed, so archived logs always match the current sources.
+# removed, so archived logs always match the current sources. The combined
+# hardened model (scripts/check-tla-hardened.sh) is handled the same way: its
+# logs go to verification/results/tlc/hardened only from a complete run
+# (.runs/tla/hardened/MANIFEST), and --verify checks each archived case's
+# provenance and expected outcome when that directory exists.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=scripts/tla-common.sh
@@ -24,11 +28,20 @@ case "$mode" in all|--tla-only|--verify) ;; *) echo "usage: $0 [--tla-only|--ver
 
 expected_scenarios() { for entry in "${TLA_SCENARIOS[@]}"; do scenario_name "$entry"; done; }
 expected_wide() { for entry in "${TLA_WIDE_SCENARIOS[@]}"; do scenario_name "$entry"; done; }
+expected_hardened() { bash scripts/check-tla-hardened.sh --list; }
 
 # Wide logs are positive logs with no negative counterpart.
 check_wide() {
   : > "$tmp/noneg"
   check_logs "$1" "$2" - "$tmp/noneg" -
+}
+
+# Hardened logs all carry an expected outcome (pass or a named violation) and
+# the pristine source hashes, like negative logs.
+# check_hardened <log-dir> <names-file> <run-dir or ->
+check_hardened() {
+  : > "$tmp/nopos"
+  check_logs - "$tmp/nopos" "$1" "$2" "$3"
 }
 
 # check_logs <positive-log-dir> <positive-names-file> <negative-log-dir> <negative-names-file> <run-dirs?>
@@ -108,7 +121,8 @@ for label in neg:
 if errors:
     print('\n'.join(errors), file=sys.stderr)
     sys.exit(1)
-print(f'provenance verified: {len(pos)} positive and {len(neg)} negative TLC logs')
+dirs = ', '.join(d for d, n in ((pos_dir, pos), (neg_dir, neg)) if n)
+print(f'provenance verified: {len(pos)} positive and {len(neg)} expected-outcome TLC logs ({dirs})')
 PY
 }
 
@@ -122,6 +136,15 @@ if [[ $mode == --verify ]]; then
   if [[ -d verification/results/tlc/wide ]]; then
     expected_wide > "$tmp/wide"
     check_wide verification/results/tlc/wide "$tmp/wide"
+  fi
+  if [[ -d verification/results/tlc/hardened ]]; then
+    expected_hardened > "$tmp/hardened"
+    (cd verification/results/tlc/hardened && ls -- *.log | sed 's/\.log$//' | LC_ALL=C sort) > "$tmp/hardened-archived"
+    if ! cmp -s <(LC_ALL=C sort "$tmp/hardened") "$tmp/hardened-archived"; then
+      echo "Archived hardened logs do not match the hardened case list" >&2
+      exit 1
+    fi
+    check_hardened verification/results/tlc/hardened "$tmp/hardened" -
   fi
   exit 0
 fi
@@ -150,6 +173,20 @@ if [[ -f .runs/tla/wide/MANIFEST ]]; then
   check_wide .runs/tla/wide .runs/tla/wide/MANIFEST
   wide=1
 fi
+hardened=
+if [[ -f .runs/tla/hardened/MANIFEST ]]; then
+  expected_hardened > "$tmp/hardened"
+  if ! cmp -s "$tmp/hardened" .runs/tla/hardened/MANIFEST; then
+    echo "Hardened TLC manifest does not match the hardened case list" >&2
+    exit 1
+  fi
+  mkdir -p "$tmp/hardlogs"
+  while IFS= read -r label; do
+    cp ".runs/tla/hardened/$label/result.log" "$tmp/hardlogs/$label.log"
+  done < .runs/tla/hardened/MANIFEST
+  check_hardened "$tmp/hardlogs" .runs/tla/hardened/MANIFEST .runs/tla/hardened
+  hardened=1
+fi
 
 mkdir -p verification/results/tlc/negative verification/results/lean
 rm -f verification/results/tlc/*.log verification/results/tlc/negative/*.log
@@ -165,6 +202,13 @@ if [[ -n $wide ]]; then
   done < .runs/tla/wide/MANIFEST
 else
   echo "No complete wide TLC run (.runs/tla/wide/MANIFEST): wide logs not archived" >&2
+fi
+rm -rf verification/results/tlc/hardened
+if [[ -n $hardened ]]; then
+  mkdir -p verification/results/tlc/hardened
+  cp "$tmp"/hardlogs/*.log verification/results/tlc/hardened/
+else
+  echo "No complete hardened TLC run (.runs/tla/hardened/MANIFEST): hardened logs not archived" >&2
 fi
 {
   echo "host: $(uname -srm)"
@@ -195,4 +239,7 @@ expected_scenarios > "$tmp/pos"
 check_logs verification/results/tlc "$tmp/pos" verification/results/tlc/negative "$tmp/neg" -
 if [[ -n $wide ]]; then
   check_wide verification/results/tlc/wide "$tmp/wide"
+fi
+if [[ -n $hardened ]]; then
+  check_hardened verification/results/tlc/hardened "$tmp/hardened" -
 fi

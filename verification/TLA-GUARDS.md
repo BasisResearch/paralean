@@ -182,6 +182,44 @@ the component notes (`scan_check_unsafe`, `partial_revision_frees_name`,
 `reserved_check_needed`). The workspace guards for anchoring through the author's pending groups
 also have TLA counterparts on `WorkspacePending` (above).
 
+## Combined hardened model
+
+`Hardened.tla` checks the receipt, target, certificate and catalogue guards on one
+shared store ([HARDENED-TLA.md](tla/HARDENED-TLA.md)). `scripts/check-tla-hardened.sh`
+runs it separately from the suites above: 2 positive instances, 8 coverage
+witnesses, 16 single-guard mutations (each with a named violation) and 3
+redundancy probes (each must pass). It adds three findings to the per-model
+results.
+
+- **The committer's own reply quorum is redundant under atomic publication.**
+  `r_commit_without_own_quorum` deletes the checkpoint commit's own-reply-quorum
+  check, and `PublishedDiscoverable`, `CheckpointDiscoverable`,
+  `ReadySnapshotSound` and `CompletedRecoverable` still hold (7,628,232
+  distinct states). The publish write already puts the publisher's certificates on
+  every live replica. This matches `cert_commit_unguarded_atomic` above. If
+  publication is not atomic the check is still needed (`cert_commit_unguarded` on
+  `CertificatesLagging`).
+- **An epoch-only publish condition needs the writer to keep the head it wrote.**
+  The preparer's copy of the target record may lag. `m_no_learn_own_write` stops
+  the writer from updating its copy after its own successful publish; the owner
+  then prepares a second proof against the head it read before that publish, in
+  the same epoch, the epoch condition accepts it, and `TargetChain` fails. A
+  compare-and-swap on the head closes the same gap. Transaction T1 in
+  [store.md](../docs/store.md#transactions) does this: it aborts unless the
+  record's `head` equals the head the proof revises, as well as on owner and epoch.
+- **The fenced commit certificate alone keeps stale records out of recovery and
+  completion.** `r_unfenced_put_adoption` deletes the first-write fence and every
+  target, certificate, adoption and completion invariant still holds
+  (`ReadyCommitFenced`, `ReadySnapshotSound`, `CompletedRecoverable` among them).
+  The first-write fence protects only `StaleNeverStored` and
+  `ReadyFirstWriteFenced` (`m_unfenced_put` breaks `StaleNeverStored`).
+
+A third probe, `r_ready_without_object_certs`, drops the object-certificate
+conjunct from readiness and passes. In this model object certificates reach every
+live replica at checkpoint commit, before any record for that snapshot can be put,
+so the conjunct never decides readiness. That reflects the modelled write order
+and certificate granularity, not that object certificates are unnecessary.
+
 ## Liveness
 
 | Scenario | Property | Fairness | Model |
@@ -205,6 +243,8 @@ the safety instances `Targets`, `TargetsLagging`, `Fencing`, `Certificates`,
 `CertificatesLagging`.
 The larger-scope instances (`ReceiptsWide`, `TargetsWide`, `FencingWide`,
 `WorkspaceWide`; `check-tla.sh --wide`) are safety only and run no mutations.
+The combined `Hardened` and `HardenedReacquire` instances are safety and
+reachability only.
 
 ## The stranded head and its fix
 

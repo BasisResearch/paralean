@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 88 and seed 6662620010822751951 with 4 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 24016] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/negative/fencing_unfenced_commit_selected/Fencing.tla
+Running breadth-first search Model-Checking with fp 107 and seed -9119758701141152690 with 4 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 25799] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/negative/fencing_unfenced_commit_selected/Fencing.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
@@ -10,9 +10,9 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-05 20:05:03)
+Starting... (2026-10-05 21:26:53)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 20:05:03.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:26:53.
 Error: Invariant SelectedFenced is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -69,7 +69,7 @@ State 3: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 4: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
+State 4: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ scanned = FALSE
 /\ lateAcked = {}
 /\ fence = 1
@@ -78,7 +78,25 @@ State 4: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, m |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 5: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, m |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 0]
 /\ known = {}
@@ -87,7 +105,7 @@ State 4: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 5: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
+State 6: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
 /\ scanned = FALSE
 /\ lateAcked = {}
 /\ fence = 2
@@ -96,26 +114,8 @@ State 5: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
-/\ holds = [old |-> 1, new |-> 2]
-/\ known = {}
-/\ acked = {"a"}
-/\ writtenAt = [a |-> 1, m |-> 0, d |-> 0]
-/\ desktopLost = FALSE
-/\ live = {r1, r2, r3}
-
-State 6: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
-/\ scanned = FALSE
-/\ lateAcked = {}
-/\ fence = 2
-/\ certFence = [a |-> 2, m |-> 0, d |-> 0]
-/\ heads = {}
-/\ lateRepair = FALSE
-/\ selected = "none"
-/\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
@@ -132,7 +132,25 @@ State 7: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 2]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, m |-> 0, d |-> 0]
+/\ desktopLost = FALSE
+/\ live = {r1, r2, r3}
+
+State 8: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 2
+/\ certFence = [a |-> 2, m |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {}
@@ -141,7 +159,7 @@ State 7: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 8: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
+State 9: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 2
@@ -150,7 +168,7 @@ State 8: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {"a"}
@@ -159,7 +177,7 @@ State 8: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 9: <Reconstruct line 194, col 5 to line 198, col 68 of module Fencing>
+State 10: <Reconstruct line 194, col 5 to line 198, col 68 of module Fencing>
 /\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 2
@@ -168,7 +186,7 @@ State 9: <Reconstruct line 194, col 5 to line 198, col 68 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = TRUE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {"a"}
@@ -177,7 +195,7 @@ State 9: <Reconstruct line 194, col 5 to line 198, col 68 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 10: <Automatic line 201, col 5 to line 205, col 80 of module Fencing>
+State 11: <Automatic line 201, col 5 to line 205, col 80 of module Fencing>
 /\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 2
@@ -186,7 +204,7 @@ State 10: <Automatic line 201, col 5 to line 205, col 80 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "a"
 /\ reconstructed = TRUE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {"a"}
@@ -195,10 +213,10 @@ State 10: <Automatic line 201, col 5 to line 205, col 80 of module Fencing>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-46716 states generated, 9145 distinct states found, 5660 states left on queue.
+44311 states generated, 8665 distinct states found, 5311 states left on queue.
 The depth of the complete state graph search is 11.
-The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 13 and the 95th percentile is 7).
-Finished in 02s at (2026-10-05 20:05:05)
+The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 11 and the 95th percentile is 7).
+Finished in 00s at (2026-10-05 21:26:53)
 ==== Paralean TLC provenance ====
 module Fencing
 config Fencing.cfg
@@ -210,6 +228,8 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
+source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -231,6 +251,8 @@ source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportR
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
+source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
+source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg

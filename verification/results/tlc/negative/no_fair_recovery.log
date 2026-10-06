@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 33 and seed -5182031110168588511 with 4 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 21262] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/negative/no_fair_recovery/Collision.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/negative/no_fair_recovery/Registry.tla
+Running breadth-first search Model-Checking with fp 78 and seed 1564489068670076488 with 4 workers on 10 cores with 3641MB heap and 64MB offheap memory [pid: 22249] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/negative/no_fair_recovery/Collision.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/negative/no_fair_recovery/Registry.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,12 +12,12 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Collision
-Starting... (2026-10-05 20:04:03)
+Starting... (2026-10-05 21:26:19)
 Implied-temporal checking--satisfiability problem has 1 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 20:04:03.
-Progress(19) at 2026-10-05 20:04:05: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
-Checking temporal properties for the complete state space with 15928 total distinct states at (2026-10-05 20:04:05)
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:26:19.
+Progress(19) at 2026-10-05 21:26:20: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 15928 total distinct states at (2026-10-05 21:26:20)
 Error: Temporal properties were violated.
 
 Error: The following behavior constitutes a counter-example:
@@ -35,7 +35,7 @@ State 1: <Initial predicate>
 State 2: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {}]
+/\ pending = [A |-> {}, B |-> {"y"}]
 /\ online = {"A", "B"}
 /\ published = {}
 /\ known = [A |-> {}, B |-> {}]
@@ -45,7 +45,7 @@ State 2: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 State 3: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {"y"}]
+/\ pending = [A |-> {}, B |-> {"x", "y"}]
 /\ online = {"A", "B"}
 /\ published = {}
 /\ known = [A |-> {}, B |-> {}]
@@ -55,108 +55,98 @@ State 3: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 State 4: <Publish line 64, col 5 to line 69, col 67 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {}]
+/\ pending = [A |-> {}, B |-> {"y"}]
 /\ online = {"A", "B"}
-/\ published = {"y"}
-/\ known = [A |-> {}, B |-> {"y"}]
+/\ published = {"x"}
+/\ known = [A |-> {}, B |-> {"x"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
 State 5: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {"y"}]
+/\ pending = [A |-> {"x"}, B |-> {"y"}]
 /\ online = {"A", "B"}
-/\ published = {"y"}
-/\ known = [A |-> {}, B |-> {"y"}]
+/\ published = {"x"}
+/\ known = [A |-> {}, B |-> {"x"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-State 6: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+State 6: <Receive line 74, col 5 to line 79, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {"x", "y"}]
+/\ pending = [A |-> {"x"}, B |-> {"y"}]
 /\ online = {"A", "B"}
-/\ published = {"y"}
-/\ known = [A |-> {}, B |-> {"y"}]
+/\ published = {"x"}
+/\ known = [A |-> {"x"}, B |-> {"x"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
 State 7: <Publish line 64, col 5 to line 69, col 67 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {"y"}]
+/\ pending = [A |-> {"x"}, B |-> {}]
 /\ online = {"A", "B"}
 /\ published = {"x", "y"}
-/\ known = [A |-> {}, B |-> {"x", "y"}]
+/\ known = [A |-> {"x"}, B |-> {"x", "y"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-State 8: <Publish line 64, col 5 to line 69, col 67 of module Registry>
+State 8: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {}]
+/\ pending = [A |-> {"x"}, B |-> {"x"}]
 /\ online = {"A", "B"}
 /\ published = {"x", "y"}
-/\ known = [A |-> {}, B |-> {"x", "y"}]
+/\ known = [A |-> {"x"}, B |-> {"x", "y"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
 State 9: <Receive line 74, col 5 to line 79, col 38 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {}]
-/\ online = {"A", "B"}
-/\ published = {"x", "y"}
-/\ known = [A |-> {"y"}, B |-> {"x", "y"}]
-/\ stable = FALSE
-/\ head = [A |-> {}, B |-> {}]
-
-State 10: <Receive line 74, col 5 to line 79, col 38 of module Registry>
-/\ alive = {"A", "B"}
-/\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {}]
+/\ pending = [A |-> {"x"}, B |-> {"x"}]
 /\ online = {"A", "B"}
 /\ published = {"x", "y"}
 /\ known = [A |-> {"x", "y"}, B |-> {"x", "y"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-State 11: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
-/\ alive = {"A", "B"}
-/\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {"y"}, B |-> {"y"}]
-/\ online = {"A", "B"}
-/\ published = {"x", "y"}
-/\ known = [A |-> {"x", "y"}, B |-> {"x", "y"}]
-/\ stable = FALSE
-/\ head = [A |-> {}, B |-> {}]
-
-State 12: <Crash line 91, col 5 to line 96, col 71 of module Registry>
+State 10: <Crash line 91, col 5 to line 96, col 71 of module Registry>
 /\ alive = {"B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {}, B |-> {"y"}]
+/\ pending = [A |-> {}, B |-> {"x"}]
 /\ online = {"A", "B"}
 /\ published = {"x", "y"}
 /\ known = [A |-> {}, B |-> {"x", "y"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-State 13: <Recover line 98, col 15 to line 101, col 48 of module Registry>
+State 11: <Recover line 98, col 15 to line 101, col 48 of module Registry>
 /\ alive = {"A", "B"}
 /\ lastCommitCurrent = TRUE
-/\ pending = [A |-> {}, B |-> {"y"}]
+/\ pending = [A |-> {}, B |-> {"x"}]
 /\ online = {"A", "B"}
 /\ published = {"x", "y"}
 /\ known = [A |-> {}, B |-> {"x", "y"}]
 /\ stable = FALSE
 /\ head = [A |-> {}, B |-> {}]
 
-Back to state 7: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+State 12: <Prepare line 52, col 5 to line 59, col 38 of module Registry>
+/\ alive = {"A", "B"}
+/\ lastCommitCurrent = TRUE
+/\ pending = [A |-> {"x"}, B |-> {"x"}]
+/\ online = {"A", "B"}
+/\ published = {"x", "y"}
+/\ known = [A |-> {}, B |-> {"x", "y"}]
+/\ stable = FALSE
+/\ head = [A |-> {}, B |-> {}]
 
-Finished checking temporal properties in 00s at 2026-10-05 20:04:05
+Back to state 8: <Receive line 74, col 5 to line 79, col 38 of module Registry>
+
+Finished checking temporal properties in 00s at 2026-10-05 21:26:20
 186121 states generated, 15928 distinct states found, 0 states left on queue.
-Finished in 03s at (2026-10-05 20:04:05)
+Finished in 01s at (2026-10-05 21:26:20)
 ==== Paralean TLC provenance ====
 module Collision
 config Collision.cfg
@@ -168,6 +158,8 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
+source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -189,6 +181,8 @@ source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportR
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
+source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
+source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg

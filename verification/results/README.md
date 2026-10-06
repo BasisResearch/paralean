@@ -16,6 +16,13 @@ reachability only (see the liveness table in the
 The four larger-scope scenarios (`check-tla.sh --wide`, logs in
 [tlc/wide](tlc/wide)) also passed; see the scope table in the
 [verification README](../README.md#larger-scopes).
+The opt-in combined hardened suite (`check-tla-hardened.sh`, logs in
+[tlc/hardened](tlc/hardened)) made 29 runs on `Hardened.tla`, all with their
+expected outcome: the `Hardened` (3,104,542 distinct states) and
+`HardenedReacquire` (280,614) instances passed, 8 coverage witnesses and 16
+single-guard mutations reported their named violations, and 3 redundancy probes
+passed. Four workers, 6 GiB heap; the suite took 44min 29s. See the
+[guard matrix](../TLA-GUARDS.md#combined-hardened-model).
 The negative suite made 81 runs, all with their expected outcome: 26 reachability
 witnesses, 47 protocol mutations (44 distinct source edits; three deletions are
 checked against two oracles each), 2 runs of the original design that must fail
@@ -42,6 +49,7 @@ Commands:
 bash scripts/check-tla.sh
 bash scripts/check-tla.sh --wide                 # larger scopes, optional
 bash scripts/check-tla-negative.sh
+bash scripts/check-tla-hardened.sh               # combined hardened model, optional
 bash scripts/check-veil.sh
 bash scripts/archive-verification.sh             # or --tla-only, as for this TLC run
 bash scripts/archive-verification.sh --verify    # re-check archived TLC provenance
@@ -97,7 +105,9 @@ build started from an empty output directory.
 Every TLC log ends with a provenance block: the SHA256 of each file TLC parsed
 and of the configuration, taken from the run directory TLC actually read, and,
 for a negative case, the SHA256 of every pristine source it was derived from.
-`scripts/archive-verification.sh` archives only complete suite runs, checks
+`scripts/archive-verification.sh` archives only complete suite runs (the wide
+and hardened logs only when their own run is complete, removing their directory
+otherwise), checks
 each block against the current sources before copying, archives exactly the
 current case list (deleting logs of retired cases), and re-checks the archive;
 `scripts/archive-verification.sh --verify` repeats that last check. The source

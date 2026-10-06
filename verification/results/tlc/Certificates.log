@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 119 and seed -4776350187139544674 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 11924] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/Certificates/Certificates.tla
+Running breadth-first search Model-Checking with fp 39 and seed -7823876195520667862 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 4704] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/Certificates/Certificates.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -10,19 +10,19 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Certificates
-Starting... (2026-10-05 19:58:40)
+Starting... (2026-10-05 21:23:04)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 19:58:40.
-Progress(14) at 2026-10-05 19:58:43: 366,488 states generated (366,488 s/min), 37,975 distinct states found (37,975 ds/min), 20,553 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:23:04.
+Progress(14) at 2026-10-05 21:23:07: 574,867 states generated (574,867 s/min), 57,522 distinct states found (57,522 ds/min), 29,940 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 3.0E-7
-  based on the actual fingerprints:  val = 1.1E-8
+  based on the actual fingerprints:  val = 6.0E-9
 10832390 states generated, 536937 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 25.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 56s at (2026-10-05 19:59:35)
+Finished in 34s at (2026-10-05 21:23:39)
 ==== Paralean TLC provenance ====
 module Certificates
 config Certificates.cfg

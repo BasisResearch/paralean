@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 95 and seed -1569861383163964509 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 2066] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/ExportRejected/ExportRejected.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/ExportRejected/Registry.tla
+Running breadth-first search Model-Checking with fp 80 and seed -2649644250844057795 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 92268] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/ExportRejected/ExportRejected.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/ExportRejected/Registry.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,9 +12,9 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module ExportRejected
-Starting... (2026-10-05 19:54:25)
+Starting... (2026-10-05 21:20:31)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 19:54:25.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:20:31.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -22,7 +22,7 @@ Model checking completed. No error has been found.
 89 states generated, 22 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 7.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
-Finished in 00s at (2026-10-05 19:54:25)
+Finished in 00s at (2026-10-05 21:20:31)
 ==== Paralean TLC provenance ====
 module ExportRejected
 config ExportRejected.cfg

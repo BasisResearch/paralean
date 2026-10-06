@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 24 and seed 8324207659898139943 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 34261] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/TargetsWide/TargetsWide.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/TargetsWide/Targets.tla
+Running breadth-first search Model-Checking with fp 17 and seed 3729159849011269965 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 43321] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/TargetsWide/TargetsWide.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/TargetsWide/Targets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
@@ -12,29 +12,23 @@ Semantic processing of module FiniteSets
 Semantic processing of module Targets
 Semantic processing of module TLC
 Semantic processing of module TargetsWide
-Starting... (2026-10-05 20:09:32)
+Starting... (2026-10-05 21:30:00)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 20:09:32.
-Progress(12) at 2026-10-05 20:09:35: 365,346 states generated (365,346 s/min), 95,671 distinct states found (95,671 ds/min), 55,497 states left on queue.
-Progress(17) at 2026-10-05 20:10:35: 13,187,241 states generated (12,821,895 s/min), 2,342,869 distinct states found (2,247,198 ds/min), 943,611 states left on queue.
-Progress(19) at 2026-10-05 20:11:35: 26,204,951 states generated (13,017,710 s/min), 4,189,052 distinct states found (1,846,183 ds/min), 1,413,300 states left on queue.
-Progress(20) at 2026-10-05 20:12:35: 38,660,227 states generated (12,455,276 s/min), 5,780,589 distinct states found (1,591,537 ds/min), 1,688,343 states left on queue.
-Progress(20) at 2026-10-05 20:13:35: 50,634,094 states generated (11,973,867 s/min), 7,150,571 distinct states found (1,369,982 ds/min), 1,799,456 states left on queue.
-Progress(21) at 2026-10-05 20:14:35: 61,576,588 states generated (10,942,494 s/min), 8,323,589 distinct states found (1,173,018 ds/min), 1,799,126 states left on queue.
-Progress(21) at 2026-10-05 20:15:36: 70,246,171 states generated (8,669,583 s/min), 9,193,581 distinct states found (869,992 ds/min), 1,734,296 states left on queue.
-Progress(22) at 2026-10-05 20:16:36: 77,426,416 states generated (7,180,245 s/min), 9,841,638 distinct states found (648,057 ds/min), 1,603,013 states left on queue.
-Progress(23) at 2026-10-05 20:17:36: 86,778,058 states generated (9,351,642 s/min), 10,669,727 distinct states found (828,089 ds/min), 1,400,572 states left on queue.
-Progress(23) at 2026-10-05 20:18:36: 97,024,096 states generated (10,246,038 s/min), 11,444,438 distinct states found (774,711 ds/min), 1,028,568 states left on queue.
-Progress(24) at 2026-10-05 20:19:36: 106,032,243 states generated (9,008,147 s/min), 12,039,056 distinct states found (594,618 ds/min), 581,616 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:30:00.
+Progress(14) at 2026-10-05 21:30:03: 638,432 states generated (638,432 s/min), 152,417 distinct states found (152,417 ds/min), 83,833 states left on queue.
+Progress(19) at 2026-10-05 21:31:03: 22,216,815 states generated (21,578,383 s/min), 3,554,660 distinct states found (3,402,243 ds/min), 1,214,172 states left on queue.
+Progress(21) at 2026-10-05 21:32:03: 45,728,540 states generated (23,511,725 s/min), 6,480,894 distinct states found (2,926,234 ds/min), 1,654,635 states left on queue.
+Progress(22) at 2026-10-05 21:33:03: 66,264,747 states generated (20,536,207 s/min), 8,723,145 distinct states found (2,242,251 ds/min), 1,697,354 states left on queue.
+Progress(24) at 2026-10-05 21:34:03: 90,228,778 states generated (23,964,031 s/min), 10,870,815 distinct states found (2,147,670 ds/min), 1,207,596 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.8E-5
-  based on the actual fingerprints:  val = 2.4E-6
+  based on the actual fingerprints:  val = 1.6E-6
 113659398 states generated, 12400854 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 10min 53s at (2026-10-05 20:20:25)
+Finished in 05min 00s at (2026-10-05 21:35:00)
 ==== Paralean TLC provenance ====
 module TargetsWide
 config TargetsWide.cfg

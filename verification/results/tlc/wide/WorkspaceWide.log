@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 27 and seed 3771980461834785845 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 74537] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/workspace-pending/.runs/tla/run/WorkspaceWide/Workspace.tla
+Running breadth-first search Model-Checking with fp 9 and seed -7720579290696502643 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 93800] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/WorkspaceWide/Workspace.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
 Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
@@ -8,10 +8,10 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-05 20:31:22)
+Starting... (2026-10-05 21:40:43)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 20:31:23.
-Progress(11) at 2026-10-05 20:31:26: 6,092 states generated (6,092 s/min), 2,977 distinct states found (2,977 ds/min), 1,337 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:40:43.
+Progress(12) at 2026-10-05 21:40:46: 11,485 states generated (11,485 s/min), 5,422 distinct states found (5,422 ds/min), 2,204 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -19,7 +19,7 @@ Model checking completed. No error has been found.
 64966 states generated, 25725 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 17.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
-Finished in 47s at (2026-10-05 20:32:10)
+Finished in 24s at (2026-10-05 21:41:08)
 ==== Paralean TLC provenance ====
 module Workspace
 config WorkspaceWide.cfg

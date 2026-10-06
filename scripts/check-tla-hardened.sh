@@ -6,6 +6,10 @@
 #
 #   bash scripts/check-tla-hardened.sh            # every case; writes MANIFEST
 #   bash scripts/check-tla-hardened.sh a b ...    # only these labels; no MANIFEST
+#   bash scripts/check-tla-hardened.sh --list     # print the case labels
+#
+# Opt-in: not part of check-tla.sh. archive-verification.sh archives a complete
+# run (.runs/tla/hardened/MANIFEST) under verification/results/tlc/hardened.
 #
 # TLC_WORKERS (default 4) and TLC_HEAP (default 6g) bound resources; runs are
 # sequential. Each case runs on copies in .runs/tla/hardened/<label>/; its log
@@ -255,6 +259,10 @@ case_r_ready_without_object_certs() { probe r_ready_without_object_certs \
   'ReadyOne(Q, c) == (\E r \in Q : c \in catStored[r]) /\ CertDurable(rcert, c)'; }
 
 # ---------------------------------------------------------------------------
+if [[ $# == 1 && $1 == --list ]]; then
+  printf '%s\n' "${cases[@]}"
+  exit 0
+fi
 if [[ $# == 0 ]]; then
   run=("${cases[@]}")
   rm -rf "$out"

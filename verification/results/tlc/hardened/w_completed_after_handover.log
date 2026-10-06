@@ -1,0 +1,774 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 65 and seed -1135689131150595683 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 34012] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/hardened/w_completed_after_handover/HardenedMC.tla
+Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/hardened/w_completed_after_handover/Hardened.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
+Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Hardened
+Semantic processing of module HardenedMC
+Starting... (2026-10-05 21:49:36)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-05 21:49:36.
+Error: Invariant NeverCompletedAfterHandover is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "none"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<>>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ lateAck = {}
+/\ used = {}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 2: <Issue line 228, col 3 to line 233, col 75 of module Hardened>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "none"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<>>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ lateAck = {}
+/\ used = {}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 3: <ReadRecord line 316, col 3 to line 319, col 88 of module Hardened>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "none"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "none">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ lateAck = {}
+/\ used = {}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 4: <PrepareProof line 240, col 3 to line 254, col 75 of module Hardened>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "none"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1"}
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "none">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 5: <Issue line 228, col 3 to line 233, col 75 of module Hardened>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "none"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "none">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {}
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 6: <Publish line 284, col 3 to line 295, col 76 of module Hardened>
+/\ epoch = 0
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w1"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 7: <Reassign line 324, col 3 to line 329, col 76 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 1
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "none">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 8: <RotateFence line 377, col 3 to line 382, col 76 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<>>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 9: <ReadRecord line 316, col 3 to line 319, col 88 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p1">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 10: <ScanReceive line 347, col 3 to line 353, col 22 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p1">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1"}]
+/\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 11: <PrepareProof line 240, col 3 to line 254, col 75 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
+/\ recHead = "p1"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {"p2"}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p1">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 12: <Publish line 284, col 3 to line 295, col 76 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "none"]
+
+State 13: <CommitCheckpoint line 361, col 3 to line 369, col 78 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {"p2"} @@ r2 :> {"p2"} @@ r3 :> {"p2"})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ catStored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "p2"]
+
+State 14: <CatPut line 389, col 3 to line 403, col 59 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {"p2"} @@ r2 :> {"p2"} @@ r3 :> {"p2"})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1} )
+/\ catStored = (r1 :> {<<2, "p2">>} @@ r2 :> {} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "p2"]
+
+State 15: <CatPut line 389, col 3 to line 403, col 59 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 0)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {"p2"} @@ r2 :> {"p2"} @@ r3 :> {"p2"})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1, r2} )
+/\ catStored = (r1 :> {<<2, "p2">>} @@ r2 :> {<<2, "p2">>} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "p2"]
+
+State 16: <CommitCert line 424, col 3 to line 435, col 59 of module Hardened>
+/\ epoch = 1
+/\ done = <<>>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1, r2} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {<<2, "p2">>} @@ r2 :> {<<2, "p2">>} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {"p2"} @@ r2 :> {"p2"} @@ r3 :> {"p2"})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1, r2} )
+/\ catStored = (r1 :> {<<2, "p2">>} @@ r2 :> {<<2, "p2">>} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "p2"]
+
+State 17: <Complete line 453, col 3 to line 459, col 77 of module Hardened>
+/\ epoch = 1
+/\ done = <<2, "p2">>
+/\ revises = [p1 |-> {}, p2 |-> {"p1"}, x |-> {}]
+/\ fence = 2
+/\ certFence = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ rcReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1, r2} )
+/\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
+  w2 |-> [p1 |-> {}, p2 |-> {r1, r2, r3}, x |-> {}] ]
+/\ recHead = "p2"
+/\ erasure = 0
+/\ byzRejected = FALSE
+/\ issued = {"p1", "p2"}
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ rec = [w1 |-> <<"w1", 0, "p1">>, w2 |-> <<"w2", 1, "p2">>]
+/\ parentOf = ( <<1, "p1">> :> <<>> @@
+  <<1, "p2">> :> <<>> @@
+  <<2, "p1">> :> <<>> @@
+  <<2, "p2">> :> <<>> )
+/\ holder = <<"w1", "w2">>
+/\ cert = (r1 :> {"p1", "p2"} @@ r2 :> {"p1", "p2"} @@ r3 :> {"p1", "p2"})
+/\ lateAck = {}
+/\ used = {"p1", "p2"}
+/\ rcert = (r1 :> {<<2, "p2">>} @@ r2 :> {<<2, "p2">>} @@ r3 :> {})
+/\ published = {"p1", "p2"}
+/\ known = [w1 |-> {"p1"}, w2 |-> {"p1", "p2"}]
+/\ stamp = [p1 |-> 0, p2 |-> 1, x |-> 0]
+/\ ocert = (r1 :> {"p2"} @@ r2 :> {"p2"} @@ r3 :> {"p2"})
+/\ writtenAt = (<<1, "p1">> :> 0 @@ <<1, "p2">> :> 0 @@ <<2, "p1">> :> 0 @@ <<2, "p2">> :> 2)
+/\ live = {r1, r2, r3}
+/\ catReply = ( <<1, "p1">> :> {} @@
+  <<1, "p2">> :> {} @@
+  <<2, "p1">> :> {} @@
+  <<2, "p2">> :> {r1, r2} )
+/\ catStored = (r1 :> {<<2, "p2">>} @@ r2 :> {<<2, "p2">>} @@ r3 :> {})
+/\ owner = "w2"
+/\ head = [w1 |-> "none", w2 |-> "p2"]
+
+32452 states generated, 3357 distinct states found, 1001 states left on queue.
+The depth of the complete state graph search is 17.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 4).
+Finished in 02s at (2026-10-05 21:49:38)
+==== Paralean TLC provenance ====
+module HardenedMC
+config run.cfg
+expect failure: Invariant NeverCompletedAfterHandover is violated
+source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
+source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
+source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
+source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
+source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
+source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
+source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
+source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
+source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
+source 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
+source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
+source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
+source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
+source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
+source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
+source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
+source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
+source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
+source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  CertificatesLive.cfg
+source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
+source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
+source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
+source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
+source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
+source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
+source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
+source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
+source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
+source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
+source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
+source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
+source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
+source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
+source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
+source d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets.cfg
+source f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg
+source 7d37881f7c64a9662c4a59fb7387cdce59d584f0717fb309994584e9af1b49fa  TargetsLive.cfg
+source fe4c3b0752a606261551319aad053ab8b817a1253defbdaa2e03dbbd0db6637a  TargetsWide.cfg
+source 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
+source 654555d4c765c137034dc9b421494c14f3c5d359d16d27bdc6c5dc46d4fc674e  WorkspacePending.cfg
+source f7a76167b4e53afbda35d82f95683dfd7eb63231082d1c078d683afd9d2f9481  WorkspaceWide.cfg
+checked c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+checked 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+checked 7fb6345426e6bec25aaf9b98e0e2490b58ea24b055ac8398950ed1fc62ec7774  run.cfg
+==== end provenance ====
