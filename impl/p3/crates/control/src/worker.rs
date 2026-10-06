@@ -223,11 +223,13 @@ impl WorkerNode {
         Package { group: g.group_object(), chunks: vec![], capsule, receipt, job, revisions, marker, targets }
     }
 
-    /// Run work until `stop` resolves: poll, prove, report.
-    pub async fn run(self: &Arc<Self>, idle: Duration) {
+    /// Run work forever: poll, prove, report. `hold` delays each proof after the work is
+    /// taken (a stand-in for a long elaboration, so tests can kill a worker mid-job).
+    pub async fn run(self: &Arc<Self>, idle: Duration, hold: Duration) {
         loop {
             match self.poll().await {
                 Ok(Some(w)) => {
+                    tokio::time::sleep(hold).await;
                     let ok = self.prove(&w).await.is_ok();
                     let _ = self.call(&ControlRequest::Finish { worker: self.id().hex(), request: w.request.clone(), ok }).await;
                 }

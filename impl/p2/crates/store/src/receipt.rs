@@ -27,6 +27,10 @@
 //! validator (`vrevoke/<key>`) and the cancellation key of the request (`jobcancel/<request>`),
 //! so revocation and cancellation are linearizable with publication.
 //!
+//! Envelopes are signed by the authority key or, for target-free jobs only, by a configured
+//! job-issuer key (`KeyRing::job_issuers`): working copies hold an issuer seed, never the
+//! authority seed, which also signs fence tokens and revocations.
+//!
 //! Key rotation and revocation are minimal: the configured validator set ([`KeyRing`]
 //! `validators`) may hold several keys at once, so a new key is added before validators
 //! switch to it; a key is retired by removing it from the configuration, and revoked
@@ -244,7 +248,13 @@ impl Object for JobEnvelope {
 pub type SignedJob = Signed<JobEnvelope>;
 
 impl SignedJob {
+    /// A pure signature check: Ed25519 over the envelope ID under the authority key or any
+    /// configured job-issuer key.
     pub fn issued_by(&self, ring: &KeyRing) -> bool {
+        self.verify(&ring.authority) || ring.job_issuers.iter().any(|k| self.verify(k))
+    }
+    /// Signed by the controller (the authority key) itself.
+    pub fn issued_by_controller(&self, ring: &KeyRing) -> bool {
         self.verify(&ring.authority)
     }
 }
@@ -337,11 +347,16 @@ pub fn check_bound(
     if b.group != *group || !ring.is_validator(&b.validator_key) || !receipt.verify(&b.validator_key) {
         return Err(GuardFailure::ReceiptRejected(*group));
     }
-    // (4): the envelope and the receipt agree.
+    // (4): the envelope and the receipt agree. An envelope binding a target must come from
+    // the controller, which stamps it from the target record; issuer keys sign only
+    // target-free envelopes.
     if !job.issued_by(ring) {
         return fault(BindingFault::JobNotIssued);
     }
     let j = &job.body;
+    if !j.targets.is_empty() && !job.issued_by_controller(ring) && !cfg!(feature = "mutate-issuer-signs-targets") {
+        return fault(BindingFault::JobNotIssued);
+    }
     if b.request.as_deref() != Some(&job.id().0[..]) {
         return fault(BindingFault::Request);
     }
@@ -517,6 +532,14 @@ mod tests {
         targets[1].encode(&mut e);
         targets[0].encode(&mut e);
         assert!(decode_target_slot(&Some(e.out)).is_err());
+        // Issuer keys: a pure signature check; target envelopes need the authority.
+        let issuer = Signer::derive("issuer");
+        let mut ring = KeyRing { authority: Signer::derive("authority").public(), ..Default::default() };
+        let by_issuer = SignedJob::sign(j.clone(), &issuer);
+        assert!(!by_issuer.issued_by(&ring));
+        ring.job_issuers.push(issuer.public());
+        assert!(by_issuer.issued_by(&ring) && !by_issuer.issued_by_controller(&ring));
+        assert!(s.issued_by(&ring) && s.issued_by_controller(&ring));
         // Domains are distinct.
         assert_ne!(Policy::v1().id(), Domain::Job.hash(&Policy::v1().to_pce()));
     }

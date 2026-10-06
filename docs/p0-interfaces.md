@@ -414,9 +414,14 @@ Rules (PublicationReceipts):
   `<decl>._native.native_decide.ax_*` auxiliary axioms `native_decide` emits at this
   pin (corpus N6), `sorryAx`, and new user axioms. Module-system axiom-shaped
   interfaces of trusted imports are followed by provenance (lean-integration.md).
-- **OPEN-7**: the model does not bind receipts to request, epoch or worker. v0
-  reserves `requestID` and `targetID` and requires them in P3. Until then a receipt
-  for `g` suffices for any request whose contract `g` satisfies.
+- **OPEN-7** (decided in P3, [p3-log.md](p3-log.md)): the model does not bind receipts
+  to request, epoch or worker; the implementation does. `validatorBin` holds the ID of a
+  `CheckerVersion` (`v0/checker`), `requestID` the ID of the controller-signed job envelope
+  (§10, `v0/job`), and `targetID` the PCE set of `{name, epoch, statement}` bindings.
+  Publication (T1) requires all of them to match the envelope, the envelope to name
+  exactly the target names and epochs the proof was prepared under, pinned policy and
+  checker, and no revocation of the key or cancellation of the request
+  (`impl/p2/crates/store/src/receipt.rs`).
 
 ## 7. Revisions
 
@@ -617,9 +622,10 @@ ObjectCert (v0/ocert, per replica):            CommitCert (v0/rcert, per replica
 
 `WorkspaceID` is 16 random bytes, fresh per workspace. A replacement after worker
 loss gets a fresh ID unless the fence service transfers ownership. A timeout alone
-grants nothing. **OPEN-11**: the job envelope (P3) is reserved here as
-`{requestID, groupID | capsuleID, baseID, policyID, targetID?, deadline}`; its fields
-may still change.
+grants nothing. **OPEN-11** (decided in P3): the job envelope is
+`{request, group, capsule, deps, base, policy, checker, worker, targets, deadlineMs,
+memoryMb}` (`v0/job`), signed by the controller; `deps` lists the capsules of the group's
+exact dependency closure, each a published, receipted group.
 
 ## 11. Transparent workspaces
 
@@ -878,11 +884,11 @@ resolution. Rows marked **Decided** were signed off on 2026-10-05 and are record
 | OPEN-4 | Renamed scoped instances: attribute re-application and capsule rewriting | re-apply with original priority | P1 export | no | |
 | OPEN-5 | Whether constant-free commands are groups | P1's choice: global `attribute [...] c` commands are anchored *effect groups* that consumers of `c` depend on (`frontendDeps`); section-local effects (`local notation`, `attribute [local …]`, `open scoped`) are not published and travel as text in later capsules of the section | P1 | no (P1's choice is in force) | |
 | OPEN-6 | Extension coverage list for `FrontendEffects` | list in §4.2; others are unsupported | P1 (measured on corpus) | no; additions bump `format` | |
-| OPEN-7 | Receipt binding to request, epoch and target | slots reserved; required from P3 | P3 | no (slots reserved) | |
+| OPEN-7 | Receipt binding to request, epoch and target | slots reserved; required from P3 | P3 | no (slots reserved) | **Decided 2026-10-06 (P3).** Slot contents fixed, no format change: `validatorBin` = checker-version ID, `requestID` = job-envelope ID, `targetID` = set of `{name, epoch, statement}`; T1 enforces the binding, pins, revocation and cancellation ([p3-log.md](p3-log.md)) |
 | OPEN-8 | ~~Target ownership transfer and owner failure~~ | resolved: epoch-fenced reassignment with recorded head (§7) | — | n/a | |
 | OPEN-9 | ~~Concrete durable store; quorum configuration~~ | resolved, signed off 2026-10-05: [store.md](store.md) (self-hosted FoundationDB metadata, S3-compatible payloads, one abstract replica) | — | n/a | |
 | OPEN-10 | Fence/rank authority | counter in the catalogue store | P2 | yes: fenced writes are P2 work | **Decided 2026-10-05.** `fence` key in FoundationDB, rotated by the controller in one read-modify-write transaction that also writes the signed token `token/<rank>` (store.md T3); never an atomic add |
-| OPEN-11 | Job envelope fields | reserved shape §10 | P3 | no | |
+| OPEN-11 | Job envelope fields | reserved shape §10 | P3 | no | **Decided 2026-10-06 (P3).** §10 as amended; controller-signed |
 | OPEN-12 | Whether docstrings and `declRange` belong in capsule metadata or effects | capsule metadata (not hashed) | P1 | no | |
 | OPEN-13 | Treatment of `meta`/`initialize` groups (IO at import) in validators | validator replays `initialize` only for allow-listed effects; others unsupported | P1 | no | |
 | OPEN-14 | Restore asynchronous interactive elaboration (fork target) | **Decided 2026-10-05** for v1: `Elab.async = false` everywhere, not overridable (§4.3) | after OPEN-22 and a corpus run of async vs sync IDs | no | |

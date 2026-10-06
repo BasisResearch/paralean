@@ -18,8 +18,9 @@
 //! same request gets the same envelope and, once there is one, the same receipt
 //! (`jobreceipt/<request>`, J2); concurrent duplicates share one dispatch; a request ID
 //! reused for another envelope is refused. Dispatch tries validators in turn; `Busy`,
-//! `Inconclusive`, a timeout or an invalid receipt moves on to the next validator, up to
-//! `validator_attempts`. `Cancel` writes `jobcancel/<request>` (J3), stops the dispatch and
+//! `Inconclusive`, `Refused`, a timeout or an invalid receipt moves on to the next
+//! validator, up to `validator_attempts` (at least once each); the answer is `Refused` only
+//! if every validator refused. `Cancel` writes `jobcancel/<request>` (J3), stops the dispatch and
 //! tells the validators; T1 refuses receipts of cancelled requests.
 //!
 //! Backpressure: at most `max_work_queue` queued work jobs and `max_validations` validations
@@ -569,7 +570,8 @@ impl ControlPlane {
         };
         let timeout = Duration::from_millis(job.body.deadline_ms) + Duration::from_secs(5);
         let mut last = String::from("no attempt");
-        for attempt in 0..self.cfg.validator_attempts.max(1) {
+        let mut refusals = 0;
+        for attempt in 0..self.cfg.validator_attempts.max(n) {
             if *cancel.borrow() {
                 return ControlResponse::Cancelled;
             }
@@ -603,7 +605,16 @@ impl ControlPlane {
                     };
                     return ControlResponse::Receipt { receipt: hex::encode(stored.to_bytes()), job: hex::encode(job.to_bytes()) };
                 }
-                Ok(ValidatorResponse::Refused { reason }) => return refused(&format!("validator {addr}: {reason}")),
+                Ok(ValidatorResponse::Refused { reason }) => {
+                    // A refusal can be the validator's own (revoked key, other checker):
+                    // try the others; refuse only if every validator refuses.
+                    last = format!("validator {addr}: {reason}");
+                    refusals += 1;
+                    if refusals >= n {
+                        return refused(&last);
+                    }
+                    continue;
+                }
                 Ok(ValidatorResponse::Cancelled) => return ControlResponse::Cancelled,
                 Ok(ValidatorResponse::Busy) => last = format!("{addr}: busy"),
                 Ok(ValidatorResponse::Inconclusive { reason }) => last = format!("{addr}: {reason}"),
@@ -611,6 +622,9 @@ impl ControlPlane {
                 Err(e) => last = format!("{addr}: {e}"),
             }
             tokio::time::sleep(Duration::from_millis(20 * (attempt as u64 + 1))).await;
+        }
+        if refusals > 0 {
+            return refused(&last);
         }
         inconclusive(&format!("no validator gave a verdict ({last})"))
     }
