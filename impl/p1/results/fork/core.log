@@ -1,176 +1,176 @@
 capture F:Fixtures/F01Theorem.lean
-  effect 1c3e64b4 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl fd8cca5d declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=302
-  decl bb6d9247 declaration L6 members=1 pub=1 realized=0 deps=0 fe=0 bytes=336
-  decl 64bca036 declaration L8 members=1 pub=1 realized=0 deps=0 fe=0 bytes=580
-  decl 2901dc26 declaration L11 members=2 pub=1 realized=0 deps=0 fe=0 bytes=474
-  decl 8dfc164c declaration L14 members=1 pub=1 realized=0 deps=1 fe=0 bytes=384
-  decl 24e2baff declaration L16 members=1 pub=1 realized=0 deps=1 fe=0 bytes=376
+  effect acc8842a moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 741378c0 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=303
+  decl ea9ba358 declaration L6 members=1 pub=1 realized=0 deps=0 fe=0 bytes=337
+  decl de3b0c7e declaration L8 members=1 pub=1 realized=0 deps=0 fe=0 bytes=579
+  decl 0d3554d9 declaration L11 members=2 pub=1 realized=0 deps=0 fe=0 bytes=474
+  decl b2595939 declaration L14 members=1 pub=1 realized=0 deps=1 fe=0 bytes=352
+  decl 177a75a7 declaration L16 members=1 pub=1 realized=0 deps=1 fe=0 bytes=343
   => 7 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F02Def.lean
-  effect 7d1b6945 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 9aeaba50 declaration L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=212
-  decl 6d5be9ab declaration L7 members=1 pub=1 realized=0 deps=0 fe=0 bytes=127
-  decl d4ef47c0 declaration L9 members=2 pub=1 realized=0 deps=0 fe=0 bytes=666
-  decl dcc4a4d1 declaration L14 members=1 pub=1 realized=7 deps=1 fe=0 bytes=436
-  decl 74ff4579 declaration L17 members=1 pub=1 realized=1 deps=1 fe=0 bytes=463
-  decl ecd877f6 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=915
+  effect 477d4063 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 093545af declaration L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=213
+  decl 46c8eb0d declaration L7 members=1 pub=1 realized=0 deps=0 fe=0 bytes=128
+  decl 14668ceb declaration L9 members=2 pub=1 realized=0 deps=0 fe=0 bytes=671
+  decl 448ca8ed declaration L14 members=1 pub=1 realized=7 deps=1 fe=0 bytes=404
+  decl dc491dce declaration L17 members=1 pub=1 realized=1 deps=1 fe=0 bytes=433
+  decl c8744fe2 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=850
 prelude: 7/7 groups replayed with identical declaration IDs
   => 7 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F03Structure.lean
-  effect 32524219 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 7c96a191 declaration L4 members=20 pub=7 realized=0 deps=0 fe=0 bytes=2769
-  decl bcc79c50 declaration L9 members=18 pub=4 realized=0 deps=1 fe=0 bytes=2443
-  decl 950aed6c declaration L12 members=11 pub=4 realized=0 deps=0 fe=2 bytes=1642
-  decl db1a7e23 declaration L15 members=1 pub=1 realized=0 deps=1 fe=1 bytes=1409
-  decl 465eca3f declaration L18 members=1 pub=1 realized=0 deps=2 fe=0 bytes=396
-  decl 1dfbdf22 declaration L20 members=1 pub=1 realized=0 deps=3 fe=0 bytes=429
+  effect 04ad6726 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 84e5bab3 declaration L4 members=20 pub=7 realized=0 deps=0 fe=0 bytes=2782
+  decl 21c0b621 declaration L9 members=18 pub=4 realized=0 deps=1 fe=0 bytes=2360
+  decl f79f50d9 declaration L12 members=11 pub=4 realized=0 deps=0 fe=2 bytes=1659
+  decl ec59fe35 declaration L15 members=1 pub=1 realized=0 deps=1 fe=1 bytes=1260
+  decl 7946036e declaration L18 members=1 pub=1 realized=0 deps=2 fe=0 bytes=299
+  decl 42dfdf4f declaration L20 members=1 pub=1 realized=0 deps=3 fe=0 bytes=332
 prelude: 14/14 groups replayed with identical declaration IDs
   => 7 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F04Inductive.lean
-  effect 99760400 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 64a445af declaration L5 members=26 pub=7 realized=0 deps=0 fe=0 bytes=3105
-  decl a17ea790 declaration L8 members=25 pub=4 realized=0 deps=0 fe=0 bytes=7597
-  decl 9392831c declaration L12 members=25 pub=4 realized=0 deps=0 fe=0 bytes=4614
-  decl 22e2c19d declaration L15 members=1 pub=1 realized=0 deps=1 fe=2 bytes=601
-  decl bf0db9ae declaration L17 members=1 pub=1 realized=0 deps=1 fe=2 bytes=1826
+  effect 887065cd moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl e941be0c declaration L5 members=26 pub=7 realized=0 deps=0 fe=0 bytes=3115
+  decl 25689f25 declaration L8 members=25 pub=4 realized=0 deps=0 fe=0 bytes=7632
+  decl 57b13efd declaration L12 members=25 pub=4 realized=0 deps=0 fe=0 bytes=4634
+  decl ac9b5fd1 declaration L15 members=1 pub=1 realized=0 deps=1 fe=2 bytes=474
+  decl 5f995b4e declaration L17 members=1 pub=1 realized=0 deps=1 fe=2 bytes=1745
 prelude: 21/21 groups replayed with identical declaration IDs
   => 6 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F05Mutual.lean
-  effect f89834f3 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl d715b162 mutual L4 members=22 pub=7 realized=0 deps=0 fe=0 bytes=4017
-  decl eb19ef57 mutual L12 members=9 pub=2 realized=0 deps=0 fe=0 bytes=963
-  decl 5a7ac3de declaration L21 members=1 pub=1 realized=0 deps=1 fe=0 bytes=434
-  decl 3217af34 declaration L23 members=1 pub=1 realized=0 deps=1 fe=0 bytes=491
+  effect 04cecd89 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 24580268 mutual L4 members=22 pub=7 realized=0 deps=0 fe=0 bytes=4060
+  decl df180f8f mutual L12 members=9 pub=2 realized=0 deps=0 fe=0 bytes=969
+  decl 4c1bb53d declaration L21 members=1 pub=1 realized=0 deps=1 fe=0 bytes=403
+  decl 17111ed8 declaration L23 members=1 pub=1 realized=0 deps=1 fe=0 bytes=363
 prelude: 27/27 groups replayed with identical declaration IDs
   => 5 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F06Structural.lean
-  effect 4f1e8eb3 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl d9386b73 declaration L5 members=5 pub=1 realized=0 deps=0 fe=0 bytes=941
-  decl b8583888 declaration L10 members=5 pub=1 realized=0 deps=0 fe=0 bytes=895
-  decl 64898969 declaration L14 members=1 pub=1 realized=0 deps=1 fe=0 bytes=434
-  decl 90bcfdcb declaration L16 members=1 pub=1 realized=6 deps=1 fe=0 bytes=1132
-  decl fa2cd547 declaration L21 members=2 pub=1 realized=9 deps=1 fe=0 bytes=4207
+  effect b12caa11 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl e3bcccd1 declaration L5 members=5 pub=1 realized=0 deps=0 fe=0 bytes=948
+  decl c968bc7e declaration L10 members=5 pub=1 realized=0 deps=0 fe=0 bytes=899
+  decl ff5dadab declaration L14 members=1 pub=1 realized=0 deps=1 fe=0 bytes=403
+  decl 882e51f0 declaration L16 members=1 pub=1 realized=6 deps=1 fe=0 bytes=1104
+  decl e0b51c57 declaration L21 members=2 pub=1 realized=9 deps=1 fe=0 bytes=4179
 prelude: 32/32 groups replayed with identical declaration IDs
   => 6 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F07WellFounded.lean
-  effect b04622e9 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 0110e85a declaration L5 members=3 pub=1 realized=1 deps=0 fe=0 bytes=4726
-  decl ff9ff4d2 declaration L10 members=11 pub=1 realized=6 deps=0 fe=0 bytes=7721
-  decl c78d5cd9 declaration L16 members=1 pub=1 realized=1 deps=1 fe=0 bytes=1698
-  decl adc55507 declaration L19 members=2 pub=1 realized=4 deps=1 fe=0 bytes=5761
+  effect 36c51fb0 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 2c66f09f declaration L5 members=3 pub=1 realized=1 deps=0 fe=0 bytes=4728
+  decl 48caddb3 declaration L10 members=11 pub=1 realized=6 deps=0 fe=0 bytes=7739
+  decl 68b1d8c9 declaration L16 members=1 pub=1 realized=1 deps=1 fe=0 bytes=1665
+  decl 7412b7d1 declaration L19 members=2 pub=1 realized=4 deps=1 fe=0 bytes=5588
 prelude: 38/38 groups replayed with identical declaration IDs
   => 5 groups, 3 skipped, 3 diagnostics (0 reject)
   [note:provenance] Fixtures/F07WellFounded.lean:10: _private.Fixtures.F07WellFounded.0.PSigma.casesOn._arg_pusher was created by realizeConst but is not spelled as a reserved name
   [note:provenance] Fixtures/F07WellFounded.lean:10: _private.Fixtures.F07WellFounded.0.F07.ack.match_1._arg_pusher was created by realizeConst but is not spelled as a reserved name
   [note:provenance] Fixtures/F07WellFounded.lean:19: F07.ack._unary.induct was created by realizeConst but is not spelled as a reserved name
 capture F:Fixtures/F08PrivateGenerated.lean
-  effect e6e29278 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl b034008a declaration L4 members=1 pub=0 realized=0 deps=0 fe=0 bytes=253
-  decl a81d881b declaration L6 members=1 pub=0 realized=0 deps=1 fe=0 bytes=266
-  decl 226a1c3d declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=342
-  decl 0139983c declaration L10 members=1 pub=1 realized=1 deps=1 fe=1 bytes=482
-  decl 18c46bb6 declaration L12 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1576
-  decl ed034585 declaration L15 members=1 pub=1 realized=0 deps=1 fe=0 bytes=335
-  decl 4150e56f declaration L18 members=45 pub=14 realized=0 deps=0 fe=0 bytes=7208
-  decl 77e9ac5e declaration L21 members=1 pub=1 realized=0 deps=2 fe=1 bytes=357
+  effect 098f786c moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 5023956c declaration L4 members=1 pub=0 realized=0 deps=0 fe=0 bytes=254
+  decl 2df3b7ac declaration L6 members=1 pub=0 realized=0 deps=1 fe=0 bytes=234
+  decl af940f41 declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=311
+  decl 8ae91b41 declaration L10 members=1 pub=1 realized=1 deps=1 fe=1 bytes=450
+  decl 219c7c84 declaration L12 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1593
+  decl b7abb523 declaration L15 members=1 pub=1 realized=0 deps=1 fe=0 bytes=271
+  decl 055afba8 declaration L18 members=45 pub=14 realized=0 deps=0 fe=0 bytes=7221
+  decl abe37046 declaration L21 members=1 pub=1 realized=0 deps=2 fe=1 bytes=293
 prelude: 43/43 groups replayed with identical declaration IDs
   => 9 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F09InstanceOnly.lean
-  effect ccf723be moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl c6c2817c declaration L5 members=16 pub=4 realized=0 deps=0 fe=0 bytes=2459
-  decl 61293ba3 declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=384
-  decl 1df108cb declaration L11 members=1 pub=1 realized=0 deps=2 fe=0 bytes=299
-  effect 72642843 deriving L14 members=2 pub=2 realized=0 deps=1 fe=0 bytes=802
-  decl 8e95dfaa declaration L16 members=1 pub=1 realized=0 deps=1 fe=1 bytes=319
-  decl 93997f3c declaration L18 members=1 pub=1 realized=0 deps=1 fe=1 bytes=363
-  decl dba60821 declaration L20 members=2 pub=1 realized=0 deps=2 fe=1 bytes=576
-  effect 472df903 attribute L22 members=0 pub=0 realized=0 deps=0 fe=1 bytes=74
-  decl 07ecc6b9 declaration L24 members=1 pub=1 realized=0 deps=4 fe=2 bytes=593
-  decl 5c545fc4 declaration L26 members=1 pub=1 realized=0 deps=1 fe=1 bytes=325
-  effect 4ad43e25 attribute L28 members=0 pub=0 realized=0 deps=0 fe=2 bytes=74
+  effect b577ffe0 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl e3e28495 declaration L5 members=16 pub=4 realized=0 deps=0 fe=0 bytes=2476
+  decl 8e802f85 declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=319
+  decl 88512d42 declaration L11 members=1 pub=1 realized=0 deps=2 fe=0 bytes=235
+  effect d70c3476 deriving L14 members=2 pub=2 realized=0 deps=1 fe=0 bytes=741
+  decl 0f975ecd declaration L16 members=1 pub=1 realized=0 deps=1 fe=1 bytes=255
+  decl 50609db0 declaration L18 members=1 pub=1 realized=0 deps=1 fe=1 bytes=298
+  decl 4b7bdb9e declaration L20 members=2 pub=1 realized=0 deps=2 fe=1 bytes=479
+  effect a1f70e62 attribute L22 members=0 pub=0 realized=0 deps=0 fe=1 bytes=75
+  decl 4f37ea43 declaration L24 members=1 pub=1 realized=0 deps=4 fe=2 bytes=466
+  decl e9ec24ff declaration L26 members=1 pub=1 realized=0 deps=1 fe=1 bytes=261
+  effect 2eb66b65 attribute L28 members=0 pub=0 realized=0 deps=0 fe=2 bytes=75
 prelude: 52/52 groups replayed with identical declaration IDs
   => 12 groups, 3 skipped, 0 diagnostics (0 reject)
 capture F:Fixtures/F10SimpAttrDecl.lean
-  effect ad2b05d7 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect 31cbabc2 registerSimpAttr L4 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1493
+  effect 5a06e4c1 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect 15b1e0cf registerSimpAttr L4 members=6 pub=2 realized=0 deps=0 fe=0 bytes=1485
 prelude: 64/64 groups replayed with identical declaration IDs
   => 2 groups, 1 skipped, 2 diagnostics (0 reject)
   [unsupported:module-dependent-literal] Fixtures/F10SimpAttrDecl.lean:4: _private.Fixtures.F10SimpAttrDecl.0.initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.5 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
   [unsupported:module-dependent-literal] Fixtures/F10SimpAttrDecl.lean:4: _private.Fixtures.F10SimpAttrDecl.0.initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.28 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
 capture F:Fixtures/F10SimpAttrUse.lean
-  effect c94bc7bc moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 7f6bc85f declaration L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=269
-  decl b4048aec declaration L7 members=1 pub=1 realized=0 deps=1 fe=1 bytes=383
-  decl 264137a2 declaration L9 members=1 pub=1 realized=0 deps=1 fe=0 bytes=287
-  decl 89917437 declaration L11 members=1 pub=1 realized=0 deps=1 fe=2 bytes=413
-  decl dc8ce577 declaration L13 members=1 pub=1 realized=0 deps=1 fe=1 bytes=322
+  effect e173c1f1 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 26fe67de declaration L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=270
+  decl 37c39294 declaration L7 members=1 pub=1 realized=0 deps=1 fe=1 bytes=352
+  decl ad7cf987 declaration L9 members=1 pub=1 realized=0 deps=1 fe=0 bytes=255
+  decl 2a6809a6 declaration L11 members=1 pub=1 realized=0 deps=1 fe=2 bytes=382
+  decl 618f6c86 declaration L13 members=1 pub=1 realized=0 deps=1 fe=1 bytes=290
 prelude: 65/65 groups replayed with identical declaration IDs
   => 6 groups, 3 skipped, 1 diagnostics (0 reject)
-  [info:materialized] :0: 1 groups with initializer effects built as 1 module(s) in 2299 ms
+  [info:materialized] :0: 1 groups with initializer effects built as 1 module(s) in 2144 ms
 capture F:Fixtures/F11ScopedDecl.lean
-  effect f58df5f7 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 2bb43a16 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=365
-  effect 8161c6e6 mixfix L6 members=3 pub=1 realized=0 deps=0 fe=1 bytes=2992
-  effect 74cc8716 notation L8 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1840
+  effect 7a421b55 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl b5ee119f declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=367
+  effect 8ecab58e mixfix L6 members=3 pub=1 realized=0 deps=0 fe=1 bytes=2995
+  effect ae56e64b notation L8 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1841
   skipped Lean.Parser.Command.notation (local-effect)
-  decl ce66745d declaration L12 members=1 pub=1 realized=0 deps=1 fe=1 bytes=483
-  decl a361f45c declaration L14 members=2 pub=1 realized=0 deps=0 fe=0 bytes=3358
-  decl 47d59152 declaration L16 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1569
-  decl 7d1abde8 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=340
+  decl 01947e3b declaration L12 members=1 pub=1 realized=0 deps=1 fe=1 bytes=453
+  decl 27e9a682 declaration L14 members=2 pub=1 realized=0 deps=0 fe=0 bytes=3360
+  decl b3077f82 declaration L16 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1586
+  decl 093c2d94 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=275
 prelude: 68/68 groups replayed with identical declaration IDs
   => 8 groups, 4 skipped, 2 diagnostics (0 reject)
-  [info:base-mismatch] :0: group ad2b05d7cb45 needs base import Lean
-  [info:base-mismatch] :0: group 31cbabc2ae2d needs base import Lean
+  [info:base-mismatch] :0: group 5a06e4c1d095 needs base import Lean
+  [info:base-mismatch] :0: group 15b1e0cf726f needs base import Lean
 capture F:Fixtures/F11ScopedUse.lean
-  effect 06e58907 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl d38366f3 in L4 members=1 pub=1 realized=0 deps=1 fe=1 bytes=311
+  effect c53b618e moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 6ebd2f97 in L4 members=1 pub=1 realized=0 deps=1 fe=1 bytes=280
   skipped Lean.Parser.Command.open (local-effect)
-  decl 8f8c05cc declaration L9 members=1 pub=1 realized=0 deps=0 fe=1 bytes=304
-  decl f421ff46 declaration L10 members=1 pub=1 realized=0 deps=2 fe=0 bytes=357
+  decl 7cce84f4 declaration L9 members=1 pub=1 realized=0 deps=0 fe=1 bytes=304
+  decl 6d990edd declaration L10 members=1 pub=1 realized=0 deps=2 fe=0 bytes=292
 prelude: 76/76 groups replayed with identical declaration IDs
   => 4 groups, 4 skipped, 2 diagnostics (0 reject)
-  [info:base-mismatch] :0: group ad2b05d7cb45 needs base import Lean
-  [info:base-mismatch] :0: group 31cbabc2ae2d needs base import Lean
+  [info:base-mismatch] :0: group 5a06e4c1d095 needs base import Lean
+  [info:base-mismatch] :0: group 15b1e0cf726f needs base import Lean
 capture F:Fixtures/F12Macro.lean
-  effect 08a451f5 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect acd796b9 macro L8 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1842
-  effect 66ac8f04 syntax L10 members=1 pub=1 realized=0 deps=0 fe=0 bytes=377
-  effect 71909459 macro_rules L11 members=1 pub=0 realized=0 deps=0 fe=1 bytes=1565
-  effect 376cd089 elab L14 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1202
-  effect 2ad8c17e syntax L16 members=1 pub=1 realized=0 deps=0 fe=0 bytes=340
-  effect 4c0c0565 macro_rules L17 members=1 pub=0 realized=0 deps=0 fe=1 bytes=1861
-  decl 4c10e280 declaration L20 members=1 pub=1 realized=0 deps=0 fe=1 bytes=303
-  decl 7011a77c declaration L21 members=1 pub=1 realized=0 deps=0 fe=2 bytes=304
-  decl 2608c35b declaration L22 members=1 pub=1 realized=0 deps=0 fe=1 bytes=211
-  decl 20e5dec7 declaration L23 members=1 pub=1 realized=0 deps=0 fe=2 bytes=304
+  effect cbfaf2a5 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect a7490afb macro L8 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1843
+  effect 76ddabb0 syntax L10 members=1 pub=1 realized=0 deps=0 fe=0 bytes=375
+  effect 3acf03b9 macro_rules L11 members=1 pub=0 realized=0 deps=0 fe=1 bytes=1568
+  effect a3380af6 elab L14 members=2 pub=1 realized=0 deps=0 fe=0 bytes=1202
+  effect 8043c6c7 syntax L16 members=1 pub=1 realized=0 deps=0 fe=0 bytes=339
+  effect 204ad87f macro_rules L17 members=1 pub=0 realized=0 deps=0 fe=1 bytes=1863
+  decl 43d45412 declaration L20 members=1 pub=1 realized=0 deps=0 fe=1 bytes=304
+  decl e698388a declaration L21 members=1 pub=1 realized=0 deps=0 fe=2 bytes=305
+  decl a1ff484b declaration L22 members=1 pub=1 realized=0 deps=0 fe=1 bytes=212
+  decl baff28b9 declaration L23 members=1 pub=1 realized=0 deps=0 fe=2 bytes=305
 prelude: 83/83 groups replayed with identical declaration IDs
   => 11 groups, 4 skipped, 1 diagnostics (0 reject)
   [info:materialized] :0: 1 groups with initializer effects built as 1 module(s) in 0 ms
 capture F:Fixtures/F13InitDecl.lean
-  effect fa7e9a9d moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect efcc082a initialize L6 members=3 pub=1 realized=0 deps=0 fe=0 bytes=617
-  effect 1f527d2b initialize L8 members=1 pub=0 realized=0 deps=0 fe=0 bytes=491
-  effect 1b88d929 registerOption L10 members=2 pub=1 realized=0 deps=0 fe=0 bytes=466
+  effect a033bf10 moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect 3275f4a5 initialize L6 members=3 pub=1 realized=0 deps=0 fe=0 bytes=617
+  effect 3516c241 initialize L8 members=1 pub=0 realized=0 deps=0 fe=0 bytes=486
+  effect 4efc19b9 registerOption L10 members=2 pub=1 realized=0 deps=0 fe=0 bytes=467
 prelude: 94/94 groups replayed with identical declaration IDs
   => 4 groups, 2 skipped, 2 diagnostics (0 reject)
   [info:materialized] :0: 1 groups with initializer effects built as 1 module(s) in 0 ms
   [unsupported:module-dependent-literal] Fixtures/F13InitDecl.lean:8: _private.Fixtures.F13InitDecl.0.initFn._@.Fixtures.F13InitDecl.386426778._hygCtx._hyg.2 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
 capture F:Fixtures/F13InitUse.lean
-  effect f4d50c3a moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect 79ad5fb4 elab L5 members=2 pub=1 realized=0 deps=1 fe=0 bytes=2464
-  decl 7603021c in L13 members=1 pub=1 realized=0 deps=0 fe=0 bytes=132
-  decl 45d8581c in L16 members=1 pub=1 realized=0 deps=0 fe=4 bytes=133
+  effect e02671fd moduleDoc L2 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect 1ecebb7c elab L5 members=2 pub=1 realized=0 deps=1 fe=0 bytes=2430
+  decl 45c8d8b9 in L13 members=1 pub=1 realized=0 deps=0 fe=0 bytes=133
+  decl e2f6ec84 in L16 members=1 pub=1 realized=0 deps=0 fe=4 bytes=134
 prelude: 95/95 groups replayed with identical declaration IDs
   => 4 groups, 3 skipped, 1 diagnostics (0 reject)
-  [info:materialized] :0: 4 groups with initializer effects built as 2 module(s) in 2222 ms
+  [info:materialized] :0: 4 groups with initializer effects built as 2 module(s) in 2204 ms
 materialized: 4 initializer groups imported as stock-built modules
-source replay: 103/103 groups reproduce their declaration ID (8556 ms)
+source replay: 103/103 groups reproduce their declaration ID (9311 ms)
   [info:materialized] Fixtures/F10SimpAttrDecl.lean:4: initializer group imported as a stock-built module
   [info:materialized] Fixtures/F13InitDecl.lean:6: initializer group imported as a stock-built module
   [info:materialized] Fixtures/F13InitDecl.lean:8: initializer group imported as a stock-built module
   [info:materialized] Fixtures/F13InitDecl.lean:10: initializer group imported as a stock-built module
-kernel replay: 103/103 groups accepted; 318 declarations added, 15 reserved names re-realized (74 ms)
+kernel replay: 103/103 groups accepted; 318 declarations added, 15 reserved names re-realized (81 ms)
 isolated replay (exact deps only): 103/103
 export: 19 modules, 103 groups, 30038 bytes of source
   Fixtures.F01Theorem: 7 groups; imports #[]
@@ -192,10 +192,10 @@ export: 19 modules, 103 groups, 30038 bytes of source
   Fixtures.F13InitDecl: 4 groups; imports #[Lean]
   Fixtures.F13InitUse: 1 groups; imports #[]
   Fixtures.F13InitUse.Part1: 3 groups; imports #[Fixtures.F13InitDecl, Fixtures.F13InitUse, Fixtures.F10SimpAttrDecl]
-stock lake build: OK (2862 ms)
+stock lake build: OK (2959 ms)
 verify: 81/85 declaration groups identical in the stock-built oleans; 18 effect-only groups (build-checked)
-  [reject:export-mismatch] Fixtures/F10SimpAttrDecl.lean:4: stock-built group 5f2679c5c607 ≠ stored 31da7009bf11
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:6: stock-built group 5ab915b26522 ≠ stored 3e652944f7ad
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:8: stock-built group b678a03df925 ≠ stored c021e816bbaf
-  [reject:export-mismatch] Fixtures/F13InitDecl.lean:10: stock-built group 539f589531ed ≠ stored c372cfa908fd
-STATS {"aboveP95Bound":[],"capsuleBytes":{"max":390,"median":222,"p95":316,"sum":24218},"commandBytes":{"max":213,"median":59,"sum":7813},"diagnostics":[["info:base-mismatch",4],["info:materialized",4],["unsupported:module-dependent-literal",3],["note:provenance",3]],"encodingBytes":{"max":7721,"median":396,"sum":111491},"groups":103,"ratio":{"p50":3.709091,"p95":6.555556},"rejected":0,"skipped":48}
+  [reject:export-mismatch] Fixtures/F10SimpAttrDecl.lean:4: stock-built group 1520c26827f6 ≠ stored 2cb453be7de5
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:6: stock-built group ceab74274d8b ≠ stored 9416a4c616b5
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:8: stock-built group f743b319265d ≠ stored 39c06086b391
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:10: stock-built group 1dc1224dc415 ≠ stored 2a61123b4b8f
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":390,"median":222,"p95":316,"sum":24218},"commandBytes":{"max":213,"median":59,"sum":7813},"diagnostics":[["info:base-mismatch",4],["info:materialized",4],["unsupported:module-dependent-literal",3],["note:provenance",3]],"encodingBytes":{"max":7739,"median":363,"sum":109304},"groups":103,"ratio":{"p50":3.709091,"p95":6.555556},"rejected":0,"skipped":48}

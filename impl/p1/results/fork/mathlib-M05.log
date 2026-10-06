@@ -1,33 +1,33 @@
 ### M05 Mathlib.Data.Nat.BitIndices
 capture M05:Mathlib/Data/Nat/BitIndices.lean
-  effect 55c1cdc5 moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl 7b9087b6 declaration L36 members=1 pub=1 realized=0 deps=0 fe=0 bytes=486
-  decl 47efd27a declaration L41 members=1 pub=1 realized=1 deps=1 fe=0 bytes=350
-  decl 41f7cb54 declaration L43 members=1 pub=1 realized=0 deps=1 fe=1 bytes=671
-  decl d08b2545 declaration L45 members=1 pub=1 realized=0 deps=1 fe=2 bytes=747
-  decl dd8b116a declaration L49 members=1 pub=1 realized=0 deps=1 fe=2 bytes=745
-  decl a3c57246 declaration L53 members=1 pub=1 realized=0 deps=2 fe=2 bytes=952
-  decl d682d92b declaration L57 members=1 pub=1 realized=0 deps=2 fe=3 bytes=891
-  decl e5cf8108 declaration L61 members=4 pub=1 realized=0 deps=4 fe=1 bytes=6191
-  decl 321e9e03 declaration L69 members=2 pub=1 realized=0 deps=2 fe=4 bytes=597
-  decl 21225699 declaration L71 members=1 pub=1 realized=0 deps=2 fe=5 bytes=3832
-  decl 3e74f9a1 declaration L79 members=1 pub=1 realized=0 deps=3 fe=5 bytes=1804
-  decl 512427a0 declaration L82 members=1 pub=1 realized=0 deps=4 fe=5 bytes=4833
-  effect afcfc669 alias L93 members=1 pub=1 realized=0 deps=2 fe=0 bytes=641
-  decl c514da0d declaration L95 members=2 pub=1 realized=0 deps=4 fe=6 bytes=7482
-  decl bd00ee41 declaration L100 members=4 pub=1 realized=0 deps=4 fe=7 bytes=15084
-  effect a9908d23 alias L128 members=1 pub=1 realized=0 deps=2 fe=0 bytes=708
-  decl 209a6d8a declaration L130 members=1 pub=1 realized=0 deps=2 fe=9 bytes=793
-  decl 58db8b29 declaration L133 members=1 pub=1 realized=0 deps=2 fe=10 bytes=660
+  effect c86c502d moduleDoc L14 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 62f178cf declaration L36 members=1 pub=1 realized=0 deps=0 fe=0 bytes=487
+  decl 48d1f270 declaration L41 members=1 pub=1 realized=1 deps=1 fe=0 bytes=318
+  decl 6b5d9aad declaration L43 members=1 pub=1 realized=0 deps=1 fe=1 bytes=639
+  decl 64579dd6 declaration L45 members=1 pub=1 realized=0 deps=1 fe=2 bytes=716
+  decl 86a9b183 declaration L49 members=1 pub=1 realized=0 deps=1 fe=2 bytes=714
+  decl 11bebea0 declaration L53 members=1 pub=1 realized=0 deps=2 fe=2 bytes=888
+  decl b276365e declaration L57 members=1 pub=1 realized=0 deps=2 fe=3 bytes=828
+  decl 1c81915b declaration L61 members=4 pub=1 realized=0 deps=4 fe=1 bytes=6068
+  decl cdc16e1b declaration L69 members=2 pub=1 realized=0 deps=2 fe=4 bytes=534
+  decl 657d4e1c declaration L71 members=1 pub=1 realized=0 deps=2 fe=5 bytes=3771
+  decl fcb23b06 declaration L79 members=1 pub=1 realized=0 deps=3 fe=5 bytes=1709
+  decl 2d48eee3 declaration L82 members=1 pub=1 realized=0 deps=4 fe=5 bytes=4710
+  effect 4869d094 alias L93 members=1 pub=1 realized=0 deps=2 fe=0 bytes=577
+  decl 857a7022 declaration L95 members=2 pub=1 realized=0 deps=4 fe=6 bytes=7361
+  decl af51585f declaration L100 members=4 pub=1 realized=0 deps=4 fe=7 bytes=14979
+  effect aadfb5e8 alias L128 members=1 pub=1 realized=0 deps=2 fe=0 bytes=645
+  decl 77b7d40d declaration L130 members=1 pub=1 realized=0 deps=2 fe=9 bytes=731
+  decl f0484dfc declaration L133 members=1 pub=1 realized=0 deps=2 fe=10 bytes=597
   => 19 groups, 6 skipped, 0 diagnostics (0 reject)
-capture-time 1.18 s maxrss 963744 KB
-source replay: 19/19 groups reproduce their declaration ID (1220 ms)
-kernel replay: 19/19 groups accepted; 26 declarations added, 0 reserved names re-realized (28 ms)
+capture-time 1.88 s maxrss 945812 KB
+source replay: 19/19 groups reproduce their declaration ID (1157 ms)
+kernel replay: 19/19 groups accepted; 26 declarations added, 0 reserved names re-realized (27 ms)
 isolated replay (exact deps only): 19/19
-replay-time 5.54 s maxrss 964128 KB
+replay-time 5.31 s maxrss 946188 KB
 export: 1 modules, 19 groups, 9532 bytes of source
   Mathlib.ParaleanExport.Data.Nat.BitIndices: 19 groups; imports #[Mathlib.Algebra.BigOperators.Ring.List, Mathlib.Algebra.Order.Group.Nat, Mathlib.Algebra.Order.Sub.Basic, Mathlib.Algebra.Ring.Nat, Mathlib.Data.List.Sort]
-stock lake build: OK (2726 ms)
+stock lake build: OK (3001 ms)
 verify: 18/18 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
-export-time 6.88 s maxrss 1819288 KB
-STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1753,"median":350,"p95":1753,"sum":9018},"commandBytes":{"max":1540,"median":139,"sum":5071},"diagnostics":[],"encodingBytes":{"max":15084,"median":747,"sum":47541},"groups":19,"ratio":{"p50":2.517986,"p95":3.813333},"rejected":0,"skipped":6}
+export-time 8.30 s maxrss 1807160 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1753,"median":350,"p95":1753,"sum":9018},"commandBytes":{"max":1540,"median":139,"sum":5071},"diagnostics":[],"encodingBytes":{"max":14979,"median":716,"sum":46347},"groups":19,"ratio":{"p50":2.517986,"p95":3.813333},"rejected":0,"skipped":6}

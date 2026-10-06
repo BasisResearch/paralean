@@ -211,7 +211,7 @@ module-dependent (e.g. `register_simp_attr`'s `initFn` bodies) cannot be
 normalized; P1 reports them as module-dependent. **OPEN-22** (decided, §13):
 identity uses canonical numbering and treats spellings as metadata, which is
 relocation-invariant and also invariant to auxiliary renaming. P1 implements
-canonical numbering and group-ID dependency pins as encoding `paralean-group-v2`
+canonical numbering and group-ID dependency pins as encoding `paralean-group-v3` (v2 plus §1.1/§1.2 conformance)
 ([p1-interface-notes.md](p1-interface-notes.md) §7); scoped spellings are unhashed
 metadata.
 

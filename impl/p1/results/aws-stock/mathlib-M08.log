@@ -1,0 +1,25 @@
+### M08 Mathlib.Tactic.ByCases
+capture M08:Mathlib/Tactic/ByCases.lean
+  effect 8347cf77 moduleDoc L11 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect 294a9a7a syntax L23 members=1 pub=1 realized=0 deps=0 fe=0 bytes=616
+  skipped Lean.Parser.Command.elab (local-effect)
+  effect 6c94dc11 macro_rules L37 members=1 pub=0 realized=0 deps=0 fe=1 bytes=3059
+  => 3 groups, 6 skipped, 1 diagnostics (0 reject)
+  [unsupported:module-dependent-literal] Mathlib/Tactic/ByCases.lean:37: Mathlib.Tactic.ByCases._aux_Mathlib_Tactic_ByCases___macroRules_Mathlib_Tactic_ByCases_byCases!_1 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+capture-time 0.74 s maxrss 633596 KB
+source replay: 2/3 groups reproduce their declaration ID (579 ms)
+  [capsule:replay-mismatch] Mathlib/Tactic/ByCases.lean:37: replayed declaration 330d2fe3c5a7 ≠ stored 3d5484255594; differing members: #[Mathlib.Tactic.ByCases.«_aux_$M___macroRules_Mathlib_Tactic_ByCases_byCases!_1»]
+kernel replay: 3/3 groups accepted; 2 declarations added, 0 reserved names re-realized (2 ms)
+isolated replay (exact deps only): 2/3
+  needs larger capsule: Mathlib/Tactic/ByCases.lean:37 6c94dc11 [root] (file-prefix capsule: still fails)
+    [capsule:replay-mismatch] Mathlib/Tactic/ByCases.lean:37: replayed declaration 330d2fe3c5a7 ≠ stored 3d5484255594; differing members: #[Mathlib.Tactic.ByCases.«_aux_$M___macroRules_Mathlib_Tactic_ByCases_byCases!_1»]
+larger capsule (same-file prefix) fixes 0/1 isolated failures
+replay-time 1.02 s maxrss 633596 KB
+export: 1 modules, 3 groups, 1956 bytes of source
+  Mathlib.ParaleanExport.Tactic.ByCases: 3 groups; imports #[Batteries.Tactic.PermuteGoals, Mathlib.Tactic.Push]
+stock lake build: OK (2860 ms)
+verify: 1/2 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+  [reject:export-mismatch] Mathlib/Tactic/ByCases.lean:37: stock-built group 06840ea128c5 ≠ stored 3d5484255594
+Command exited with non-zero status 1
+export-time 5.70 s maxrss 1277432 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":648,"median":628,"p95":648,"sum":1580},"commandBytes":{"max":416,"median":217,"sum":801},"diagnostics":[["unsupported:module-dependent-literal",1]],"encodingBytes":{"max":3059,"median":616,"sum":3750},"groups":3,"ratio":{"p50":1.809524,"p95":2.894009},"rejected":0,"skipped":6}

@@ -1,0 +1,27 @@
+### M04 Mathlib.Data.Nat.MaxPowDiv
+capture M04:Mathlib/Data/Nat/MaxPowDiv.lean
+  effect 4ae238aa moduleDoc L11 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl d035ab5d declaration L27 members=11 pub=2 realized=4 deps=0 fe=0 bytes=8259
+  decl 7759e9d8 declaration L54 members=1 pub=1 realized=0 deps=1 fe=0 bytes=219
+  decl daa315e7 declaration L57 members=5 pub=1 realized=3 deps=1 fe=0 bytes=9775
+  decl 64236de6 declaration L73 members=1 pub=1 realized=1 deps=1 fe=0 bytes=1108
+  decl 17bbad82 declaration L76 members=1 pub=1 realized=0 deps=2 fe=0 bytes=382
+  decl 33045d60 declaration L80 members=1 pub=1 realized=1 deps=3 fe=0 bytes=608
+  decl 952ee97d declaration L83 members=1 pub=1 realized=0 deps=2 fe=2 bytes=381
+  decl 3e6708bd declaration L87 members=1 pub=1 realized=0 deps=3 fe=2 bytes=619
+  decl 95e0e6d7 declaration L90 members=1 pub=1 realized=0 deps=1 fe=4 bytes=981
+  decl 583098db declaration L93 members=1 pub=1 realized=0 deps=3 fe=4 bytes=607
+  decl 44f40ffb declaration L96 members=3 pub=1 realized=0 deps=3 fe=6 bytes=1755
+  decl ef27a457 declaration L99 members=1 pub=0 realized=0 deps=0 fe=6 bytes=2509
+  => 13 groups, 4 skipped, 0 diagnostics (0 reject)
+capture-time 0.93 s maxrss 618020 KB
+source replay: 13/13 groups reproduce their declaration ID (759 ms)
+kernel replay: 13/13 groups accepted; 32 declarations added, 4 reserved names re-realized (24 ms)
+isolated replay (exact deps only): 13/13
+replay-time 2.96 s maxrss 617140 KB
+export: 1 modules, 13 groups, 6311 bytes of source
+  Mathlib.ParaleanExport.Data.Nat.MaxPowDiv: 13 groups; imports #[Mathlib.Data.Nat.Notation]
+stock lake build: OK (2972 ms)
+verify: 12/12 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 5.86 s maxrss 1242232 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1130,"median":306,"p95":1130,"sum":5970},"commandBytes":{"max":951,"median":127,"sum":3681},"diagnostics":[],"encodingBytes":{"max":9775,"median":619,"sum":27278},"groups":13,"ratio":{"p50":2.409449,"p95":3.034091},"rejected":0,"skipped":4}

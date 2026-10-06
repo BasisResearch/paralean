@@ -1,25 +1,25 @@
 ### M11 Mathlib.Data.Ineq
 capture M11:Mathlib/Data/Ineq.lean
-  effect 047cc787 moduleDoc L10 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  effect f1970664 moduleDoc L24 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl cfaddf3b declaration L26 members=31 pub=11 realized=0 deps=0 fe=0 bytes=4084
-  decl ced0d077 declaration L34 members=3 pub=1 realized=0 deps=1 fe=0 bytes=1601
-  decl 9c7ba262 declaration L45 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2260
-  decl e0cecfd2 declaration L54 members=2 pub=1 realized=0 deps=1 fe=0 bytes=768
-  decl eda57e3f declaration L60 members=1 pub=1 realized=0 deps=2 fe=0 bytes=308
-  decl 69924965 declaration L62 members=1 pub=1 realized=0 deps=2 fe=0 bytes=352
-  effect 29cd80f8 moduleDoc L66 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
-  decl b2c4fd8d declaration L71 members=2 pub=1 realized=0 deps=1 fe=0 bytes=2332
-  decl a0660133 declaration L90 members=3 pub=1 realized=0 deps=2 fe=0 bytes=3161
+  effect 8b0d7b01 moduleDoc L10 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  effect a24e4119 moduleDoc L24 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 874ce76a declaration L26 members=31 pub=11 realized=0 deps=0 fe=0 bytes=4092
+  decl 77ba3602 declaration L34 members=3 pub=1 realized=0 deps=1 fe=0 bytes=1385
+  decl c4a22786 declaration L45 members=5 pub=1 realized=0 deps=1 fe=0 bytes=2045
+  decl 5ebfd746 declaration L54 members=2 pub=1 realized=0 deps=1 fe=0 bytes=614
+  decl 7a14f854 declaration L60 members=1 pub=1 realized=0 deps=2 fe=0 bytes=244
+  decl 8d025348 declaration L62 members=1 pub=1 realized=0 deps=2 fe=0 bytes=288
+  effect e9626b04 moduleDoc L66 members=0 pub=0 realized=0 deps=0 fe=0 bytes=75
+  decl 0aa31c96 declaration L71 members=2 pub=1 realized=0 deps=1 fe=0 bytes=2209
+  decl 1c711125 declaration L90 members=3 pub=1 realized=0 deps=2 fe=0 bytes=3102
   => 11 groups, 9 skipped, 0 diagnostics (0 reject)
-capture-time 0.33 s maxrss 395424 KB
-source replay: 11/11 groups reproduce their declaration ID (243 ms)
-kernel replay: 11/11 groups accepted; 44 declarations added, 0 reserved names re-realized (6 ms)
+capture-time 0.49 s maxrss 389736 KB
+source replay: 11/11 groups reproduce their declaration ID (360 ms)
+kernel replay: 11/11 groups accepted; 44 declarations added, 0 reserved names re-realized (9 ms)
 isolated replay (exact deps only): 11/11
-replay-time 0.75 s maxrss 396068 KB
+replay-time 1.12 s maxrss 390864 KB
 export: 1 modules, 11 groups, 5115 bytes of source
   Mathlib.ParaleanExport.Data.Ineq: 11 groups; imports #[Mathlib.Lean.Expr.Basic]
-stock lake build: OK (1887 ms)
+stock lake build: OK (2025 ms)
 verify: 8/8 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)
-export-time 3.88 s maxrss 916068 KB
-STATS {"aboveP95Bound":[],"capsuleBytes":{"max":883,"median":376,"p95":883,"sum":4771},"commandBytes":{"max":663,"median":178,"sum":2555},"diagnostics":[],"encodingBytes":{"max":4084,"median":768,"sum":15088},"groups":11,"ratio":{"p50":2.140449,"p95":9.826087},"rejected":0,"skipped":9}
+export-time 4.39 s maxrss 913796 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":883,"median":376,"p95":883,"sum":4771},"commandBytes":{"max":663,"median":178,"sum":2555},"diagnostics":[],"encodingBytes":{"max":4092,"median":614,"sum":14204},"groups":11,"ratio":{"p50":2.140449,"p95":9.826087},"rejected":0,"skipped":9}
