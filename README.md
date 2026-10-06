@@ -21,8 +21,10 @@ captures command groups, replays them from a local content-addressed store, expo
 to a clean stock build and renders `remote%` working copies. Its
 [gate report](docs/p1-gate.md) records G1 to G6 passing on
 21 fixture files and an 18-module Mathlib sample; to reproduce it, see
-[impl/p1/README.md](impl/p1/README.md). There is no Lean fork, network service, object-store adapter or
-distributed LSP yet.
+[impl/p1/README.md](impl/p1/README.md). P1 also runs on a minimal Lean fork
+(`fork/build.sh`; `PARALEAN_LEAN=fork` for the P1 scripts) that replaces the prototype's
+library workarounds with native hooks. P2 storage (`impl/p2`) runs on self-hosted
+FoundationDB and Garage. There is no network service or distributed LSP yet.
 
 The proposed fork base is Lean `nightly-2026-10-03`, paired with its successful
 Mathlib nightly CI revision. Verification separately uses pinned Veil on Lean 4.32.0.

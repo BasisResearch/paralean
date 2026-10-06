@@ -104,7 +104,18 @@ Record cases requiring larger source capsules. Keep source/line mappings usable.
 Gate: replay and clean export agree with reference behavior. This is the critical
 engineering feasibility gate.
 
+The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `63380ffa`) implements
+the P1 hooks natively: `Elab.async` pinned off, a per-command declaration collector, no axiom
+fallback after kernel failures, a `simp` used-lemma record and canonical instance names for
+anonymous and derived instances. On the fork the P1 gate gives the same G1–G6 results as on
+stock, with 12 more instances named canonically ([fork-log](fork-log.md)).
+
 ## P2 — Storage and eventual registry
+
+Implemented in `impl/p2` (Rust): self-hosted FoundationDB 7.3 + Garage, T1–T7,
+certificate-based discovery and catalogue recovery, fault injection; gate tests pass
+against the live services ([p2-log](p2-log.md)). Not yet: FDB faults within a redundancy
+mode, tombstones (§11.4), anti-entropy between deployments.
 
 Implement immutable writes, hash verification, durable acknowledgements, anti-entropy,
 recovery, causal revisions and conflict diagnostics on FoundationDB and S3, using the
@@ -168,7 +179,10 @@ A continues its file. Change an upstream definition and verify invalidation, sta
 response rejection and retained old snapshots.
 
 Gate: unchanged agent workflow, adversarial validation, clean exports, fork Lean/
-Mathlib tests and measured transfer/checking costs.
+Mathlib tests and measured transfer/checking costs. The fork passes Lean's own test suite
+with its hooks off (4339/4340; the one failure is environmental and also fails on stock); in
+Paralean mode the differences are the intended ones plus server tests that need asynchronous
+elaboration (OPEN-14).
 
 `remote%` in v1 materializes the published members, theorem proofs included, and
 kernel-checks them unless the environment already holds them; it never accepts a
