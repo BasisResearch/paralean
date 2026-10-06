@@ -13,7 +13,7 @@ scripts/up.sh            # fdbserver (ssd, port 4689), Garage (18439-18441), s3-
 scripts/test.sh          # cargo test --workspace against the live services
 scripts/check-mutations.sh   # guard-removal mutations; the listed tests must fail
 scripts/fdb-kill-test.sh     # SIGKILL fdbserver under stress workers, restart, audit
-scripts/p1-golden.sh         # SHA-256 vectors from P1's Sha256.lean (hard-coded in id.rs tests)
+scripts/p1-golden.sh [STORE…] # P1 declId = P2 group ID for every group of P1 stores (default: captures F01–F13)
 scripts/down.sh
 ```
 `up.sh` lowers FDB's operating-space reserve (`min_available_space_ratio`), because /data on
@@ -24,7 +24,7 @@ the shared box is ~98% full and the default 5% reserve throttles all writes.
 | Path | Contents |
 |---|---|
 | `crates/store` | library `paralean_store` |
-| `crates/cli` | `paralean-p2` CLI (status, assign, rotate, put/get, publish-demo, checkpoint-demo, discover, recover, audit, import-p1, stress) |
+| `crates/cli` | `paralean-p2` CLI (status, assign, rotate, put/get, publish-demo, checkpoint-demo, discover, recover, audit, check-p1, import-p1, stress) |
 | `crates/s3-guard` | S3 passthrough refusing DELETE, DeleteObjects and bucket-config changes |
 
 ## Module → transaction → guard

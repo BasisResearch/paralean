@@ -248,6 +248,17 @@ mod tests {
 
     /// Output of `scripts/p1-golden.sh`: P1's pure-Lean `Sha256.lean` run with P1's
     /// toolchain (nightly-2026-10-03) on the same inputs.
+    /// A real P1 group (`paralean-group-v3`, F01 `two_eq`, captured by `impl/p1` on the fork):
+    /// P2's `H("v0/group", bytes)` is P1's `declId` (p2-log.md deviation 10, fixed).
+    #[test]
+    fn p1_group_id_matches() {
+        let bytes = include_bytes!("../tests/data/p1-F01-two_eq.grp");
+        assert_eq!(
+            Domain::Group.hash(bytes).hex(),
+            "d2663a5ba5635213970abada58b7625ed4b60b048044111cf296203f6e084036"
+        );
+    }
+
     #[test]
     fn matches_p1_lean_sha256() {
         let range: Vec<u8> = (0..1000u32).map(|i| (i % 251) as u8).collect();
