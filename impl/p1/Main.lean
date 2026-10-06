@@ -6,12 +6,13 @@ def usage : String := "usage:
   paralean capture  --store DIR --ws NAME --root DIR [--targets JSON] [--remote 1] FILE...
   paralean replay   --store DIR [--isolated 1] [--include-rejected 1] [--ws NAME]
   paralean export   --store DIR --out DIR [--mathlib DIR] [--ws a,b]
-  paralean validate --store DIR                  (receipts; key in PARALEAN_RECEIPT_KEY)
+  paralean validate-pkgs --store DIR --out FILE PID...   (validator verdicts; plr signs them)
   paralean stats | contract --names a,b | dump --decl ID | merge --into DIR --from DIR
   paralean fasync --file FAsync.lean --store DIR
-  paralean copy-init --copy DIR --author NAME | copy-publish --copy DIR FILE... |
-           copy-sync --copy DIR | copy-pull --copy DIR --from DIR | copy-hash --copy DIR FILE...
-  paralean publish-all --store DIR --file F [--out PATH]
+  paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
+           ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] FILE... |
+           ws-delete --dir D --file F --name N | ws-check --dir D FILE...
+           (working copies, P3; PARALEAN_STORE = D/cache; see impl/p3-remote/scripts/ws.sh)
 "
 
 /-- `B/Part1.lean` ↦ `B.Part1`. -/
@@ -177,8 +178,7 @@ unsafe def main (args : List String) : IO UInt32 := do
     let cat ← Catalog.load store files
     let mathlib? := flags["mathlib"]?.map FilePath.mk
     -- rule 4 renames, if this store carries publication records (working copies)
-    let recs ← store.pubs
-    let ren := renamesOf (← metasFor store recs) recs
+    let ren ← if (← IO.getEnv "PARALEAN_STORE").isSome then Remote.renames else pure {}
     -- the plan (conflict check, layout) sees the rendered names
     let cat := { cat with metas := cat.metas.fold (fun m k g => m.insert k (renamedGroup ren g)) {} }
     let (plan, bytes) ← writeExport cat cat.order out mathlib? ren
@@ -296,61 +296,58 @@ unsafe def main (args : List String) : IO UInt32 := do
     IO.println "forged publication, then validator:"
     for l in ← FAsync.forge file storeDir do IO.println l
     return 0
-  | "validate" :: rest =>
-    let (flags, _) := parseFlags rest
+  | "validate-pkgs" :: rest =>
+    let (flags, pids) := parseFlags rest
     let some storeDir := flags["store"]? | IO.eprintln usage; return 2
-    let key := (← IO.getEnv "PARALEAN_RECEIPT_KEY").getD ""
-    let (n, refused) ← validateStore { root := storeDir } key (log := IO.println)
-    IO.println s!"validate: {n} new receipts; {refused.size} refused"
+    let some out := flags["out"]? | IO.eprintln usage; return 2
+    let vs ← validatePkgs { root := storeDir } pids (log := IO.eprintln)
+    IO.FS.writeFile out (Json.mkObj (vs.toList.map fun (k, v) => (k, toJson v))).compress
     return 0
-  | "copy-init" :: rest =>
+  | "ws-init" :: rest =>
     let (flags, _) := parseFlags rest
-    let some dir := flags["copy"]? | IO.eprintln usage; return 2
-    let some author := flags["author"]? | IO.eprintln usage; return 2
-    copyInit dir author
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some agent := flags["agent"]? | IO.eprintln usage; return 2
+    Copy.init dir agent
     return 0
-  | "copy-publish" :: rest =>
+  | "ws-capture" :: rest =>
     let (flags, files) := parseFlags rest
-    let some dir := flags["copy"]? | IO.eprintln usage; return 2
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some f := files[0]? | IO.eprintln usage; return 2
+    IO.println (← Copy.capture dir f (log := IO.eprintln)).compress
+    return 0
+  | "ws-plan" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some f := flags["file"]? | IO.eprintln usage; return 2
+    let some rc := flags["receipts"]? | IO.eprintln usage; return 2
+    let some out := flags["out"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.plan dir f rc out (log := IO.eprintln)).compress
+    return 0
+  | "ws-sync" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.sync dir (log := IO.eprintln)).compress
+    return 0
+  | "ws-hash" :: rest =>
+    let (flags, files) := parseFlags rest
     for f in files do
-      let ps ← copyPublish dir f (log := IO.println)
-      IO.println s!"published {ps.size} group(s) from {f}"
+      let (h, p) ← Copy.hash f
+      if let some d := flags["write"]? then
+        let path := FilePath.mk d / f
+        if let some par := path.parent then IO.FS.createDirAll par
+        IO.FS.writeFile path p
+      IO.println s!"{f} {h}"
     return 0
-  | "copy-sync" :: rest =>
+  | "ws-delete" :: rest =>
     let (flags, _) := parseFlags rest
-    let some dir := flags["copy"]? | IO.eprintln usage; return 2
-    let _ ← copySync dir (log := IO.println)
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some f := flags["file"]? | IO.eprintln usage; return 2
+    let some n := flags["name"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.delete dir f n.toName).compress
     return 0
-  | "copy-pull" :: rest =>
-    let (flags, _) := parseFlags rest
-    let some dir := flags["copy"]? | IO.eprintln usage; return 2
-    let some other := flags["from"]? | IO.eprintln usage; return 2
-    let _ ← copyPull dir other (log := IO.println)
-    return 0
-  | "copy-hash" :: rest =>
+  | "ws-check" :: rest =>
     let (flags, files) := parseFlags rest
-    let some dir := flags["copy"]? | IO.eprintln usage; return 2
-    let store : Store := { root := FilePath.mk dir / "store" }
-    for f in files do IO.println s!"{f} {← projectionHash store f}"
-    return 0
-  | "publish-all" :: rest =>
-    -- measurement helper: publish every current group of a store as one file, in order
-    let (flags, _) := parseFlags rest
-    let some storeDir := flags["store"]? | IO.eprintln usage; return 2
-    let some file := flags["file"]? | IO.eprintln usage; return 2
-    let author := flags.getD "author" "publisher"
-    let store : Store := { root := storeDir }
-    let cat ← Catalog.load store (← store.currentFiles)
-    let mut anchor := ""
-    let mut t := 0
-    for gid in cat.order do
-      t := t + 1
-      store.putPub { pid := gid, file, anchor, lamport := t, author }
-      anchor := gid
-    let recs ← store.pubs
-    let metas ← metasFor store recs
-    let out := flags.getD "out" (file)
-    IO.FS.writeFile out (renderProjection metas recs file)
-    IO.println s!"published {t} groups as {file}; projection written to {out}"
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    for f in files do IO.println (← Copy.check dir f).compress
     return 0
   | _ => IO.eprintln usage; return 2

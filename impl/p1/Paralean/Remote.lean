@@ -6,59 +6,71 @@ public meta import Paralean.Encode
 public meta import Paralean.Model
 public meta import Paralean.Store
 public meta import Paralean.Render
-public meta import Paralean.Receipt
 public meta import Paralean.Crdt
+public meta import Paralean.P3
+public meta import Paralean.Rga
 
 public meta section
 
 /-!
-`remote%`: published declarations inside a working copy (transparent workspaces, Track B).
+`remote%`: published declarations inside a working copy (transparent workspaces, P3 v1).
 
 A teammate's published declaration appears in every other copy of its file as
 
 ```
-<header exactly as published> := remote% "<package id>"     -- theorem, def, instance, ...
-remote% "<package id>"                                       -- structures, notation, mutual, ...
+<published header> :=
+  remote% "<group ID>"            -- theorem, def, instance, ...
+remote_decl% "<group ID>"         -- structures, notation, mutual blocks, ... (OPEN-16)
 ```
 
-Elaborating it:
+Elaborating it (p0-interfaces §11.2):
 
-1. looks up the package in the store and requires a valid validator receipt over the
-   exact package and declaration ID (a forged or unknown ID is an error, never a `sorry`);
-2. requires the written header to be the published header byte for byte (same name and
-   statement text) and the current namespace to match;
-3. loads the declaration's dependency closure from the store, independent of the file's
-   imports (B→A→B never needs a module import);
-4. elaborates the published capsule at the root scope. A theorem's proof is **not**
-   fetched: the published statement is elaborated, its hash (with exact dependency pins)
-   must equal the published one, and the proof is a receipt-backed placeholder. Defs,
-   instances and structures re-elaborate their real capsule, because unfolding, `simp`
-   and instance search need the bodies. Each member's encoding must equal the published
-   member's.
+1. **Name.** The group is published: its publication record is known, or is fetched from
+   the store (`plr fetch-pkg`, which requires a valid certificate). The written
+   declaration's name, resolved in the current scope, must be the (rendered) name of a
+   member of that group.
+2. **Statement.** The written binders and type, elaborated in the current scope, must be
+   the published statement.
+3. **Dependency versions.** The group's dependency closure is loaded by group ID from the
+   store, independent of the file's imports. A local constant with the same name but other
+   content is a version conflict, reported and never rebound.
+4. **Receipt.** Every group of the closure has a receipt that a trusted validator signed
+   (Ed25519) over exactly that group and capsule (`P3.checkReceipt`).
 
-The store and key come from `PARALEAN_STORE` and `PARALEAN_RECEIPT_KEY` (the fork would
-configure them). The validator and the exporter always use real proofs.
+Loading fetches the group's payload (`P3.payload`: from the cache, else `plr fetch-group`;
+re-hashed) and decodes its kernel terms.
+
+* A group whose declared value is a theorem is elaborated from its capsule's statement with
+  the body `remote_value% "<package>"`: that term elaborator returns the **published
+  proof term**, after adding the group's auxiliary members the proof uses (each
+  kernel-checked by `addDecl`). The theorem itself is then kernel-checked with that proof.
+  Attributes run as written, so `@[simp]` and generated declarations (`@[to_additive]`)
+  come from the fetched proof.
+* Other groups (definitions, instances, structures, inductives, notation) are elaborated
+  from their capsule, since compilation, equation lemmas, structure info and instance
+  search need the elaborator's side effects.
+
+Afterwards every member in the environment is compared with the decoded payload: types
+always, values of definitions always, and theorem proofs whenever they were fetched. Any
+difference is an error. No placeholder axiom exists anywhere; `remote%` never accepts a
+body it cannot fetch.
+
+Configuration: `PARALEAN_STORE` (the copy's cache), `PARALEAN_TRUST`, `PARALEAN_PLR`.
+`PARALEAN_REMOTE_LOG` receives one line per load for measurements.
 -/
 
 namespace Paralean.Remote
-open Lean Elab Command Term Meta
+open Lean Elab Command Term Meta P3
 
 syntax (name := remoteTerm) "remote% " str : term
-syntax (name := remoteCmd) "remote% " str : command
-/-- Internal: the receipt-backed proof placeholder of a remote theorem. -/
-syntax (name := remoteProof) "remote_proof% " str : term
+syntax (name := remoteCmd) "remote_decl% " str : command
+/-- Internal: the published proof of the package's theorem (fetched, never a placeholder). -/
+syntax (name := remoteValue) "remote_value% " str : term
 
-/-- Suffix of the placeholder axiom standing for a remote theorem's proof. -/
-def placeholderSuffix : String := "_remote_proof"
-
-def store : IO Store := do
+def storeRoot : IO System.FilePath := do
   let some r ← IO.getEnv "PARALEAN_STORE" | throw <| IO.userError "PARALEAN_STORE is not set"
-  return { root := r }
+  return r
 
-def receiptKey : IO String := do
-  return (← IO.getEnv "PARALEAN_RECEIPT_KEY").getD ""
-
-/-- Counters for measurements, appended to `$PARALEAN_REMOTE_LOG` if set. -/
 def logEvent (s : String) : IO Unit := do
   if let some p ← IO.getEnv "PARALEAN_REMOTE_LOG" then
     let h ← IO.FS.Handle.mk p .append
@@ -68,51 +80,96 @@ def logEvent (s : String) : IO Unit := do
 initialize loadingDepth : IO.Ref Nat ← IO.mkRef 0
 /-- Packages loaded on demand by name resolution during the current command (for capture). -/
 initialize loadLog : IO.Ref (Array String) ← IO.mkRef #[]
-
-/-- Package metadata is immutable: cache it per process. -/
+/-- pid ↦ (group, capsule): from known records and from loaded capsules' dependency lists. -/
+initialize pkgIndex : IO.Ref (Std.HashMap String (String × String)) ← IO.mkRef {}
 initialize metaCache : IO.Ref (Std.HashMap String GroupRec) ← IO.mkRef {}
-/-- (module, package) ↦ member names already verified in that module's environment. -/
+/-- (module, package) ↦ member names verified in that module's environment. -/
 initialize verifiedCache : IO.Ref (Std.HashMap (Name × String) (Array (Name × Name))) ← IO.mkRef {}
+/-- The copy's view (records count, view), recomputed when records arrive. -/
+initialize viewCache : IO.Ref (Nat × Option Rga.View) ← IO.mkRef (0, none)
+/-- Decoded payloads per package (immutable). -/
+initialize payloadCache : IO.Ref (Std.HashMap String ByteArray) ← IO.mkRef {}
 
-/-- Rename maps (rule 4), recomputed when the set of publication records changes. -/
-initialize renCache : IO.Ref (Nat × Std.HashMap String (Std.HashMap Name Name)) ← IO.mkRef (0, {})
+def countRecords (root : System.FilePath) : IO Nat := do
+  let mut n := 0
+  for sub in ["records", "fetched"] do
+    let d := root / "p3" / sub
+    if ← d.pathExists then n := n + (← d.readDir).size
+  return n
 
-def renames : IO (Std.HashMap String (Std.HashMap Name Name)) := do
-  let s ← store
-  let d := s.root / "pubs"
-  let n ← if ← d.pathExists then pure (← d.readDir).size else pure 0
-  let (k, m) ← renCache.get
-  if k == n && n > 0 then return m
-  let recs ← s.pubs
-  let m := renamesOf (← metasFor s recs) recs
-  renCache.set (n, m)
-  return m
+/-- A known package's metadata from its stored capsule (hash-checked). -/
+def metaOfCapsule (root : System.FilePath) (capsule : String) : IO GroupRec := do
+  match ← loadCapsule root capsule with
+  | .error e => throw <| IO.userError s!"remote%: {e}"
+  | .ok (g, deps) =>
+    pkgIndex.modify fun m => deps.foldl (fun m (p, gr, c) => m.insert p (gr, c)) m
+    metaCache.modify (·.insert g.gid g)
+    return g
 
-def getMeta (pid : String) : CommandElabM GroupRec := do
+def view : IO Rga.View := do
+  let root ← storeRoot
+  let n ← countRecords root
+  if let (k, some v) ← viewCache.get then
+    if k == n then return v
+  let known ← Known.load root
+  let all ← Known.load root ["records", "fetched"]
+  pkgIndex.modify fun m => all.markers.foldl (fun m mk => m.insert mk.pid (mk.group, mk.capsule)) m
+  let mut metas : Std.HashMap String GroupRec := {}
+  for mk in known.markers do
+    metas := metas.insert mk.pid (← metaOfCapsule root mk.capsule)
+  let v := Rga.View.of known metas
+  viewCache.set (n, some v)
+  return v
+
+def renames : IO (Std.HashMap String (Std.HashMap Name Name)) := return (← view).renames
+
+/-- The publication record of a group: known, or fetched from the store (certified). -/
+def markerOf (group : String) : IO Marker := do
+  let root ← storeRoot
+  let find : IO (Option Marker) := do
+    let k ← Known.load root ["records", "fetched"]
+    return k.byGroup[group]?
+  if let some m ← find then return m
+  discard <| plr #["fetch-pkg", "--cache", root.toString, group]
+  match ← find with
+  | some m =>
+    pkgIndex.modify (·.insert m.pid (m.group, m.capsule))
+    return m
+  | none => throw <| IO.userError s!"remote%: no published declaration with ID {group}"
+
+def getMetaIO (pid : String) : IO GroupRec := do
   if let some g := (← metaCache.get)[pid]? then return g
-  let s ← store
-  unless ← (s.metaPath pid).pathExists do
-    throwError "remote%: no published declaration with ID {pid}"
-  let g ← s.getMeta pid
-  metaCache.modify (·.insert pid g)
-  return g
+  discard <| view
+  let some (group, capsule) := (← pkgIndex.get)[pid]?
+    | throw <| IO.userError s!"remote%: package {(pid.take 12).toString} is unknown to this copy"
+  let root ← storeRoot
+  unless ← (root / "p3" / "capsules" / s!"{capsule}.json").pathExists do
+    discard <| markerOf group
+  metaOfCapsule root capsule
 
-def checkReceipt (g : GroupRec) : CommandElabM Unit := do
-  let s ← store
-  match ← s.getReceipt? g.gid with
-  | none => throwError "remote%: {g.short} has no validator receipt; it is not published"
-  | some r =>
-    unless r.valid (← receiptKey) g.gid g.declId do
-      throwError "remote%: the receipt for {g.short} does not verify"
+def getMeta (pid : String) : CommandElabM GroupRec := getMetaIO pid
+
+/-- The package a `remote%` literal (a group ID) denotes. -/
+def pidOfGroup (group : String) : IO String := do
+  let g := if group.startsWith "group:" then (group.drop 6).toString else group
+  return (← markerOf g).pid
+
+/-- Receipt of a package's group (§6), checked in this process. -/
+def checkReceipt (g : GroupRec) : IO Unit := do
+  let m ← markerOf g.declId
+  unless m.pid == g.gid do
+    throw <| IO.userError s!"remote%: the record of {g.short} names another package"
+  match ← P3.checkReceipt (← storeRoot) m with
+  | .ok () => pure ()
+  | .error e => throw <| IO.userError s!"remote%: receipt of {g.short} ({g.publicNames}): {e}"
 
 /-- Lean names in the current environment of a group's members: match normalized local
 identities (and the relocation tag) against this file's constants. -/
 def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
   let env ← getEnv
   let mm := env.mainModule
-  -- fast path: the published spelling, or its private form in this module
+  let own := (← renames).getD g.gid {}
   if !g.capsule.relocate then
-    let own := (← renames).getD g.gid {}
     let mut fast : Std.HashMap Name Name := {}
     for m in g.members do
       let nm := renameName own m.name
@@ -121,11 +178,7 @@ def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
         if normName mm n == renameName own m.local_ then fast := fast.insert m.local_ n
     if fast.size == g.members.size then return fast
   let tag := if g.capsule.relocate then some g.short else none
-  let own := (← renames).getD g.gid {}
-  -- rendered local identity ↦ published local identity
   let wanted : Std.HashMap Name Name := g.members.foldl (fun m mr => m.insert (renameName own mr.local_) mr.local_) {}
-  -- hygienic members (`base._hyg.<k>`): the group's k-th of the most recent constants with
-  -- that base (a group is verified right after it is loaded; later checks use the cache)
   let hygBases : Std.HashMap Name Nat := g.members.foldl (init := {}) fun m mr =>
     match mr.local_ with
     | .num p _ => if p.components.getLast? == some `_hyg then m.insert p (m.getD p 0 + 1) else m
@@ -145,7 +198,6 @@ def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
     let ns := hygSeen.getD b #[]
     let recent := ns.extract (ns.size - k) ns.size
     for i in [0:recent.size] do out := out.insert (Name.mkNum b i) recent[i]!
-  -- members imported from the base (materialized or prelude modules) keep their names
   for m in g.members do
     let nm := renameName own m.name
     if !out.contains m.local_ && env.contains nm then out := out.insert m.local_ nm
@@ -153,8 +205,6 @@ def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
 
 /-- Dependency closure of `g` (dependencies first). -/
 partial def closureOf (g : GroupRec) : CommandElabM (Array GroupRec) := do
-  let mut seen : Std.HashSet String := {}
-  let mut out := #[]
   let rec go (gid : String) (seen : Std.HashSet String) (out : Array GroupRec) :
       CommandElabM (Std.HashSet String × Array GroupRec) := do
     if seen.contains gid then return (seen, out)
@@ -163,37 +213,7 @@ partial def closureOf (g : GroupRec) : CommandElabM (Array GroupRec) := do
     let mut st := (seen, out)
     for d in r.deps ++ r.feDeps do st ← go d st.1 st.2
     return (st.1, st.2.push r)
-  (seen, out) ← go g.gid seen out
-  let _ := seen
-  return out
-
-/-- Resolver from current Lean names to references, for the given loaded groups. -/
-def resolverFor (groups : Array GroupRec) (self : GroupRec) : CommandElabM (Name → Except String Ref) := do
-  let env ← getEnv
-  let mut idx : Std.HashMap Name (String × Name) := {}
-  let mm := env.mainModule
-  for g in groups do
-    let pairs ← match (← verifiedCache.get)[(mm, g.gid)]? with
-      | some ps => pure ps
-      | none => pure (← memberNames g).toArray
-    for (l, n) in pairs do idx := idx.insert n (g.gid, l)
-  let idx' := idx
-  return fun c =>
-    match idx'[c]? with
-    | some (gid, l) => if gid == self.gid then .ok (.self l) else .ok (.dep gid l)
-    | none =>
-      if (env.getModuleIdxFor? c).isSome then .ok (.base c)
-      else if isReservedName env c then
-        match c with
-        | .str p s =>
-          match idx'[p]? with
-          | some (gid, l) => .ok (.res (if gid == self.gid then .self l else .dep gid l) (Name.mkSimple s))
-          | none => .ok (.res (.base p) (Name.mkSimple s))
-        | _ => .error s!"unresolvable reserved name {c}"
-      else .error s!"remote%: {c} is not a published constant"
-
-def classOf (s : String) : NameClass :=
-  match s with | "pub" => .pub | "pubAux" => .pubAux | _ => .scoped
+  return (← go g.gid {} #[]).2
 
 /-- Elaborate Lean source (several commands) at the root scope of the current file. -/
 def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := do
@@ -217,123 +237,91 @@ def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := d
   finally
     modify fun s => { s with scopes := saved.scopes }
 
-/-- The capsule text to elaborate: a theorem's proof is replaced by the placeholder. -/
-def capsuleSource (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupRec) (placeholder : Bool)
+/-- Is the group's declared value a theorem (so its proof is taken from the payload)? -/
+def proofFetched (g : GroupRec) : Bool :=
+  let pubs := g.members.filter (·.cls == "pub")
+  g.capsule.valueStart.isSome && !pubs.isEmpty && pubs.all (·.kind == "theorem")
+
+/-- The capsule text to elaborate: a theorem's body is the fetched proof. -/
+def capsuleSource (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupRec) (fetch : Bool)
     (closure : Array GroupRec) : String :=
   let g := renamedGroup ren g
-  -- statement-only only when the theorem is the group's single public member: attributes
-  -- that generate further declarations (`@[to_additive]`, `@[to_dual]`, …) read the proof
-  let pubs := g.members.filter (·.cls == "pub")
-  let theoremRoot := pubs.size == 1 && pubs.all (·.kind == "theorem")
-  let g := if placeholder && theoremRoot then
+  let g := if fetch then
       match g.capsule.valueStart with
       | some v =>
         let hdr := String.fromUTF8! (g.capsule.text.toUTF8.extract 0 v)
-        { g with capsule := { g.capsule with text := hdr.trimAsciiEnd.toString ++ s!" := remote_proof% \"{g.gid}\"" } }
+        { g with capsule := { g.capsule with text := hdr.trimAsciiEnd.toString ++ s!" := remote_value% \"{g.gid}\"" } }
       | none => g
     else g
   let ds := g.deps ++ g.feDeps
   renderCapsule g ((closure.filter fun d => d.capsule.relocate && ds.contains d.gid).map (·.relocNs))
 
-/-- Do `g`'s members exist here with the published content? `none` = not loaded. -/
-def groupState (g : GroupRec) (closure : Array GroupRec) : CommandElabM (Option (Array String)) := do
-  let pubs := g.members.filter (·.cls == "pub")
-  let stmtOnly := pubs.size == 1 && pubs.all (·.kind == "theorem")
-  let names ← memberNames g
-  if names.isEmpty then return none
-  let resolve ← resolverFor closure g
-  let env ← getEnv
-  let wire : WireCtx := {
-    selfIdx := fun l => g.members.findIdx? (·.local_ == l)
-    dep := wireDepOf fun pid => closure.find? (·.gid == pid) }
-  let mut problems := #[]
-  for m in g.members do
-    match names[m.local_]? with
-    | none =>
-      -- internal auxiliaries of a theorem's proof are absent when the proof is a placeholder
-      unless m.cls != "pub" do problems := problems.push s!"missing {m.local_}"
-    | some n =>
-      -- proof-internal auxiliaries (`_simp_n`, `_proof_n`, a recursive theorem's `_f`, …)
-      -- are never needed by consumers and are not reproduced when the proof is a placeholder
-      if m.kind == "theorem" && m.cls != "pub" then continue
-      if stmtOnly && m.cls != "pub" then continue
-      let some ci := env.find? n | problems := problems.push s!"missing {n}"; continue
-      let isPlaceholder := match ci.value? with
-        | some (.const c _) => c.getString!.endsWith placeholderSuffix
-        | _ => false
-      let ci := canonLevelParams ci
-      let em : EncMember := { local_ := m.local_, cls := classOf m.cls, info := ci }
-      if isPlaceholder || m.kind == "theorem" then
-        let stmt : EncMember := { em with info := .axiomInfo {
-          name := ci.name, levelParams := ci.levelParams, type := ci.type, isUnsafe := false } }
-        match encodeGroup baseId #[stmt] resolve wire with
-        | .ok b => unless groupIdOf b == m.typeHash do problems := problems.push s!"statement of {n} differs"
-        | .error e => problems := problems.push e
-      else
-        match encodeGroup baseId #[em] resolve wire with
-        | .ok b => unless (groupIdOf b).take 12 == m.hash do problems := problems.push s!"body of {n} differs"
-        | .error e => problems := problems.push e
-  return some problems
-where
-  baseId := s!"lean:{Lean.githash}"
+/-! ## Decoding the fetched payload against the current environment -/
 
-/-- Load `g` (dependencies first) unless already present. -/
-partial def ensureLoaded (g : GroupRec) (placeholder : Bool) : CommandElabM Unit := do
-  loadingDepth.modify (· + 1)
-  try ensureLoadedCore g placeholder
-  finally loadingDepth.modify (· - 1)
-where ensureLoadedCore (g : GroupRec) (placeholder : Bool) : CommandElabM Unit := do
-  let closure ← closureOf g
+/-- Lean name of a dependency member in this module (verified earlier). -/
+def depName (mm : Name) (pid : String) (l : Name) : IO (Option Name) := do
+  match (← verifiedCache.get)[(mm, pid)]? with
+  | some ps => return (ps.find? (·.1 == l)).map (·.2)
+  | none => return none
+
+def fetchPayload (g : GroupRec) : IO ByteArray := do
+  if let some b := (← payloadCache.get)[g.gid]? then return b
+  let t0 ← IO.monoMsNow
+  let had ← (({ root := ← storeRoot } : Store).hasObject g.declId)
+  let b ← P3.payload (← storeRoot) g.declId
+  unless had do logEvent s!"fetch {g.declId} {b.size} {(← IO.monoMsNow) - t0}ms"
+  payloadCache.modify (·.insert g.gid b)
+  return b
+
+/-- Decode `g`'s payload. `self` maps member identities to names in this environment; a
+member without a name maps to `_paralean_missing.<identity>`. -/
+def decodeHere (g : GroupRec) (closure : Array GroupRec) (self : Std.HashMap Name Name) :
+    CoreM DecodedGroup := do
+  let bytes ← fetchPayload g
   let mm := (← getEnv).mainModule
+  let lookup : String → Option GroupRec := fun pid => closure.find? (·.gid == pid)
+  -- dependency names, read before decoding (the decoder is pure)
+  let mut deps : Std.HashMap (String × Name) Name := {}
   for d in closure do
-    -- verified earlier in this module and still present: nothing to do
-    if let some ns := (← verifiedCache.get)[(mm, d.gid)]? then
-      let env ← getEnv
-      if ns.all (fun p => env.contains p.2) then continue
-    checkReceipt d
-    if d.members.isEmpty then
-      -- effect-only group (attribute, docs, …): run once per module
-      let t0 ← IO.monoMsNow
-      elabSourceAtRoot (capsuleSource (← renames) d placeholder closure) s!"<remote {d.short}>"
-      verifiedCache.modify (·.insert (mm, d.gid) #[])
-      logEvent s!"load {d.gid} effect {(← IO.monoMsNow) - t0}ms"
-      continue
-    match ← groupState d closure with
-    | some #[] =>   -- present with the published content (local or loaded before)
-      let ns := (← memberNames d).toArray
-      verifiedCache.modify (·.insert (mm, d.gid) ns)
-    | some problems =>
-      throwError "remote%: version conflict for {d.short} ({d.publicNames}): {problems}"
-    | none =>
-      let t0 ← IO.monoMsNow
-      elabSourceAtRoot (capsuleSource (← renames) d placeholder closure) s!"<remote {d.short}>"
-      match ← groupState d closure with
-      | some #[] =>
-        let ns := (← memberNames d).toArray
-        verifiedCache.modify (·.insert (mm, d.gid) ns)
-      | some problems => throwError "remote%: {d.short} does not reproduce its published content: {problems}"
-      | none =>
-        let errs ← (← get).messages.toList.filterMapM fun m => do
-          if m.severity == .error then return some (← m.toString) else return none
-        throwError "remote%: {d.short} produced none of its members: {errs.take 3}"
-      let pubs := d.members.filter (·.cls == "pub")
-      let isThm := pubs.size == 1 && pubs.all (·.kind == "theorem")
-      logEvent s!"load {d.gid} {if isThm && placeholder then "statement" else "full"} {(← IO.monoMsNow) - t0}ms"
+    if d.gid == g.gid then continue
+    for m in d.members do
+      if let some n ← depName mm d.gid m.local_ then deps := deps.insert (d.gid, m.local_) n
+  let deps' := deps
+  let rec nameOf : Ref → Except String Name
+    | .base n => .ok n
+    | .self l => .ok (self.getD l (`_paralean_missing ++ l))
+    | .dep pid l => match deps'[(pid, l)]? with
+      | some n => .ok n
+      | none => .error s!"dependency member {l} of {(pid.take 8).toString} is not loaded"
+    | .res r s => do return (← nameOf r) ++ s
+  match decodeGroup bytes (g.unwire lookup) nameOf with
+  | .ok dg =>
+    -- reserved names the terms use are re-realized here, never taken from the store
+    for r in dg.refs do
+      if let .res .. := r then
+        if let .ok n := nameOf r then
+          unless (← getEnv).contains n do
+            try discard <| executeReservedNameAction n catch _ => pure ()
+    return dg
+  | .error e => throwError "remote%: payload of {g.short} does not decode here: {e}"
 
-partial def findKind? (stx : Syntax) (k : SyntaxNodeKind) : Option Syntax :=
-  if stx.getKind == k then some stx
-  else match stx with
-    | .node _ _ args => args.findSome? (findKind? · k)
-    | _ => none
-
-/-- The written value is exactly `remote% "<pid>"`? -/
-def remoteValue? (stx : Syntax) : Option (String × Syntax) := do
-  let v ← findKind? stx ``Lean.Parser.Command.declValSimple
-  let t := v[1]
-  if t.getKind == ``remoteTerm then
-    let pid ← t[1].isStrLit?
-    some (pid, v)
-  else none
+/-- Structural walk collecting the level assignment that makes `pub` equal `here`. -/
+partial def matchLevels (pub here : Expr) (acc : Std.HashMap Name Level) : Std.HashMap Name Level :=
+  let lv (a b : Level) (acc : Std.HashMap Name Level) : Std.HashMap Name Level :=
+    match a with
+    | .param p => if acc.contains p then acc else acc.insert p b
+    | _ => acc
+  match pub, here with
+  | .sort a, .sort b => lv a b acc
+  | .const _ ls, .const _ ls' => (ls.zip ls').foldl (fun acc (a, b) => lv a b acc) acc
+  | .app f a, .app f' a' => matchLevels a a' (matchLevels f f' acc)
+  | .lam _ t b _, .lam _ t' b' _ => matchLevels b b' (matchLevels t t' acc)
+  | .forallE _ t b _, .forallE _ t' b' _ => matchLevels b b' (matchLevels t t' acc)
+  | .letE _ t v b _, .letE _ t' v' b' _ => matchLevels b b' (matchLevels v v' (matchLevels t t' acc))
+  | .mdata _ e, e' => matchLevels e e' acc
+  | e, .mdata _ e' => matchLevels e e' acc
+  | .proj _ _ e, .proj _ _ e' => matchLevels e e' acc
+  | _, _ => acc
 
 /-- Local variables a statement needs: those occurring in it, closed under occurrence in
 their types; with `instImplicit`, also instance-implicit variables whose types mention
@@ -359,13 +347,178 @@ def neededVars (cands : Array Expr) (e : Expr) (instImplicit : Bool) (seed : Arr
         changed := true
   return cands.filter fun x => need.contains x.fvarId!
 
-/-- The written header must *mean* the published declaration where it is written:
-1. its declared name, resolved in the current scope (namespace, `_root_`, `private`), is
-   the Lean name of a published member that was just loaded;
-2. its binders and type, elaborated in the current scope (opens, variables, notation of
-   this file), are definitionally equal at reducible transparency to the loaded
-   published statement. Shadowing through `open`, a local definition or misplacement in
-   another namespace therefore fails. -/
+/-- Constants of the group other than `main` that `e` uses, transitively, in an order
+where each comes after the members it uses. -/
+partial def auxOrder (infos : Std.HashMap Name ConstantInfo) (main : Name) (e : Expr) : Array Name := Id.run do
+  let mut out : Array Name := #[]
+  let mut seen : NameSet := {}
+  let mut stack : Array (Name × Bool) := e.getUsedConstants.reverse.map (·, false)
+  while !stack.isEmpty do
+    let (n, post) := stack.back!
+    stack := stack.pop
+    if n == main || !infos.contains n then continue
+    if post then
+      unless out.contains n do out := out.push n
+      continue
+    if seen.contains n then continue
+    seen := seen.insert n
+    stack := stack.push (n, true)
+    if let some ci := infos[n]? then
+      for c in ci.getUsedConstantsAsSet.toList do
+        unless seen.contains c do stack := stack.push (c, false)
+  return out
+
+/-- Name, in this module, for a member of `g` that `remote_value%` adds itself. -/
+def auxName (mm : Name) (own : Std.HashMap Name Name) (m : MemberRec) : Name :=
+  let n := renameName own m.name
+  if isPrivateName n then mkPrivateNameCore mm (privateToUserName n) else n
+
+/-- The published proof of the package's theorem, instantiated for the declaration being
+elaborated. Adds the group's auxiliary members the proof uses (kernel-checked). -/
+@[term_elab remoteValue]
+def elabRemoteValue : TermElab := fun stx expected? => do
+  let some pid := stx[1].isStrLit? | throwUnsupportedSyntax
+  let some ty := expected? | throwError "remote_value%: expected type unknown"
+  let ty ← instantiateMVars ty
+  let some declName ← Term.getDeclName? | throwError "remote_value%: not inside a declaration"
+  let g ← getMetaIO pid
+  let env ← getEnv
+  let mm := env.mainModule
+  let own := (← renames).getD g.gid {}
+  -- identities: the declaration being elaborated, other members by their published spelling
+  let some main := g.members.find? (fun m => m.cls == "pub" &&
+      (renameName own m.name == declName || auxName mm own m == declName ||
+       privateToUserName (renameName own m.name) == privateToUserName declName))
+    | throwError "remote_value%: {declName} is not a member of {g.short}"
+  let mut self : Std.HashMap Name Name := {}
+  for m in g.members do
+    self := self.insert m.local_ (if m.local_ == main.local_ then declName else auxName mm own m)
+  let closure ← liftCommandElabM (closureOf g)
+  let dg ← decodeHere g closure self
+  let infos : Std.HashMap Name ConstantInfo := dg.members.foldl (fun m (_, _, ci) => m.insert ci.name ci) {}
+  let some pubCi := infos[declName]? | throwError "remote_value%: {declName} missing from the payload"
+  let some pubVal := pubCi.value? | throwError "remote_value%: {declName} has no published value"
+  -- auxiliary members the proof uses (proof_n, match_n, private helpers), added first
+  for n in auxOrder infos declName pubVal do
+    if (← getEnv).contains n then continue
+    let some ci := infos[n]? | continue
+    let d : Declaration ← match ci with
+      | .thmInfo v => pure (.thmDecl v)
+      | .defnInfo v => pure (if v.safety == .safe then .defnDecl v else .mutualDefnDecl [v])
+      | .opaqueInfo v => pure (.opaqueDecl v)
+      | .axiomInfo _ => throwError "remote_value%: {g.short} contains an axiom {n}"
+      | _ => throwError "remote_value%: auxiliary {n} of {g.short} is not a theorem or definition"
+    addDecl d
+  -- universe levels and the leading binders of the published statement
+  let lvl := matchLevels pubCi.type ty {}
+  let inst (e : Expr) : Expr :=
+    e.instantiateLevelParams pubCi.levelParams (pubCi.levelParams.map fun p => lvl.getD p (.param p))
+  let lctx ← getLCtx
+  let cands := lctx.getFVars.filter fun x =>
+    match lctx.find? x.fvarId! with
+    | some d => !d.isAuxDecl && !d.isImplementationDetail
+    | none => false
+  let pubTy := inst pubCi.type
+  -- the declaration's binders: what the statement needs (Lean's variable rules), or every
+  -- local in scope (`include`d section variables)
+  for xs in [← neededVars cands ty false, ← neededVars cands ty true, cands] do
+    let t ← instantiateMVars (← mkForallFVars xs ty)
+    if t == pubTy then
+      return (inst pubVal).beta xs
+  let xs ← neededVars cands ty false
+  throwError "remote_value%: the statement elaborated here is not the published statement of {declName}:{indentExpr (← mkForallFVars xs ty)}\nvs published{indentExpr pubTy}"
+
+/-! ## Content check -/
+
+/-- Compare `g`'s members in this environment with the decoded payload. Returns problems
+(empty = identical) or `none` when no member is present. `proofs`: compare theorem bodies. -/
+def payloadCheck (g : GroupRec) (closure : Array GroupRec) (proofs : Bool) : CommandElabM (Option (Array String)) := do
+  let names ← memberNames g
+  if names.isEmpty then return none
+  let dg ← liftCoreM (decodeHere g closure names)
+  let env ← getEnv
+  let mut problems := #[]
+  for ((l, _, pub), m) in dg.members.zip g.members do
+    match env.find? pub.name with
+    | none =>
+      -- proof-internal auxiliaries of a regenerated theorem may carry other spellings
+      if m.cls == "pub" then problems := problems.push s!"missing {l}"
+    | some here =>
+      let pub := canonLevelParams pub
+      let here := canonLevelParams here
+      unless pub.levelParams.length == here.levelParams.length && pub.type == here.type do
+        problems := problems.push s!"statement of {pub.name} differs"
+        continue
+      match pub, here with
+      | .defnInfo a, .defnInfo b => unless a.value == b.value do problems := problems.push s!"body of {pub.name} differs"
+      | .thmInfo a, .thmInfo b =>
+        if proofs then unless a.value == b.value do problems := problems.push s!"proof of {pub.name} differs from the fetched one"
+      | .opaqueInfo _, .opaqueInfo _ | .inductInfo _, .inductInfo _ | .ctorInfo _, .ctorInfo _
+      | .recInfo _, .recInfo _ | .axiomInfo _, .axiomInfo _ | .quotInfo _, .quotInfo _ => pure ()
+      | .thmInfo _, .defnInfo _ | .defnInfo _, .thmInfo _ =>
+        problems := problems.push s!"kind of {pub.name} differs"
+      | _, _ => problems := problems.push s!"kind of {pub.name} differs"
+  return some problems
+
+/-- Load `g` (dependencies first) unless already present. -/
+partial def ensureLoaded (g : GroupRec) : CommandElabM Unit := do
+  loadingDepth.modify (· + 1)
+  try ensureLoadedCore g
+  finally loadingDepth.modify (· - 1)
+where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
+  let closure ← closureOf g
+  let mm := (← getEnv).mainModule
+  for d in closure do
+    if let some ns := (← verifiedCache.get)[(mm, d.gid)]? then
+      let env ← getEnv
+      if ns.all (fun p => env.contains p.2) then continue
+    checkReceipt d
+    if d.members.isEmpty then
+      let t0 ← IO.monoMsNow
+      elabSourceAtRoot (capsuleSource (← renames) d false closure) s!"<remote {d.short}>"
+      verifiedCache.modify (·.insert (mm, d.gid) #[])
+      logEvent s!"load {d.declId} effect {(← IO.monoMsNow) - t0}ms"
+      continue
+    match ← payloadCheck d closure (proofs := false) with
+    | some #[] =>
+      verifiedCache.modify (·.insert (mm, d.gid) (← memberNames d).toArray)
+    | some problems =>
+      throwError "remote%: version conflict for {d.short} ({d.publicNames}): {problems}"
+    | none =>
+      let t0 ← IO.monoMsNow
+      let fetch := proofFetched d
+      let errsBefore := (← get).messages.toList.length
+      elabSourceAtRoot (capsuleSource (← renames) d fetch closure) s!"<remote {d.short}>"
+      let t1 ← IO.monoMsNow
+      let errs ← ((← get).messages.toList.drop errsBefore).filterMapM fun m => do
+        if m.severity == .error then return some (← m.toString) else return none
+      unless errs.isEmpty do
+        throwError "remote%: {d.short} ({d.publicNames}) does not load: {errs.take 3}"
+      match ← payloadCheck d closure (proofs := fetch) with
+      | some #[] =>
+        verifiedCache.modify (·.insert (mm, d.gid) (← memberNames d).toArray)
+      | some problems => throwError "remote%: {d.short} does not reproduce its published content: {problems}"
+      | none => throwError "remote%: {d.short} produced none of its members"
+      logEvent s!"load {d.declId} {if fetch then "fetched-proof" else "elaborated"} {t1 - t0}ms check {(← IO.monoMsNow) - t1}ms"
+
+partial def findKind? (stx : Syntax) (k : SyntaxNodeKind) : Option Syntax :=
+  if stx.getKind == k then some stx
+  else match stx with
+    | .node _ _ args => args.findSome? (findKind? · k)
+    | _ => none
+
+/-- The written value is exactly `remote% "<group>"`? -/
+def remoteValue? (stx : Syntax) : Option (String × Syntax) := do
+  let v ← findKind? stx ``Lean.Parser.Command.declValSimple
+  let t := v[1]
+  if t.getKind == ``remoteTerm then
+    let lit ← t[1].isStrLit?
+    some (lit, v)
+  else none
+
+/-- The written header must *mean* the published declaration where it is written: its
+declared name, resolved in the current scope, is a just-loaded member, and its binders and
+type, elaborated in the current scope, equal the published statement. -/
 def checkWrittenHeader (g : GroupRec) (stx : Syntax) (env0 : Environment) : CommandElabM Unit := do
   let some declId := findKind? stx ``Lean.Parser.Command.declId
     | throwError "remote%: no declaration name"
@@ -379,7 +532,6 @@ def checkWrittenHeader (g : GroupRec) (stx : Syntax) (env0 : Environment) : Comm
   unless loaded.contains full && env.contains full do
     throwError "remote%: the written declaration `{full}` is not the published declaration {g.short} (publishes {g.publicNames})"
   let some ci := env.find? full | throwError "remote%: {full} missing"
-  -- the written statement, in this scope
   let sig? := findKind? stx ``Lean.Parser.Command.declSig <|> findKind? stx ``Lean.Parser.Command.optDeclSig
   let some sig := sig? | return
   let binders := sig[0].getArgs
@@ -400,14 +552,11 @@ def checkWrittenHeader (g : GroupRec) (stx : Syntax) (env0 : Environment) : Comm
       let pub := ci.type.instantiateLevelParams ci.levelParams us
       let same (a b : Expr) : TermElabM Bool :=
         withNewMCtxDepth (allowLevelAssignments := true) <| withReducible <| isDefEq a b
-      -- 1. Lean's statement rule: needed + `include`d + instance-implicit section variables
       let included := (Array.range (min vars.size sc.varUIds.size)).filterMap fun i =>
         if sc.includedVars.contains sc.varUIds[i]! && !sc.omittedVars.contains sc.varUIds[i]!
         then some vars[i]! else none
       let used ← neededVars vars tw (instImplicit := true) (seed := included)
       if ← same (← instantiateMVars (← mkForallFVars used tw)) pub then return (true, tw, pub)
-      -- 2. definitions may include section variables their body uses: peel the published
-      --    leading binders against the section variables, in order
       let mut p := pub
       for v in vars do
         match p with
@@ -426,69 +575,31 @@ def checkWrittenHeader (g : GroupRec) (stx : Syntax) (env0 : Environment) : Comm
 
 @[command_elab Lean.Parser.Command.declaration]
 def elabRemoteDecl : CommandElab := fun stx => do
-  let some (pid, valStx) := remoteValue? stx | throwUnsupportedSyntax
-  let g ← getMeta pid
+  let some (lit, _) := remoteValue? stx | throwUnsupportedSyntax
+  let g ← getMeta (← pidOfGroup lit)
   checkReceipt g
-  -- the written header must be the published (rendered) header
   let gr := renamedGroup (← renames) g
-  let some v := gr.capsule.valueStart
-    | throwError "remote%: {g.short} has no value; write `remote% \"{pid}\"` as a command"
-  let published := (String.fromUTF8! (gr.capsule.text.toUTF8.extract 0 v)).trimAscii.toString
-  let src := (← getFileMap).source
-  let some a := stx.getPos? | throwError "remote%: no source position"
-  let some b := valStx.getPos? | throwError "remote%: no source position"
-  let written := (String.fromUTF8! (src.toUTF8.extract a.byteIdx b.byteIdx)).trimAscii.toString
-  unless written == published do
-    throwError "remote%: the header does not match the published declaration {g.short}:\n  published: {published}\n  written:   {written}"
-  -- dependencies first; the written header is elaborated in the environment *before* the
-  -- declaration itself exists (its own names must not capture identifiers in its header)
+  if gr.capsule.valueStart.isNone then
+    throwError "remote%: {g.short} has no value; write `remote_decl% \"{g.declId}\"`"
   let closure ← closureOf g
   for d in closure do
-    if d.gid != g.gid then ensureLoaded d (placeholder := true)
+    if d.gid != g.gid then ensureLoaded d
   let env0 ← getEnv
-  ensureLoaded g (placeholder := true)
-  -- judged in the context it was published in: names published elsewhere (visible to
-  -- drafts through the name-resolution hook) must not capture its identifiers
+  ensureLoaded g
   loadingDepth.modify (· + 1)
   try checkWrittenHeader g stx env0
   finally loadingDepth.modify (· - 1)
 
 @[command_elab remoteCmd]
 def elabRemoteCmd : CommandElab := fun stx => do
-  let some pid := stx[1].isStrLit? | throwUnsupportedSyntax
-  let g ← getMeta pid
+  let some lit := stx[1].isStrLit? | throwUnsupportedSyntax
+  let g ← getMeta (← pidOfGroup lit)
   checkReceipt g
-  ensureLoaded g (placeholder := true)
+  ensureLoaded g
 
 @[term_elab remoteTerm]
 def elabRemoteTerm : TermElab := fun _ _ =>
   throwError "remote% may only be the entire value of a published declaration"
-
-/-- Proof placeholder: checks the elaborated statement against the published statement
-hash (with exact dependency pins) before standing in for the proof. -/
-@[term_elab remoteProof]
-def elabRemoteProof : TermElab := fun stx expected? => do
-  let some pid := stx[1].isStrLit? | throwUnsupportedSyntax
-  let some ty := expected? | throwError "remote_proof%: expected type unknown"
-  let ty ← instantiateMVars ty
-  -- abstract the theorem's binders (and section variables) in scope
-  let lctx ← getLCtx
-  let cands := lctx.getFVars.filter fun x =>
-    match lctx.find? x.fvarId! with
-    | some d => !d.isAuxDecl && !d.isImplementationDetail
-    | none => false
-  -- only what the statement needs: abstracting unused section variables would make Lean
-  -- include them in the declaration
-  let xs ← neededVars cands ty (instImplicit := false)
-  let axTy ← instantiateMVars (← mkForallFVars xs ty)
-  if axTy.hasMVar || axTy.hasFVar then
-    throwError "remote_proof%: the published statement did not elaborate to a closed type"
-  let some declName ← Term.getDeclName? | throwError "remote_proof%: not inside a declaration"
-  let lps := (collectLevelParams {} axTy).params.toList
-  let ax := declName ++ Name.mkSimple placeholderSuffix
-  addDecl (.axiomDecl { name := ax, levelParams := lps, type := axTy, isUnsafe := false })
-  logEvent s!"placeholder {pid}"
-  return mkAppN (mkConst ax (lps.map Level.param)) xs
 
 /-- Load a published package from `CoreM` (used by the name-resolution hook). -/
 def loadInCore (pid : String) : CoreM Unit := do
@@ -496,7 +607,7 @@ def loadInCore (pid : String) : CoreM Unit := do
   let cmdCtx : Command.Context := {
     fileName := "<registry>", fileMap := default, snap? := none, cancelTk? := none }
   let st := Command.mkState env {} (← getOptions)
-  let act : CommandElabM Unit := do ensureLoaded (← getMeta pid) (placeholder := true)
+  let act : CommandElabM Unit := do ensureLoaded (← getMeta pid)
   match ← (act.run cmdCtx |>.run st).toBaseIO with
   | .ok ((), st') =>
     setEnv st'.env

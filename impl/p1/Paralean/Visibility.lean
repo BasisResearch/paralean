@@ -33,22 +33,21 @@ unsafe def isLoadingImpl (n : Name) : Bool := unsafeBaseIO do
   return d > 0
 @[implemented_by isLoadingImpl, noinline] opaque isLoading : Name → Bool
 
-/-- Rendered public name ↦ package, from the store's publication records. -/
-def buildIndex (store : Store) : IO (Std.HashMap Name String) := do
-  let recs ← store.pubs
-  let metas ← metasFor store recs
-  let ren := renamesOf metas recs
-  let mut idx : Std.HashMap Name String := {}
-  for r in recs do
-    if let some g := metas[r.pid]? then
-      for n in g.publicNames do
-        idx := idx.insert (renameName (ren.getD r.pid {}) n) r.pid
-  return idx
+/-- Rendered public name ↦ package, over the live heads of the copy's view. The file being
+elaborated (`PARALEAN_VIS_EXCLUDE`) is excluded: its own elements are in the file itself,
+and a draft that revises one of them redeclares its name. -/
+def buildIndex : IO (Std.HashMap Name String) := do
+  let v ← Remote.view
+  let idx := v.index (← IO.getEnv "PARALEAN_VIS_EXCLUDE")
+  let mut out := {}
+  for (n, group) in idx.toList do
+    if let some m := v.known.byGroup[group]? then out := out.insert n m.pid
+  return out
 
 initialize do
-  let some root ← IO.getEnv "PARALEAN_STORE" | return
+  if (← IO.getEnv "PARALEAN_STORE").isNone then return
   if (← IO.getEnv "PARALEAN_VISIBILITY").isNone then return
-  let index ← buildIndex { root }
+  let index ← buildIndex
   registerReservedNamePredicate fun env n =>
     index.contains n && !env.contains n && !isLoading n &&
       (env.getModuleIdx? `Paralean.Remote).isSome

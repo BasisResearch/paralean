@@ -9,109 +9,25 @@ public import Paralean.Encode
 @[expose] public section
 
 /-!
-Declaration-level placement CRDT and canonical rendering (transparent workspaces).
+Working-file helpers for transparent workspaces: rename maps applied to names and capsule
+text, and the split of a working file into published elements and the author's drafts.
+The RGA, naming and canonical projection are in `Paralean.Rga`.
 
-Each shared file is a replicated growable list (RGA) whose elements are published package
-IDs. A publication record carries the file, an anchor (the nearest *published* element
-above it in the author's copy, or the file start), a Lamport time and the author.
-Concurrent inserts after one anchor are ordered by descending (Lamport time, author), as
-in RGA, so a later insert after the same anchor lands closer to it. The record set is
-grow-only; replicas merge by set union.
-
-The published projection of a file is a pure function of the record set and the stored
-capsules: canonical imports, then one fixed-text block per element. Drafts live only in
-their author's working file, between elements, and are never part of the projection.
+A working file is the copy's projection in working form (each element between
+`-- paralean:published <group>` and `-- paralean:end` lines) with the author's drafts
+re-attached after the element they followed. Drafts are never part of the projection.
 -/
 
 namespace Paralean
 open Lean System
 
-structure PubRecord where
-  pid : String
-  file : String
-  /-- Package ID of the element above, or `""` for the file start. -/
-  anchor : String
-  lamport : Nat
-  author : String
-  deriving ToJson, FromJson, Inhabited, Repr, BEq
+/-! ## Renames
 
-/-- ID of a publication record (p0-interfaces.md §11.1, domain `v0/marker`): the PCE record
-(package ID, file, anchor as an option of a package ID, Lamport time, author). -/
-def PubRecord.key (r : PubRecord) : String :=
-  let w : W := {}
-  let w := (w.id r.pid).str r.file
-  let w := if r.anchor == "" then w.byte 0 else (w.byte 1).id r.anchor
-  domainHash "v0/marker" ((w.uv r.lamport).str r.author).out
-
-def Store.putPub (s : Store) (r : PubRecord) : IO Unit := do
-  IO.FS.createDirAll (s.root / "pubs")
-  IO.FS.writeFile (s.root / "pubs" / s!"{r.key}.json") (toJson r).compress
-
-def Store.pubs (s : Store) : IO (Array PubRecord) := do
-  let d := s.root / "pubs"
-  unless ← d.pathExists do return #[]
-  let mut out := #[]
-  for e in ← d.readDir do
-    match Json.parse (← IO.FS.readFile e.path) >>= fromJson? with
-    | .ok r => out := out.push r
-    | .error err => throw <| IO.userError s!"bad publication record {e.path}: {err}"
-  return out
-
-/-- RGA order of one file's elements. -/
-partial def linearize (recs : Array PubRecord) : Array PubRecord := Id.run do
-  let later (a b : PubRecord) : Bool :=   -- a before b among siblings
-    a.lamport > b.lamport || (a.lamport == b.lamport && a.author > b.author) ||
-    (a.lamport == b.lamport && a.author == b.author && a.pid > b.pid)
-  let mut children : Std.HashMap String (Array PubRecord) := {}
-  let known : Std.HashSet String := recs.foldl (·.insert ·.pid) {}
-  for r in recs do
-    -- an anchor that is not (yet) known here attaches to the file start
-    let a := if r.anchor == "" || known.contains r.anchor then r.anchor else ""
-    children := children.insert a ((children.getD a #[]).push r)
-  let rec go (a : String) (fuel : Nat) (acc : Array PubRecord) : Array PubRecord :=
-    match fuel with
-    | 0 => acc
-    | fuel + 1 =>
-      let cs := (children.getD a #[]).qsort later
-      cs.foldl (fun acc c => go c.pid fuel (acc.push c)) acc
-  go "" (recs.size + 1) #[]
-
-def metasFor (store : Store) (recs : Array PubRecord) : IO (Std.HashMap String GroupRec) := do
-  let mut m := {}
-  for r in recs do
-    unless m.contains r.pid do m := m.insert r.pid (← store.getMeta r.pid)
-  return m
-
-/-! ## Name collisions (rule 4)
-
-Unrelated published declarations with the same public name: the lowest
-(Lamport time, author, package) keeps the name; every other one is renamed to
-`<name>_<author>_<lamport>`, a deterministic function of the replicated set. Its
-auxiliaries follow (prefix rename), and published uses of it (groups that depend on the
-renamed package) are rewritten in their rendered and loaded text. Declaration identity
-is unaffected: dependencies pin packages, and encodings use package identities.
+The rename maps themselves come from `Rga.View` (lineage naming, §11.5). A renamed
+package's auxiliaries follow (prefix rename), and published uses of it (groups that depend
+on the renamed package) are rewritten in their rendered and loaded text (OPEN-17).
+Declaration identity is unaffected: dependencies pin packages.
 -/
-
-/-- Package ↦ (published Lean name ↦ rendered name). -/
-def renamesOf (metas : Std.HashMap String GroupRec) (recs : Array PubRecord) :
-    Std.HashMap String (Std.HashMap Name Name) := Id.run do
-  let mut owners : Std.HashMap Name (Array PubRecord) := {}
-  for r in recs do
-    if let some g := metas[r.pid]? then
-      for n in g.publicNames do
-        let os := owners.getD n #[]
-        unless os.any (·.pid == r.pid) do owners := owners.insert n (os.push r)
-  let mut out : Std.HashMap String (Std.HashMap Name Name) := {}
-  for (n, os) in owners.toList do
-    if os.size < 2 then continue
-    let sorted := os.qsort fun a b => a.lamport < b.lamport ||
-      (a.lamport == b.lamport && (a.author < b.author || (a.author == b.author && a.pid < b.pid)))
-    for r in sorted.extract 1 sorted.size do
-      let new := match n with
-        | .str p s => Name.mkStr p s!"{s}_{r.author}_{r.lamport}"
-        | n => n
-      out := out.insert r.pid ((out.getD r.pid {}).insert n new)
-  return out
 
 /-- Apply a rename map to a Lean name (longest renamed prefix). -/
 def renameName (m : Std.HashMap Name Name) (n : Name) : Name := Id.run do
@@ -179,43 +95,6 @@ def headerForm (g : GroupRec) : Bool :=
 
 def elementBegin (pid : String) : String := s!"-- paralean:published {pid}"
 def elementEnd (pid : String) : String := s!"-- paralean:end {(pid.take 12).toString}"
-
-/-- Fixed text of one element (a pure function of the stored capsule). -/
-def renderElement (g : GroupRec) (r : PubRecord) : String :=
-  let c := g.capsule
-  let body := match c.valueStart with
-    | some v =>
-      if headerForm g then
-        (String.fromUTF8! (c.text.toUTF8.extract 0 v)).trimAsciiEnd.toString ++ s!" := remote% \"{g.gid}\""
-      else s!"remote% \"{g.gid}\""
-    | none => s!"remote% \"{g.gid}\""
-  if headerForm g then
-    -- the capsule's scope with the value replaced; the first line is the group comment
-    let inner := renderCapsule { g with capsule := { c with text := body, localEffects := #[] } } #[]
-    let inner := "\n".intercalate (inner.splitOn "\n" |>.drop 1)
-    s!"{elementBegin g.gid}\n-- {r.author} @{r.lamport}: {g.publicNames.map (·.toString)}\n{inner}{elementEnd g.gid}\n"
-  else
-    s!"{elementBegin g.gid}\n-- {r.author} @{r.lamport}: {g.publicNames.map (·.toString)}\n{body}\n{elementEnd g.gid}\n"
-
-/-- Canonical published projection of `file`. -/
-def renderProjection (metas : Std.HashMap String GroupRec) (recs : Array PubRecord) (file : String) :
-    String := Id.run do
-  let elems := linearize (recs.filter (·.file == file))
-  let isModule := elems.any fun r => (metas[r.pid]?.map (·.capsule.isModule)).getD false
-  let mut imports : Array String := #[]
-  for r in elems do
-    if let some g := metas[r.pid]? then
-      let ls := if isModule then g.capsule.importSpecs else g.capsule.imports.map (s!"import {·}")
-      for l in ls do
-        unless imports.contains l do imports := imports.push l
-  imports := imports.qsort (· < ·)
-  let mut out := (if isModule then "module\n" else "") ++ String.join (imports.toList.map (· ++ "\n"))
-  out := out ++ s!"-- paralean: published projection of {file}\n"
-  let ren := renamesOf metas recs
-  for r in elems do
-    if let some g := metas[r.pid]? then
-      out := out ++ "\n" ++ renderElement (renamedGroup ren g) r
-  return out
 
 /-- Split a working file into draft segments keyed by the element they follow (`""` =
 before the first element). Element blocks and machine-generated scope blocks

@@ -46,8 +46,6 @@ structure Session where
   remoteRenames : Std.HashMap String (Std.HashMap Name Name) := {}
   /-- Groups whose command registered initializers (options, trace classes, refs). -/
   initGroups : Array String := #[]
-  /-- Placeholder axioms of remote theorems (receipt-backed; allowed by the audit). -/
-  remoteAxioms : NameSet := {}
   /-- Pinned target contracts. -/
   targets : Array TargetContract := #[]
   /-- Groups rejected by policy; dependents are rejected too. -/
@@ -414,13 +412,14 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   let text := sliceBytes fc.input r.startPos r.endPos
   -- `remote%` elements and on-demand loads (name resolution): constants of published
   -- packages are dependencies, never members of this command's group.
-  let remotePid? := (findNodes r.stx fun s =>
+  let remoteLit? := (findNodes r.stx fun s =>
       s.getKind == `Paralean.Remote.remoteTerm || s.getKind == `Paralean.Remote.remoteCmd)[0]?.bind
     fun s => s[1].isStrLit?
+  let remotePid? ← remoteLit?.mapM Remote.pidOfGroup
   let logged ← Remote.loadLog.swap #[]
   let mut sess := sess
   let mut consumed : NameSet := {}
-  if let some st := sess.remoteStore? then
+  if sess.remoteStore?.isSome then
     let roots := (remotePid?.toArray) ++ logged
     if !roots.isEmpty then
       let mut metas : Array GroupRec := #[]
@@ -434,17 +433,12 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
         seen := seen.insert g
         let m ← match cache[g]? with
           | some m => pure m
-          | none => do let m ← st.getMeta g; cache := cache.insert g m; pure m
+          | none => do let m ← Remote.getMetaIO g; cache := cache.insert g m; pure m
         metas := metas.push m
         todo := todo ++ m.deps ++ m.feDeps
       let mut index := sess.index
-      let mut remoteAxioms := sess.remoteAxioms
       for ci in r.newConsts do
         let n := ci.name
-        if n.getString!.endsWith "_remote_proof" then
-          remoteAxioms := remoteAxioms.insert n
-          consumed := consumed.insert n
-          continue
         let tag := n.components.findSome? fun c => match c with
           | .str .anonymous s => plComponent? s
           | _ => none
@@ -458,7 +452,7 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
           let orig := (m.members.find? (fun mr => renameName own mr.local_ == l)).map (·.local_) |>.getD l
           index := index.insert n (m.gid, orig)
           consumed := consumed.insert n
-      sess := { sess with index, remoteAxioms, remoteMetas := cache }
+      sess := { sess with index, remoteMetas := cache }
   if remotePid?.isSome then
     return (sess, fc, .skipped "remote")
   let r := { r with newConsts := r.newConsts.filter fun c => !consumed.contains c.name }
@@ -702,7 +696,7 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     let (a, _) ← (Lean.collectAxioms (m := CoreM) m.info.name).toIO coreCtx coreSt
     for x in a do unless axs.contains x do axs := axs.push x
   for a in axs do
-    unless allowedAxioms.contains a || sess.remoteAxioms.contains a do
+    unless allowedAxioms.contains a do
       diags := diags.push (mkDiag "reject" "axiom" s!"depends on disallowed axiom {a}")
   for m in members do
     if let .axiomInfo _ := m.info then

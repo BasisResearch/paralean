@@ -86,6 +86,8 @@ structure KernelRes where
   added : Nat
   realized : Nat
   diags : Array Diag
+  /-- Transitive axioms of the group's members, from the kernel environment. -/
+  axioms : Array Name := #[]
 
 def kernelExMsg (e : Kernel.Exception) : IO String := do
   (e.toMessageData {}).toString
@@ -297,15 +299,18 @@ unsafe def kernelReplay (store : Store) (cat : Catalog) (gids : Array String) (s
             | none => diags := diags.push (mk "recursor" s!"{ci.name} not generated")
       -- Axiom audit of the transported closure, independent of any worker summary:
       -- walk the kernel environment; base constants use Lean's precomputed axiom data.
+      let mut groupAxioms : Array Name := #[]
       for (_, _, ci) in dg.members do
         let (axs, cache') ← kernelAxioms sr.baseEnv kenv axCache ci.name
         axCache := cache'
+        for a in axs do
+          unless groupAxioms.contains a do groupAxioms := groupAxioms.push a
         for a in axs do
           unless allowedAxioms.contains a do
             diags := diags.push (mk "axiom" s!"{ci.name} depends on disallowed axiom {a}")
         if let .axiomInfo _ := ci then
           diags := diags.push (mk "new-axiom" s!"{ci.name} is an axiom")
-      out := out.push { gid, ok := diags.isEmpty, added, realized := nReal, diags }
+      out := out.push { gid, ok := diags.isEmpty, added, realized := nReal, diags, axioms := groupAxioms }
   return (out, sr)
 
 end Paralean

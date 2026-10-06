@@ -243,9 +243,7 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
     | some r => { root := r }
     | none => store
   let sess0 ← if remote then do
-      let recs ← registry.pubs
-      let ren := renamesOf (← metasFor registry recs) recs
-      pure { sess0 with remoteStore? := some registry, remoteRenames := ren }
+      pure { sess0 with remoteStore? := some registry, remoteRenames := ← Remote.renames }
     else pure sess0
   if !hdrDiags.isEmpty then
     return {
@@ -302,45 +300,8 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
         line := g.capsule.startLine
         msg := "`initialize` effects run only when a module is imported; through the transparent \
           prelude they do not run, so consumers in this file cannot observe them" }
-  -- Transparent workspaces: published declarations of other files are visible by name.
-  -- Stand-in for a fork hook at name resolution: load (`remote%`) every published group
-  -- whose public name occurs in this file's text, at the root, before the file.
-  -- (superseded by the name-resolution hook when `PARALEAN_VISIBILITY` is set)
-  if remote && (← IO.getEnv "PARALEAN_VISIBILITY").isNone then
-    let recs ← registry.pubs
-    let here := (recs.filter (·.file == relFile)).map (·.pid)
-    -- identifier-like tokens of the file
-    let mut words : Std.HashSet String := {}
-    let mut cur := ""
-    for c in input.toList do
-      if c.isAlphanum || c == '_' || c == '.' || c == '\'' then cur := cur.push c
-      else
-        unless cur.isEmpty do words := words.insert cur
-        cur := ""
-    unless cur.isEmpty do words := words.insert cur
-    let mut chunk := ""
-    let mut nTrig := 0
-    for r in recs do
-      if here.contains r.pid then continue
-      let g ← registry.getMeta r.pid
-      let hit := g.publicNames.any fun n =>
-        words.contains n.toString || words.contains (n.getString!)
-      if hit then
-        chunk := chunk ++ s!"remote% \"{r.pid}\"\n"
-        nTrig := nTrig + 1
-    if nTrig > 0 then
-      let ictx := Parser.mkInputContext chunk "<visible published declarations>"
-      let sref ← IO.mkRef sess
-      let fref ← IO.mkRef { fc0 with input := chunk, fileMap := ictx.fileMap }
-      let errs ← IO.mkRef (#[] : Array Diag)
-      let st ← runCommands sess.cmdState ictx {} fun r => do
-        let (s', f', out) ← analyze (← sref.get) (← fref.get) r
-        sref.set s'; fref.set f'
-        if let .failed ds := out then errs.modify (· ++ ds)
-        return none
-      sess := { (← sref.get) with cmdState := st }
-      diags := diags ++ (← errs.get)
-      log s!"visible: {nTrig} published groups loaded by name (remote%)"
+  -- Transparent workspaces: published declarations of other files are visible by name,
+  -- through the name-resolution hook (`Paralean.Visibility`).
   -- The file itself; deferred prelude groups are replayed as soon as their dependencies
   -- on this file have been re-produced with identical package IDs.
   let sessRef ← IO.mkRef sess
