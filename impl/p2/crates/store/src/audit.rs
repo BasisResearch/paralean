@@ -13,7 +13,12 @@
 //!   issued to that holder and is at most the fence (`record_cert_fenced`);
 //! - no orphan commits: a committed record's predecessor is committed and its snapshot is
 //!   certified (`record_cert_parents_ready`);
-//! - every rank in `1..=fence` was issued exactly once, none above.
+//! - every rank in `1..=fence` was issued exactly once, none above;
+//! - tombstones (§11.4) as markers: a stored tombstone is certified, its staged S3 copy
+//!   exists, and every tombstone certificate names a stored tombstone; a tombstone deletes a
+//!   published, certified group of the same file, by its author, with a larger Lamport time;
+//! - anti-entropy evidence (`xcert/`): another deployment's certificate, kept apart, that
+//!   verifies and names an object stored here.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,6 +37,8 @@ pub struct AuditReport {
     pub violations: Vec<String>,
     /// Marker keys without a certificate (allowed only by fixtures that write them raw).
     pub uncertified_markers: Vec<Id>,
+    /// Tombstone keys without a certificate (likewise).
+    pub uncertified_tombstones: Vec<Id>,
     pub counts: BTreeMap<&'static str, usize>,
 }
 
@@ -117,6 +124,81 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
             revisions.insert(*rid, rev);
         }
     }
+
+    // ---- tombstones
+    let mut tcerted: BTreeMap<Id, Vec<TombstoneCert>> = BTreeMap::new();
+    for (k, v) in store.meta.scan(&keys.sub("tcert"), page, |_| None).await? {
+        let (_, t, _w): (String, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let t = id_of(&t)?;
+        let c = TombstoneCert::from_bytes(&v)?;
+        if c.body.tombstone != t || !store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) {
+            r.violations.push(format!("tombstone certificate for {t} does not verify"));
+            continue;
+        }
+        tcerted.entry(t).or_default().push(c);
+    }
+    let mut ntomb = 0;
+    for (k, v) in store.meta.scan(&keys.sub("tombstone"), page, |_| None).await? {
+        ntomb += 1;
+        let (_, t): (String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let tid = id_of(&t)?;
+        envelope_s3(store, &v, "tombstone value", &mut r).await?;
+        let Some(stored) = store.open_value(&v).await? else { continue };
+        let tb = Tombstone::from_preimage(&stored)?;
+        if tb.id() != tid {
+            r.violations.push(format!("tombstone key {tid} holds another tombstone"));
+            continue;
+        }
+        let Some(cs) = tcerted.remove(&tid) else {
+            r.uncertified_tombstones.push(tid);
+            continue;
+        };
+        if cs.iter().any(|c| c.body.target != tb.target) {
+            r.violations.push(format!("a certificate of tombstone {tid} names another target"));
+        }
+        s3_present(store, Kind::StagedTombstone, &tid, "tombstone", &mut r).await?;
+        match markers.get(&tb.target) {
+            Some((_, m)) if certified.contains(&tb.target) => {
+                if m.file_path != tb.file_path || m.lamport >= tb.lamport || m.author != tb.author {
+                    r.violations.push(format!("tombstone {tid} is not a valid deletion of {}", tb.target));
+                }
+            }
+            _ => r.violations.push(format!("tombstone {tid} deletes {}, not a published group", tb.target)),
+        }
+        if let Some(rc) = tb.receipt {
+            if store.receipt(&rc).await?.is_none() {
+                r.violations.push(format!("tombstone {tid} names absent receipt {rc}"));
+            }
+        }
+    }
+    for t in tcerted.keys() {
+        r.violations.push(format!("tombstone certificate names no stored tombstone {t} (cert_sound)"));
+    }
+    *r.counts.entry("tombstones").or_default() = ntomb;
+
+    // ---- anti-entropy evidence
+    let mut nx = 0;
+    for (k, v) in store.meta.scan(&keys.sub("xcert"), page, |_| None).await? {
+        nx += 1;
+        let (_, kind, o, _rep, _w): (String, String, Bytes, Bytes, Bytes) =
+            keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let o = id_of(&o)?;
+        let ok = match kind.as_str() {
+            "cert" => Cert::from_bytes(&v).ok().is_some_and(|c| {
+                c.body.group == o
+                    && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig)
+                    && markers.get(&o).is_some_and(|(mid, _)| *mid == c.body.marker)
+            }),
+            "tcert" => TombstoneCert::from_bytes(&v).ok().is_some_and(|c| {
+                c.body.tombstone == o && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig)
+            }) && store.meta.get(keys.tombstone(&o)).await?.is_some(),
+            _ => false,
+        };
+        if !ok {
+            r.violations.push(format!("anti-entropy evidence {kind}/{o} does not verify or names nothing stored"));
+        }
+    }
+    *r.counts.entry("received evidence").or_default() = nx;
 
     // ---- targets
     let heads = reconstruct_heads(&revisions);

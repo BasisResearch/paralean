@@ -101,8 +101,8 @@ id16!(
     ReplicaId
 );
 
-/// Hash domains. §1.2 lists all but `Blob` (store.md), `Manifest` and `Token` (added by P2,
-/// see docs/p2-log.md).
+/// Hash domains. §1.2 lists all but `Blob` (store.md), `Manifest`, `Token` and `TCert`
+/// (added by P2, see docs/p2-log.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub enum Domain {
     Group,
@@ -121,6 +121,8 @@ pub enum Domain {
     Blob,
     Manifest,
     Token,
+    /// Tombstone certificate (§11.4: tombstones are certificate-discovered like markers).
+    TCert,
 }
 
 impl Domain {
@@ -142,6 +144,7 @@ impl Domain {
             Domain::Blob => "v0/blob",
             Domain::Manifest => "v0/manifest",
             Domain::Token => "v0/token",
+            Domain::TCert => "v0/tcert",
         }
     }
 
@@ -194,10 +197,12 @@ pub enum Kind {
     Blob,
     /// The acknowledged copy of a marker before the publish transaction (§8.2 step 2).
     StagedMarker,
+    /// The acknowledged copy of a tombstone before its publish transaction (T8).
+    StagedTombstone,
 }
 
 impl Kind {
-    pub const S3_KINDS: [Kind; 7] = [
+    pub const S3_KINDS: [Kind; 8] = [
         Kind::Group,
         Kind::Chunk,
         Kind::Capsule,
@@ -205,6 +210,7 @@ impl Kind {
         Kind::Manifest,
         Kind::Blob,
         Kind::StagedMarker,
+        Kind::StagedTombstone,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -215,6 +221,7 @@ impl Kind {
             Kind::Manifest => "manifest",
             Kind::Blob => "blob",
             Kind::StagedMarker => "marker",
+            Kind::StagedTombstone => "tombstone",
         }
     }
     pub fn from_name(s: &str) -> Option<Kind> {
@@ -229,6 +236,7 @@ impl Kind {
             Kind::Manifest => Domain::Manifest,
             Kind::Blob => Domain::Blob,
             Kind::StagedMarker => Domain::Marker,
+            Kind::StagedTombstone => Domain::Tombstone,
         }
     }
 }

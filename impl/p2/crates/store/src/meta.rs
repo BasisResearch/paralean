@@ -82,6 +82,17 @@ impl Keys {
     pub fn certs_of(&self, g: &Id) -> Subspace {
         self.root.subspace(&("cert", b(&g.0)))
     }
+    pub fn tcert(&self, t: &Id, w: &WorkspaceId) -> Vec<u8> {
+        self.root.pack(&("tcert", b(&t.0), b(&w.0)))
+    }
+    pub fn tcerts_of(&self, t: &Id) -> Subspace {
+        self.root.subspace(&("tcert", b(&t.0)))
+    }
+    /// Evidence kept by an anti-entropy receiver: another deployment's verified certificate
+    /// (`kind` is `cert` or `tcert`), never read as a certificate of this deployment.
+    pub fn xcert(&self, kind: &str, object: &Id, replica: &[u8], w: &WorkspaceId) -> Vec<u8> {
+        self.root.pack(&("xcert", kind, b(&object.0), b(replica), b(&w.0)))
+    }
     pub fn target(&self, name: &Name) -> Vec<u8> {
         self.root.pack(&("target", b(&name.to_pce())))
     }
@@ -636,6 +647,72 @@ impl Meta {
         .await
     }
 
+    // ============================================================ T8 tombstone
+
+    /// Publish a tombstone (§11.4): the tombstone key and the publisher's tombstone
+    /// certificate in one transaction, as T1 does for markers, conditional on the target
+    /// being published and certified here and on the tombstone being a valid deletion of it.
+    pub(crate) async fn t8_tombstone(&self, a: Arc<TombstoneArgs>) -> Result<bool> {
+        let k = self.keys.clone();
+        self.run(
+            Txn::T8Tombstone,
+            Box::new(move |trx| {
+                let (k, a) = (k.clone(), a.clone());
+                Box::pin(async move { t8_body(trx, &k, &a).await })
+            }),
+        )
+        .await
+    }
+
+    /// Mutation support only (`mutate-tombstone-cert-outside`): the tombstone certificate in
+    /// a later transaction of its own.
+    #[cfg(feature = "mutate-tombstone-cert-outside")]
+    pub(crate) async fn t8_raw_cert(&self, key: Vec<u8>, cert: Vec<u8>) -> Result<bool> {
+        let (key, cert) = (Arc::new(key), Arc::new(cert));
+        self.run(
+            Txn::T8Tombstone,
+            Box::new(move |trx| {
+                let (key, cert) = (key.clone(), cert.clone());
+                Box::pin(async move {
+                    trx.set(&key, &cert);
+                    Ok(Step::Commit(true))
+                })
+            }),
+        )
+        .await
+    }
+
+    // ============================================================ T9/T10 receive
+
+    /// Anti-entropy receive of a group published at another deployment. Writes the marker,
+    /// revisions and receipt if absent, this deployment's receiver certificate and the
+    /// sender's verified certificates as evidence (`xcert/`), in one transaction.
+    pub(crate) async fn t9_receive_group(&self, a: Arc<ReceiveGroupArgs>) -> Result<bool> {
+        let k = self.keys.clone();
+        self.run(
+            Txn::T9ReceiveGroup,
+            Box::new(move |trx| {
+                let (k, a) = (k.clone(), a.clone());
+                Box::pin(async move { t9_body(trx, &k, &a).await })
+            }),
+        )
+        .await
+    }
+
+    /// Anti-entropy receive of a tombstone: T8's guards against this deployment's copy of
+    /// the target, then the tombstone, this deployment's receiver certificate and evidence.
+    pub(crate) async fn t10_receive_tombstone(&self, a: Arc<ReceiveTombstoneArgs>) -> Result<bool> {
+        let k = self.keys.clone();
+        self.run(
+            Txn::T10ReceiveTombstone,
+            Box::new(move |trx| {
+                let (k, a) = (k.clone(), a.clone());
+                Box::pin(async move { t10_body(trx, &k, &a).await })
+            }),
+        )
+        .await
+    }
+
     /// Test-only: write a raw key in the store's namespace (fixtures that construct states
     /// no transaction produces, e.g. a marker key without certificates).
     pub async fn raw_set(&self, key: Vec<u8>, value: Vec<u8>) -> Result<()> {
@@ -745,6 +822,196 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
         trx.set(&ck, &a.cert_value);
     }
     Ok(Step::Commit(PublishOutcome { marker: a.marker_id, fresh: true }))
+}
+
+// ---------------------------------------------------------------- T8 body
+
+pub(crate) struct TombstoneArgs {
+    pub writer: WorkspaceId,
+    pub tombstone: Tombstone,
+    pub tombstone_id: Id,
+    pub value: Vec<u8>,
+    pub cert_value: Vec<u8>,
+    /// The target's marker, read and verified by the writer (markers are immutable; the
+    /// transaction checks that `marker/<target>` still holds this ID).
+    pub target_marker: Marker,
+    /// The names and workspaces of the target's revisions (read and verified by the writer).
+    pub target_names: Vec<Name>,
+    pub target_workspaces: Vec<WorkspaceId>,
+}
+
+/// The tombstone rules shared by T8 and the anti-entropy receive (T10). Workspaces models a
+/// tombstone as a revision of its target: the target is published (its revision ancestors
+/// are admitted), in the same file, and older (`ts e < ts d` for everything the author
+/// knows). OPEN-19's v0 default restricts deletion to the element's author (the controller
+/// path is not implemented): the tombstone's `author` is the target marker's, and the
+/// deleting writer (`deleter`, who signs the tombstone certificate) is the workspace of the
+/// target's revisions, since P2 has no registry binding agent IDs to workspaces. TargetNames
+/// has no deletion, so a group declaring a target name cannot be tombstoned (P2's choice;
+/// see docs/p2-log.md).
+pub(crate) async fn tombstone_guards(
+    trx: &Transaction,
+    k: &Keys,
+    t: &Tombstone,
+    m: &Marker,
+    names: &[Name],
+    workspaces: &[WorkspaceId],
+    deleter: &WorkspaceId,
+) -> Result<()> {
+    let g = t.target;
+    if !cfg!(feature = "mutate-tombstone-no-target-check") {
+        let Some(mv) = get(trx, &k.marker(&g)).await? else {
+            return Err(GuardFailure::NotPublished(g).into());
+        };
+        if envelope_object_id(&mv)? != m.id() || m.group != g {
+            return Err(GuardFailure::BadPackage("tombstone target's marker differs".into()).into());
+        }
+        let (b0, e0) = k.certs_of(&g).range();
+        if range(trx, b0, e0, 1).await?.is_empty() {
+            return Err(GuardFailure::Uncertified(g).into());
+        }
+    }
+    if t.file_path != m.file_path {
+        return Err(GuardFailure::TombstoneFileMismatch { tombstone: t.file_path.clone(), target: m.file_path.clone() }.into());
+    }
+    if t.lamport <= m.lamport {
+        return Err(GuardFailure::TombstoneNotNewer { lamport: t.lamport, target: m.lamport }.into());
+    }
+    if (t.author != m.author || !workspaces.contains(deleter)) && !cfg!(feature = "mutate-tombstone-no-author-check") {
+        return Err(GuardFailure::TombstoneNotAuthor.into());
+    }
+    for n in names {
+        if get(trx, &k.target(n)).await?.is_some() {
+            return Err(GuardFailure::TombstoneOfTarget(n.clone()).into());
+        }
+    }
+    if let Some(r) = t.receipt {
+        if get(trx, &k.receipt(&r)).await?.is_none() {
+            return Err(GuardFailure::TombstoneReceiptAbsent(r).into());
+        }
+    }
+    Ok(())
+}
+
+async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<bool>> {
+    let tk = k.tombstone(&a.tombstone_id);
+    let ck = k.tcert(&a.tombstone_id, &a.writer);
+    if let Some(v) = get(trx, &tk).await? {
+        if envelope_object_id(&v)? == a.tombstone_id
+            && (cfg!(feature = "mutate-tombstone-cert-outside") || get(trx, &ck).await?.is_some())
+        {
+            return Ok(Step::Done(false));
+        }
+        return Err(GuardFailure::TombstoneExists { tombstone: a.tombstone_id }.into());
+    }
+    tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.writer).await?;
+    trx.set(&tk, &a.value);
+    if !cfg!(feature = "mutate-tombstone-cert-outside") {
+        trx.set(&ck, &a.cert_value);
+    }
+    Ok(Step::Commit(true))
+}
+
+// ---------------------------------------------------------------- T9/T10 bodies
+
+pub(crate) struct ReceiveGroupArgs {
+    pub group: Id,
+    pub marker_id: Id,
+    pub marker_value: Vec<u8>,
+    pub revisions: Vec<(Id, Revision, Vec<u8>)>,
+    pub receipt_id: Id,
+    pub receipt_value: Vec<u8>,
+    /// This deployment's receiver certificate (key, value).
+    pub cert: (Vec<u8>, Vec<u8>),
+    /// The sender's verified certificates, kept as evidence (key, value).
+    pub evidence: Vec<(Vec<u8>, Vec<u8>)>,
+}
+
+/// A receiver certifies only a group it knows as published: the sender's certificate is
+/// the evidence (§8.3 "receiving an already-published group requires a live replica
+/// certificate"; AckCertificates `put` needs `known n d`). It certifies on its own
+/// deployment's replica only; the sender's certificates are stored apart and never counted.
+async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<Step<bool>> {
+    let mk = k.marker(&a.group);
+    if let Some(v) = get(trx, &mk).await? {
+        let local = envelope_object_id(&v)?;
+        if local != a.marker_id && cfg!(feature = "mutate-receive-overwrite-marker") {
+            trx.set(&mk, &a.marker_value);
+        } else if local != a.marker_id {
+            // One marker per group in the store (and per group in the Workspaces model's
+            // Layout); a second publication of the group elsewhere is a conflict, reported.
+            return Err(GuardFailure::MarkerConflict { group: a.group, local, remote: a.marker_id }.into());
+        }
+        let (b0, e0) = k.certs_of(&a.group).range();
+        if !range(trx, b0, e0, 1).await?.is_empty() {
+            return Ok(Step::Done(false));
+        }
+    } else {
+        for (_, rev, _) in &a.revisions {
+            // TargetNames keeps one record per name, in one store: a name homed here is
+            // published only by its owner through T1, never received.
+            if get(trx, &k.target(&rev.name)).await?.is_some() {
+                return Err(GuardFailure::ForeignTarget(rev.name.clone()).into());
+            }
+            // Admitted ancestor closure, as in T1.
+            for p in &rev.parents {
+                if get(trx, &k.revision(p)).await?.is_none() {
+                    return Err(GuardFailure::UnknownParentRevision(*p).into());
+                }
+            }
+        }
+        trx.set(&mk, &a.marker_value);
+    }
+    for (id, _, v) in &a.revisions {
+        let rk = k.revision(id);
+        if trx.get(&rk, true).await?.is_none() {
+            trx.set(&rk, v);
+        }
+    }
+    let rk = k.receipt(&a.receipt_id);
+    if trx.get(&rk, true).await?.is_none() {
+        trx.set(&rk, &a.receipt_value);
+    }
+    trx.set(&a.cert.0, &a.cert.1);
+    for (ek, ev) in &a.evidence {
+        trx.set(ek, ev);
+    }
+    Ok(Step::Commit(true))
+}
+
+pub(crate) struct ReceiveTombstoneArgs {
+    pub tombstone: Tombstone,
+    pub tombstone_id: Id,
+    pub value: Vec<u8>,
+    pub target_marker: Marker,
+    pub target_names: Vec<Name>,
+    pub target_workspaces: Vec<WorkspaceId>,
+    /// The writer of a verified sender certificate who is the target's author workspace,
+    /// i.e. the deleter (OPEN-19 default), if any.
+    pub deleter: WorkspaceId,
+    pub cert: (Vec<u8>, Vec<u8>),
+    pub evidence: Vec<(Vec<u8>, Vec<u8>)>,
+}
+
+async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Result<Step<bool>> {
+    let tk = k.tombstone(&a.tombstone_id);
+    if let Some(v) = get(trx, &tk).await? {
+        if envelope_object_id(&v)? != a.tombstone_id {
+            return Err(StoreError::Invalid("tombstone key holds another object".into()));
+        }
+        let (b0, e0) = k.tcerts_of(&a.tombstone_id).range();
+        if !range(trx, b0, e0, 1).await?.is_empty() {
+            return Ok(Step::Done(false));
+        }
+    } else {
+        tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.deleter).await?;
+        trx.set(&tk, &a.value);
+    }
+    trx.set(&a.cert.0, &a.cert.1);
+    for (ek, ev) in &a.evidence {
+        trx.set(ek, ev);
+    }
+    Ok(Step::Commit(true))
 }
 
 // ---------------------------------------------------------------- T5 body

@@ -53,6 +53,27 @@ pub enum GuardFailure {
     // --- T6
     #[error("object {kind:?} {id:?} is not acknowledged by the payload store")]
     NotAcknowledged { kind: Kind, id: Id },
+    // --- T8 (tombstone publication, §11.4; Workspaces: a tombstone is a revision of its
+    // target, so the target is published and older, in the same file, by its author)
+    #[error("tombstone {tombstone:?} already stored without this writer's certificate")]
+    TombstoneExists { tombstone: Id },
+    #[error("tombstone names file {tombstone} but its target is in {target}")]
+    TombstoneFileMismatch { tombstone: String, target: String },
+    #[error("tombstone lamport {lamport} does not exceed its target's {target}")]
+    TombstoneNotNewer { lamport: u64, target: u64 },
+    #[error("tombstone author is not the target's author (OPEN-19 v0 default)")]
+    TombstoneNotAuthor,
+    #[error("target group declares target name {0}; TargetNames has no deletion")]
+    TombstoneOfTarget(Name),
+    #[error("tombstone names receipt {0:?}, absent from the store")]
+    TombstoneReceiptAbsent(Id),
+    // --- T9/T10 (anti-entropy receive)
+    #[error("group {group:?} is published here with marker {local:?}, the sender's is {remote:?}")]
+    MarkerConflict { group: Id, local: Id, remote: Id },
+    #[error("received object fails verification: {0}")]
+    ReceiveInvalid(String),
+    #[error("received group declares {0}, a target name homed at this deployment")]
+    ForeignTarget(Name),
     // --- T7 (certificate repair: existing bytes only, signed)
     #[error("repair source has no such certificate")]
     RepairSourceMissing,

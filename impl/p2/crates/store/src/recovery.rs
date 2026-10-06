@@ -5,6 +5,17 @@
 //! discovered iff some valid certificate names it and its marker. Raw markers are never
 //! read as evidence (a `marker/` key without a certificate is ignored).
 //!
+//! Tombstones (§11.4) are discovered the same way: a paginated scan of `tcert/`; a
+//! tombstone counts iff a valid tombstone certificate names it and its stored bytes. A
+//! `tombstone/` key without a certificate is ignored.
+//!
+//! Rendering (§11.3/§11.4, Workspaces `render`): a file shows the *live* discovered groups
+//! of that file: not tombstoned by a discovered tombstone and not superseded, i.e. no
+//! discovered group has one of its revisions as an ancestor (for any name). Order is the
+//! model's `PosLt` over carried data only: the root paths carried in the markers
+//! (`rootPath`, RGA order: a proper prefix first, otherwise the larger `(lamport, author)` at
+//! the first difference first), then the group's own key, oldest first.
+//!
 //! Catalogue recovery (§9, CatalogCertificates `ScanEnumerate`): a paginated range scan of
 //! `catalog/`, then per-record point reads. A record is *ready* iff its commit certificate
 //! (`rcert`), its snapshot's object certificate and every payload's object certificate are
@@ -30,9 +41,23 @@ pub struct Published {
     pub certifiers: Vec<WorkspaceId>,
 }
 
+#[derive(Clone, Debug)]
+pub struct PublishedTombstone {
+    pub tombstone: Tombstone,
+    pub certifiers: Vec<WorkspaceId>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Discovery {
     pub groups: BTreeMap<Id, Published>,
+    /// Tombstones with a valid tombstone certificate, by tombstone ID.
+    pub tombstones: BTreeMap<Id, PublishedTombstone>,
+    /// Tombstone keys with no valid certificate: ignored.
+    pub ignored_tombstones: Vec<Id>,
+    /// Groups with a revision that is an ancestor of a discovered revision (any name).
+    pub superseded: BTreeSet<Id>,
+    /// The rendered sequence of live groups of every file.
+    pub files: BTreeMap<String, Vec<Id>>,
     /// Marker keys with no valid certificate: ignored, reported for diagnosis only.
     pub ignored_markers: Vec<Id>,
     /// Certificates whose marker key is missing or names another marker.
@@ -116,7 +141,128 @@ pub async fn discover_with(
     }
     d.heads = reconstruct_heads(&d.revisions);
     d.conflicts = d.heads.iter().filter(|(_, h)| h.len() > 1).map(|(n, _)| n.clone()).collect();
+    discover_tombstones(store, &mut d).await?;
+    d.superseded = superseded_groups(store, &d.revisions).await?;
+    let paths: BTreeSet<String> = d.groups.values().map(|p| p.marker.file_path.clone()).collect();
+    for path in paths {
+        let seq = render(&d, &path);
+        d.files.insert(path, seq);
+    }
     Ok(d)
+}
+
+/// Tombstones by certificates (`tcert/` scan), as markers are discovered by `cert/`.
+async fn discover_tombstones(store: &Store, d: &mut Discovery) -> Result<()> {
+    let keys = &store.meta.keys;
+    let mut by_t: BTreeMap<Id, Vec<TombstoneCert>> = BTreeMap::new();
+    if cfg!(feature = "mutate-tombstone-raw-scan") {
+        // Mutation: read raw tombstone keys as evidence.
+        for (k, _) in store.meta.scan(&keys.sub("tombstone"), store.page, |_| None).await? {
+            let (_, t): (String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+            by_t.entry(Id(t[..].try_into().map_err(|_| StoreError::Invalid("tombstone id".into()))?)).or_default();
+        }
+    }
+    for (k, v) in store.meta.scan(&keys.sub("tcert"), store.page, |_| None).await? {
+        let (_, t, w): (String, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let Ok(c) = TombstoneCert::from_bytes(&v) else { continue };
+        if c.body.tombstone.0[..] != t[..] || c.body.writer.0[..] != w[..] || !store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) {
+            continue;
+        }
+        by_t.entry(c.body.tombstone).or_default().push(c);
+    }
+    for (tid, certs) in by_t {
+        let Some(t) = store.tombstone(&tid).await? else { continue };
+        let certifiers: Vec<WorkspaceId> = certs.iter().filter(|c| c.body.target == t.target).map(|c| c.body.writer).collect();
+        if certifiers.is_empty() && !cfg!(feature = "mutate-tombstone-raw-scan") {
+            continue;
+        }
+        d.tombstones.insert(tid, PublishedTombstone { tombstone: t, certifiers });
+    }
+    for (k, _) in store.meta.scan(&keys.sub("tombstone"), store.page, |_| None).await? {
+        let (_, t): (String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let t = Id(t[..].try_into().map_err(|_| StoreError::Invalid("tombstone id".into()))?);
+        if !d.tombstones.contains_key(&t) {
+            d.ignored_tombstones.push(t);
+        }
+    }
+    Ok(())
+}
+
+/// Groups superseded by a discovered revision: the groups of all its transitive revision
+/// ancestors. Ancestors are read from the store's revision objects, which T1 (and the
+/// anti-entropy receive) only write after their parents (admitted ancestor closure), so the
+/// walk never depends on which groups are discovered.
+pub async fn superseded_groups(store: &Store, revs: &BTreeMap<Id, Revision>) -> Result<BTreeSet<Id>> {
+    let mut out = BTreeSet::new();
+    let mut seen: BTreeSet<Id> = BTreeSet::new();
+    let mut todo: Vec<Id> = revs.values().flat_map(|r| r.parents.iter().copied()).collect();
+    while let Some(p) = todo.pop() {
+        if !seen.insert(p) {
+            continue;
+        }
+        let r = match revs.get(&p) {
+            Some(r) => r.clone(),
+            None => match store.revision(&p).await? {
+                Some(r) => r,
+                None => continue,
+            },
+        };
+        out.insert(r.group);
+        todo.extend(r.parents.iter().copied());
+    }
+    Ok(out)
+}
+
+type Key = (u64, [u8; 16]);
+
+fn key_of(m: &Marker) -> Key {
+    (m.lamport, m.author.0)
+}
+
+/// The carried root path (file start first). A marker without one is its own root.
+fn root_path_of(m: &Marker) -> Vec<Key> {
+    if m.root_path.is_empty() {
+        vec![key_of(m)]
+    } else {
+        m.root_path.iter().map(|(_, l, a)| (*l, a.0)).collect()
+    }
+}
+
+/// Workspaces `PathLt`: a proper prefix first; at the first difference the larger key first.
+pub fn path_lt(p: &[Key], q: &[Key]) -> bool {
+    match (p.split_first(), q.split_first()) {
+        (None, None) => false,
+        (None, Some(_)) => true,
+        (Some(_), None) => false,
+        (Some((x, p)), Some((y, q))) => if x == y { path_lt(p, q) } else { y < x },
+    }
+}
+
+/// Workspaces `PosLt` as an ordering.
+pub fn pos_cmp(a: &Marker, b: &Marker) -> std::cmp::Ordering {
+    let (pa, pb) = (root_path_of(a), root_path_of(b));
+    if pa == pb {
+        key_of(a).cmp(&key_of(b))
+    } else if path_lt(&pa, &pb) {
+        std::cmp::Ordering::Less
+    } else {
+        std::cmp::Ordering::Greater
+    }
+}
+
+/// Is a discovered group live (rendered)? Known, not tombstoned, not superseded.
+pub fn live(d: &Discovery, g: &Id) -> bool {
+    let Some(p) = d.groups.get(g) else { return false };
+    let tombstoned = d.tombstones.values().any(|t| t.tombstone.target == *g && t.tombstone.file_path == p.marker.file_path);
+    (!tombstoned || cfg!(feature = "mutate-render-ignores-tombstones"))
+        && (!d.superseded.contains(g) || cfg!(feature = "mutate-render-ignores-supersession"))
+}
+
+/// The rendered sequence of `path`: its live groups in `PosLt` order.
+pub fn render(d: &Discovery, path: &str) -> Vec<Id> {
+    let mut gs: Vec<&Published> = d.groups.iter().filter(|(g, p)| p.marker.file_path == path && live(d, g)).map(|(_, p)| p).collect();
+    gs.sort_by(|a, b| pos_cmp(&a.marker, &b.marker));
+    gs.iter().map(|p| p.marker.group).collect()
 }
 
 #[derive(Clone, Debug)]

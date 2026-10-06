@@ -10,7 +10,9 @@
 //! | `recovery` | discovery by certificates, head reconstruction, catalogue recovery |
 //! | `audit` | whole-store invariant checks |
 //! | `faults` | client-side fault injection |
+//! | `antientropy` | exchange of published groups and tombstones between deployments |
 
+pub mod antientropy;
 pub mod audit;
 pub mod error;
 pub mod faults;

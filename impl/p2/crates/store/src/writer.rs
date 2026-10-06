@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use crate::error::{GuardFailure, Result, StoreError};
 use crate::id::{Id, Kind, WorkspaceId};
-use crate::meta::{CommitArgs, PreparedTarget, PublishArgs, PublishOutcome, ValueKind};
+use crate::meta::{CommitArgs, PreparedTarget, PublishArgs, PublishOutcome, TombstoneArgs, ValueKind};
 use crate::objects::*;
 use crate::s3::Acked;
 use crate::sign::Signer;
@@ -53,6 +53,10 @@ impl Writer {
 
     pub fn with_store(&self, store: Store) -> Writer {
         Writer { store, ..self.clone() }
+    }
+
+    pub(crate) fn signer(&self) -> &Signer {
+        &self.signer
     }
 
     /// The preparer's single linearizable read of a target record (§7).
@@ -130,6 +134,43 @@ impl Writer {
             self.store.meta.t2_raw_cert(g, self.id, v).await?;
         }
         Ok(out)
+    }
+
+    /// Publish a tombstone (§11.4): the acknowledged S3 copy first (as a marker's), then T8,
+    /// which writes the tombstone and this writer's tombstone certificate atomically.
+    /// Returns false if the tombstone was already published by this writer.
+    pub async fn tombstone(&self, t: &Tombstone) -> Result<bool> {
+        let st = &self.store;
+        let (_, m) = st.marker(&t.target).await?.ok_or(GuardFailure::NotPublished(t.target))?;
+        let (mut names, mut workspaces) = (Vec::new(), Vec::new());
+        for rid in &m.revisions {
+            let r = st.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?;
+            names.push(r.name);
+            workspaces.push(r.workspace);
+        }
+        let tid = t.id();
+        st.s3.put(Kind::StagedTombstone, &t.preimage()).await?;
+        st.faults.point("tombstone:after-staged")?;
+        let value = st.stage_value(tid, t.preimage()).await?;
+        let cert = TombstoneCert::sign(
+            TombstoneCertBody { replica: st.replica, tombstone: tid, target: t.target, writer: self.id },
+            &self.signer,
+        );
+        let args = TombstoneArgs {
+            writer: self.id,
+            tombstone: t.clone(),
+            tombstone_id: tid,
+            value,
+            cert_value: cert.to_bytes(),
+            target_marker: m,
+            target_names: names,
+            target_workspaces: workspaces,
+        };
+        let fresh = st.meta.t8_tombstone(Arc::new(args)).await?;
+        st.faults.point("tombstone:before-cert")?;
+        #[cfg(feature = "mutate-tombstone-cert-outside")]
+        st.meta.t8_raw_cert(st.meta.keys.tcert(&tid, &self.id), cert.to_bytes()).await?;
+        Ok(fresh)
     }
 
     /// T2: certify a group already published (and certified by someone).
@@ -225,8 +266,10 @@ impl Writer {
 
     /// T7: copy an existing certificate from `source` (another replica or deployment holding
     /// the same abstract replica's certificates) to this store. Unconditional and unfenced;
-    /// accepted only if the copy verifies under its signer's key and the certified object's
-    /// bytes already exist here (repair means existing bytes).
+    /// accepted only if the copy verifies under its signer's key, names this store's
+    /// abstract replica σ (a replacement of σ, never another deployment: that would certify
+    /// on its behalf), and the certified object's bytes already exist here (repair means
+    /// existing bytes).
     pub async fn repair_cert(&self, source: &Store, key: CertKey) -> Result<bool> {
         let st = &self.store;
         let (src_key, dst_key) = match &key {
@@ -242,6 +285,9 @@ impl Writer {
                 if c.body.group != *group || c.body.writer != *writer || !st.ring.verify_writer(writer, &c.id(), &c.sig) {
                     return Err(invalid("publication certificate does not verify"));
                 }
+                if c.body.replica != st.replica {
+                    return Err(invalid("certificate names another replica"));
+                }
                 Some((st.meta.keys.marker(group), c.body.marker, ValueKind::Envelope))
             }
             CertKey::Commit { catalog } => {
@@ -249,12 +295,18 @@ impl Writer {
                 if rc.body.catalog != *catalog || !st.ring.verify_writer(&rc.body.token.holder, &rc.id(), &rc.sig) {
                     return Err(invalid("commit certificate does not verify"));
                 }
+                if rc.body.replica != st.replica {
+                    return Err(invalid("certificate names another replica"));
+                }
                 Some((st.meta.keys.catalog(catalog), *catalog, ValueKind::SignedRecord))
             }
             CertKey::Object { kind, id } => {
                 let oc = ObjectCert::from_bytes(&v)?;
                 if oc.body.kind != *kind || oc.body.id != *id || !st.ring.verify_writer(&oc.body.writer, &oc.id(), &oc.sig) {
                     return Err(invalid("object certificate does not verify"));
+                }
+                if oc.body.replica != st.replica {
+                    return Err(invalid("certificate names another replica"));
                 }
                 if st.s3.get(*kind, id).await?.is_none() {
                     return Err(GuardFailure::RepairNoExistingBytes.into());

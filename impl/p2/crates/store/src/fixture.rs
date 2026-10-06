@@ -51,6 +51,7 @@ pub fn package(
     let mut parents = parents;
     parents.sort();
     parents.dedup();
+    let fresh = parents.is_empty();
     let rev = Revision { group: g, name: name.clone(), parents, capsule: capsule.id(), workspace };
     let author = AgentId::derive(&format!("agent/{}", workspace.hex()));
     let marker = Marker {
@@ -61,7 +62,9 @@ pub fn package(
         anchor: Anchor::FileStart,
         lamport,
         author,
-        root_path: vec![],
+        // A fresh insertion at the file start is its own lineage root, so its root path is
+        // its own key; a revision's root path is its lineage root's (set it with `place`).
+        root_path: if fresh { vec![(g, lamport, author)] } else { vec![] },
         lineage_keys: vec![(name.clone(), lamport, author)],
     };
     Package { group, chunks, capsule, receipt, revisions: vec![rev], marker, targets: target.into_iter().collect() }
@@ -92,4 +95,31 @@ pub fn checkpoint(workspace: WorkspaceId, contents: Vec<Id>, predecessor: Option
         build_receipt: Manifest::id(&build_receipt),
     };
     Checkpoint { snapshot, source_root, build_receipt, predecessor, token }
+}
+
+/// Place a package in `file`: a fresh insertion after `anchor` (`None`: the file start) or,
+/// with `revises`, a revision taking its lineage root's position. The carried fields are
+/// computed as the author does at staging (§11.1): a fresh insertion's root path is its
+/// anchor's path plus its own key; a revision carries its lineage root's path and lineage key.
+pub fn place(p: &mut Package, file: &str, anchor: Option<&Marker>, revises: Option<&Marker>) {
+    let m = &mut p.marker;
+    m.file_path = file.to_string();
+    match revises {
+        Some(r) => {
+            m.anchor = r.anchor.clone();
+            m.root_path = r.root_path.clone();
+            m.lineage_keys = r.lineage_keys.clone();
+        }
+        None => {
+            m.anchor = anchor.map_or(Anchor::FileStart, |a| Anchor::After(a.group));
+            let mut path = anchor.map(|a| a.root_path.clone()).unwrap_or_default();
+            path.push((m.group, m.lamport, m.author));
+            m.root_path = path;
+        }
+    }
+}
+
+/// A tombstone of a published marker by its author (§11.4).
+pub fn tombstone_of(m: &Marker, lamport: u64) -> Tombstone {
+    Tombstone { file_path: m.file_path.clone(), target: m.group, lamport, author: m.author, receipt: None }
 }
