@@ -1,0 +1,128 @@
+From 228f52c5cb3089d1d87830e4b45da9c21a185c3b Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 5/6] feat: Paralean hook 4, simp used-lemma record
+
+With `simpUsed`, `evalSimp` and `evalSimpAll` push the declarations in
+`stats.usedTheorems` as a `SimpUsedInfo` custom info leaf. `rfl` simp lemmas do
+not appear in proof terms, so this is the only record of them.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean/Elab/Tactic/Simp.lean       | 21 +++++++++++++++
+ tests/elab/paraleanSimp.lean         | 40 ++++++++++++++++++++++++++++
+ tests/elab/paraleanSimp.lean.init.sh |  2 ++
+ 3 files changed, 63 insertions(+)
+ create mode 100644 tests/elab/paraleanSimp.lean
+ create mode 100644 tests/elab/paraleanSimp.lean.init.sh
+
+diff --git a/src/Lean/Elab/Tactic/Simp.lean b/src/Lean/Elab/Tactic/Simp.lean
+index 11dcae8..40c8fd4 100644
+--- a/src/Lean/Elab/Tactic/Simp.lean
++++ b/src/Lean/Elab/Tactic/Simp.lean
+@@ -12,6 +12,7 @@ public import Lean.Elab.BuiltinNotation
+ public import Lean.Elab.Tactic.Location
+ import Lean.Meta.Check
+ import Lean.Elab.ConfigEval
++import Lean.Paralean.Mode
+ 
+ public section
+ 
+@@ -781,6 +782,24 @@ where
+     | some (_, mvarId) => replaceMainGoal [mvarId]
+     return stats
+ 
++/--
++Declarations a `simp` or `simp_all` call used, recorded as a custom info-tree leaf on the tactic
++syntax when the Paralean hook `simpUsed` is active. `rfl` lemmas used by `simp` need not appear in
++the proof term, so this is the only record of them.
++-/
++structure SimpUsedInfo where
++  names : Array Name
++  deriving TypeName
++
++/-- Paralean hook: record the declarations in `used` (if any) as a `SimpUsedInfo` leaf. -/
++def recordSimpUsed (stx : Syntax) (used : Simp.UsedSimps) : TacticM Unit := do
++  unless (← Paralean.getConfig).simpUsed do return
++  let names := used.map.toList.toArray.filterMap fun (o, _) => match o with
++    | .decl n .. => some n
++    | _ => none
++  unless names.isEmpty do
++    pushInfoLeaf <| .ofCustomInfo { stx, value := Dynamic.mk ({ names } : SimpUsedInfo) }
++
+ def withSimpDiagnostics (x : TacticM Simp.Diagnostics) : TacticM Unit := do
+   let stats ← x
+   Simp.reportDiag stats
+@@ -796,6 +815,7 @@ def withSimpDiagnostics (x : TacticM Simp.Diagnostics) : TacticM Unit := do
+   let stats ← dischargeWrapper.with fun discharge? =>
+     withLoopChecking r do
+       simpLocation ctx simprocs discharge? (expandOptLocation stx[5])
++  recordSimpUsed stx stats.usedTheorems
+   if tactic.simp.trace.get (← getOptions) then
+     traceSimpCall stx stats.usedTheorems
+   else if Linter.getLinterValue linter.unusedSimpArgs (← Linter.getLinterOptions) then
+@@ -814,6 +834,7 @@ def withSimpDiagnostics (x : TacticM Simp.Diagnostics) : TacticM Unit := do
+   match result? with
+   | none => replaceMainGoal []
+   | some mvarId => replaceMainGoal [mvarId]
++  recordSimpUsed stx stats.usedTheorems
+   if tactic.simp.trace.get (← getOptions) then
+     traceSimpCall stx stats.usedTheorems
+   else if Linter.getLinterValue linter.unusedSimpArgs (← Linter.getLinterOptions) then
+diff --git a/tests/elab/paraleanSimp.lean b/tests/elab/paraleanSimp.lean
+new file mode 100644
+index 0000000..e50868f
+--- /dev/null
++++ b/tests/elab/paraleanSimp.lean
+@@ -0,0 +1,40 @@
++import Lean
++
++/-!
++Paralean hook 4: with `LEAN_PARALEAN`, `simp` and `simp_all` record the declarations they used as a
++`SimpUsedInfo` info leaf, including `rfl` lemmas that do not appear in the proof term.
++-/
++open Lean Elab Command
++
++def f (n : Nat) : Nat := n + 0
++@[simp] theorem f_eq (n : Nat) : f n = n := rfl
++
++/-- `#simpUsed cmd` elaborates `cmd` and prints the `SimpUsedInfo` leaves of its info trees. -/
++elab "#simpUsed " cmd:command : command => do
++  let trees₀ := (← get).infoState.trees.size
++  elabCommand cmd
++  let trees := (← get).infoState.trees.toArray.extract trees₀
++  for t in trees do
++    t.visitM' (postNode := fun _ i _ => do
++      if let .ofCustomInfo ci := i then
++        if let some u := ci.value.get? Lean.Elab.Tactic.SimpUsedInfo then
++          logInfo m!"{u.names.qsort Name.lt}")
++
++/-- info: [eq_self, f_eq] -/
++#guard_msgs in
++#simpUsed theorem t1 (n : Nat) : f n = n := by simp
++
++/-- info: [eq_self, f_eq] -/
++#guard_msgs in
++#simpUsed theorem t2 (n : Nat) (h : f n = 3) : n = 3 := by simp_all
++
++/-- info: [eq_self, f, Nat.add_zero] -/
++#guard_msgs in
++#simpUsed theorem t3 (n : Nat) : f n = n := by simp only [f, Nat.add_zero]
++
++-- `f_eq` is proved by `rfl`, so it does not appear in the proof term of `t1`
++/-- info: false -/
++#guard_msgs in
++#eval return (match (← getEnv).find? `t1 with
++  | some (.thmInfo v) => v.value.getUsedConstants.contains `f_eq
++  | _ => true)
+diff --git a/tests/elab/paraleanSimp.lean.init.sh b/tests/elab/paraleanSimp.lean.init.sh
+new file mode 100644
+index 0000000..d4af703
+--- /dev/null
++++ b/tests/elab/paraleanSimp.lean.init.sh
+@@ -0,0 +1,2 @@
++# Paralean fork hooks on for this test (see src/Lean/Paralean/Mode.lean)
++export LEAN_PARALEAN=1
+-- 
+2.53.0
+

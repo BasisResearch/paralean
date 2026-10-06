@@ -1,0 +1,195 @@
+From f744c0edd80694bf81cf258c42b634475bb580cf Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 4/6] feat: Paralean hook 3, no axiom fallback after a kernel
+ failure
+
+With `noAxiomFallback`, `addDecl` does not re-add a declaration the kernel
+rejected as an axiom, so nothing later can depend on it. The test also covers the
+collector (hook 2).
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean/AddDecl.lean                     |   7 +-
+ tests/elab/paraleanCollector.lean         | 134 ++++++++++++++++++++++
+ tests/elab/paraleanCollector.lean.init.sh |   2 +
+ 3 files changed, 141 insertions(+), 2 deletions(-)
+ create mode 100644 tests/elab/paraleanCollector.lean
+ create mode 100644 tests/elab/paraleanCollector.lean.init.sh
+
+diff --git a/src/Lean/AddDecl.lean b/src/Lean/AddDecl.lean
+index 512ba0f..cfc121a 100644
+--- a/src/Lean/AddDecl.lean
++++ b/src/Lean/AddDecl.lean
+@@ -13,6 +13,7 @@ public import Lean.AutoDecl
+ import Lean.Linter.Init
+ import Lean.Compiler.MetaAttr
+ import Lean.Util.RecDepth
++import Lean.Paralean.Mode
+ import all Lean.OriginalConstKind  -- for accessing `privateConstKindsExt`
+ 
+ public section
+@@ -189,8 +190,10 @@ where
+             |> ofExceptKernelException
+           setEnv env
+         catch ex =>
+-          -- avoid follow-up errors by (trying to) add broken decl as axiom
+-          addAsAxiom
++          -- avoid follow-up errors by (trying to) add broken decl as axiom; Paralean keeps a
++          -- rejected declaration out of the kernel environment so nothing can depend on it
++          unless (← Paralean.getConfig).noAxiomFallback do
++            addAsAxiom
+           throw ex
+   addAsAxiom := do
+     -- try to add as axiom with given type for def/theorem
+diff --git a/tests/elab/paraleanCollector.lean b/tests/elab/paraleanCollector.lean
+new file mode 100644
+index 0000000..5ed09b9
+--- /dev/null
++++ b/tests/elab/paraleanCollector.lean
+@@ -0,0 +1,134 @@
++import Lean
++
++/-!
++Paralean hooks 2 and 3: the per-command declaration collector `Environment.addedDeclsSince` reports
++every declaration a command adds (auxiliary definitions and realizations included) once its kernel
++checks are done, and with `LEAN_PARALEAN` a declaration the kernel rejects is not re-added as an
++axiom, so later declarations cannot use it.
++-/
++open Lean Elab Command
++
++/-- `#collect cmd` elaborates `cmd` and lists the declarations it added. -/
++elab "#collect " cmd:command : command => do
++  let mark := (← getEnv).declMark
++  elabCommand cmd
++  let added ← (← getEnv).addedDeclsSince mark
++  for d in added do
++    logInfo m!"{d.info.name} realized={d.realized} checked={d.checked}"
++
++/--
++info: Pt realized=false checked=true
++---
++info: Pt.rec realized=false checked=true
++---
++info: Pt.mk realized=false checked=true
++---
++info: Pt.casesOn realized=false checked=true
++---
++info: Pt.recOn realized=false checked=true
++---
++info: Pt.ctorIdx realized=false checked=true
++---
++info: Pt.noConfusionType realized=false checked=true
++---
++info: Pt.noConfusion realized=false checked=true
++---
++info: Pt.mk.noConfusion realized=false checked=true
++---
++info: Pt._sizeOf_1 realized=false checked=true
++---
++info: Pt._sizeOf_inst realized=false checked=true
++---
++info: Pt.mk.sizeOf_spec realized=false checked=true
++---
++info: Pt.mk.inj realized=false checked=true
++---
++info: Pt.mk.injEq realized=false checked=true
++---
++info: Pt.x realized=false checked=true
++---
++info: Pt.y realized=false checked=true
++---
++info: Pt.mk._flat_ctor realized=false checked=true
++-/
++#guard_msgs in
++#collect structure Pt where
++  x : Nat
++  y : Nat
++
++-- well-founded recursion: auxiliary definitions, and `eq_def`-style realizations
++/--
++info: ack.match_1 realized=false checked=true
++---
++info: ack._unary._proof_1 realized=false checked=true
++---
++info: ack._unary._proof_2 realized=false checked=true
++---
++info: ack._unary._proof_3 realized=false checked=true
++---
++info: ack._unary._proof_4 realized=false checked=true
++---
++info: ack._unary._proof_5 realized=false checked=true
++---
++info: ack._unary realized=false checked=true
++---
++info: ack realized=false checked=true
++---
++info: ack._unsafe_rec realized=false checked=true
++---
++info: _private.elab.paraleanCollector.0.PSigma.casesOn._arg_pusher realized=true checked=true
++---
++info: _private.elab.paraleanCollector.0.ack.match_1.eq_1 realized=true checked=true
++---
++info: _private.elab.paraleanCollector.0.ack.match_1.eq_2 realized=true checked=true
++---
++info: _private.elab.paraleanCollector.0.ack.match_1.eq_3 realized=true checked=true
++---
++info: _private.elab.paraleanCollector.0.ack.match_1.splitter realized=true checked=true
++---
++info: _private.elab.paraleanCollector.0.ack.match_1._arg_pusher realized=true checked=true
++---
++info: ack._unary.eq_def realized=false checked=true
++---
++info: ack.eq_def realized=false checked=true
++-/
++#guard_msgs in
++#collect def ack : Nat → Nat → Nat
++  | 0, n => n + 1
++  | m + 1, 0 => ack m 1
++  | m + 1, n + 1 => ack m (ack (m + 1) n)
++  termination_by m n => (m, n)
++
++-- a consumer realizes `ack.eq_1`
++/--
++info: ack.eq_1 realized=true checked=true
++---
++info: ack.eq_2 realized=true checked=true
++---
++info: ack.eq_3 realized=true checked=true
++---
++info: ack_zero realized=false checked=true
++-/
++#guard_msgs in
++#collect theorem ack_zero (n : Nat) : ack 0 n = n + 1 := by rw [ack.eq_1]
++
++-- a theorem the kernel rejects: the collector marks it unchecked, and it is not an axiom
++/--
++error: (kernel) declaration type mismatch, 'bad' has type
++  True
++but it is expected to have type
++  False
++---
++info: bad realized=false checked=false
++-/
++#guard_msgs in
++#collect run_meta addDecl (.thmDecl { name := `bad, levelParams := [], type := mkConst ``False, value := mkConst ``True.intro })
++
++/-- info: kernel has bad: false -/
++#guard_msgs in
++run_cmd logInfo m!"kernel has bad: {((← getEnv).checked.get.find? `bad).isSome}"
++
++-- so a later declaration cannot depend on it
++/-- error: (kernel) unknown constant 'bad' -/
++#guard_msgs in
++theorem use_bad : False := bad
+diff --git a/tests/elab/paraleanCollector.lean.init.sh b/tests/elab/paraleanCollector.lean.init.sh
+new file mode 100644
+index 0000000..d4af703
+--- /dev/null
++++ b/tests/elab/paraleanCollector.lean.init.sh
+@@ -0,0 +1,2 @@
++# Paralean fork hooks on for this test (see src/Lean/Paralean/Mode.lean)
++export LEAN_PARALEAN=1
+-- 
+2.53.0
+

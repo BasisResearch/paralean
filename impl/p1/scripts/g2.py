@@ -42,9 +42,17 @@ def oracle(id_):
         rows.append(json.loads(line))
     return rows
 
-def oracle_spelling(m):
-    """Name of a P1 member as stock Lean spells it (canonical instance -> stock name)."""
-    return name(m["stock"]) if m.get("stock") else name(m["name"])
+def oracle_spelling(m, renamed=None):
+    """Name of a P1 member as stock Lean spells it (canonical instance -> stock name). With the
+    fork, deriving handlers name their auxiliaries after the instance (`instReprBox_<hex>.repr`);
+    `renamed` maps the group's canonical instance names to stock ones for those."""
+    if m.get("stock"):
+        return name(m["stock"])
+    n = name(m["name"])
+    for c, st in (renamed or {}).items():
+        if n.startswith(c + "."):
+            return st + n[len(c):]
+    return n
 
 cases = []  # (oracle id, store, file filter)
 core = work / "core" / "store"
@@ -69,7 +77,8 @@ for id_, store, ffilter in cases:
     reserved_pub = 0
     for g in groups:
         pubs = {name(n) for n in g["publicNames"]}
-        by_line[g["capsule"]["startLine"]] |= {oracle_spelling(m) for m in g["members"] if name(m["name"]) in pubs}
+        renamed = {name(m["name"]): name(m["stock"]) for m in g["members"] if m.get("stock")}
+        by_line[g["capsule"]["startLine"]] |= {oracle_spelling(m, renamed) for m in g["members"] if name(m["name"]) in pubs}
         for m in g["members"]:
             if m.get("stock"):
                 tot["canonical_instances"] += 1

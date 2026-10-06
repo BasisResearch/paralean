@@ -1,0 +1,149 @@
+### N1Sorry
+capture N1Sorry:N1Sorry.lean
+  decl 9d9b4e31 declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=493 REJECTED
+  => 0 groups, 1 skipped, 1 diagnostics (1 reject)
+  [reject:axiom] N1Sorry.lean:2: depends on disallowed axiom sorryAx
+exit=1
+  store: publishable objects 0 (published groups 0); audit objects 1
+### N2Axiom
+capture N2Axiom:N2Axiom.lean
+  decl 04c44fcc declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=107 REJECTED
+  decl a13bdd35 declaration L3 members=1 pub=1 realized=0 deps=1 fe=0 bytes=296 REJECTED
+  => 0 groups, 1 skipped, 4 diagnostics (4 reject)
+  [reject:axiom] N2Axiom.lean:2: depends on disallowed axiom N2.cheat
+  [reject:new-axiom] N2Axiom.lean:2: declares axiom N2.cheat
+  [reject:axiom] N2Axiom.lean:3: depends on disallowed axiom N2.cheat
+  [reject:rejected-dep] N2Axiom.lean:3: depends on rejected group 04c44fcc5787
+exit=1
+  store: publishable objects 0 (published groups 0); audit objects 2
+### N3SkipKernel
+capture N3SkipKernel:N3SkipKernel.lean
+  effect e25ec149 in L5 members=1 pub=1 realized=0 deps=0 fe=0 bytes=218 REJECTED
+  => 0 groups, 2 skipped, 1 diagnostics (1 reject)
+  [reject:bypass-option] N3SkipKernel.lean:5: option debug.skipKernelTC disables or weakens checking
+exit=1
+  store: publishable objects 0 (published groups 0); audit objects 1
+### N6NativeDecide
+capture N6NativeDecide:N6NativeDecide.lean
+  decl 3c8b4191 declaration L3 members=2 pub=1 realized=0 deps=0 fe=0 bytes=474 REJECTED
+  => 0 groups, 2 skipped, 2 diagnostics (2 reject)
+  [reject:axiom] N6NativeDecide.lean:3: depends on disallowed axiom N6.bad._native.native_decide.ax_1
+  [reject:new-axiom] N6NativeDecide.lean:3: declares axiom N6.bad._native.native_decide.ax_1
+exit=1
+  store: publishable objects 0 (published groups 0); audit objects 1
+### N3 audit: kernel re-check of the rejected group by the validator
+source replay: 1/1 groups reproduce their declaration ID (874 ms)
+kernel replay: 0/1 groups accepted; 0 declarations added, 0 reserved names re-realized (1 ms)
+  [reject:kernel] N3SkipKernel.lean:5: [N3.bad]: (kernel) declaration type mismatch, 'N3.bad' has type
+  1 = 1
+but it is expected to have type
+  1 = 2
+### N4ChangedTarget
+capture ref:N4Ref.lean
+  decl 6d525b3f declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=309
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+[{"typeHash":
+  "01e0d51951a1ca981566f4a26fd08562099e4d75c97e5de31282b37a6f457851",
+  "name": ["N4", "target"]}]
+capture N4:N4ChangedTarget.lean
+  decl 9f67aff1 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=497 REJECTED
+  => 0 groups, 1 skipped, 1 diagnostics (1 reject)
+  [reject:changed-target] N4ChangedTarget.lean:4: N4.target does not have the pinned statement 01e0d51951a1 (got ed8f83d20256)
+exit=1
+  store: publishable objects 0 (published groups 0); audit objects 1
+### N5ChangedDep
+capture N5:N5ChangedDep.lean
+  decl bb65ff79 declaration L3 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  decl 5e8a48a1 declaration L4 members=1 pub=1 realized=0 deps=1 fe=0 bytes=282
+  => 2 groups, 1 skipped, 0 diagnostics (0 reject)
+[{"typeHash":
+  "61aef0453f2f3ed7c93ec2670983e68d597756b2f83a8d5d22b3cc518b0c16a5",
+  "name": ["N5", "value_zero"]}]
+-- upstream revision value := 1, same file re-captured:
+capture N5:N5ChangedDep.lean
+  decl c64afc32 declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:40: error: Type mismatch
+  rfl
+has type
+  ?m.5 = ?m.5
+but is expected to have type
+  value = 0
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:8: error: Not a definitional equality: the left-hand side
+  value
+is not definitionally equal to the right-hand side
+  0
+  => 1 groups, 1 skipped, 2 diagnostics (2 reject)
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:40: error: Type mismatch
+  rfl
+has type
+  ?m.5 = ?m.5
+but is expected to have type
+  value = 0
+  [reject:elab-error] N5ChangedDep.lean:3: N5ChangedDep.lean:3:8: error: Not a definitional equality: the left-hand side
+  value
+is not definitionally equal to the right-hand side
+  0
+exit=1
+  store: publishable objects 3 (published groups 3); audit objects 0
+### version conflict (concurrent: ws1 and ws2 partitioned, then merged)
+capture ws1:C1.lean
+  decl 067ddd20 declaration L1 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+capture ws2:C2.lean
+  decl e69cdde1 declaration L1 members=1 pub=1 realized=0 deps=0 fe=0 bytes=170
+  => 1 groups, 1 skipped, 0 diagnostics (0 reject)
+capture ws3:Use.lean
+  [reject:elab-error] Use.lean:1: Use.lean:1:19: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  [reject:elab-error] Use.lean:1: Use.lean:1:30: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  => 0 groups, 1 skipped, 3 diagnostics (3 reject)
+  [reject:version-conflict] :0: public name Conf.foo has 2 concurrent heads: #[067ddd208061, e69cdde1c9b4]
+  [reject:elab-error] Use.lean:1: Use.lean:1:19: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+  [reject:elab-error] Use.lean:1: Use.lean:1:30: error(lean.unknownIdentifier): Unknown identifier `Conf.foo`
+exit=1
+export: 2 modules, 2 groups, 852 bytes of source
+  C1: 1 groups; imports #[]
+  C2: 1 groups; imports #[]
+  [reject:version-conflict] :0: Conf.foo defined by 067ddd208061 and e69cdde1c9b4
+export exit=1
+### duplicate instance (canonical instance names; concurrent ws1 and ws2, then merged)
+capture ws1:I1.lean
+  effect 0cdb8350 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 0b1d4295 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=353
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+capture ws2:I2.lean
+  effect d376b41b moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl eea0aa91 declaration L7 members=1 pub=1 realized=0 deps=0 fe=0 bytes=354
+  decl 099632b6 declaration L9 members=1 pub=1 realized=0 deps=0 fe=0 bytes=278
+  decl 98e4bc6b declaration L11 members=1 pub=1 realized=0 deps=0 fe=0 bytes=280
+  => 4 groups, 3 skipped, 0 diagnostics (0 reject)
+  099632b6af76: InstDup.instInhabitedULiftNat_2672ce46 (stock spelling InstDup.instInhabitedULiftNat_i2)
+  0b1d4295ec4f: InstDup.instInhabitedProdNatStringBool_91913918 (stock spelling InstDup.instInhabitedProdNatStringBool_i1)
+  98e4bc6bf3ff: InstDup.instInhabitedULiftNat_ad3bb490 (stock spelling InstDup.instInhabitedULiftNat_i2)
+  eea0aa916eea: InstDup.instInhabitedProdNatStringBool_91913918 (stock spelling InstDup.instInhabitedProdNatStringBool_i2)
+capture ws3:UseI.lean
+  effect fba513b6 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl f5ea8d3f declaration L2 members=1 pub=1 realized=0 deps=0 fe=0 bytes=392
+prelude: 4/4 groups replayed with identical declaration IDs
+  => 2 groups, 1 skipped, 1 diagnostics (1 reject)
+  [reject:version-conflict] :0: public name InstDup.instInhabitedProdNatStringBool_91913918 has 2 concurrent heads: #[0b1d4295ec4f, eea0aa916eea]
+exit=1
+export: 3 modules, 8 groups, 2952 bytes of source
+  I1: 2 groups; imports #[]
+  I2: 4 groups; imports #[]
+  UseI: 2 groups; imports #[]
+  [reject:version-conflict] :0: InstDup.instInhabitedProdNatStringBool_91913918 defined by 0b1d4295ec4f and eea0aa916eea
+export exit=1
+-- the same two files captured sequentially in one workspace:
+capture ws1:I1.lean
+  effect 0cdb8350 moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 0b1d4295 declaration L4 members=1 pub=1 realized=0 deps=0 fe=0 bytes=353
+  => 2 groups, 3 skipped, 0 diagnostics (0 reject)
+capture ws1:I2.lean
+  effect 62b0bf7b moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  [reject:elab-error] I2.lean:7: I2.lean:7:0: error: instance name collision: InstDup.instInhabitedProdNatStringBool_91913918 is already declared (a duplicate instance of the same type; canonical instance names never take a `_n` suffix)
+  decl 7261771a declaration L9 members=1 pub=1 realized=0 deps=0 fe=0 bytes=278
+  decl f08b28f7 declaration L11 members=1 pub=1 realized=0 deps=0 fe=0 bytes=280
+prelude: 2/2 groups replayed with identical declaration IDs
+  => 3 groups, 3 skipped, 1 diagnostics (1 reject)
+  [reject:elab-error] I2.lean:7: I2.lean:7:0: error: instance name collision: InstDup.instInhabitedProdNatStringBool_91913918 is already declared (a duplicate instance of the same type; canonical instance names never take a `_n` suffix)
+exit=1

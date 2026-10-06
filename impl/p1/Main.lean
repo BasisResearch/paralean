@@ -48,8 +48,15 @@ unsafe def main (args : List String) : IO UInt32 := do
     | some d => d
     | none => ((app.parent.bind (·.parent)).getD ".") / "lib" / "lean"
   initSearchPath sysroot [libDir]
-  -- process-wide elaborator hooks (no import into user environments)
-  if (← IO.getEnv "PARALEAN_NO_HOOKS").isNone then Hooks.install
+  -- On the Paralean fork the hooks are native (docs/p1-fork-hooks.md); otherwise, or with
+  -- PARALEAN_FORK_HOOKS=0, process-wide library hooks stand in for them (no import into user
+  -- environments). PARALEAN_NO_HOOKS disables both.
+  if (← IO.getEnv "PARALEAN_NO_HOOKS").isNone then
+    let u ← Fork.init
+    unless u.simp do Hooks.installSimp
+    unless u.instnames do InstName.install
+  else
+    Fork.setHooks {}
   enableInitializersExecution
   match args with
   | "capture" :: rest =>

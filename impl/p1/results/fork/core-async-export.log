@@ -1,0 +1,26 @@
+export: 19 modules, 103 groups, 30703 bytes of source
+  Fixtures.F01Theorem: 7 groups; imports #[]
+  Fixtures.F02Def: 7 groups; imports #[]
+  Fixtures.F03Structure: 7 groups; imports #[]
+  Fixtures.F04Inductive: 6 groups; imports #[]
+  Fixtures.F05Mutual: 5 groups; imports #[]
+  Fixtures.F06Structural: 6 groups; imports #[]
+  Fixtures.F07WellFounded: 5 groups; imports #[]
+  Fixtures.F08PrivateGenerated: 9 groups; imports #[]
+  Fixtures.F09InstanceOnly: 12 groups; imports #[]
+  Fixtures.F10SimpAttrDecl: 2 groups; imports #[Lean]
+  Fixtures.F10SimpAttrUse: 2 groups; imports #[]
+  Fixtures.F10SimpAttrUse.Part1: 4 groups; imports #[Fixtures.F10SimpAttrUse, Fixtures.F10SimpAttrDecl]
+  Fixtures.F11ScopedDecl: 8 groups; imports #[]
+  Fixtures.F11ScopedUse: 1 groups; imports #[]
+  Fixtures.F11ScopedUse.Part1: 3 groups; imports #[Fixtures.F11ScopedDecl, Fixtures.F11ScopedUse]
+  Fixtures.F12Macro: 11 groups; imports #[Lean]
+  Fixtures.F13InitDecl: 4 groups; imports #[Lean]
+  Fixtures.F13InitUse: 1 groups; imports #[]
+  Fixtures.F13InitUse.Part1: 3 groups; imports #[Fixtures.F13InitDecl, Fixtures.F13InitUse, Fixtures.F10SimpAttrDecl]
+stock lake build: OK (3474 ms)
+verify: 81/85 declaration groups identical in the stock-built oleans; 18 effect-only groups (build-checked)
+  [reject:export-mismatch] Fixtures/F10SimpAttrDecl.lean:4: stock-built group 5f2679c5c607 ≠ stored 31da7009bf11
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:6: stock-built group 5ab915b26522 ≠ stored 3e652944f7ad
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:8: stock-built group b678a03df925 ≠ stored c021e816bbaf
+  [reject:export-mismatch] Fixtures/F13InitDecl.lean:10: stock-built group 539f589531ed ≠ stored c372cfa908fd

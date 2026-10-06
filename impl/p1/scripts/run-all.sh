@@ -3,6 +3,8 @@
 # Usage: scripts/run-all.sh [WORKDIR] [--no-mathlib]
 # Defaults (scripts/env.sh): WORKDIR=$PARALEAN_RUNS/gate, binary impl/p1/.lake/build/bin/paralean,
 # Mathlib .deps/mathlib. Set everything up first with scripts/bootstrap.sh [--mathlib].
+# On the fork: PARALEAN_LEAN=fork PARALEAN_RESULTS=impl/p1/results/fork scripts/run-all.sh
+# (adds scripts/simp-cost.sh; PARALEAN_FORK_HOOKS selects fork hooks vs library workarounds).
 set -u
 source "$(dirname "$0")/env.sh"
 require_bin
@@ -18,7 +20,8 @@ if [ "$mathlib" = 1 ]; then require_mathlib; fi
 P="$PARALEAN_BIN"
 here="$P1_DIR"
 R="${PARALEAN_RESULTS:-$here/results}"; mkdir -p "$R" "$W"
-{ echo "host: $(uname -srm)"; echo "lean: $(lean --githash) ($ELAN_TOOLCHAIN)"; echo "date: $(date -u +%FT%TZ)"; } > "$R/run-env.txt"
+{ echo "host: $(uname -srm)"; echo "lean: $(lean --githash) (PARALEAN_LEAN=$PARALEAN_LEAN; $( [ "$PARALEAN_LEAN" = fork ] && echo "$PARALEAN_FORK_PREFIX" || echo "$ELAN_TOOLCHAIN"))"
+  echo "fork hooks: ${PARALEAN_FORK_HOOKS:-all available}"; echo "date: $(date -u +%FT%TZ)"; } > "$R/run-env.txt"
 "$here/scripts/run-core.sh" "$W/core" > "$R/core.log" 2>&1
 "$P" stats --store "$W/core/store" >> "$R/core.log" 2>&1
 # OPEN-14 experiment: the same export without the `Elab.async false` pin (stock async)
@@ -46,6 +49,10 @@ if [ "$mathlib" = 1 ]; then
 fi
 "$here/scripts/run-negative.sh" "$W/negative" > "$R/negative.log" 2>&1
 "$P" fasync --file "$here/fixtures/fasync/FAsync.lean" --store "$W/fasync" > "$R/fasync.log" 2>&1
+# fork only: native `simp` record (hook 4) against the library's dry-run replay
+if [ "$mathlib" = 1 ] && [ "$PARALEAN_LEAN" = fork ]; then
+  "$here/scripts/simp-cost.sh" "$W/simp-cost" > "$R/simp-cost.tsv" 2> "$R/simp-cost.err"
+fi
 python3 "$here/scripts/g2.py" "$W" > "$R/g2.txt" 2>&1
 python3 "$here/scripts/g4.py" "$W" > "$R/g4.txt" 2>&1
 python3 "$here/scripts/summarize.py" > /dev/null

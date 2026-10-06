@@ -1,8 +1,10 @@
 # P1: places where the fork needs a hook
 
-P1 runs on the stock nightly (`193c3589`) as a library, with no patches. Each item below
-is a workaround P1 uses today and the exact Lean source location where a fork hook would
-replace it. Paths are relative to `src/` of `.deps/lean4` at the pinned commit.
+P1 runs on the stock nightly (`193c3589`) as a library, with no patches, and on the Paralean
+fork of that commit ([fork/](../fork/README.md), commit `63380ffa`). The first two tables list
+each workaround P1 uses on stock Lean and the Lean source location a fork hook replaces. The
+last section lists what the fork implements and which workarounds P1 drops on it. Paths are
+relative to `src/` of the Lean checkout at the pinned commit.
 
 | # | Need | P1 workaround | Fork location |
 |---|---|---|---|
@@ -33,3 +35,24 @@ Residual G1 cases (2 of 1,225): both are `grind` calls (M03 `ascFactorial_eq_asc
 M16 `bicompl_map_eq_of_injective`). Their proof terms differ in isolation even with
 every same-file simp/grind-set lemma in the closure; the same-file prefix fixes them.
 Exact fix: hook 11 for `grind`.
+
+## Implemented in the fork (fork/, `63380ffa`)
+
+The fork carries five hooks, all off unless the process enables them (`LEAN_PARALEAN=1`, or
+`Lean.Paralean.setConfig`), so it behaves as stock Lean otherwise. impl/p1 detects the fork
+when it is compiled (`Paralean/Fork.lean`). It then uses each hook in place of its library
+workaround, per hook at run time (`PARALEAN_FORK_HOOKS`, default all). On stock Lean it keeps
+the workarounds. Results: [fork-log.md](fork-log.md).
+
+| fork hook | item above | Lean source (fork) | P1 workaround dropped on the fork |
+|---|---|---|---|
+| 1 `Elab.async` pinned off | 1, 4 | `Lean/Elab/Frontend.lean` `runFrontend`, `Lean/Server/FileWorker.lean` `setupFile`, `Lean/Elab/SetOption.lean` `elabSetOption` | none in the host (it already sets the option); exports and every `lean`/`lake` run with `LEAN_PARALEAN` are pinned by the frontend, not by a `set_option` line, and `set_option Elab.async true` is an error. Capture's `async-override` rejection stays as policy for source that names the option |
+| 2 per-command declaration collector | 2 | `Lean/Environment.lean` `Environment.declMark`, `Environment.addedDeclsSince` | the O(n) diff of `getLocalConstantInfos` per command (`Capture.runCommands`). It also reports provenance: constants created by `realizeConst` are flagged, which Lean's spelling classifier cannot see (`_arg_pusher`, `_unary.induct`; capture logs them as `note:provenance`) |
+| 3 no axiom fallback | 3 | `Lean/AddDecl.lean` `addDeclCore.doAdd` | reliance on later commands failing to encode a reference to an unpublished constant. A rejected declaration is not in the kernel environment, so a later declaration that uses it fails in the kernel. The collector marks it `checked = false` and capture rejects the command (`kernel-rejected`) |
+| 4 `simp` used-lemma record | 10 | `Lean/Elab/Tactic/Simp.lean` `recordSimpUsed` (from `evalSimp`, `evalSimpAll`) | `Hooks.recordingSimp`/`recordingSimpAll`, the dry-run replay of every `simp`/`simp_all` call on a full state snapshot |
+| 5 canonical instance names | 5, 14 | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | `InstName.canonicalInstanceElab`, which elaborated every anonymous instance twice. Derived instances are now canonical too, so the `instance-name-clash` check for `_n` derived names no longer fires for them, and exports build with `LEAN_PARALEAN=1` so the handlers regenerate the same names. Capture checks every name the fork chose against the library's computation (`instance-name-mismatch`) |
+
+Still workarounds on the fork: items 6–9, 11–13 (hygiene keyed by module, private names across
+segments, `initialize` in the same module, re-realization in a validator, lemma records for
+`simpa`/`dsimp`/`grind`, on-demand visibility, option provenance), and anonymous instances
+inside `mutual` blocks (stock names, `unsupported:noncanonical-instance`).

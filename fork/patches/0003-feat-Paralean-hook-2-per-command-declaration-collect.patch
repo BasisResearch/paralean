@@ -1,0 +1,87 @@
+From aafa3c0f3ca0eed574980e3209883e214e597f78 Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 3/6] feat: Paralean hook 2, per-command declaration collector
+
+`Environment.declMark` and `Environment.addedDeclsSince` report every declaration
+added on the current branch since a mark: each `addDecl` (auxiliary definitions and
+the synchronous path for inductives included) and each constant `realizeConst`
+brought in, flagged `realized`, with nested sub-declarations. It waits for
+`env.checked`, so `checked` (the kernel holds the constant with the same kind) is
+final. O(new declarations) instead of a diff of `getLocalConstantInfos`.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean/Environment.lean | 56 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 56 insertions(+)
+
+diff --git a/src/Lean/Environment.lean b/src/Lean/Environment.lean
+index 29dded6..dd047da 100644
+--- a/src/Lean/Environment.lean
++++ b/src/Lean/Environment.lean
+@@ -1227,6 +1227,62 @@ where
+         (acc, seen) ← go c.aconsts.get acc seen
+     return (acc, seen)
+ 
++/--
++A declaration added on the current environment branch, as reported by the Paralean declaration
++collector `Environment.addedDeclsSince`.
++-/
++structure AddedDecl where
++  /-- The constant as the elaborator sees it (private view). -/
++  info     : ConstantInfo
++  /-- Created by `realizeConst` (reserved provenance), in this command or replayed into it. -/
++  realized : Bool
++  /--
++  The kernel environment holds the constant with the same kind. It is `false` after a kernel
++  failure: stock `addDecl` then re-adds the declaration as an axiom, and with the Paralean hook
++  `noAxiomFallback` the kernel environment does not contain it at all.
++  -/
++  checked  : Bool
++deriving Inhabited
++
++/-- Mark of the constants added on the current branch so far, for `addedDeclsSince`. -/
++def declMark (env : Environment) : Nat :=
++  env.asyncConstsMap.private.size
++
++/--
++Paralean per-command declaration collector. Returns every declaration added on the current branch
++since `mark` (taken with `declMark` before the command), in addition order: each `addDecl`
++(including auxiliary definitions and the synchronous path for inductives and mutual blocks) and each
++constant `realizeConst` brought into the branch, followed by its nested asynchronous
++sub-declarations. Costs O(new declarations), unlike diffing `getLocalConstantInfos`.
++
++Blocks until every kernel task of the environment has finished (`env.checked`), so `checked` is
++final when it returns.
++-/
++partial def addedDeclsSince (env : Environment) (mark : Nat) : BaseIO (Array AddedDecl) := do
++  let aconsts := env.asyncConstsMap.private
++  let new := aconsts.revList.take (aconsts.size - mark) |>.reverse
++  let kenv := env.checked.get
++  let (acc, _) ← go aconsts kenv new false #[] {}
++  return acc
++where
++  go (top : AsyncConsts) (kenv : Kernel.Environment) (cs : List AsyncConst) (nested : Bool)
++      (acc : Array AddedDecl) (seen : NameSet) : BaseIO (Array AddedDecl × NameSet) := do
++    let mut acc := acc
++    let mut seen := seen
++    for c in cs do
++      let n := c.constInfo.name
++      -- a nested list can inherit sibling constants from before the mark (see
++      -- `getLocalConstantInfos`); those are top-level constants of this branch
++      if seen.contains n || (nested && (top.find? n).isSome) then continue
++      seen := seen.insert n
++      let info := c.constInfo.toConstantInfo
++      let checked := match kenv.find? n with
++        | some k => ConstantKind.ofConstantInfo k == ConstantKind.ofConstantInfo info
++        | none => false
++      acc := acc.push { info, realized := c.isRealized, checked }
++      (acc, seen) ← go top kenv c.aconsts.get.revList.reverse true acc seen
++    return (acc, seen)
++
+ def setMainModule (env : Environment) (m : Name) : Environment := Id.run do
+   let env := env.modifyCheckedAsync ({ · with
+     header.mainModule := m
+-- 
+2.53.0
+

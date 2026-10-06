@@ -1,0 +1,29 @@
+### M04 Mathlib.Data.Nat.MaxPowDiv
+capture M04:Mathlib/Data/Nat/MaxPowDiv.lean
+  effect f036657e moduleDoc L11 members=0 pub=0 realized=0 deps=0 fe=0 bytes=74
+  decl 0b1f9b56 declaration L27 members=11 pub=2 realized=4 deps=0 fe=0 bytes=8246
+  decl d3e31368 declaration L54 members=1 pub=1 realized=0 deps=1 fe=0 bytes=249
+  decl 139a2162 declaration L57 members=5 pub=1 realized=3 deps=1 fe=0 bytes=9950
+  decl b3ad36c4 declaration L73 members=1 pub=1 realized=1 deps=1 fe=0 bytes=1169
+  decl e7a092ba declaration L76 members=1 pub=1 realized=0 deps=2 fe=0 bytes=447
+  decl 2bd62cde declaration L80 members=1 pub=1 realized=1 deps=3 fe=0 bytes=704
+  decl 7b7d00ea declaration L83 members=1 pub=1 realized=0 deps=2 fe=2 bytes=446
+  decl 5354dda2 declaration L87 members=1 pub=1 realized=0 deps=3 fe=2 bytes=715
+  decl 8c69274c declaration L90 members=1 pub=1 realized=0 deps=1 fe=4 bytes=1045
+  decl 1f53f236 declaration L93 members=1 pub=1 realized=0 deps=3 fe=4 bytes=703
+  decl b19f539a declaration L96 members=3 pub=1 realized=0 deps=3 fe=6 bytes=1878
+  decl 39afa138 declaration L99 members=1 pub=0 realized=0 deps=0 fe=6 bytes=2492
+  => 13 groups, 4 skipped, 2 diagnostics (0 reject)
+  [note:provenance] Mathlib/Data/Nat/MaxPowDiv.lean:27: _private.Mathlib.Data.Nat.MaxPowDiv.0.PSigma.casesOn._arg_pusher was created by realizeConst but is not spelled as a reserved name
+  [note:provenance] Mathlib/Data/Nat/MaxPowDiv.lean:57: Nat.maxPowDvdDiv.go._unary.induct_unfolding was created by realizeConst but is not spelled as a reserved name
+capture-time 0.57 s maxrss 631888 KB
+source replay: 13/13 groups reproduce their declaration ID (509 ms)
+kernel replay: 13/13 groups accepted; 32 declarations added, 4 reserved names re-realized (17 ms)
+isolated replay (exact deps only): 13/13
+replay-time 2.09 s maxrss 631932 KB
+export: 1 modules, 13 groups, 6311 bytes of source
+  Mathlib.ParaleanExport.Data.Nat.MaxPowDiv: 13 groups; imports #[Mathlib.Data.Nat.Notation]
+stock lake build: OK (2017 ms)
+verify: 12/12 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-time 3.99 s maxrss 1254764 KB
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":1130,"median":306,"p95":1130,"sum":5970},"commandBytes":{"max":951,"median":127,"sum":3681},"diagnostics":[["note:provenance",2]],"encodingBytes":{"max":9950,"median":715,"sum":28118},"groups":13,"ratio":{"p50":2.409449,"p95":3.034091},"rejected":0,"skipped":4}

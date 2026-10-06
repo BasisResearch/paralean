@@ -1,6 +1,7 @@
 import Lean
 import Paralean.Replay
 import Paralean.Crdt
+import Paralean.Fork
 
 /-!
 Stock-Lean export.
@@ -318,7 +319,11 @@ def runBuild (out : FilePath) : IO (Bool × String × Nat) := do
   let lake ← match ← IO.getEnv "PARALEAN_LAKE" with
     | some l => pure l
     | none => pure ((← IO.getEnv "HOME").getD "" ++ "/.elan/bin/lake")
-  let r ← IO.Process.output { cmd := lake, args := #["build"], cwd := out }
+  -- On the fork the export builds in Paralean mode, so deriving handlers regenerate the
+  -- canonical instance names capture recorded (fork hook 5); otherwise it is a stock build.
+  let paraleanEnv := if (← Fork.use).instnames then some "1" else none
+  let r ← IO.Process.output { cmd := lake, args := #["build"], cwd := out,
+                              env := #[("LEAN_PARALEAN", paraleanEnv)] }
   let t1 ← IO.monoMsNow
   return (r.exitCode == 0, r.stdout ++ r.stderr, t1 - t0)
 

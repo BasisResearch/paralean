@@ -7,6 +7,7 @@ import Paralean.Hooks
 import Paralean.InstName
 import Paralean.Remote
 import Paralean.Crdt
+import Paralean.Fork
 
 /-!
 Command-granularity capture.
@@ -65,6 +66,10 @@ structure CmdResult where
   envBefore : Environment
   envAfter : Environment
   newConsts : Array ConstantInfo
+  /-- Fork collector only: constants created by `realizeConst` (provenance). -/
+  realizedNames : NameSet := {}
+  /-- Fork collector only: constants the kernel rejected (re-added as axioms by stock Lean). -/
+  unchecked : Array Name := #[]
   msgs : Array Message
   touched : Array (Name × Nat)
   trees : Array InfoTree
@@ -94,6 +99,8 @@ unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContex
     (parserState : Parser.ModuleParserState) (k : CmdResult → IO (Option Command.State)) :
     IO Command.State := do
   let pExts ← persistentEnvExtensionsRef.get
+  -- fork hook 2: the per-command collector replaces the O(n) diff of local constants
+  let collector := (← Fork.use).collector
   let rec loop (fuel : Nat) : FrontendM Unit := do
     match fuel with
     | 0 => throw <| IO.userError "runCommands: command limit exceeded"
@@ -101,14 +108,22 @@ unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContex
       let st0 ← getCommandState
       let before := st0.env
       let nMsgs := st0.messages.toArray.size
-      let localBefore ← before.getLocalConstantInfos
+      let mark := Fork.declMark before
+      let localBefore ← if collector then pure #[] else before.getLocalConstantInfos
       let done ← processCommand
       let st1 ← getCommandState
       let after := st1.env
       let stx := (← get).commands.back!
-      let localAfter ← after.getLocalConstantInfos
-      let bset : NameSet := localBefore.foldl (fun s c => s.insert c.name) {}
-      let newConsts := (localAfter.filter fun c => !bset.contains c.name).map (·.toConstantInfo)
+      let (newConsts, realizedNames, unchecked) ← if collector then do
+          -- complete only after the command's kernel tasks (`addedSince` waits for them)
+          let added ← Fork.addedSince after mark
+          pure (added.map (·.info),
+            added.foldl (fun s a => if a.realized then s.insert a.info.name else s) ({} : NameSet),
+            (added.filter (!·.checked)).map (·.info.name))
+        else do
+          let localAfter ← after.getLocalConstantInfos
+          let bset : NameSet := localBefore.foldl (fun s c => s.insert c.name) {}
+          pure ((localAfter.filter fun c => !bset.contains c.name).map (·.toConstantInfo), {}, #[])
       let msgs := st1.messages.toArray.extract nMsgs st1.messages.toArray.size
       let touched := touchedExts pExts before after
       let trees := st1.infoState.trees.toArray
@@ -117,7 +132,7 @@ unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContex
       let startPos := (stx.getPos? (canonicalOnly := true)).getD (← get).cmdPos |>.byteIdx
       let endPos := (stx.getTailPos? (canonicalOnly := true)).getD (← getParserState).pos |>.byteIdx
       k { stx, startPos, endPos, scopeBefore := st0.scopes.head!, scopesAfter := st1.scopes,
-          envBefore := before, envAfter := after, newConsts, msgs, touched, trees
+          envBefore := before, envAfter := after, newConsts, realizedNames, unchecked, msgs, touched, trees
           stateAfter := st1' } >>= fun
         | some st => setCommandState st
         | none => pure ()
@@ -347,9 +362,9 @@ def referencedConsts (trees : Array InfoTree) : NameSet := Id.run do
       | .ofTermInfo ti => match ti.expr with
         | .const n _ => acc.insert n
         | _ => acc
-      -- lemmas a `simp` call used (recorded by `Paralean.Hooks`)
-      | .ofCustomInfo ci => match ci.value.get? Hooks.SimpUsed with
-        | some u => u.names.foldl (·.insert ·) acc
+      -- lemmas a `simp` call used (recorded by fork hook 4, or by `Paralean.Hooks` on stock)
+      | .ofCustomInfo ci => match Fork.simpUsed? ci <|> (ci.value.get? Hooks.SimpUsed).map (·.names) with
+        | some names => names.foldl (·.insert ·) acc
         | none => acc
       | _ => acc
   return acc
@@ -370,6 +385,8 @@ Analyse one elaborated command. Returns the outcome and the updated session/file
 -/
 def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Option String := none) :
     IO (Session × FileCtx × Outcome) := do
+  -- canonical instance names the fork chose during this command (fork hook 5)
+  let forkNames ← Fork.takeChosen
   let env := r.envAfter
   let kind := r.stx.getKind
   let line := lineOf fc.fileMap r.startPos
@@ -383,6 +400,11 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     let mut ds := #[]
     for m in errs do ds := ds.push (mkDiag "reject" "elab-error" (← m.toString).trimAscii.toString)
     return (sess, fc, .failed ds)
+  -- fork hook 3: a declaration the kernel rejected is never published (stock Lean would have
+  -- re-added it as an axiom; the fork keeps it out of the kernel environment)
+  if !r.unchecked.isEmpty then
+    return (sess, fc, .failed #[mkDiag "reject" "kernel-rejected"
+      s!"the kernel rejected {r.unchecked.toList}"])
   let text := sliceBytes fc.input r.startPos r.endPos
   -- `remote%` elements and on-demand loads (name resolution): constants of published
   -- packages are dependencies, never members of this command's group.
@@ -471,8 +493,21 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
   -- are public: users can write them and two groups producing one collide. An anonymous
   -- `instance` is named canonically by `InstName` (no `_n`, no project suffix); the
   -- hook reports which names it chose, with the stock name for the G2 oracle.
-  let chosen := (← InstName.chosen.swap #[]).foldl (fun m (c, st) => m.insert c st)
-    ({} : Std.HashMap Name Name)
+  let libNames ← InstName.chosen.swap #[]
+  let chosen : Std.HashMap Name Name := if (← Fork.use).instnames then
+      forkNames.foldl (fun m c => m.insert c.canonical c.stock) {}
+    else libNames.foldl (fun m (c, st) => m.insert c st) {}
+  -- the fork's names must be byte-identical to this library's (`InstName.canonicalName`)
+  for c in forkNames do
+    let some ci := env.find? c.canonical <|> env.find? (mkPrivateName env c.canonical) | continue
+    -- in the command's namespace: the stock base name drops components that match it
+    let ctx : Core.Context := { fileName := fc.file, fileMap := fc.fileMap,
+                                currNamespace := r.scopeBefore.currNamespace,
+                                openDecls := r.scopeBefore.openDecls }
+    let (lib, _) ← ((InstName.canonicalName ci.type).run' {} {}).toIO ctx { env }
+    unless c.canonical.getPrefix ++ lib == c.canonical do
+      diags := diags.push (mkDiag "reject" "instance-name-mismatch"
+        s!"the fork named an instance {c.canonical}, the library computes {c.canonical.getPrefix ++ lib}")
   let anonInstCmd := (findNodes r.stx (·.getKind == ``Lean.Parser.Command.instance)).any (·[3].isNone)
   let derives :=
     !(findNodes r.stx fun s => s.getKind == ``Lean.Parser.Command.optDeriving && !s[0].isNone).isEmpty ||
@@ -510,6 +545,11 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     if isReservedName env n then
       realized := realized.push n
       continue
+    -- provenance cross-check (p0-interfaces.md §3.2): the collector knows which constants
+    -- `realizeConst` created; the spelling classifier above decides membership
+    if r.realizedNames.contains n then
+      diags := diags.push (mkDiag "note" "provenance"
+        s!"{n} was created by realizeConst but is not spelled as a reserved name")
     let user := privateToUserName n
     let hasPl := n.components.any fun c => match c with
       | .str .anonymous s => (plComponent? s).isSome | _ => false

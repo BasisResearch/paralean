@@ -8,6 +8,11 @@
 #      .deps/mathlib (or $PARALEAN_MATHLIB), its dependencies, and its .olean cache via
 #      `lake exe cache get`. No Mathlib build is started; if the cache does not cover the
 #      pin, the script stops and says so.
+# With PARALEAN_LEAN=fork (scripts/env.sh) the toolchain is the Paralean Lean fork built by
+# fork/build.sh instead of elan's, the fixtures (G4's reference build) are built with it without
+# Paralean mode, so their names stay stock as on the stock toolchain, and --mathlib builds only the dependency closure
+# of the corpus modules with the fork (the cache is for the stock toolchain), with $PARALEAN_JOBS
+# (default 12) and without Paralean mode, so Mathlib's own names stay stock.
 # Usage: impl/p1/scripts/bootstrap.sh [--mathlib]
 set -euo pipefail
 source "$(dirname "$0")/env.sh"
@@ -20,16 +25,26 @@ for a in "$@"; do
   esac
 done
 
-echo "## toolchain $PARALEAN_TOOLCHAIN"
-command -v elan >/dev/null 2>&1 || die "elan is not installed (https://github.com/leanprover/elan)"
-if ! lean --githash >/dev/null 2>&1; then
-  elan toolchain install "$PARALEAN_TOOLCHAIN"
+if [ "$PARALEAN_LEAN" = fork ]; then
+  echo "## toolchain: Paralean fork at $PARALEAN_FORK_PREFIX"
+  [ -x "$PARALEAN_FORK_PREFIX/bin/lean" ] || die "no fork build at $PARALEAN_FORK_PREFIX; run fork/build.sh"
+else
+  echo "## toolchain $PARALEAN_TOOLCHAIN"
+  command -v elan >/dev/null 2>&1 || die "elan is not installed (https://github.com/leanprover/elan)"
+  if ! lean --githash >/dev/null 2>&1; then
+    elan toolchain install "$PARALEAN_TOOLCHAIN"
+  fi
 fi
 require_toolchain
 echo "lean --githash = $(lean --githash) (pinned)"
 
-echo "## core fixtures (stock lake build)"
-(cd "$REPO/corpus/fixtures" && lake build)
+if [ "$PARALEAN_LEAN" = fork ]; then
+  echo "## core fixtures (fork lake build, Paralean mode off: stock names for the G4 reference)"
+  (cd "$REPO/corpus/fixtures" && env -u LEAN_PARALEAN lake build)
+else
+  echo "## core fixtures (stock lake build)"
+  (cd "$REPO/corpus/fixtures" && lake build)
+fi
 
 echo "## paralean binary"
 (cd "$P1_DIR" && lake build)
@@ -50,6 +65,17 @@ if [ "$want_mathlib" = 1 ]; then
   fi
   grep -q "nightly-2026-10-03" "$PARALEAN_MATHLIB/lean-toolchain" \
     || die "Mathlib's lean-toolchain ($(cat "$PARALEAN_MATHLIB/lean-toolchain")) is not the pinned nightly"
+  if [ "$PARALEAN_LEAN" = fork ]; then
+    # the corpus modules (they are also G4's axiom reference) and F16's imports, with their closure
+    targets="$(grep -E '^M[0-9]+' "$REPO/corpus/modules.txt" | awk '{print $2}' | tr '\n' ' ')"
+    targets="$targets $(sed -n 's/^import \(Mathlib[A-Za-z0-9_.]*\)$/\1/p' "$REPO/corpus/mathlib-fixtures/"*.lean | tr '\n' ' ')"
+    echo "## Mathlib closure with the fork: $targets"
+    (cd "$PARALEAN_MATHLIB" && env -u LEAN_PARALEAN LEAN_NUM_THREADS="${PARALEAN_JOBS:-12}" lake build $targets)
+    require_mathlib
+    echo "Mathlib closure ready (LEAN_PATH via 'lake env' in $PARALEAN_MATHLIB)"
+    echo "bootstrap: OK"
+    exit 0
+  fi
   # dependencies at the manifest's revisions, then the prebuilt .olean cache
   (cd "$PARALEAN_MATHLIB" && lake exe cache get)
   # verify the cache covers the corpus modules without building anything

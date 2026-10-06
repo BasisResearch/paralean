@@ -1,0 +1,135 @@
+From 5f558c19867cb7bcae13b92e7ebd449613cc0d8c Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 2/6] feat: Paralean hook 1, pin Elab.async off
+
+With `pinSync`, the command-line frontend (`runFrontend`) and the language server
+(`FileWorker` setup) force `Elab.async` to `false` instead of defaulting it to
+`true`, and `set_option Elab.async true` is an error in `elabSetOption`
+(`false` is accepted: it keeps the pin).
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean/Elab/Frontend.lean          |  6 ++++--
+ src/Lean/Elab/SetOption.lean         |  5 +++++
+ src/Lean/Server/FileWorker.lean      |  6 ++++--
+ tests/elab/paraleanSync.lean         | 26 ++++++++++++++++++++++++++
+ tests/elab/paraleanSync.lean.init.sh |  2 ++
+ 5 files changed, 41 insertions(+), 4 deletions(-)
+ create mode 100644 tests/elab/paraleanSync.lean
+ create mode 100644 tests/elab/paraleanSync.lean.init.sh
+
+diff --git a/src/Lean/Elab/Frontend.lean b/src/Lean/Elab/Frontend.lean
+index 2cc0668..71760ee 100644
+--- a/src/Lean/Elab/Frontend.lean
++++ b/src/Lean/Elab/Frontend.lean
+@@ -14,6 +14,7 @@ import Lean.Compiler.Options
+ import Lean.Compiler.InitAttr  -- for `runInitAttrsForModules` on snapshot load
+ import Lean.Linter.PersistentLintLog
+ import Lean.Util.ProfilerServer
++import Lean.Paralean.Mode
+ 
+ public section
+ 
+@@ -288,8 +289,9 @@ def runFrontend
+   -- default `cmdlineSnapshots` to true (not done as default value for API back-compat reasons)
+   -- except when full-snapshotting so that enough information for resumption is available
+   let opts := Lean.internal.cmdlineSnapshots.setIfNotSet opts incrSaveFileName?.isNone
+-  -- default to async elaboration; see also `Elab.async` docs
+-  let opts := Elab.async.setIfNotSet opts true
++  -- default to async elaboration; see also `Elab.async` docs. Paralean pins it off.
++  let opts ← if (← Paralean.getConfig).pinSync then pure (Elab.async.set opts false)
++    else pure (Elab.async.setIfNotSet opts true)
+   let ctx := { inputCtx with }
+   let setup stx := do
+     if let some setup := setup? then
+diff --git a/src/Lean/Elab/SetOption.lean b/src/Lean/Elab/SetOption.lean
+index 0db552d..4ec567c 100644
+--- a/src/Lean/Elab/SetOption.lean
++++ b/src/Lean/Elab/SetOption.lean
+@@ -8,6 +8,7 @@ module
+ prelude
+ public import Lean.Elab.InfoTree
+ public import Init.Syntax
++public import Lean.Paralean.Mode
+ 
+ public section
+ namespace Lean.Elab
+@@ -65,6 +66,10 @@ def elabSetOption (id : Syntax) (val : Syntax) : m (Options × OptionDecl) := do
+   pushInfoLeaf <| .ofOptionInfo { stx := id, optionName, declName := decl.declName }
+   let rec setOption (val : DataValue) : m (Options × OptionDecl) := do
+     validateOptionValue optionName decl val
++    if optionName == `Elab.async && val != .ofBool false &&
++        (← (Paralean.getConfig : EIO Exception _)).pinSync then
++      throwError "Invalid `set_option` command: `Elab.async` is pinned to `false` in Paralean mode \
++        (`LEAN_PARALEAN`)"
+     return ((← getOptions).set optionName val, decl)
+   match val.isStrLit? with
+   | some str => setOption (DataValue.ofString str)
+diff --git a/src/Lean/Server/FileWorker.lean b/src/Lean/Server/FileWorker.lean
+index cf8058a..f3ecc5d 100644
+--- a/src/Lean/Server/FileWorker.lean
++++ b/src/Lean/Server/FileWorker.lean
+@@ -22,6 +22,7 @@ public import Lean.Server.Completion.ImportCompletion
+ public import Lean.Server.CodeActions.UnknownIdentifier
+ 
+ import Init.Data.String.OrderInstances
++import Lean.Paralean.Mode
+ 
+ public section
+ 
+@@ -429,8 +430,9 @@ def setupImports
+   -- override cmdline options with file options
+   let opts := cmdlineOpts.mergeBy (fun _ _ fileOpt => fileOpt) setup.options.toOptions
+ 
+-  -- default to async elaboration; see also `Elab.async` docs
+-  let opts := Elab.async.setIfNotSet opts true
++  -- default to async elaboration; see also `Elab.async` docs. Paralean pins it off.
++  let opts ← if (← Paralean.getConfig).pinSync then pure (Elab.async.set opts false)
++    else pure (Elab.async.setIfNotSet opts true)
+ 
+   let opts := Elab.inServer.set opts true
+ 
+diff --git a/tests/elab/paraleanSync.lean b/tests/elab/paraleanSync.lean
+new file mode 100644
+index 0000000..8987129
+--- /dev/null
++++ b/tests/elab/paraleanSync.lean
+@@ -0,0 +1,26 @@
++import Lean
++
++/-!
++Paralean hook 1: with `LEAN_PARALEAN` set, the command-line frontend elaborates synchronously and
++`set_option Elab.async true` is an error (`false` keeps the pin and is accepted, so exported files
++that pin it build on stock Lean and on the fork alike).
++-/
++open Lean Elab Command
++
++run_cmd do
++  if Elab.async.get (← getOptions) then
++    throwError "Elab.async is on"
++
++/--
++error: Invalid `set_option` command: `Elab.async` is pinned to `false` in Paralean mode (`LEAN_PARALEAN`)
++-/
++#guard_msgs in
++set_option Elab.async true in
++example : True := trivial
++
++#guard_msgs in
++set_option Elab.async false
++
++/-- info: true -/
++#guard_msgs in
++#eval return (← Paralean.getConfig) == Paralean.Config.all
+diff --git a/tests/elab/paraleanSync.lean.init.sh b/tests/elab/paraleanSync.lean.init.sh
+new file mode 100644
+index 0000000..d4af703
+--- /dev/null
++++ b/tests/elab/paraleanSync.lean.init.sh
+@@ -0,0 +1,2 @@
++# Paralean fork hooks on for this test (see src/Lean/Paralean/Mode.lean)
++export LEAN_PARALEAN=1
+-- 
+2.53.0
+

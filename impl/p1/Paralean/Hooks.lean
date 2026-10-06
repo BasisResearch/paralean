@@ -72,11 +72,15 @@ def recordingSimpAll : Tactic := fun stx =>
     let (_, stats) ← simpAll (← getMainGoal) r.ctx (simprocs := r.simprocs)
     return usedDecls stats.usedTheorems
 
-/-- Install the hooks (call before any environment is created). -/
+/-- Install the `simp` used-lemma hook (call before any environment is created). -/
+def installSimp : IO Unit := do
+  tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simp `Paralean.Hooks.recordingSimp recordingSimp
+  tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simpAll `Paralean.Hooks.recordingSimpAll recordingSimpAll
+
+/-- Install every library hook (call before any environment is created). -/
 def install : IO Unit := do
   -- canonical names for anonymous instances (Paralean/InstName.lean)
   InstName.install
-  tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simp `Paralean.Hooks.recordingSimp recordingSimp
-  tacticElabAttribute.addBuiltin ``Lean.Parser.Tactic.simpAll `Paralean.Hooks.recordingSimpAll recordingSimpAll
+  installSimp
 
 end Paralean.Hooks

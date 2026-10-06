@@ -1,0 +1,7 @@
+  24 canonical instance name in output
+  16 other
+      elab/2044.lean elab/9463.lean elab/951.lean elab/derivingNonempty.lean elab/derivingReflBEq.lean elab/deriving_diamond_defeq.lean elab/grind_indexmap_trace.lean elab/grind_order_issue.lean elab/issue10678.lean elab/methodSpecs.lean elab/methodSpecsDeriving.lean elab/partial_fixpoint_probability.lean elab/pullInstancesDecidable.lean elab/reduceBEqSimproc.lean elab/structWithAlgTCSynth.lean elab_fail/defInst.lean
+  11 instance name collision
+   5 no axiom fallback (follow-up kernel error)
+   1 crash?
+      elab/decideNativePanic.lean

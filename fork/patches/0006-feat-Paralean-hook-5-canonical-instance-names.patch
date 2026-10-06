@@ -1,0 +1,692 @@
+From 63380ffaac81086e0a55feb6a45a763a619b092b Mon Sep 17 00:00:00 2001
+From: Kiran Gopinathan <kiran@basis.ai>
+Date: Tue, 6 Oct 2026 01:00:46 +0000
+Subject: [PATCH 6/6] feat: Paralean hook 5, canonical instance names
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+With `canonicalInstNames`, instances the elaborator names are named
+`<stock base without project suffix>_<first 8 hex of SHA-256("v0/insttype" NUL text(τ))>`
+for their final type τ, never deduplicated with `_n` (a clash is an error):
+
+* `instance` without a name (`elabDeclaration`): the name predicted from the
+  header is used, checked against the final type, and the command is elaborated
+  again only if they differ;
+* deriving handlers (`mkInstName`, `applyDerivingHandlers`): the handler runs
+  again under the canonical names if its instances' final types require it;
+* delta deriving (`processDefDeriving`).
+
+Every choice is logged with the stock name (`Lean.Paralean.takeInstNameLog`).
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+---
+ src/Lean.lean                             |   1 +
+ src/Lean/Elab/Declaration.lean            |  47 +++-
+ src/Lean/Elab/Deriving/Basic.lean         |  57 +++-
+ src/Lean/Elab/Deriving/Util.lean          |  12 +-
+ src/Lean/Paralean/InstName.lean           | 321 ++++++++++++++++++++++
+ tests/elab/paraleanInstNames.lean         | 107 ++++++++
+ tests/elab/paraleanInstNames.lean.init.sh |   2 +
+ 7 files changed, 544 insertions(+), 3 deletions(-)
+ create mode 100644 src/Lean/Paralean/InstName.lean
+ create mode 100644 tests/elab/paraleanInstNames.lean
+ create mode 100644 tests/elab/paraleanInstNames.lean.init.sh
+
+diff --git a/src/Lean.lean b/src/Lean.lean
+index 260f1f2..cd7ea93 100644
+--- a/src/Lean.lean
++++ b/src/Lean.lean
+@@ -52,3 +52,4 @@ public import Lean.OriginalConstKind
+ public import Lean.PostprocessTraces
+ public import Lean.Cadical
+ public import Lean.Paralean.Mode
++public import Lean.Paralean.InstName
+diff --git a/src/Lean/Elab/Declaration.lean b/src/Lean/Elab/Declaration.lean
+index 2b85bcc..692bfea 100644
+--- a/src/Lean/Elab/Declaration.lean
++++ b/src/Lean/Elab/Declaration.lean
+@@ -9,6 +9,7 @@ prelude
+ public import Lean.Elab.MutualDef
+ public import Lean.Elab.MutualInductive
+ import Lean.Compiler.ExternAttr
++import Lean.Paralean.InstName
+ 
+ public section
+ namespace Lean.Elab.Command
+@@ -157,13 +158,57 @@ def expandNamespacedDeclaration : Macro := fun stx => do
+     withRef declTk `(namespace $ns $(endLocalScopeSyntax depth):command $(⟨newStx⟩) end $ns)
+   | none => Macro.throwUnsupported
+ 
++/--
++Paralean hook 5: elaborates an `instance` without a name under its canonical name
++(`Lean.Paralean.canonicalInstanceName` of its final type). The name predicted from the header is
++used first; if the final type gives a different name, the command is elaborated again under that
++name. Commands whose stock name has macro scopes keep the stock name.
++-/
++private def elabCanonicalInstance (stx : Syntax) : CommandElabM Unit := do
++  let inst := stx[1]
++  let s0 ← get
++  let ns ← getCurrNamespace
++  let binders := inst[4][0].getArgs
++  let type := inst[4][1][1]
++  let stockId ← mkInstanceName binders type
++  if stockId.hasMacroScopes then
++    return (← elabMutualDef #[stx])
++  let predicted? ← Paralean.predictInstanceName binders type
++  let elabWith (id : Name) : CommandElabM Unit := do
++    let declId := mkNode ``Parser.Command.declId #[mkIdentFrom inst[1] id (canonical := true), mkNullNode]
++    elabMutualDef #[stx.setArg 1 (inst.setArg 3 (mkNullNode #[declId]))]
++  let numErrors := fun (s : Command.State) => s.messages.toList.filter (·.severity == .error) |>.length
++  -- first pass under the predicted name (the stock name if there is none or it is taken)
++  let env ← getEnv
++  let first := match predicted? with
++    | some p => if (Paralean.findDeclaredInstance? env (ns ++ p)).isSome then stockId else p
++    | none => stockId
++  elabWith first
++  let s1 ← get
++  if numErrors s1 > numErrors s0 then return
++  let some ci := Paralean.findDeclaredInstance? s1.env (ns ++ first) | return
++  let canon ← liftTermElabM <| Paralean.canonicalInstanceName ci.type
++  set s1
++  if canon == first then
++    Paralean.logInstName { canonical := ns ++ canon, stock := ns ++ stockId, passes := 1, derived := false }
++    return
++  -- second pass under the name of the final type
++  set s0
++  if (Paralean.findDeclaredInstance? (← getEnv) (ns ++ canon)).isSome then
++    Paralean.throwInstanceNameCollision inst[1] (ns ++ canon)
++  elabWith canon
++  Paralean.logInstName { canonical := ns ++ canon, stock := ns ++ stockId, passes := 2, derived := false }
++
+ @[builtin_command_elab declaration, builtin_incremental]
+ def elabDeclaration : CommandElab := fun stx => do
+   withExporting (isExporting := (← getScope).isPublic) do
+   let modifiers : TSyntax ``Parser.Command.declModifiers := ⟨stx[0]⟩
+   let decl     := stx[1]
+   let declKind := decl.getKind
+-  if isDefLike decl then
++  if declKind == ``Lean.Parser.Command.instance && decl[3].isNone &&
++      (← Paralean.getConfig).canonicalInstNames then
++    withoutCommandIncrementality true <| elabCanonicalInstance stx
++  else if isDefLike decl then
+     -- only case implementing incrementality currently
+     elabMutualDef #[stx]
+   else withoutCommandIncrementality true do
+diff --git a/src/Lean/Elab/Deriving/Basic.lean b/src/Lean/Elab/Deriving/Basic.lean
+index f4caf2b..89b45ad 100644
+--- a/src/Lean/Elab/Deriving/Basic.lean
++++ b/src/Lean/Elab/Deriving/Basic.lean
+@@ -10,6 +10,7 @@ public import Lean.Elab.App
+ public import Lean.Elab.DeclNameGen
+ import Lean.Compiler.NoncomputableAttr
+ import Lean.Meta.WrapInstance
++import Lean.Paralean.InstName
+ 
+ public section
+ 
+@@ -218,6 +219,13 @@ def processDefDeriving (view : DerivingClassView) (decl : Expr) (isNoncomputable
+             let env ← getEnv
+             let mut instName := (← getCurrNamespace) ++ (← NameGen.mkBaseNameWithSuffix "inst" preNormClosure.type)
+             instName ← liftMacroM <| mkUnusedBaseName instName
++            if (← Paralean.getConfig).canonicalInstNames && !instName.hasMacroScopes then
++              -- Paralean hook 5: the canonical name of the instance type, never deduplicated
++              let canon := (← getCurrNamespace) ++ (← Paralean.canonicalInstanceName preNormClosure.type)
++              if (Paralean.findDeclaredInstance? env canon).isSome then
++                Paralean.throwInstanceNameCollision (← getRef) canon
++              Paralean.logInstName { canonical := canon, stock := instName, passes := 1, derived := true }
++              instName := canon
+             if isPrivateName declName then
+               instName := mkPrivateName env instName
+             let isMeta := (← read).isMetaSection || isMarkedMeta (← getEnv) declName
+@@ -291,6 +299,53 @@ def registerDerivingHandler (className : Name) (handler : DerivingHandler) : IO
+     | some handlers => m.insert className (handler :: handlers)
+     | none => m.insert className [handler]
+ 
++/--
++Runs a deriving handler. With the Paralean hook `canonicalInstNames`, the instances it names through
++`mkInstName` get canonical names (`Lean.Paralean.canonicalInstanceName` of their final types): the
++handler first runs under the names `mkInstName` proposes, and if an instance's final type gives a
++different name, the state is restored and the handler runs again with those names.
++-/
++private def runDerivingHandler (handler : DerivingHandler) (typeNames : Array Name) :
++    CommandElabM Bool := do
++  unless (← Paralean.getConfig).canonicalInstNames do
++    return (← handler typeNames)
++  let s0 ← get
++  let outerLog ← Paralean.derivedInstNamesRef.swap #[]
++  let outerOverrides ← Paralean.derivedInstNameOverridesRef.get
++  let canonicalNames (recs : Array Paralean.DerivedInstName) :
++      CommandElabM (Array (Paralean.DerivedInstName × Name)) := do
++    let s ← get
++    let mut out := #[]
++    for r in recs do
++      let some ci := Paralean.findDeclaredInstance? (← getEnv) (r.ns ++ r.used) | continue
++      out := out.push (r, ← liftTermElabM <| Paralean.canonicalInstanceName ci.type)
++    set s
++    return out
++  try
++    if !(← handler typeNames) then
++      return false
++    let names ← canonicalNames (← Paralean.derivedInstNamesRef.swap #[])
++    if names.all fun (r, c) => r.used == c then
++      for (r, c) in names do
++        Paralean.logInstName { canonical := r.ns ++ c, stock := r.ns ++ r.stock, passes := 1, derived := true }
++      return true
++    set s0
++    for (r, c) in names do
++      if (Paralean.findDeclaredInstance? (← getEnv) (r.ns ++ c)).isSome then
++        Paralean.throwInstanceNameCollision (← getRef) (r.ns ++ c)
++    Paralean.derivedInstNameOverridesRef.set <|
++      names.foldl (fun m (r, c) => m.insert (r.className, r.indName) c) outerOverrides
++    let ok ← handler typeNames
++    for (r, c) in ← canonicalNames (← Paralean.derivedInstNamesRef.swap #[]) do
++      if r.used != c then
++        throwError "deriving handler named the instance {r.ns ++ r.used}, but its canonical name \
++          is {r.ns ++ c}"
++      Paralean.logInstName { canonical := r.ns ++ c, stock := r.ns ++ r.stock, passes := 2, derived := true }
++    return ok
++  finally
++    Paralean.derivedInstNamesRef.set outerLog
++    Paralean.derivedInstNameOverridesRef.set outerOverrides
++
+ def applyDerivingHandlers (className : Name) (typeNames : Array Name) (setExpose := false) : CommandElabM Unit := do
+   withScope (fun sc => { sc with
+     attrs := if setExpose then Unhygienic.run `(Parser.Term.attrInstance| expose) :: sc.attrs else sc.attrs
+@@ -303,7 +358,7 @@ def applyDerivingHandlers (className : Name) (typeNames : Array Name) (setExpose
+     match (← derivingHandlersRef.get).find? className with
+     | some handlers =>
+       for handler in handlers do
+-        if (← handler typeNames) then
++        if (← runDerivingHandler handler typeNames) then
+           return ()
+       throwError "None of the deriving handlers for class `{.ofConstName className}` applied to \
+         {.andList <| typeNames.toList.map (m!"`{.ofConstName ·}`")}"
+diff --git a/src/Lean/Elab/Deriving/Util.lean b/src/Lean/Elab/Deriving/Util.lean
+index 3d3bf9c..c764553 100644
+--- a/src/Lean/Elab/Deriving/Util.lean
++++ b/src/Lean/Elab/Deriving/Util.lean
+@@ -8,6 +8,7 @@ module
+ prelude
+ public import Lean.Elab.Command
+ import Lean.Elab.DeclNameGen
++import Lean.Paralean.InstName
+ 
+ public section
+ 
+@@ -91,6 +92,10 @@ structure Context where
+ 
+ /--
+ Anticipates the default instance name for a derived instance.
++
++With the Paralean hook `canonicalInstNames`, the name is recorded, and on the second run of the
++handler (see `applyDerivingHandlers`) it is replaced by the canonical name of the instance's final
++type.
+ -/
+ def mkInstName (className indName : Name) : TermElabM Name := do
+   let indVal ← getConstInfoInduct indName
+@@ -98,7 +103,12 @@ def mkInstName (className indName : Name) : TermElabM Name := do
+   let binders      ← mkImplicitBinders argNames
+   let indType      ← mkInductiveApp indVal argNames
+   let type         ← `($(mkCIdent className) $indType)
+-  NameGen.mkBaseNameWithSuffix' "inst" (binders.map (·.raw)) type
++  let stock ← NameGen.mkBaseNameWithSuffix' "inst" (binders.map (·.raw)) type
++  unless (← Paralean.getConfig).canonicalInstNames && !stock.hasMacroScopes do
++    return stock
++  let used := (← Paralean.derivedInstNameOverridesRef.get)[(className, indName)]?.getD stock
++  Paralean.derivedInstNamesRef.modify (·.push { className, indName, ns := ← getCurrNamespace, stock, used })
++  return used
+ 
+ def mkContext (className : Name) (fnPrefix : String) (typeName : Name) (supportsRec := true ): TermElabM Context := do
+   let indVal ← getConstInfoInduct typeName
+diff --git a/src/Lean/Paralean/InstName.lean b/src/Lean/Paralean/InstName.lean
+new file mode 100644
+index 0000000..d295430
+--- /dev/null
++++ b/src/Lean/Paralean/InstName.lean
+@@ -0,0 +1,321 @@
++/-
++Copyright (c) 2026 Basis Research Institute. All rights reserved.
++Released under Apache 2.0 license as described in the file LICENSE.
++-/
++module
++
++prelude
++public import Lean.Elab.DeclNameGen
++public import Lean.Paralean.Mode
++import Lean.Meta.Transform
++import Init.Data.String.Modify
++
++public section
++
++/-!
++# Canonical instance names (Paralean hook 5)
++
++With the Paralean hook `canonicalInstNames`, an instance the elaborator names (an `instance` without
++a name, a deriving handler's instance, a delta-derived instance) with final type `τ`, declared in
++namespace `ns`, is named
++
++    ns ++ (inst<Heads> ++ "_" ++ h)
++
++* `inst<Heads>` is Lean's head-symbol base name (`NameGen.mkBaseNameWithSuffix "inst" τ`) without
++  the project suffix and without `_n` deduplication;
++* `h` is the first 8 hex digits of SHA-256 over `"v0/insttype"`, a NUL byte and `canonTypeText τ`,
++  an injective text of `τ` that erases binder names and `mdata`, keeps binder kinds, numbers
++  universe parameters by first occurrence and spells constants by their module-independent identity
++  (`normName`).
++
++The name depends only on `ns` and `τ`. An existing declaration of that name is a collision and is
++reported, never renamed. This is docs/p0-interfaces.md §3.2 (OPEN-24) of Paralean; the
++computation is byte-for-byte the one of the Paralean prototype (`impl/p1/Paralean/InstName.lean`),
++which checks every name the fork chooses against its own.
++-/
++
++namespace Lean.Paralean
++open Elab Command Meta
++
++/-! ## SHA-256 (FIPS 180-4) -/
++
++namespace Sha256
++
++private def K : Array UInt32 := #[
++  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
++  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
++  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
++  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
++  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
++  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
++  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
++  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]
++
++@[inline] private def rotr (x : UInt32) (n : UInt32) : UInt32 := (x >>> n) ||| (x <<< (32 - n))
++
++private def compress (h : Array UInt32) (blk : ByteArray) (off : Nat) : Array UInt32 := Id.run do
++  let mut w : Array UInt32 := Array.mkEmpty 64
++  for i in [0:16] do
++    let b j := (blk.get! (off + 4*i + j)).toUInt32
++    w := w.push ((b 0 <<< 24) ||| (b 1 <<< 16) ||| (b 2 <<< 8) ||| b 3)
++  for i in [16:64] do
++    let s0 := rotr w[i-15]! 7 ^^^ rotr w[i-15]! 18 ^^^ (w[i-15]! >>> 3)
++    let s1 := rotr w[i-2]! 17 ^^^ rotr w[i-2]! 19 ^^^ (w[i-2]! >>> 10)
++    w := w.push (w[i-16]! + s0 + w[i-7]! + s1)
++  let mut a := h[0]!; let mut b := h[1]!; let mut c := h[2]!; let mut d := h[3]!
++  let mut e := h[4]!; let mut f := h[5]!; let mut g := h[6]!; let mut hh := h[7]!
++  for i in [0:64] do
++    let S1 := rotr e 6 ^^^ rotr e 11 ^^^ rotr e 25
++    let ch := (e &&& f) ^^^ ((~~~ e) &&& g)
++    let t1 := hh + S1 + ch + K[i]! + w[i]!
++    let S0 := rotr a 2 ^^^ rotr a 13 ^^^ rotr a 22
++    let maj := (a &&& b) ^^^ (a &&& c) ^^^ (b &&& c)
++    let t2 := S0 + maj
++    hh := g; g := f; f := e; e := d + t1; d := c; c := b; b := a; a := t1 + t2
++  return #[h[0]! + a, h[1]! + b, h[2]! + c, h[3]! + d, h[4]! + e, h[5]! + f, h[6]! + g, h[7]! + hh]
++
++/-- SHA-256 digest (32 bytes). -/
++def hash (msg : ByteArray) : ByteArray := Id.run do
++  let len := msg.size
++  let mut m := msg
++  m := m.push 0x80
++  while m.size % 64 != 56 do
++    m := m.push 0
++  let bits := (len * 8).toUInt64
++  for i in [0:8] do
++    m := m.push ((bits >>> (8 * (7 - i)).toUInt64).toUInt8)
++  let mut h : Array UInt32 := #[0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
++    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]
++  for blk in [0:m.size / 64] do
++    h := compress h m (64 * blk)
++  let mut out := ByteArray.emptyWithCapacity 32
++  for x in h do
++    out := out.push (x >>> 24).toUInt8 |>.push (x >>> 16).toUInt8 |>.push (x >>> 8).toUInt8
++      |>.push x.toUInt8
++  return out
++
++private def hexDigit (n : UInt8) : Char :=
++  if n < 10 then Char.ofNat (48 + n.toNat) else Char.ofNat (87 + n.toNat)
++
++/-- Lower-case hex digest. -/
++def hashHex (msg : ByteArray) : String := Id.run do
++  let mut s := ""
++  for x in hash msg do
++    s := s.push (hexDigit (x >>> 4)) |>.push (hexDigit (x &&& 0xf))
++  return s
++
++end Sha256
++
++/-! ## Module-independent spelling of constants -/
++
++/-- The `_pl_<gid>` relocation component of a Paralean-relocated name, if `s` is one. -/
++def plComponent? (s : String) : Option String :=
++  if s.startsWith "_pl_" then some (s.drop 4).toString else none
++
++/-- Module spelling inside `_aux_<M>___` macro names. -/
++def mangleModule (m : Name) : String :=
++  "_".intercalate (m.components.map fun c => c.toString (escape := false))
++
++private def moduleToSuffix : Name → String
++  | .anonymous => ""
++  | .num n _ => moduleToSuffix n
++  | .str n s => moduleToSuffix n ++ "_" ++ s.decapitalize
++
++/-- The suffix `mkBaseNameWithSuffix` appends for the project of `mainModule`. -/
++def projectSuffix (mainModule : Name) : String := moduleToSuffix mainModule.getRoot
++
++/--
++Module-independent identity of a constant name: no `_private.<M>.0` prefix, no `_pl_<gid>`
++components, macro scopes replaced by `_hyg`, and the module inside `_aux_<M>___` names replaced by
++`$M`.
++-/
++def normName (mainModule : Name) (n : Name) : Name :=
++  let n := privateToUserName n
++  let mm := mangleModule mainModule
++  let comps := n.components
++  let comps := match comps.findIdx? (· == Name.mkSimple "_@") with
++    | some i => comps.take i ++ [`_hyg]
++    | none => comps
++  let comps := comps.filter fun c => match c with
++    | .str .anonymous s => (plComponent? s).isNone
++    | _ => true
++  let comps := comps.map fun c => match c with
++    | .str .anonymous s =>
++      if s.startsWith "_aux_" then
++        Name.mkSimple (s.replace s!"_aux_{mm}___" "_aux_$M___")
++      else c
++    | _ => c
++  comps.foldl (fun acc c => match c with
++    | .str _ s => .str acc s
++    | .num _ k => .num acc k
++    | .anonymous => acc) .anonymous
++
++/-! ## Canonical type text and name -/
++
++/-- Number of hex digits of the type digest in a canonical instance name. -/
++def instHashDigits : Nat := 8
++
++/-- Domain tag of the type digest (OPEN-24: `H("v0/insttype", type)`). -/
++def instTypeDomainTag : String := "v0/insttype"
++
++private abbrev TextM := StateM (Std.HashMap Name Nat)
++
++private def levelText : Level → TextM String
++  | .zero => pure "0"
++  | .succ l => return s!"s({← levelText l})"
++  | .max a b => return s!"m({← levelText a},{← levelText b})"
++  | .imax a b => return s!"i({← levelText a},{← levelText b})"
++  | .param n => do
++    let m ← get
++    match m[n]? with
++    | some k => return s!"u{k}"
++    | none => set (m.insert n m.size); return s!"u{m.size}"
++  | .mvar _ => pure "?"
++
++private def binderTag : BinderInfo → String
++  | .default => "d" | .implicit => "i" | .strictImplicit => "s" | .instImplicit => "c"
++
++private def exprText (mainModule : Name) : Expr → TextM String
++  | .bvar i => return s!"b{i}"
++  | .fvar f => return s!"f({f.name})"
++  | .mvar _ => return "?"
++  | .sort l => return s!"S({← levelText l})"
++  | .const n ls => do
++    let ls ← ls.mapM levelText
++    return s!"C({(toString (normName mainModule n)).quote},[{",".intercalate ls}])"
++  | .app f a => return s!"A({← exprText mainModule f},{← exprText mainModule a})"
++  | .lam _ t b bi => return s!"L{binderTag bi}({← exprText mainModule t},{← exprText mainModule b})"
++  | .forallE _ t b bi =>
++    return s!"P{binderTag bi}({← exprText mainModule t},{← exprText mainModule b})"
++  | .letE _ t v b nd =>
++    return s!"Z{if nd then 1 else 0}({← exprText mainModule t},{← exprText mainModule v},{← exprText mainModule b})"
++  | .lit (.natVal n) => return s!"N{n}"
++  | .lit (.strVal s) => return s!"T{s.quote}"
++  | .mdata _ e => exprText mainModule e
++  | .proj s i e => return s!"J({(toString (normName mainModule s)).quote},{i},{← exprText mainModule e})"
++
++/--
++Injective text of a closed type: every constructor has its own tag and every variable-length field
++is delimited, so types that differ modulo binder names, `mdata` and universe-parameter renaming
++give different strings.
++-/
++def canonTypeText (mainModule : Name) (e : Expr) : String :=
++  (exprText mainModule e).run' {}
++
++/--
++Canonical name of an instance with final type `ty`, as one name component to be placed in the
++current namespace. Does not modify the state.
++-/
++def canonicalInstanceName (ty : Expr) : MetaM Name := withoutModifyingState do
++  let main ← getMainModule
++  let base ← NameGen.mkBaseNameWithSuffix "inst" ty
++  let mut s := base.eraseMacroScopes.toString (escape := false)
++  -- the project suffix depends on where the referenced constants live, i.e. on the environment;
++  -- the digest already distinguishes the types
++  let suf := projectSuffix main
++  if suf != "" && s.endsWith suf && s != "inst" ++ suf then
++    s := (s.dropEnd suf.length).toString
++  let text := canonTypeText main (← instantiateMVars ty)
++  let h := ((Sha256.hashHex (instTypeDomainTag ++ "\x00" ++ text).toUTF8).take instHashDigits).toString
++  return Name.mkSimple s!"{s}_{h}"
++
++/-! ## Record of the names chosen -/
++
++/-- An instance named canonically by this process. -/
++structure InstNameRecord where
++  /-- Declared name (namespace included, private prefix excluded). -/
++  canonical : Name
++  /-- The name stock Lean would have given it. -/
++  stock     : Name
++  /-- Elaborations of the command or deriving handler: 1 when the first name was already right. -/
++  passes    : Nat
++  /-- Named by a deriving handler (`mkInstName`) or delta deriving rather than an `instance`. -/
++  derived   : Bool
++  deriving Inhabited, Repr
++
++private builtin_initialize instNameLogRef : IO.Ref (Array InstNameRecord) ← IO.mkRef #[]
++
++/-- Records a canonical instance name. -/
++def logInstName (r : InstNameRecord) : BaseIO Unit := instNameLogRef.modify (·.push r)
++
++/-- Returns and clears the canonical instance names chosen since the last call. Hosts call it after
++each command. -/
++def takeInstNameLog : BaseIO (Array InstNameRecord) := instNameLogRef.swap #[]
++
++/--
++The constant an instance declared as `ns ++ n` was added as: `ns ++ n`, or its private version.
++-/
++def findDeclaredInstance? (env : Environment) (full : Name) : Option ConstantInfo :=
++  env.find? full <|> env.find? (mkPrivateName env full)
++
++/-- Error for an instance whose canonical name is already declared. -/
++def throwInstanceNameCollision {m α} [Monad m] [MonadError m] (ref : Syntax) (full : Name) : m α :=
++  throwErrorAt ref "instance name collision: {full} is already declared \
++    (a duplicate instance of the same type; canonical instance names never take a `_n` suffix)"
++
++/-- A name `Lean.Elab.Deriving.mkInstName` gave a deriving handler (canonical mode only). -/
++structure DerivedInstName where
++  className : Name
++  indName   : Name
++  /-- Namespace the instance is declared in. -/
++  ns        : Name
++  /-- The stock name (one component). -/
++  stock     : Name
++  /-- The name handed to the handler (one component). -/
++  used      : Name
++  deriving Inhabited
++
++/-- Names `mkInstName` handed out during the current deriving-handler run. -/
++builtin_initialize derivedInstNamesRef : IO.Ref (Array DerivedInstName) ← IO.mkRef #[]
++
++/-- Names `mkInstName` must hand out instead of the stock name, by (class, inductive type), during the
++second run of a deriving handler. -/
++builtin_initialize derivedInstNameOverridesRef : IO.Ref (Std.HashMap (Name × Name) Name) ←
++  IO.mkRef {}
++
++/-- `OfNat` cleanup that `elabHeaders` applies to instance types. -/
++private def cleanupOfNat (type : Expr) : MetaM Expr := do
++  Meta.transform type fun e => do
++    if !e.isAppOfArity ``OfNat 2 then return .continue
++    let arg ← instantiateMVars e.appArg!
++    if !arg.isAppOfArity ``OfNat.ofNat 3 then return .continue
++    let argArgs := arg.getAppArgs
++    if !argArgs[0]!.isConstOf ``Nat then return .continue
++    let eNew := mkApp e.appFn! argArgs[1]!
++    return .done eNew
++
++/--
++Predicts the canonical name of an anonymous `instance` with the given binders and type from its
++header alone, before the body is elaborated: the type closed over its binders, auto-bound implicits
++and the section variables the header mentions. The final type can differ (a section variable used
++only in the body, a universe fixed by the body); the caller checks the prediction after elaboration.
++Returns `none` if the header does not elaborate. Restores the command state.
++-/
++def predictInstanceName (binders : Array Syntax) (type : Syntax) : CommandElabM (Option Name) := do
++  let saved ← get
++  try
++    runTermElabM fun vars => predict vars <|> pure none
++  finally
++    set saved
++where
++  predict (vars : Array Expr) : TermElabM (Option Name) :=
++    Term.withAutoBoundImplicit <| Term.elabBinders binders fun binds => Term.withoutErrToSorry do
++      let ty ← Term.elabType type
++      Term.synthesizeSyntheticMVarsNoPostponing
++      let ty ← cleanupOfNat ty
++      let xs ← Term.addAutoBoundImplicits binds none
++      let t ← instantiateMVars (← mkForallFVars' xs ty)
++      let (_, used) ← t.collectFVars.run {}
++      -- instance-implicit section variables over included ones are usually used by the body
++      let mut used ← used.addDependencies
++      for v in vars do
++        let d ← v.fvarId!.getDecl
++        let (_, fs) ← d.type.collectFVars.run {}
++        if d.binderInfo.isInstImplicit && fs.fvarIds.all used.fvarSet.contains then
++          used := used.add v.fvarId!
++      let (_, _, secVars) ← removeUnused vars used
++      let t ← instantiateMVars (← Term.levelMVarToParam (← mkForallFVars secVars t))
++      if t.hasMVar || t.hasFVar then return none
++      return some (← canonicalInstanceName t)
++
++end Lean.Paralean
+diff --git a/tests/elab/paraleanInstNames.lean b/tests/elab/paraleanInstNames.lean
+new file mode 100644
+index 0000000..6e42cc6
+--- /dev/null
++++ b/tests/elab/paraleanInstNames.lean
+@@ -0,0 +1,107 @@
++import Lean
++
++/-!
++Paralean hook 5: with `LEAN_PARALEAN`, instances the elaborator names get canonical names
++`<stock base>_<8 hex of SHA-256("v0/insttype" NUL text(type))>`: anonymous `instance`s, deriving
++handlers (`mkInstName`) and delta deriving. Names never take a `_n` suffix; a second instance of
++the same type is a collision.
++-/
++open Lean Elab Command
++
++class Foo (α : Type) where foo : α
++instance : Foo Nat := ⟨0⟩
++instance [Foo α] : Foo (List α) := ⟨[Foo.foo]⟩
++
++-- stock Lean names these `instInhabitedULiftNat_elab` and `instInhabitedULiftNat_elab_1`, by order
++instance : Inhabited (ULift.{1} Nat) := ⟨⟨0⟩⟩
++instance : Inhabited (ULift.{2} Nat) := ⟨⟨1⟩⟩
++
++section
++variable {β : Type} [Foo β]
++-- the section variables are part of the type
++instance : Foo (Option β) := ⟨some Foo.foo⟩
++end
++
++inductive Color where
++  | red | green
++  deriving Repr, BEq, DecidableEq, Hashable, Ord
++
++structure Box (α : Type) where
++  val : α
++  deriving Repr, BEq
++
++def MyNat := Nat
++deriving instance Inhabited for MyNat
++
++/-- The instance names this file declared, sorted. -/
++def instNames : CommandElabM (Array Name) := do
++  let env ← getEnv
++  let names := (Meta.instanceExtension.getState env).instanceNames.toList.map (·.1)
++  return names.filter (fun n => (env.getModuleIdxFor? n).isNone && !n.isInternal) |>.toArray.qsort Name.lt
++
++/--
++info: [instBEqBox_da01943a,
++ instBEqColor_537e1cd8,
++ instDecidableEqColor_6d84891d,
++ instFooList_1a45524d,
++ instFooNat_4769696d,
++ instFooOption_bf4c1003,
++ instHashableColor_4d8304f7,
++ instInhabitedMyNat_4cb1727d,
++ instInhabitedULiftNat_2672ce46,
++ instInhabitedULiftNat_ad3bb490,
++ instOrdColor_8d3325d0,
++ instReprBox_3eee15de,
++ instReprColor_483d3a61]
++-/
++#guard_msgs in
++run_cmd logInfo m!"{← instNames}"
++
++-- deriving auxiliaries follow the canonical name
++/--
++info: @[instance_reducible] def instReprColor_483d3a61 : Repr Color :=
++{ reprPrec := instReprColor_483d3a61.repr }
++-/
++#guard_msgs in
++#print instReprColor_483d3a61
++
++-- a duplicate instance is a collision, not `instFooNat_4769696d_1`
++/--
++error: instance name collision: instFooNat_4769696d is already declared (a duplicate instance of the same type; canonical instance names never take a `_n` suffix)
++-/
++#guard_msgs in
++instance : Foo Nat := ⟨1⟩
++
++-- every choice is recorded for the host, with the stock name
++/--
++info: instBEqBox_da01943a stock=instBEqBox passes=2 derived=true
++---
++info: instBEqColor_537e1cd8 stock=instBEqColor passes=2 derived=true
++---
++info: instDecidableEqColor_6d84891d stock=instDecidableEqColor passes=1 derived=false
++---
++info: instFooList_1a45524d stock=instFooList passes=1 derived=false
++---
++info: instFooNat_4769696d stock=instFooNat passes=1 derived=false
++---
++info: instFooOption_bf4c1003 stock=instFooOption passes=1 derived=false
++---
++info: instHashableColor_4d8304f7 stock=instHashableColor passes=2 derived=true
++---
++info: instInhabitedMyNat_4cb1727d stock=instInhabitedMyNat passes=1 derived=true
++---
++info: instInhabitedULiftNat_2672ce46 stock=instInhabitedULiftNat_elab passes=1 derived=false
++---
++info: instInhabitedULiftNat_ad3bb490 stock=instInhabitedULiftNat_elab passes=1 derived=false
++---
++info: instOrdColor_8d3325d0 stock=instOrdColor passes=2 derived=true
++---
++info: instReprBox_3eee15de stock=instReprBox passes=2 derived=true
++---
++info: instReprColor_483d3a61 stock=instReprColor passes=2 derived=true
++-/
++#guard_msgs in
++run_cmd do
++  let log ← Paralean.takeInstNameLog
++  for r in log.qsort (fun a b => a.canonical.lt b.canonical) do
++    logInfo m!"{r.canonical} stock={r.stock} passes={r.passes} derived={r.derived}"
+diff --git a/tests/elab/paraleanInstNames.lean.init.sh b/tests/elab/paraleanInstNames.lean.init.sh
+new file mode 100644
+index 0000000..d4af703
+--- /dev/null
++++ b/tests/elab/paraleanInstNames.lean.init.sh
+@@ -0,0 +1,2 @@
++# Paralean fork hooks on for this test (see src/Lean/Paralean/Mode.lean)
++export LEAN_PARALEAN=1
+-- 
+2.53.0
+
