@@ -4,6 +4,7 @@ public import Lean
 public import Paralean.Store
 public import Paralean.Render
 public import Paralean.Sha256
+public import Paralean.Encode
 
 @[expose] public section
 
@@ -34,7 +35,13 @@ structure PubRecord where
   author : String
   deriving ToJson, FromJson, Inhabited, Repr, BEq
 
-def PubRecord.key (r : PubRecord) : String := Sha256.hashHex (toJson r).compress.toUTF8
+/-- ID of a publication record (p0-interfaces.md §11.1, domain `v0/marker`): the PCE record
+(package ID, file, anchor as an option of a package ID, Lamport time, author). -/
+def PubRecord.key (r : PubRecord) : String :=
+  let w : W := {}
+  let w := (w.id r.pid).str r.file
+  let w := if r.anchor == "" then w.byte 0 else (w.byte 1).id r.anchor
+  domainHash "v0/marker" ((w.uv r.lamport).str r.author).out
 
 def Store.putPub (s : Store) (r : PubRecord) : IO Unit := do
   IO.FS.createDirAll (s.root / "pubs")

@@ -41,7 +41,7 @@ The switch is not an option, so `set_option` in user source cannot change it.
 | 2 | per-command declaration collector | `Lean/Environment.lean` `Environment.declMark`, `Environment.addedDeclsSince` | always available (read-only). Every declaration added on the branch since a mark, in order, with `realized` (created by `realizeConst`) and `checked` (the kernel holds it with the same kind); waits for `env.checked` |
 | 3 | no axiom fallback | `Lean/AddDecl.lean` `addDeclCore.doAdd` | `noAxiomFallback`: a declaration the kernel rejects is not re-added as an axiom |
 | 4 | `simp` used-lemma record | `Lean/Elab/Tactic/Simp.lean` `recordSimpUsed`, called from `evalSimp`, `evalSimpAll` | `simpUsed`: a `Lean.Elab.Tactic.SimpUsedInfo` custom info leaf with the used declarations |
-| 5 | canonical instance names | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | `canonicalInstNames`: `<stock base without project suffix>_<first 8 hex of SHA-256("v0/insttype" NUL text(τ))>`, never `_n`; a clash is an error. `Lean.Paralean.takeInstNameLog` returns each choice with the stock name |
+| 5 | canonical instance names | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | `canonicalInstNames`: `<stock base without project suffix>_<first 8 hex of H("v0/insttype", text(τ))>` (§1.2: SHA-256 of `"paralean" NUL "v0/insttype" NUL ‖ PCE(text)`), never `_n`; a clash is an error. `Lean.Paralean.takeInstNameLog` returns each choice with the stock name |
 
 Hook 5 computes the name exactly as `impl/p1/Paralean/InstName.lean` does (same SHA-256, same
 type text, same `normName`). impl/p1 checks every name the fork chooses against its own
@@ -81,8 +81,8 @@ Not covered: anonymous instances inside `mutual` blocks (stock names; impl/p1 re
 | 0003 hook 2 | Environment | 56 / 0 | 0 |
 | 0004 hook 3 | AddDecl | 5 / 2 | 136 |
 | 0005 hook 4 | Tactic/Simp | 21 / 0 | 42 |
-| 0006 hook 5 | `Lean/Paralean/InstName.lean`, `Lean.lean`, Declaration, Deriving/Basic, Deriving/Util | 435 / 3 | 109 |
-| total | 12 files | 611 / 9 | 344 |
+| 0006 hook 5 | `Lean/Paralean/InstName.lean`, `Lean.lean`, Declaration, Deriving/Basic, Deriving/Util | 451 / 3 | 107 |
+| total | 12 files | 627 / 9 | 342 |
 
 `results/` holds the test-suite logs (default mode and Paralean mode) and their classification,
 and `tools/InstNameStats.lean` the instance-name statistics tool (docs/fork-log.md).

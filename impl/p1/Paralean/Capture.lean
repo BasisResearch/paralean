@@ -332,13 +332,19 @@ def reservedBase (env : Environment) (n : Name) : Option (Name × Name) :=
     | .str p s => if env.contains p then some (p, Name.mkSimple s) else none
     | _ => none
 
-/-- Package identity: declaration content + capsule + frontend dependencies. -/
+/-- Capsule identity (p0-interfaces.md §5, domain `v0/capsule`): `format`, the capsule (P1's
+JSON rendering of its fields) and the frontend dependencies as a set of package IDs. -/
+def capsuleId (c : Capsule) (feDeps : Array String) : String :=
+  let deps := (feDeps.qsort (· < ·)).toList.eraseDups.toArray
+  let w : W := {}
+  let w := (w.uv 0).str (toJson c).compress
+  let w := deps.foldl W.id (w.uv deps.size)
+  domainHash "v0/capsule" w.out
+
+/-- Package identity (§4.1): `H("v0/package", (groupID, capsuleID))`. -/
 def packageId (declId : String) (c : Capsule) (feDeps : Array String) : String :=
   let w : W := {}
-  let w := (w.str "paralean-package-v1").str declId
-  let w := w.str (toJson c).compress
-  let w := (feDeps.qsort (· < ·)).foldl W.str (w.nat feDeps.size)
-  Sha256.hashHex w.out
+  domainHash "v0/package" ((w.id declId).id (capsuleId c feDeps)).out
 
 /-- Elaborator and syntax-kind names used by the command (from its syntax and info trees). -/
 partial def frontendNames (stx : Syntax) (trees : Array InfoTree) : NameSet := Id.run do
