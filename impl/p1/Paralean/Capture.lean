@@ -629,7 +629,17 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
         unless t.typeHash == groupIdOf b do
           diags := diags.push (mkDiag "reject" "changed-target"
             s!"{m.info.name} does not have the pinned statement {t.typeHash.take 12} (got {(groupIdOf b).take 12})")
-  let encoded := encodeGroup baseId members (resolve 64) wire
+  -- A command without kernel members is identified by its frontend effect (§4 puts `effects`
+  -- in the group ID; P1 encodes no effects): its base string carries a digest of the command
+  -- text in its scope, so two different effect-only commands never share a group ID.
+  let gBase := if members.isEmpty then
+      let w : W := {}
+      let w := (w.str text).str (toString r.scopeBefore.currNamespace)
+      let opens := r.scopeBefore.openDecls.map renderOpen
+      let w := opens.foldl W.str (w.uv opens.length)
+      s!"{baseId};effects={domainHash "v0/effects" w.out}"
+    else baseId
+  let encoded := encodeGroup gBase members (resolve 64) wire
   let bytes ← match encoded with
     | .ok b => pure b
     | .error e => return (sess, fc, .failed (diags.push (mkDiag "reject" "encode" e)))

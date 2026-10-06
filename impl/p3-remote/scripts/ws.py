@@ -74,7 +74,11 @@ def publish(d, file):
         pkg = f'{p["group"]}:{p["capsule"]}'
         run([PLR, "stage", "--cache", cache(d), "--pkg", pkg], d)
         v = run([PLR, "validate", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"],
-                 "--validator", os.environ["PARALEAN_VALIDATOR"], "--pkg", pkg, "--deps", ",".join(p["deps"])], d)
+                 "--validator", os.environ["PARALEAN_VALIDATOR"], "--pkg", pkg, "--deps", ",".join(p["deps"])], d,
+                check=False)
+        if "error" in v:
+            # no receipt (refused, inconclusive): the group stays a draft
+            v = {"accepted": False, "reason": v["error"]}
         emit("validate", {"names": p["names"], "accepted": v["accepted"], "reason": v.get("reason", "")[:300], "ms": v.get("ms")})
         if not v["accepted"]:
             continue

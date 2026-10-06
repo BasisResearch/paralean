@@ -464,17 +464,20 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
         errs.modify (·.push s!"{file}:{pos.line}: {(← m.data.toString).take 300}")
     return none
   let env := st.env
-  let mut axioms : Std.HashMap Name (Array Name) := {}
-  let mut cache : Std.HashMap Name (Array Name) := {}
+  -- `#print axioms` of every constant of the file: Lean's `collectAxioms`, which follows
+  -- module-system interfaces of imports by provenance
+  let ctx : Core.Context := { fileName := "<check>", fileMap := default, maxHeartbeats := 0 }
+  let axiomsOf (n : Name) : IO (Array Name) := do
+    let (a, _) ← (Lean.collectAxioms (m := CoreM) n).toIO ctx { env }
+    return a
+  let mut axioms : Std.HashMap Name Nat := {}
   let mut localAxioms := #[]
-  let mut nConsts := 0
+  let mut nConsts : Nat := 0
   for aci in ← env.getLocalConstantInfos do
     let ci := aci.toConstantInfo
     nConsts := nConsts + 1
     if let .axiomInfo _ := ci then localAxioms := localAxioms.push ci.name
-    let (axs, c') := (axiomsOf env ci.name).run cache
-    cache := c'
-    for a in axs do axioms := axioms.insert a ((axioms.getD a #[]).push ci.name)
+    for a in ← axiomsOf ci.name do axioms := axioms.insert a (axioms.getD a 0 + 1)
   let mut placeholders := #[]
   for (a, _) in axioms.toList do
     if !allowedAxioms.contains a then placeholders := placeholders.push a
@@ -485,9 +488,9 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
     if m != env.mainModule then continue
     for (_, n) in ns do
       nLoaded := nLoaded + 1
-      for a in cache.getD n #[] do unless elemAxioms.contains a do elemAxioms := elemAxioms.push a
+      for a in ← axiomsOf n do unless elemAxioms.contains a do elemAxioms := elemAxioms.push a
   return Json.mkObj [("file", file), ("errors", toJson (← errs.get)), ("constants", nConsts),
-    ("axioms", toJson ((axioms.toArray.map (fun (a, us) => (a.toString, us.size))).qsort (·.1 < ·.1))),
+    ("axioms", toJson ((axioms.toArray.map (fun (a, k) => (a.toString, k))).qsort (·.1 < ·.1))),
     ("disallowedAxioms", toJson placeholders), ("localAxioms", toJson localAxioms),
     ("loadedConstants", toJson nLoaded), ("loadedAxioms", toJson elemAxioms)]
 
