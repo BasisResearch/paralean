@@ -103,6 +103,12 @@ impl Keys {
     pub fn token(&self, rank: u64) -> Vec<u8> {
         self.root.pack(&("token", rank))
     }
+    pub fn token_request(&self, request: &[u8]) -> Vec<u8> {
+        self.root.pack(&("treq", b(request)))
+    }
+    pub fn assign_request(&self, name: &Name, request: &[u8]) -> Vec<u8> {
+        self.root.pack(&("areq", b(&name.to_pce()), b(request)))
+    }
 }
 
 // ---------------------------------------------------------------- value envelope
@@ -164,12 +170,6 @@ pub fn envelope_object_id(v: &[u8]) -> Result<Id> {
     })
 }
 
-fn inline_bytes(v: &[u8]) -> Result<Vec<u8>> {
-    match Envelope::decode(v)? {
-        Envelope::Inline(s) => Ok(s),
-        Envelope::Blob { .. } => Err(StoreError::Invalid("unexpected blob for a small value".into())),
-    }
-}
 
 /// How an object key's value is laid out. Unsigned objects (markers, revisions,
 /// tombstones) use the envelope; signed objects (receipts, catalogue records, certificates)
@@ -455,11 +455,10 @@ impl Meta {
 
     // ============================================================ T3 rotate
 
-    /// Read-modify-write of `fence` (never an atomic add) and `token/<k+1>`. Resolution of an
-    /// unknown outcome (or a re-invocation with the same request): our request ID in any token
-    /// from the rank current at the first attempt (`start`) up to the fence.
+    /// Read-modify-write of `fence` (never an atomic add), writing `token/<k+1>` and the
+    /// request index `treq/<request>`. The index makes the effect recognisable by request
+    /// ID for any retry, including a late duplicate after other rotations.
     pub(crate) async fn t3_rotate(&self, request: Vec<u8>, holder: WorkspaceId, signer: crate::sign::Signer) -> Result<TokenRef> {
-        let start = self.fence().await?;
         let k = self.keys.clone();
         let request = Arc::new(request);
         self.run(
@@ -467,24 +466,22 @@ impl Meta {
             Box::new(move |trx| {
                 let (k, request, signer) = (k.clone(), request.clone(), signer.clone());
                 Box::pin(async move {
+                    if let Some(v) = get(trx, &k.token_request(&request)).await? {
+                        let rank = dec_u64(&v)?;
+                        let e = TokenEntry::from_pce(&get(trx, &k.token(rank)).await?.ok_or_else(|| {
+                            StoreError::Invalid(format!("request index names missing token {rank}"))
+                        })?)?;
+                        return Ok(Step::Done(e.token.body.token));
+                    }
                     let fence = match get(trx, &k.fence()).await? {
                         None => 0,
                         Some(v) => dec_u64(&v)?,
                     };
-                    if fence >= start.max(1) {
-                        let from = start.max(1);
-                        let r = range(trx, k.token(from), k.token(fence + 1), (fence - from + 1) as usize).await?;
-                        for kv in r.iter() {
-                            let e = TokenEntry::from_pce(kv.value())?;
-                            if e.request == *request {
-                                return Ok(Step::Done(e.token.body.token));
-                            }
-                        }
-                    }
                     let token = TokenRef { rank: fence + 1, holder };
                     let entry = TokenEntry { token: Token::sign(TokenBody { token }, &signer), request: (*request).clone() };
                     trx.set(&k.fence(), &enc_u64(fence + 1));
                     trx.set(&k.token(fence + 1), &entry.to_pce());
+                    trx.set(&k.token_request(&request), &enc_u64(fence + 1));
                     Ok(Step::Commit(token))
                 })
             }),
@@ -495,10 +492,10 @@ impl Meta {
     // ============================================================ T4 reassign
 
     /// Assign (create) or reassign a target name: `owner := new`, `epoch := epoch + 1`,
-    /// `head` unchanged. Resolution of an unknown outcome: the record's last request ID, or
-    /// our request in the grow-only `assign/<name>/<epoch>` log since `start`.
+    /// `head` unchanged. The record stores the last request ID (store.md); the grow-only
+    /// `assign/<name>/<epoch>` log and the index `areq/<name>/<request>` make the effect
+    /// recognisable for any retry, so a late duplicate never reverts a newer reassignment.
     pub(crate) async fn t4_reassign(&self, name: Name, owner: WorkspaceId, request: Vec<u8>) -> Result<u64> {
-        let start = self.target(&name).await?.map(|r| r.epoch);
         let k = self.keys.clone();
         let (name, request) = (Arc::new(name), Arc::new(request));
         self.run(
@@ -506,26 +503,12 @@ impl Meta {
             Box::new(move |trx| {
                 let (k, name, request) = (k.clone(), name.clone(), request.clone());
                 Box::pin(async move {
+                    if let Some(v) = get(trx, &k.assign_request(&name, &request)).await? {
+                        return Ok(Step::Done(dec_u64(&v)?));
+                    }
                     let tk = k.target(&name);
                     let cur = get(trx, &tk).await?.map(|v| TargetRecord::from_pce(&v)).transpose()?;
-                    let next = match &cur {
-                        None => 0,
-                        Some(r) => {
-                            if r.last_request == *request {
-                                return Ok(Step::Done(r.epoch));
-                            }
-                            let from = start.map(|e| e).unwrap_or(0);
-                            let log = range(trx, k.assign(&name, from), k.assign(&name, r.epoch + 1), 1 << 20).await?;
-                            for kv in log.iter() {
-                                if AssignEntry::from_pce(kv.value())?.request == *request {
-                                    let (_, _, epoch): (String, Bytes, u64) =
-                                        k.root.unpack(kv.key()).map_err(|e| StoreError::Invalid(e.to_string()))?;
-                                    return Ok(Step::Done(epoch));
-                                }
-                            }
-                            r.epoch + 1
-                        }
-                    };
+                    let next = cur.as_ref().map(|r| r.epoch + 1).unwrap_or(0);
                     let rec = TargetRecord {
                         name: (*name).clone(),
                         owner,
@@ -535,6 +518,7 @@ impl Meta {
                     };
                     trx.set(&tk, &rec.to_pce());
                     trx.set(&k.assign(&name, next), &AssignEntry { owner, request: (*request).clone() }.to_pce());
+                    trx.set(&k.assign_request(&name, &request), &enc_u64(next));
                     Ok(Step::Commit(next))
                 })
             }),
