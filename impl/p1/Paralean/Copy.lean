@@ -494,4 +494,30 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
     ("disallowedAxioms", toJson placeholders), ("localAxioms", toJson localAxioms),
     ("loadedConstants", toJson nLoaded), ("loadedAxioms", toJson elemAxioms)]
 
+/-! ## Export -/
+
+/-- Export the copy's published state (every live element and its dependency closure) to a
+clean Lake package, build it with the pinned Lean, and re-encode every group from the built
+modules. `remote%` never appears in the export: elements are written from their capsules. -/
+unsafe def export_ (dir : FilePath) (out : FilePath) (log : String → IO Unit) : IO Json := do
+  let v ← Remote.view
+  let cache : Store := { root := dir / "cache" }
+  let roots := (v.known.markers.filter fun m => v.live.contains m.group).map (·.pid)
+  let cat ← Catalog.ofStore cache roots
+  for gid in cat.order do discard <| P3.payload cache.root (cat.get! gid).declId
+  let mathlib? := (← IO.getEnv "PARALEAN_MATHLIB").map FilePath.mk
+  let cat' := { cat with metas := cat.metas.fold (fun m k g => m.insert k (renamedGroup v.renames g)) {} }
+  let (plan, bytes) ← writeExport cat' cat'.order out mathlib? v.renames
+  log s!"export: {plan.modules.size} modules ({plan.modules.map (·.name)}), {cat.order.size} groups, {bytes} bytes"
+  let rejects := plan.diags.filter (·.severity == "reject")
+  if !rejects.isEmpty then
+    return Json.mkObj [("ok", false), ("diags", toJson (rejects.map toString))]
+  let (ok, buildLog, ms) ← runBuild out
+  if !ok then
+    return Json.mkObj [("ok", false), ("build", buildLog.take 2000 |>.toString)]
+  let (nv, ne, ds) ← verifyExport cat' plan out v.renames
+  return Json.mkObj [("ok", nv + ne == cat.order.size), ("modules", toJson (plan.modules.map (·.name.toString))),
+    ("groups", cat.order.size), ("identical", nv), ("effectOnly", ne), ("buildMs", ms), ("bytes", bytes),
+    ("diags", toJson (ds.map toString))]
+
 end Paralean.Copy

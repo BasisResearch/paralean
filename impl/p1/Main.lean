@@ -13,7 +13,7 @@ def usage : String := "usage:
   paralean fasync --file FAsync.lean --store DIR
   paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
            ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] FILE... |
-           ws-delete --dir D --file F --name N | ws-check --dir D FILE...
+           ws-delete --dir D --file F --name N | ws-check --dir D FILE... | ws-export --dir D --out DIR
            (working copies, P3; PARALEAN_STORE = D/cache; see impl/p3-remote/scripts/ws.sh)
 "
 
@@ -368,6 +368,12 @@ unsafe def main (args : List String) : IO UInt32 := do
     let some f := flags["file"]? | IO.eprintln usage; return 2
     let some n := flags["name"]? | IO.eprintln usage; return 2
     IO.println (← Copy.delete dir f n.toName).compress
+    return 0
+  | "ws-export" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some out := flags["out"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.export_ dir out (log := IO.eprintln)).compress
     return 0
   | "ws-check" :: rest =>
     let (flags, files) := parseFlags rest

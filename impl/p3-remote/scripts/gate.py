@@ -368,6 +368,12 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
     # ------------------------------------------------------------ 6: forged remote%
     forgery(alice, bob, carol, rogue)
 
+    # ------------------------------------------------------------ clean export (plan's P3 gate)
+    ex = sh([BIN, "ws-export", "--dir", alice.dir, "--out", os.path.join(R, "alice-export")], env=alice.env(), check=False)
+    exj = json.loads(ex.stdout.strip().splitlines()[-1]) if ex.stdout.strip() else {"ok": False, "err": ex.stderr[-500:]}
+    result("clean export of a copy (stock build, groups re-encoded identically)", exj.get("ok"),
+           modules=exj.get("modules"), groups=exj.get("groups"), identical=exj.get("identical"), build_ms=exj.get("buildMs"))
+
     # ------------------------------------------------------------ no placeholder axiom anywhere
     copies = (alice, bob, carol, snap_copy(), *observers)
     axioms = {}
