@@ -144,9 +144,10 @@ process.
 
 ## Gate results
 
-`impl/p3-remote/scripts/gate.py RUNDIR` ran on 2026-10-06. All checks passed in 112.5 s on
-deployment `p3gate1791330190`. Results are in `impl/p3-remote/results/gate.json` and
-`gate.log`.
+`impl/p3-remote/scripts/gate.py RUNDIR` ran on 2026-10-07 with the final build of this
+branch. All checks passed in 64.9 s on deployment `p3gate1791332399`. Results are in
+`impl/p3-remote/results/gate.json` and `gate.log`. Earlier runs with the same scenario
+also passed (gate3 to gate5).
 
 There are nine working copies in separate directories, each driven by separate processes:
 
@@ -189,7 +190,7 @@ There is one validator service (`paralean-p3 validator`, fork mode).
 - *Old snapshot.* bob committed a checkpoint (P2 T3/T5: snapshot, manifests, fenced
   catalogue record and certificates) before the revision. Afterwards a fresh copy recovers
   that catalogue record with `plr snapshot-get` (P2 `recover_catalog`). It fetches the
-  6 groups (21 KB in 89 ms), renders the old `A.lean`/`B.lean` (with `Cross.size := 3`)
+  6 groups (21 KB in 21 ms), renders the old `A.lean`/`B.lean` (with `Cross.size := 3`)
   and elaborates both with no errors.
 
 **Item 6 in detail** (`gate.json` → `6`):
@@ -217,27 +218,28 @@ validator rejects its source replay.
 ### Gate run (fixture-sized declarations)
 
 Medians over all processes of the run (`impl/p3-remote/results/gate-costs.json`). Each step
-is a whole process, including Lean or Rust start-up and the FDB/S3 client set-up; the box
-was shared with other agents' runs.
+is a whole process, including Lean or Rust start-up and the FDB/S3 client set-up. The box
+was shared with other agents' runs; an earlier run under heavier load (load average about
+60 on 32 cores) took 1.5–3× longer per step.
 
 | Step | n | median | p95 |
 |---|---|---|---|
-| `plr validate` (envelope, validator replay of the closure, receipt) | 17 | 434 ms | 499 ms |
-| `plr publish` (T1) | 15 | 85 ms | 116 ms |
-| `plr stage` (payload + capsule to S3) | 17 | 65 ms | 125 ms |
-| `plr pull` | 109 | 73 ms | 131 ms |
-| `paralean ws-capture` | 13 | 1.10 s | 1.30 s |
-| `paralean ws-plan` | 17 | 102 ms | 182 ms |
-| `paralean ws-sync` | 83 | 114 ms | 193 ms |
-| `paralean ws-check` (elaborate a working file, `collectAxioms` of every constant) | 42 | 1.12 s | 1.41 s |
-| `remote%` load, theorem with fetched proof | 146 | 4 ms | 95 ms |
-| `remote%` load, elaborated group | 24 | 2 ms | 3 ms |
+| `plr validate` (envelope, validator replay of the closure, receipt) | 17 | 282 ms | 333 ms |
+| `plr publish` (T1) | 15 | 23 ms | 55 ms |
+| `plr stage` (payload + capsule to S3) | 17 | 17 ms | 20 ms |
+| `plr pull` | 109 | 20 ms | 49 ms |
+| `paralean ws-capture` | 13 | 664 ms | 742 ms |
+| `paralean ws-plan` | 17 | 68 ms | 78 ms |
+| `paralean ws-sync` | 83 | 74 ms | 89 ms |
+| `paralean ws-check` (elaborate a working file, `collectAxioms` of every constant) | 42 | 665 ms | 745 ms |
+| `remote%` load, theorem with fetched proof | 146 | 3 ms | 30 ms |
+| `remote%` load, elaborated group | 24 | 1 ms | 2 ms |
 | content check against the payload | 170 | 0 ms | 1 ms |
 
 | Transfer | n | total | median per transfer |
 |---|---|---|---|
-| metadata per pull (markers, revisions, receipts, envelopes, capsules) | 82 pulls | 299 KB | 2.9 KB in 17.6 ms |
-| payload fetched by `remote%` | 62 | 22 KB | 360 B in 4.1 ms |
+| metadata per pull (markers, revisions, receipts, envelopes, capsules) | 82 pulls | 299 KB | 2.9 KB in 9.8 ms |
+| payload fetched by `remote%` | 62 | 22 KB | 360 B in 1.2 ms |
 | staged payloads / capsules | 18 / 18 | 6.0 KB / 21.9 KB | 352 B / 1.2 KB |
 
 Per published group, the metadata a reader pulls (about 3 KB, mostly the capsule) is
@@ -246,7 +248,101 @@ element.
 
 ### Mathlib corpus
 
-CORPUS_RESULTS
+`corpus-cost.py` and `consumer-recheck.py` ran on the seven Mathlib modules that the
+prototype measured (results in `impl/p3-remote/results/costs.{tsv,json}` and
+`recheck.json`). They used one deployment, the fork, and the Mathlib build of
+`.deps/mathlib-fork`.
+
+Per module:
+
+1. alice captures the module's source as one shared file and publishes every group through
+   the store (stage, job envelope, validator, T1), one group at a time.
+2. A fresh copy, bob, pulls the records (metadata only).
+3. bob elaborates the all-`remote%` projection, fetching payloads on demand.
+
+**Publication.** All 993 groups were published and the validator rejected none.
+
+| | M14 | M03 | M15 | M13 | M16 | M01 | M18 | total |
+|---|---|---|---|---|---|---|---|---|
+| groups published | 50 | 83 | 56 | 115 | 211 | 213 | 265 | 993 |
+| publish wall time (s) | 92 | 156 | 173 | 209 | 800 | 639 | 927 | 2994 |
+| validation per group, mean (s) | 1.39 | 1.39 | 2.34 | 1.21 | 2.91 | 1.76 | 1.98 | |
+| T1 per group, mean (ms) | 109 | 132 | 156 | 87 | 117 | 120 | 103 | |
+
+Each group costs about 3 s end to end on a shared, loaded box. Most of that is the
+validator's job: a fresh `paralean check-group` process that imports Mathlib and replays
+the group's closure. T1 is about 0.1 s.
+
+**Consumer: elaborating the projection** (`consumer-recheck.py`, final build). Both sides
+were elaborated by the same host process. Times are commands only, import excluded, best of
+two runs. The audit (`collectAxioms` of every constant) is reported separately.
+
+| | M14 | M03 | M15 | M13 | M16 | M01 | M18 | total |
+|---|---|---|---|---|---|---|---|---|
+| all-`remote%` projection (s) | 1.14 | 1.59 | 3.20 | 3.12 | 3.59 | 4.45 | 4.49 | 21.58 |
+| original source, same host (s) | 0.64 | 1.29 | 1.29 | 1.85 | 1.71 | 2.16 | 1.57 | 10.49 |
+| ratio | 1.79 | 1.23 | 2.49 | 1.68 | 2.11 | 2.06 | 2.87 | **2.06** |
+| theorems loaded with fetched proofs | 6 | 70 | 22 | 66 | 155 | 137 | 230 | 686 |
+| groups elaborated and compared | 42 | 8 | 31 | 40 | 50 | 61 | 32 | 264 |
+| effect-only groups | 2 | 5 | 3 | 9 | 6 | 15 | 3 | 43 |
+| errors | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| axiom audit (ms) | 27 | 61 | 242 | 74 | 67 | 96 | 51 | |
+
+Every loaded constant's axioms are within {`propext`, `Classical.choice`, `Quot.sound`}.
+
+Where the remote time goes, in M18:
+- 0.54 s loading 230 theorems with fetched proofs (decode, insert auxiliaries, kernel check);
+- 0.12 s for 32 elaborated groups;
+- 0.65 s checking receipts (one Ed25519 verification for the receipt and at least one for
+  its envelope, per element);
+- the rest is per-element work: header check, scope wrappers, `remote_decl%` commands.
+
+The prototype round 2 reported ×2.5 against local capture, but it measured whole processes,
+statements only, with a placeholder axiom. v1 fetches and checks every theorem's proof and
+lands at ×2.06 of plain local elaboration.
+
+Four fixes were found while measuring. Before them the same projections took ×2.7 to ×4.6
+of local, or failed:
+- Mathlib `lemma` now gets a value offset, so its proof is fetched instead of the group
+  being re-elaborated;
+- no implicit lambdas around a fetched proof (otherwise the stored value is an
+  eta-expansion of it);
+- auto-bound universes are unified with the published levels;
+- the quadratic re-reading of records and capsules is cached.
+
+**Transfer.**
+
+| | M14 | M03 | M15 | M13 | M16 | M01 | M18 | total |
+|---|---|---|---|---|---|---|---|---|
+| payloads fetched by `remote%` | 48 | 74 | 44 | 106 | 205 | 198 | 262 | 937 |
+| payload bytes | 75 KB | 160 KB | 168 KB | 213 KB | 293 KB | 258 KB | 245 KB | 1.41 MB |
+| fetch time (ms) | 187 | 116 | 78 | 176 | 324 | 319 | 443 | 1643 |
+
+That is about 1.5 KB and 1.8 ms per payload (S3 GET, re-hash, write to the cache).
+
+Metadata is larger than payloads. bob's M18 cache holds every record of the deployment:
+
+| object | count | total | mean |
+|---|---|---|---|
+| publication records (cache JSON) | 993 | 10.8 MB | 10.9 KB |
+| capsules (P1 metadata JSON) | 993 | 5.0 MB | 5.0 KB |
+| job envelopes | 993 | 0.88 MB | 0.9 KB |
+| revisions | 1176 | 0.38 MB | — |
+| receipts | 993 | 0.30 MB | 0.3 KB |
+
+Pulling all of it took 35 s and 17.4 MB.
+
+**Finding: carried root paths make metadata quadratic in file length.**
+- A record carries the anchor path of its lineage root (§11.1, Workspaces
+  `render_carried`). In a file written top to bottom, each declaration anchors at the one
+  above it, so the path length equals the declaration's position.
+- M18's last record carries 265 path entries: 30 KB as cache JSON, about 14 KB in PCE.
+- Total metadata per file is therefore O(n²).
+- The model needs the path only to order lineage roots without their anchors. Remedies:
+  - paths shared by reference;
+  - a path delta against the anchor's record, with the full path fetched on demand;
+  - a bounded-depth scheme (OPEN-18's Fugue keeps a right anchor, not a path).
+- The model's locality argument would need re-checking for any of them.
 
 ## Deviations
 
@@ -349,7 +445,11 @@ CORPUS_RESULTS
   leaks into capsule elaboration. This fails closed (forgery table) but can refuse a
   legitimate load.
 - The interactive cost of capture: every working-copy step is a fresh process that
-  re-imports the base (Init: about 1 s per `ws-capture`/`ws-check`; Mathlib: more).
+  re-imports the base (Init: about 0.7 s per `ws-capture`/`ws-check`; Mathlib: more).
+- Compression of carried root paths (records grow linearly with file position; see the
+  finding under Measured costs).
+- Validation throughput: one validator job per group, each a fresh process importing
+  Mathlib (about 1.2–2.9 s per group); no batching or warm validator processes.
 
 ## Reproduce
 
@@ -367,3 +467,24 @@ impl/p3-remote/scripts/corpus-cost.py .runs/p3-remote/cost M14 M03 M15 M13 M16 M
 (`PARALEAN_P2_PREFIX=/data/home/kirancodes/paralean-p3-remote-cluster`, FDB 4789, Garage
 18539–18541, S3 18533). Override them to use another instance. Each gate run uses a fresh
 `PARALEAN_DEPLOYMENT` (an FDB key prefix and an S3 prefix) and its own keys.
+
+## Sentences for plan.md and README.md
+
+- plan.md P3, replacing "The P1 prototype differs: … P3 replaces both: real proofs and signed
+  receipts.": "P3 implements this in `impl/p1` (`Remote`, `Rga`, `Copy`) and `impl/p3-remote`
+  ([p3-remote-log](p3-remote-log.md)). Working copies fetch each theorem's published proof
+  from the store and kernel-check it, with no placeholder axiom. They check P3 control's
+  Ed25519 receipts and job envelopes themselves, and exchange declarations only through the
+  P2 store. On 993 Mathlib groups, an all-`remote%` projection elaborates at ×2.06 of local
+  elaboration."
+- plan.md P3, after the transparent-workspace gate paragraph: "Gate result
+  ([p3-remote-log](p3-remote-log.md)): all eight items pass on separate working copies that
+  share only the store and a validator, together with a clean export and the axiom audit. One
+  finding: carried root paths make record size linear in file position, so metadata grows
+  quadratically with file length."
+- README.md, after "P2 storage (`impl/p2`) runs on self-hosted FoundationDB and Garage.": "P3
+  transparent workspaces (`impl/p3-remote`, with the Lean side in `impl/p1`) give each agent
+  a working copy whose teammates' declarations appear as `remote%` elements. Their proofs
+  are fetched from the store and kernel-checked, under validator-signed receipts. Files are
+  replicated as declaration-level RGAs with lineage naming; see
+  [docs/p3-remote-log.md](docs/p3-remote-log.md)."

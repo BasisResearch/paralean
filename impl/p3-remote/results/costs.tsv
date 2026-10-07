@@ -1,0 +1,8 @@
+module	groups	published	rejected	publish_s	validate_s_mean	t1_ms_mean	pull_bytes	pull_ms	fetched_groups	fetched_bytes	fetch_ms	remote_elab_s	local_capture_s	stock_sync_s	fetched_proof_loads	elaborated_loads	load_ms	check_ms	errors	loaded_axioms
+M14	50	50	0	91.9	1.39	109	388205	1132	48	75087	187	7.84	2.14	1.62	6	44	1288	3438	0	propext,Classical.choice,Quot.sound
+M03	83	83	0	155.8	1.39	132	1211504	3422	74	159569	116	7.76	2.82	2.54	67	11	2738	194	5	propext,Classical.choice,Quot.sound
+M15	56	56	0	172.8	2.34	156	1733008	4984	44	168051	78	8.52	2.31	1.68	18	28	2877	1028	2	propext,Quot.sound,Classical.choice
+M13	115	115	0	208.7	1.21	87	3124614	8213	106	212623	176	17.3	2.83	2.27	66	49	3750	1284	0	propext,Classical.choice,Quot.sound
+M16	211	211	0	799.5	2.91	117	7273734	16944	205	293039	324	49.01	3.09	2.14	155	56	6112	1543	0	propext,Quot.sound,Classical.choice
+M01	213	213	0	638.9	1.76	120	11802102	25954	198	258014	319	67.04	3.5	2.5	137	76	6209	1907	0	propext,Classical.choice,Quot.sound
+M18	265	265	0	926.5	1.98	103	17388240	35412	262	244509	443	118.94	3.13	1.86	230	35	8140	1034	0	propext,Classical.choice,Quot.sound

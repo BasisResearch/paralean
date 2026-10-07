@@ -1,0 +1,107 @@
+[
+ {
+  "module": "M14",
+  "remote_elab_ms": 1135,
+  "remote_audit_ms": 27,
+  "remote_errors": 0,
+  "loaded_constants": 154,
+  "local_elab_ms": 635,
+  "local_errors": 0,
+  "ratio": 1.79,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ },
+ {
+  "module": "M03",
+  "remote_elab_ms": 1585,
+  "remote_audit_ms": 61,
+  "remote_errors": 0,
+  "loaded_constants": 149,
+  "local_elab_ms": 1291,
+  "local_errors": 0,
+  "ratio": 1.23,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ },
+ {
+  "module": "M15",
+  "remote_elab_ms": 3202,
+  "remote_audit_ms": 242,
+  "remote_errors": 0,
+  "loaded_constants": 198,
+  "local_elab_ms": 1286,
+  "local_errors": 0,
+  "ratio": 2.49,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ },
+ {
+  "module": "M13",
+  "remote_elab_ms": 3118,
+  "remote_audit_ms": 74,
+  "remote_errors": 0,
+  "loaded_constants": 313,
+  "local_elab_ms": 1853,
+  "local_errors": 0,
+  "ratio": 1.68,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ },
+ {
+  "module": "M16",
+  "remote_elab_ms": 3591,
+  "remote_audit_ms": 67,
+  "remote_errors": 0,
+  "loaded_constants": 292,
+  "local_elab_ms": 1705,
+  "local_errors": 0,
+  "ratio": 2.11,
+  "loaded_axioms": [
+   "propext",
+   "Quot.sound",
+   "Classical.choice"
+  ]
+ },
+ {
+  "module": "M01",
+  "remote_elab_ms": 4452,
+  "remote_audit_ms": 96,
+  "remote_errors": 0,
+  "loaded_constants": 413,
+  "local_elab_ms": 2156,
+  "local_errors": 0,
+  "ratio": 2.06,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ },
+ {
+  "module": "M18",
+  "remote_elab_ms": 4494,
+  "remote_audit_ms": 51,
+  "remote_errors": 0,
+  "loaded_constants": 339,
+  "local_elab_ms": 1567,
+  "local_errors": 0,
+  "ratio": 2.87,
+  "loaded_axioms": [
+   "propext",
+   "Classical.choice",
+   "Quot.sound"
+  ]
+ }
+]

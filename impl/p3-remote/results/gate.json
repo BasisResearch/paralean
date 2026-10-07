@@ -31,10 +31,10 @@
     ],
     "stale_replica_response": "response lacks 1 record(s) this copy already knows: rejected as stale",
     "snapshot": {
-      "catalog": "6b2852fa64321e0e8f3cdda32236357564c21d6ac5aa6680dcd52eb0a27d3e81",
+      "catalog": "49aa21a8512d19d3ee982c203c9819894ed2f698f52ced62c90b12e34153bd70",
       "groups": 6,
       "bytes": 21019,
-      "ms": 89.42765299999999,
+      "ms": 21.496290000000002,
       "old_size_rendered": true,
       "errors": {
         "A.lean": [],
@@ -65,7 +65,7 @@
         "d72b2f34",
         "afe4b759",
         "cc453ca4",
-        "aa7b3d3b",
+        "7b9c60cf",
         "390999a6",
         "f1719642",
         "0112e4d6",
@@ -82,7 +82,7 @@
         "7956fc91",
         "0112e4d6",
         "a4a812f9",
-        "aa7b3d3b",
+        "7b9c60cf",
         "6c3b6064",
         "afe4b759",
         "b5066ebc",
@@ -101,7 +101,7 @@
         "0112e4d6",
         "390999a6",
         "f1719642",
-        "aa7b3d3b",
+        "7b9c60cf",
         "8f6ad1a9",
         "2acf7104",
         "6c3b6064",
@@ -144,11 +144,11 @@
     "revision": "552fed5b295d",
     "revision_key": [
       14,
-      "1bff32a70f8351ba2c295c1cfb1a7340"
+      "3dbc04e2fa545e98c10938708a199b8f"
     ],
     "loser_key": [
       13,
-      "cea0b761d001c388211dc34661c6a158"
+      "8babaccb416a451f0f6eebab5cbd003d"
     ],
     "lineage_key": [
       [
@@ -157,7 +157,7 @@
           "dup"
         ],
         13,
-        "1bff32a70f8351ba2c295c1cfb1a7340"
+        "3dbc04e2fa545e98c10938708a199b8f"
       ]
     ],
     "own_key_rule_would_rename_it": true,
@@ -192,7 +192,7 @@
     ],
     "groups": 11,
     "identical": 11,
-    "build_ms": 3157
+    "build_ms": 1900
   },
   "no placeholder axiom in any working copy's #print axioms": {
     "ok": true,
@@ -206,5 +206,5 @@
       "bob:Bad.lean": 2
     }
   },
-  "_wall_s": 112.5
+  "_wall_s": 64.9
 }
