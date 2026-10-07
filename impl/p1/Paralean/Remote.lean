@@ -118,13 +118,25 @@ def metaOfCapsuleOpt (root : System.FilePath) (capsule : String) : IO (Option Gr
     return some (← metaOfCapsule root capsule)
   return none
 
+/-- Every record in the cache (known and fetched), reparsed only when files arrive. -/
+initialize allKnownCache : IO.Ref (Nat × Known) ← IO.mkRef (0, {})
+
+def allKnown : IO Known := do
+  let root ← storeRoot
+  let n ← countRecords root
+  let (k, kn) ← allKnownCache.get
+  if k == n && n > 0 then return kn
+  let kn ← Known.load root ["records", "fetched"]
+  allKnownCache.set (n, kn)
+  return kn
+
 def view : IO Rga.View := do
   let root ← storeRoot
   let n ← countRecords root
   if let (k, some v) ← viewCache.get then
     if k == n then return v
   let known ← Known.load root
-  let all ← Known.load root ["records", "fetched"]
+  let all ← allKnown
   pkgIndex.modify fun m => all.markers.foldl (fun m mk => m.insert mk.pid (mk.group, mk.capsule)) m
   let mut metas : Std.HashMap String GroupRec := {}
   for mk in known.markers do
@@ -139,8 +151,7 @@ def renames : IO (Std.HashMap String (Std.HashMap Name Name)) := return (← vie
 def markerOf (group : String) : IO Marker := do
   let root ← storeRoot
   let find : IO (Option Marker) := do
-    let k ← Known.load root ["records", "fetched"]
-    return k.byGroup[group]?
+    return (← allKnown).byGroup[group]?
   if let some m ← find then return m
   discard <| plr #["fetch-pkg", "--cache", root.toString, group]
   match ← find with
