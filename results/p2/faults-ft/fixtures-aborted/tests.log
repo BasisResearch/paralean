@@ -1,0 +1,16 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-p2-rest/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.89s
+     Running tests/antientropy.rs (target/debug/deps/antientropy-dc72290618a120a2)
+
+running 8 tests
+test foreign_target_names_and_certificate_copies_refused ... ok
+test marker_conflict_is_reported_not_overwritten ... ok
+test deferred_until_dependencies_arrive ... ok
+test receiver_rejects_corrupt_forged_and_untrusted ... ok
+test corrupt_payloads_at_rest_are_repaired_or_wait ... ok
+test receive_faults_resolve ... ok
+test sync_converges_between_two_clusters ... ok
+error: test failed, to rerun pass `-p paralean-store --test antientropy`
+
+Caused by:
+  process didn't exit successfully: `/data/home/kirancodes/Documents/code/paralean-p2-rest/impl/p2/target/debug/deps/antientropy-dc72290618a120a2` (signal: 15, SIGTERM: termination signal)

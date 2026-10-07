@@ -1,0 +1,70 @@
+[23:08:09] fault tolerance >= 2 after 1s
+[23:08:19] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:21101)
+[23:08:30] fault tolerance >= 2 after 2s
+[23:08:30] FAULT pause fdbserver-2 (SIGSTOP)
+STOP fdbserver-2
+CONT fdbserver-2
+[23:09:07] fault tolerance >= 2 after 3s
+[23:09:07] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[23:09:22] fault tolerance >= 2 after 1s
+[23:09:22] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+KILL fdbserver-0
+KILL fdbserver-4
+started fdbserver-0 (127.0.0.1:21100)
+started fdbserver-4 (127.0.0.1:21104)
+[23:10:07] fault tolerance >= 2 after 3s
+[23:10:07] FAULT pause fdbserver-1 and partition fdbserver-5
+STOP fdbserver-1
+isolated fdbservers: 5
+CONT fdbserver-1
+healed
+[23:10:22] fault tolerance >= 2 after 1s
+[23:10:22] FAULT partition fdbservers 2 and 3 together (a minority side)
+isolated fdbservers: 2 3
+healed
+[23:10:57] fault tolerance >= 2 after 2s
+[23:10:57] FAULT kill and wipe fdbserver-2 (disk loss)
+KILL fdbserver-2
+wiped fdbserver-2 data
+started fdbserver-2 (127.0.0.1:21102)
+[23:12:32] fault tolerance >= 2 after 83s
+[23:12:32] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:21103)
+started fdbserver-5 (127.0.0.1:21105)
+[23:14:17] fault tolerance >= 2 after 92s
+[23:14:17] FAULT kill garage-0 (the gateway's first upstream)
+KILL garage-0
+started garage-0
+[23:14:37] FAULT pause garage-1 (SIGSTOP)
+STOP garage-1
+CONT garage-1
+[23:14:57] FAULT kill and wipe garage-2 (disk loss), resync blocks
+KILL garage-2
+wiped garage-2 data blocks
+started garage-2
+Error: Unable to connect to destination RPC host. Check that you are using the same value of rpc_secret as them, and that you have their correct full-length node ID (public key).
+IO error: Connection refused (os error 111)
+[23:15:32] faults done; stopping workers
+[23:15:34] acknowledged effects logged: 5905
+acknowledged effects present: {"assign": 769, "group": 2521, "rank": 1950, "record": 127, "tombstone": 538}; lost: 0
+certified groups   2521
+committed records  127
+markers            2521
+object certs       8638
+received evidence  0
+records            127
+targets            3
+tombstones         538
+uncertified markers 0
+audit ok
+worker error: round seed 3045 exit 139
+probe: 680 probes, 658 ok (96.8%), longest failed run 10 probes; latency ok p50 63 ms, max 3003 ms
+[23:22:17] phase stress: FAIL

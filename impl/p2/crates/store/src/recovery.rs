@@ -250,17 +250,26 @@ pub fn pos_cmp(a: &Marker, b: &Marker) -> std::cmp::Ordering {
     }
 }
 
+/// The (group, file) pairs deleted by discovered tombstones.
+fn tombstoned(d: &Discovery) -> BTreeSet<(Id, &str)> {
+    d.tombstones.values().map(|t| (t.tombstone.target, t.tombstone.file_path.as_str())).collect()
+}
+
+fn live_in(d: &Discovery, dead: &BTreeSet<(Id, &str)>, g: &Id) -> bool {
+    let Some(p) = d.groups.get(g) else { return false };
+    (!dead.contains(&(*g, p.marker.file_path.as_str())) || cfg!(feature = "mutate-render-ignores-tombstones"))
+        && (!d.superseded.contains(g) || cfg!(feature = "mutate-render-ignores-supersession"))
+}
+
 /// Is a discovered group live (rendered)? Known, not tombstoned, not superseded.
 pub fn live(d: &Discovery, g: &Id) -> bool {
-    let Some(p) = d.groups.get(g) else { return false };
-    let tombstoned = d.tombstones.values().any(|t| t.tombstone.target == *g && t.tombstone.file_path == p.marker.file_path);
-    (!tombstoned || cfg!(feature = "mutate-render-ignores-tombstones"))
-        && (!d.superseded.contains(g) || cfg!(feature = "mutate-render-ignores-supersession"))
+    live_in(d, &tombstoned(d), g)
 }
 
 /// The rendered sequence of `path`: its live groups in `PosLt` order.
 pub fn render(d: &Discovery, path: &str) -> Vec<Id> {
-    let mut gs: Vec<&Published> = d.groups.iter().filter(|(g, p)| p.marker.file_path == path && live(d, g)).map(|(_, p)| p).collect();
+    let dead = tombstoned(d);
+    let mut gs: Vec<&Published> = d.groups.iter().filter(|(g, p)| p.marker.file_path == path && live_in(d, &dead, g)).map(|(_, p)| p).collect();
     gs.sort_by(|a, b| pos_cmp(&a.marker, &b.marker));
     gs.iter().map(|p| p.marker.group).collect()
 }

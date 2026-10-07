@@ -113,7 +113,9 @@ fn kind(s: &str) -> R<Kind> {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match run(args).await {
+    let r = run(args).await;
+    paralean_store::meta::shutdown();
+    match r {
         Ok(code) => code,
         Err(e) => {
             eprintln!("paralean-p2: {e}");

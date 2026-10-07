@@ -1,0 +1,78 @@
+[23:46:28] writes ok and fault tolerance >= 2 after 0 s
+[23:46:33] garage nodes up: 3 of 3
+[23:46:43] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:21101)
+[23:46:54] writes ok and fault tolerance >= 2 after 0 s
+[23:46:54] FAULT pause fdbserver-2 (SIGSTOP)
+STOP fdbserver-2
+CONT fdbserver-2
+[23:47:09] writes ok and fault tolerance >= 2 after 0 s
+[23:47:09] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[23:47:25] writes ok and fault tolerance >= 2 after 0 s
+[23:47:25] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+KILL fdbserver-0
+KILL fdbserver-4
+started fdbserver-0 (127.0.0.1:21100)
+started fdbserver-4 (127.0.0.1:21104)
+[23:48:09] writes ok and fault tolerance >= 2 after 28 s
+[23:48:09] FAULT pause fdbserver-1 and partition fdbserver-5
+STOP fdbserver-1
+isolated fdbservers: 5
+CONT fdbserver-1
+healed
+[23:48:24] writes ok and fault tolerance >= 2 after 0 s
+[23:48:24] FAULT partition fdbservers 2 and 3 together (a minority side)
+isolated fdbservers: 2 3
+healed
+[23:49:01] writes ok and fault tolerance >= 2 after 22 s
+[23:49:01] FAULT kill and wipe fdbserver-2 (disk loss)
+KILL fdbserver-2
+wiped fdbserver-2 data
+started fdbserver-2 (127.0.0.1:21102)
+[23:50:37] writes ok and fault tolerance >= 2 after 91 s
+[23:50:37] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:21103)
+started fdbserver-5 (127.0.0.1:21105)
+[23:52:13] writes ok and fault tolerance >= 2 after 91 s
+[23:52:13] FAULT kill garage-0 (the gateway's first upstream)
+KILL garage-0
+started garage-0
+[23:52:38] garage nodes up: 3
+[23:52:38] FAULT pause garage-1 (SIGSTOP)
+STOP garage-1
+CONT garage-1
+[23:53:03] garage nodes up: 3
+[23:53:03] FAULT kill and wipe garage-2 (disk loss), resync blocks
+KILL garage-2
+wiped garage-2 data blocks (empty replacement disk)
+started garage-2
+4f9434a096efbc41  Repair launched
+[23:53:15] block resync launched on garage-2
+[23:53:35] garage nodes up: 3
+[23:53:35] faults done; stopping workers
+[23:53:38] acknowledged effects logged: 5150
+acknowledged effects present: {"assign": 679, "group": 2191, "rank": 1680, "record": 129, "tombstone": 471}; lost: 0
+certified groups   2191
+committed records  129
+markers            2191
+object certs       7404
+received evidence  0
+records            129
+targets            3
+tombstones         471
+uncertified markers 0
+audit ok
+probe: 582 probes, 563 ok (96.7%), longest failed run 7 probes; latency ok p50 61 ms, max 4348 ms
+  unavailable from 23:46:59 for about 11 s
+  unavailable from 23:47:17 for about 8 s
+  unavailable from 23:47:31 for about 38 s
+  unavailable from 23:48:15 for about 1 s
+  unavailable from 23:48:30 for about 32 s
+[23:58:36] phase stress: PASS

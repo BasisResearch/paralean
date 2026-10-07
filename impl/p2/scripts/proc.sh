@@ -2,7 +2,10 @@
 # Start and fault individual processes of an instance cluster (PARALEAN_INSTANCE set; see
 # env.sh). Used by up.sh and the fault scripts.
 #   proc.sh fdb    start|kill|pause|resume|wipe <i>   fdbserver i (wipe: delete its data dir; must be down)
-#   proc.sh garage start|kill|pause|resume|wipe <j>   Garage node j (wipe: delete its data blocks, keep its identity)
+#   proc.sh garage start|kill|pause|resume|wipe <j>   Garage node j (wipe: replace its data disk with an
+#                                                     empty one, keeping its identity: Garage refuses a data
+#                                                     dir without its `garage-marker` until the operator
+#                                                     removes meta/data_layout; then `garage repair blocks`)
 #   proc.sh split <i>...                              partition fdbservers i... from the rest (netsplit)
 #   proc.sh heal                                      remove the partition
 #   proc.sh status                                    which processes are up
@@ -17,8 +20,9 @@ knobs="${PARALEAN_FDB_KNOBS:---knob_min_available_space_ratio=0.002 --knob_min_a
 
 pidf() { echo "$H/run/$1.pid"; }
 alive() { [ -f "$(pidf "$1")" ] && kill -0 "$(cat "$(pidf "$1")")" 2>/dev/null; }
-sig() { # signal name
-  if alive "$2"; then kill "-$1" "$(cat "$(pidf "$2")")"; echo "$1 $2"; else echo "$2 is not running"; fi
+sig() { # signal name; a KILL waits until the process is gone
+  if alive "$2"; then kill "-$1" "$(cat "$(pidf "$2")")"; echo "$1 $2"; else echo "$2 is not running"; return 0; fi
+  if [ "$1" = KILL ]; then for i in $(seq 1 50); do alive "$2" || return 0; sleep 0.1; done; fi
 }
 
 fdb_start() {
@@ -59,7 +63,8 @@ case "${1:-} ${2:-}" in
   "garage resume") sig CONT "garage-$3" ;;
   "garage wipe")
     alive "garage-$3" && { echo "garage-$3 is running; kill it first" >&2; exit 1; }
-    rm -rf "$H/garage/n$3/data"; mkdir -p "$H/garage/n$3/data"; echo "wiped garage-$3 data blocks" ;;
+    rm -rf "$H/garage/n$3/data" "$H/garage/n$3/meta/data_layout"; mkdir -p "$H/garage/n$3/data"
+    echo "wiped garage-$3 data blocks (empty replacement disk)" ;;
   "split "*) shift; echo "$*" > "$H/run/netsplit.state"; echo "isolated fdbservers: $*" ;;
   "heal "*) : > "$H/run/netsplit.state"; echo "healed" ;;
   "status "*)

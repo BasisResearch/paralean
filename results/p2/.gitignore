@@ -1,0 +1,6 @@
+# Fault-run artefacts kept local: per-effect acknowledgement logs, worker logs, demo keys.
+acks-*.log
+w[0-9]*.log
+keys.json
+stop
+stop-probe

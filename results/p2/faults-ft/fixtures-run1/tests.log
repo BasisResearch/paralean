@@ -1,0 +1,94 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/antientropy.rs (target/debug/deps/antientropy-dc72290618a120a2)
+
+running 8 tests
+test foreign_target_names_and_certificate_copies_refused ... ok
+test marker_conflict_is_reported_not_overwritten ... ok
+test receiver_rejects_corrupt_forged_and_untrusted ... ok
+test deferred_until_dependencies_arrive ... ok
+test corrupt_payloads_at_rest_are_repaired_or_wait ... ok
+test receive_faults_resolve ... ok
+test sync_converges_between_two_clusters ... ok
+test any_exchange_order_converges_to_the_union has been running for over 60 seconds
+test any_exchange_order_converges_to_the_union ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 158.36s
+
+     Running tests/faults.rs (target/debug/deps/faults-dad5f2f4d0b38f40)
+
+running 10 tests
+test publisher_crash_right_after_publish_leaves_head_discoverable ... ok
+test s3_put_timeouts_with_and_without_landing ... ok
+test rotation_and_reassignment_between_read_and_commit ... ok
+test duplicate_and_reordered_retries ... ok
+test corrupt_bytes_on_read_count_as_missing ... ok
+test unknown_commit_result_on_every_transaction ... ok
+test crash_between_payload_and_metadata_then_restart ... ok
+test concurrent_writers_multi_threaded ... ok
+test paginated_scan_across_concurrent_publications ... ok
+test crash_during_checkpoint_then_retry ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.79s
+
+     Running tests/fixtures.rs (target/debug/deps/fixtures-424e62849799a653)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.01s
+
+     Running tests/guards.rs (target/debug/deps/guards-e9e1414401a0cb6d)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test paginated_scan_follows_partial_batches ... ok
+test t1_head_compare_and_swap ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t5_fenced_commit_and_its_guards ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+     Running tests/property.rs (target/debug/deps/property-f3546ea09b18f0e1)
+
+running 1 test
+test random_interleavings_keep_store_invariants ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.44s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-386e0906c22f18ef)
+
+running 5 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+
+   Compiling paralean-cli v0.2.0 (/data/home/kirancodes/Documents/code/paralean-p2-rest/impl/p2/crates/cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.99s
+     Running tests/multiprocess.rs (target/debug/deps/multiprocess-ff3ccf4ad940efce)
+
+running 1 test
+test concurrent_writers_multi_process has been running for over 60 seconds
+test concurrent_writers_multi_process ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.57s
+

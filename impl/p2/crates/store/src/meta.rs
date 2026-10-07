@@ -12,7 +12,7 @@
 //! No code path in this crate clears a key (`clear`/`clear_range` are never called): the
 //! key spaces are grow-only, which the paginated-scan argument of store.md needs.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use foundationdb::api::NetworkAutoStop;
 use foundationdb::future::FdbValues;
@@ -31,18 +31,26 @@ use crate::pce::{Dec, Enc, Pce};
 /// "Layout"; FDB's own limit is 100 kB).
 pub const INLINE_LIMIT: usize = 64 * 1024;
 
-static NETWORK: OnceLock<NetworkAutoStop> = OnceLock::new();
+static NETWORK: OnceLock<Mutex<Option<NetworkAutoStop>>> = OnceLock::new();
 
 /// Select API version 730 and start the FDB network thread once per process. The guard is
-/// kept for the life of the process.
+/// kept until `shutdown`.
 pub fn boot() {
     NETWORK.get_or_init(|| {
         let builder = foundationdb::api::FdbApiBuilder::default()
             .set_runtime_version(730)
             .build()
             .expect("select FDB API version 730");
-        unsafe { builder.boot() }.expect("start FDB network")
+        Mutex::new(Some(unsafe { builder.boot() }.expect("start FDB network")))
     });
+}
+
+/// Stop the FDB network thread and join it (before process exit; the client library's
+/// thread must not run while the process tears down). FDB cannot be used afterwards.
+pub fn shutdown() {
+    if let Some(m) = NETWORK.get() {
+        drop(m.lock().unwrap().take());
+    }
 }
 
 // ---------------------------------------------------------------- keys
