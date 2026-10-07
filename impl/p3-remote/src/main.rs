@@ -170,7 +170,7 @@ fn keys_init(a: &[&str]) -> R<Value> {
     let tv = json!({
         "validators": [hex::encode(val.public())],
         "authority": kf.authority_public,
-        "jobIssuers": kf.job_issuers.values().map(|e| e.public.clone()).collect::<Vec<_>>(),
+        "jobIssuers": kf.job_issuers.iter().map(|(n, e)| json!([n, e.public])).collect::<Vec<_>>(),
         "policies": kf.policies,
         "checkers": kf.checkers,
         "base": receipt::base()?.hex(),

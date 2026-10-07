@@ -97,12 +97,15 @@ initialize fetchedAdded : IO.Ref NameSet ← IO.mkRef {}
 /-- Decoded payloads per package (immutable). -/
 initialize payloadCache : IO.Ref (Std.HashMap String ByteArray) ← IO.mkRef {}
 
-def countRecords (root : System.FilePath) : IO Nat := do
-  let mut n := 0
-  for sub in ["records", "fetched"] do
-    let d := root / "p3" / sub
-    if ← d.pathExists then n := n + (← d.readDir).size
-  return n
+/-- Records reach the cache from other processes only between commands (`plr pull`); within
+this process only through `remote%`'s own `plr fetch-pkg`, which bumps this version. The
+caches below are keyed by it (offset by one, so 0 means "not loaded"). -/
+initialize recordsVersion : IO.Ref Nat ← IO.mkRef 1
+
+def countRecords (_root : System.FilePath) : IO Nat := recordsVersion.get
+
+/-- Capsules already verified in this process (capsule ID ↦ package ID). -/
+initialize capsuleSeen : IO.Ref (Std.HashMap String String) ← IO.mkRef {}
 
 /-- A known package's metadata from its stored capsule (hash-checked). -/
 def metaOfCapsule (root : System.FilePath) (capsule : String) : IO GroupRec := do
@@ -111,9 +114,12 @@ def metaOfCapsule (root : System.FilePath) (capsule : String) : IO GroupRec := d
   | .ok g =>
     pkgIndex.modify (·.insert g.gid (g.declId, capsule))
     metaCache.modify (·.insert g.gid g)
+    capsuleSeen.modify (·.insert capsule g.gid)
     return g
 
 def metaOfCapsuleOpt (root : System.FilePath) (capsule : String) : IO (Option GroupRec) := do
+  if let some pid := (← capsuleSeen.get)[capsule]? then
+    if let some g := (← metaCache.get)[pid]? then return some g
   if ← (root / "p3" / "capsules" / s!"{capsule}.json").pathExists then
     return some (← metaOfCapsule root capsule)
   return none
@@ -125,7 +131,7 @@ def allKnown : IO Known := do
   let root ← storeRoot
   let n ← countRecords root
   let (k, kn) ← allKnownCache.get
-  if k == n && n > 0 then return kn
+  if k == n then return kn
   let kn ← Known.load root ["records", "fetched"]
   allKnownCache.set (n, kn)
   return kn
@@ -154,6 +160,7 @@ def markerOf (group : String) : IO Marker := do
     return (← allKnown).byGroup[group]?
   if let some m ← find then return m
   discard <| plr #["fetch-pkg", "--cache", root.toString, group]
+  recordsVersion.modify (· + 1)
   match ← find with
   | some m =>
     pkgIndex.modify (·.insert m.pid (m.group, m.capsule))
@@ -235,8 +242,16 @@ def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
     if !out.contains m.local_ && env.contains nm then out := out.insert m.local_ nm
   return out
 
+/-- Closures are immutable (packages pin exact dependencies): computed once per package. -/
+initialize closureCache : IO.Ref (Std.HashMap String (Array GroupRec)) ← IO.mkRef {}
+
 /-- Dependency closure of `g` (dependencies first). -/
 partial def closureOf (g : GroupRec) : CommandElabM (Array GroupRec) := do
+  if let some c := (← closureCache.get)[g.gid]? then return c
+  let c ← closureOfCore g
+  closureCache.modify (·.insert g.gid c)
+  return c
+where closureOfCore (g : GroupRec) : CommandElabM (Array GroupRec) := do
   let rec go (gid : String) (seen : Std.HashSet String) (out : Array GroupRec) :
       CommandElabM (Std.HashSet String × Array GroupRec) := do
     if seen.contains gid then return (seen, out)
@@ -523,10 +538,18 @@ def checkInvalidated (g : GroupRec) (closure : Array GroupRec) : CommandElabM Un
         throwError "remote%: invalidated: {what} superseded by \
           {(by_.map (·.group.take 12 |>.toString)).getD "?"}; revise it against the current version"
 
+/-- Already verified in this module, with every member still present. -/
+def isVerified (g : GroupRec) : CommandElabM Bool := do
+  let env ← getEnv
+  match (← verifiedCache.get)[(env.mainModule, g.gid)]? with
+  | some ns => return ns.all (fun p => env.contains p.2)
+  | none => return false
+
 /-- Load `g` (dependencies first) unless already present. On failure the environment is
 restored: a group that does not load leaves no constant behind (in particular none that
 Lean's error recovery completed with `sorryAx`). -/
 partial def ensureLoaded (g : GroupRec) : CommandElabM Unit := do
+  if ← isVerified g then return
   loadingDepth.modify (· + 1)
   let env0 ← getEnv
   try ensureLoadedCore g
@@ -537,9 +560,7 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
   let mm := (← getEnv).mainModule
   checkInvalidated g closure
   for d in closure do
-    if let some ns := (← verifiedCache.get)[(mm, d.gid)]? then
-      let env ← getEnv
-      if ns.all (fun p => env.contains p.2) then continue
+    if ← isVerified d then continue
     checkReceipt d
     -- a capsule that disables or weakens checking is never elaborated here, whatever its receipt
     for o in [`debug.skipKernelTC, `debug.byAsSorry, `debug.terminalTacticsAsSorry, `debug.proofAsSorry] do
@@ -648,27 +669,36 @@ def checkWrittenHeader (g : GroupRec) (stx : Syntax) (env0 : Environment) : Comm
 @[command_elab Lean.Parser.Command.declaration]
 def elabRemoteDecl : CommandElab := fun stx => do
   let some (lit, _) := remoteValue? stx | throwUnsupportedSyntax
+  let t0 ← IO.monoMsNow
   let g ← getMeta (← pidOfGroup lit)
   checkReceipt g
+  let ta ← IO.monoMsNow
   let gr := renamedGroup (← renames) g
   if gr.capsule.valueStart.isNone then
     throwError "remote%: {g.short} has no value; write `remote_decl% \"{g.declId}\"`"
   let closure ← closureOf g
   checkInvalidated g closure
+  let tb ← IO.monoMsNow
   for d in closure do
     if d.gid != g.gid then ensureLoaded d
+  let tc ← IO.monoMsNow
   let env0 ← getEnv
   ensureLoaded g
+  let t1 ← IO.monoMsNow
+  logEvent s!"phases {g.declId} receipt {ta - t0}ms closure {tb - ta}ms deps {tc - tb}ms self {t1 - tc}ms"
   loadingDepth.modify (· + 1)
   try checkWrittenHeader g stx env0
   finally loadingDepth.modify (· - 1)
+  logEvent s!"element {g.declId} loads {t1 - t0}ms header {(← IO.monoMsNow) - t1}ms closure {closure.size}"
 
 @[command_elab remoteCmd]
 def elabRemoteCmd : CommandElab := fun stx => do
   let some lit := stx[1].isStrLit? | throwUnsupportedSyntax
+  let t0 ← IO.monoMsNow
   let g ← getMeta (← pidOfGroup lit)
   checkReceipt g
   ensureLoaded g
+  logEvent s!"command {g.declId} total {(← IO.monoMsNow) - t0}ms"
 
 @[term_elab remoteTerm]
 def elabRemoteTerm : TermElab := fun _ _ =>
