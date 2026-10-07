@@ -32,7 +32,7 @@ Lean is the Paralean fork (`fork/`, `dfc13cc6`) throughout (`PARALEAN_LEAN=fork`
 | `impl/p3-remote` (`plr`) | the bridge to the store: stage, validate (job envelope + validator), publish (T1), tombstones, pull (anti-entropy), on-demand fetch, checkpoints and snapshot restore |
 | `impl/p3-remote/scripts/ws.py` | one agent's working copy: `init`, `publish`, `sync`, `delete`, `hash`, `check` |
 | `impl/p3-remote/scripts/gate.py` | the gate scenario |
-| `impl/p3-remote/scripts/corpus-cost.py`, `gate-costs.py` | cost measurements |
+| `impl/p3-remote/scripts/corpus-cost.py`, `consumer-recheck.py`, `gate-costs.py` | cost measurements |
 
 Removed: the prototype's HMAC receipts (`Receipt.lean`), file-copy anti-entropy and the
 `copy-*` commands (`Workspace.lean`), the placeholder axiom path, and the prototype scripts
