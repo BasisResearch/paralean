@@ -13,6 +13,7 @@ use ae_wire::{Identity, Limits, Peer};
 use ed25519_dalek::SigningKey;
 use paralean_ae_service::protocol::{Request, Response};
 use paralean_ae_service::{schedule, serve, Endpoint, Puller};
+use paralean_store::ae::{AeKind, AePart, AePending, PendingState};
 use paralean_store::antientropy::published_set;
 use paralean_store::pce::Pce;
 use paralean_store::*;
@@ -597,6 +598,11 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
         for _ in 0..20 {
             puller.round().await.unwrap();
         }
+        let repeated = puller.round().await.unwrap();
+        assert!(
+            repeated.terminal > 0,
+            "an existing terminal conflict must remain visible to --once status"
+        );
         let receiver = &net.envs[destination];
         let pending = receiver
             .store
@@ -604,7 +610,30 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
             .await
             .unwrap();
         assert!(
-            pending.entries.iter().any(|p| {
+            pending
+                .entries
+                .iter()
+                .all(|p| !matches!(p.state, PendingState::Terminal(_))),
+            "terminal diagnostics must leave the active replay queue: {pending:?}"
+        );
+        assert_eq!(
+            receiver
+                .store
+                .ae_active_pending_count(&net.identities[source].deployment)
+                .await
+                .unwrap(),
+            0,
+            "archived conflict must release the active pending quota"
+        );
+        let terminal = receiver
+            .store
+            .ae_terminal_page(&net.identities[source].deployment, None, 100)
+            .await
+            .unwrap();
+        let conflict = terminal
+            .entries
+            .iter()
+            .find(|p| {
                 matches!(&p.state, paralean_store::ae::PendingState::Terminal(reason)
                 if reason.contains("MarkerConflict")
                     && reason.contains(&pa.group.id().hex())
@@ -612,8 +641,27 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
                     && reason.contains(&expected_remote.hex())
                     && reason.contains("lamport")
                     && reason.contains("root_path"))
-            }),
-            "incompatible layout must have an exact diagnostic: {pending:?}"
+            })
+            .unwrap_or_else(|| {
+                panic!("incompatible layout must have an exact archived diagnostic: {terminal:?}")
+            });
+        let staged_parts = receiver
+            .store
+            .meta
+            .scan(
+                &receiver
+                    .store
+                    .meta
+                    .keys
+                    .ae_parts(&net.identities[source].deployment, &conflict.event.key),
+                16,
+                |_| None,
+            )
+            .await
+            .unwrap();
+        assert!(
+            staged_parts.is_empty(),
+            "archived conflict must release staged event fragments"
         );
         assert_eq!(
             published_set(&receiver.store).await.unwrap().groups[&pa.group.id()],
@@ -621,6 +669,25 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
             "a different layout cannot replace the published marker"
         );
         receiver.audit_ok().await;
+
+        // A persistent conflict must not consume queue quota or hold the
+        // cursor before a later, unrelated publication from the same source.
+        let later = net.envs[source].plain_package(
+            0,
+            if source == 0 {
+                "Net.layoutLaterA"
+            } else {
+                "Net.layoutLaterB"
+            },
+            if source == 0 {
+                "after-layout-conflict-A"
+            } else {
+                "after-layout-conflict-B"
+            },
+        );
+        net.envs[source].w[0].publish(&later).await.unwrap();
+        until_group(&mut puller, receiver, later.group.id()).await;
+        assert!(puller.round().await.unwrap().terminal > 0);
     }
 }
 
@@ -884,6 +951,131 @@ async fn bounded_pages_and_restart_replay_deferred_missing_object() {
     let newest = a.plain_package(0, "Net.after", "after");
     a.w[0].publish(&newest).await.unwrap();
     until_group(&mut restarted, b, newest.group.id()).await;
+}
+
+#[tokio::test]
+async fn restarted_puller_resumes_a_persisted_metadata_fragment_cursor() {
+    let net = Net::new("net-fragment-restart", None).await;
+    let a = &net.envs[0];
+    let b = &net.envs[1];
+    let mut package = a.plain_package(0, "Net.fragmentRestart", "fragment-restart");
+    // This synthetic path is carried only in the immutable marker value. It
+    // stays below FDB's 100 KiB value limit while exceeding one 64 KiB metadata
+    // fragment and the requested 70 KiB page. A long job request ID would
+    // instead exceed FDB's 10 KiB key limit at the cancellation lookup.
+    package.marker.file_path = format!("Test/{}.lean", "x".repeat(80 * 1024));
+    a.w[0].publish(&package).await.unwrap();
+
+    let generation = a.store.ae_identity().await.unwrap().generation;
+    let event = a
+        .store
+        .ae_page(None, 128, ae_wire::MAX_METADATA)
+        .await
+        .unwrap()
+        .events
+        .into_iter()
+        .find(|event| matches!(event.kind, AeKind::GroupVariant { group, .. } if group == package.group.id()))
+        .unwrap();
+    let response = ae_wire::exchange(
+        net.addresses[0],
+        &net.identities[1],
+        &Peer {
+            deployment: net.identities[0].deployment.clone(),
+            verifying_key: net.identities[0].signing_key.verifying_key(),
+        },
+        ae_wire::Payload {
+            metadata: Request::Materialize {
+                generation,
+                event: event.clone(),
+                after_part: None,
+                max_bytes: 70 * 1024,
+            }
+            .to_pce(),
+            object: Vec::new(),
+        },
+        Limits::default(),
+    )
+    .await
+    .unwrap();
+    let Response::Materialize(first) = Response::from_pce(&response.metadata).unwrap() else {
+        panic!("expected materialized metadata page");
+    };
+    assert!(!first.complete, "80 KiB marker must require a continuation");
+    assert_eq!(first.after_part, None);
+    assert_eq!(first.event_key, event.key);
+    assert!(first
+        .parts
+        .iter()
+        .any(|(_, part)| matches!(part, AePart::MetaFragment { kind, .. } if kind == "marker")));
+    let next_part = first.next_part.expect("first metadata continuation");
+    let pending = AePending {
+        source: net.identities[0].deployment.clone(),
+        generation,
+        event: event.clone(),
+        next_part: Some(next_part),
+        objects_after: None,
+        missing_count: 0,
+        state: PendingState::Collecting,
+        last_error: None,
+    };
+    let parts: Vec<_> = first
+        .parts
+        .into_iter()
+        .map(|(seq, part)| (event.key.clone(), seq, part))
+        .collect();
+    b.store
+        .ae_save_progress(
+            &net.identities[0].deployment,
+            generation,
+            Some(event.key.clone()),
+            &[pending],
+            &[],
+            &parts,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        b.store
+            .ae_pending_page(&net.identities[0].deployment, None, 100)
+            .await
+            .unwrap()
+            .entries[0]
+            .next_part,
+        Some(next_part)
+    );
+
+    // A fresh Puller reads the durable page and skips its numbered fragments.
+    let mut restarted = net.puller(1, 0).await;
+    until_group(&mut restarted, b, package.group.id()).await;
+    assert!(b
+        .store
+        .ae_pending_page(&net.identities[0].deployment, None, 100)
+        .await
+        .unwrap()
+        .entries
+        .is_empty());
+    let before = b
+        .store
+        .ae_page(None, 128, ae_wire::MAX_METADATA)
+        .await
+        .unwrap()
+        .events
+        .len();
+    for _ in 0..3 {
+        restarted.round().await.unwrap();
+    }
+    let after = b
+        .store
+        .ae_page(None, 128, ae_wire::MAX_METADATA)
+        .await
+        .unwrap()
+        .events
+        .len();
+    assert_eq!(
+        before, after,
+        "replayed fragment page must not duplicate publication"
+    );
+    b.audit_ok().await;
 }
 
 #[tokio::test]

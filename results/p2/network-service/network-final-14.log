@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on build directory
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.08s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-6244ea4e96296e0e)
+
+running 14 tests
+test bounded_pages_and_restart_replay_deferred_missing_object ... ok
+test catalogue_relay_retains_the_original_source_and_commit_proof ... ok
+test chunked_group_fetches_deduplicated_chunk_and_retries_missing_source ... ok
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... ok
+test malformed_source_receipt_cannot_be_imported_and_repair_allows_retry ... ok
+test pinned_federation_rejects_changed_roster_and_wrong_peer_key ... ok
+test pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle ... ok
+test receipt_only_marker_variants_converge_and_keep_both_certificates ... ok
+test restarted_puller_resumes_a_persisted_metadata_fragment_cursor ... ok
+test scheduled_pull_observes_publication_after_service_start_and_stops_cleanly ... ok
+test server_rejects_a_stale_generation_before_serving_changes ... ok
+test simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge ... ok
+test target_home_publication_reaches_third_deployment_without_local_target_key ... ok
+test three_deployment_group_and_tombstone_relay_preserves_origin_evidence ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.00s
+

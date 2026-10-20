@@ -1,0 +1,7 @@
+4 published groups, 0 ignored markers, 0 dangling certificates
+0 tombstones, 0 ignored tombstones
+  Demo.cliCheckpoint: 1 head(s) [375eac828bed]
+  Demo.cliSmoke: 1 head(s) [8d20162234d4]
+  Demo.cliSmokeAfterRestart: 1 head(s) [a3afc3b08451]
+  Target.cliSmoke: 1 head(s) [baa9d2969030]
+  file Test/File.lean: [13f38a88186d, 3b69f11e993e, 474b3c4e060a, dafbcdd8b214]

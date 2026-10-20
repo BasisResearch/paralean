@@ -83,6 +83,10 @@ The persisted home rules apply even to handles opened before federation pinning.
 it does not promise that the entire backlog is drained. `ae-status federation.json`
 prints durable progress and pending diagnostics. SIGINT/SIGTERM drain service tasks
 before the CLI shuts down its FDB network thread.
+Terminal conflicts are archived separately, freeing their active pending slots and
+fragments. `ae-status` lists the first 64 archived diagnostics per peer; `--once`
+continues to report a conflict while any archived diagnostic exists. Its terminal
+statistic is a lower bound, not the total archive size.
 
 The service uses atomic commit-versionstamp events, durable cursors and pending
 fragments, 1 MiB metadata frames, 64 KiB fragments, an 8 MiB metadata limit per
@@ -109,6 +113,14 @@ The destructive `PHASE=dataloss` additionally requires
 `I_KNOW_THIS_DESTROYS_THE_INSTANCE=1` and runs last on a disposable own instance.
 `PARALEAN_TEST_WORKER_LIMIT=3` runs all multiprocess worker configurations in waves.
 The default combined cluster example above needs a larger process budget.
+`scripts/ae-cli-smoke.sh` checks two running instances using distinct private keys,
+public peer configuration, service restart and graceful SIGTERM. Set
+`PARALEAN_A_INSTANCE` and `PARALEAN_B_INSTANCE` explicitly.
+
+For the P3 remote gate on a busy shared host, run
+`python3 scripts/remote-gate.py RUNDIR` with the usual P3 environment. This loads
+the unchanged `impl/p3-remote/scripts/gate.py` scenario and replaces only its
+fixed validator startup sleep with a bounded readiness wait.
 
 ## Layout
 
@@ -153,3 +165,6 @@ corrupt, forged and untrusted items, deferral, receive faults, rot repair, marke
 foreign target names, receipts and revocations under the receiver's key ring;
 plus a proptest over delivery orders with drops, duplicates, corruption and truncation),
 `crates/cli/tests/multiprocess.rs` (12 worker processes with injected aborts and SIGKILLs).
+The network service suite has 14 cases covering authenticated relay, source
+certificates/catalogues, home targets, chunks, incremental pages, durable fragment
+restart, missing-object repair, compatible variants and archived conflict diagnostics.

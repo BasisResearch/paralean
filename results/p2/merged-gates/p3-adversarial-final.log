@@ -1,0 +1,24 @@
+    Blocking waiting for file lock on build directory
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.03s
+     Running tests/adversarial.rs (impl/p2/target/debug/deps/adversarial-3e19357cd7cfed96)
+
+running 13 tests
+test changed_target_statement_is_rejected ... ok
+test dependency_must_be_published_with_a_receipt ... ok
+test end_to_end_target_work_publishes_with_bound_receipts ... ok
+test forged_receipts_fail_closed ... ok
+test job_issuer_keys_sign_target_free_envelopes_only ... ok
+test receipt_for_another_epoch_fails_closed ... ok
+test receipt_for_another_group_policy_checker_base_or_target_fails_closed ... ok
+test receipt_for_another_or_cancelled_request_fails_closed ... ok
+test receipt_under_an_unpinned_policy_fails_closed ... ok
+test revoked_or_retired_validator_key_fails_closed ... ok
+test stale_owner_after_lease_expiry_cannot_publish ... ok
+test validator_enforces_the_envelope_policy ... ok
+test worker_that_skips_validation_cannot_publish ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 274.73s
+

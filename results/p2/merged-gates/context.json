@@ -1,0 +1,23 @@
+{
+  "base_main": "cb1ca05",
+  "checkpoint": "ffbdb6e0b4ddb7701b2cf1e67bebf7ccbe2c67fc",
+  "instances": {
+    "mp2-net": 24500,
+    "mp2-peer": 24600
+  },
+  "p1_artifacts": "Read-only paralean-m-p4 at 604dade; impl/p1 matches merged main",
+  "fork_githash": "99967f1ee50a1ee82bb178359ad95b723c8196a2",
+  "source_sha256": {
+    "impl/p2/crates/store/src/ae.rs": "924fd17c8ac7ceedd7aeb41dff8e47268adab101dfb7a778fe7574e7f80c9e0d",
+    "impl/p2/crates/store/src/meta.rs": "c20dbd83be41f5a2c2387bb73afbcc3301820ada27bc643b7100a47571315d63",
+    "impl/p2/crates/store/src/antientropy.rs": "c46f005b053b10fcacb1bd29c338eabb25099c26d0665bf49f73c5a46f8a4876",
+    "impl/p2/crates/ae-service/src/lib.rs": "03218e1972e5fef23b241e770cc64925c183029cdd8db3a3332dc8dbddf907f8",
+    "impl/p2/crates/cli/src/ae.rs": "5dc213caf3e2802819a0b4f5b785810ed3bb0a12d985712528a83fc46cf1d259",
+    "impl/p3-remote/scripts/gate.py": "be368a5c075bdd4333e3d9cfaec5aa518d71f7eef82ffb8a4916f239920c292b",
+    "impl/p3/crates/control/tests/adversarial.rs": "960e7caa41bda1b8b5bc47167ca978bca76a63eb21f3e35c23d5946efeb3a625",
+    "impl/p2/crates/store/src/store.rs": "f9b445453e7ebe7c38377b6dac792212e8acadb9dc0926c0e6ad968154f5b955",
+    "impl/p2/scripts/remote-gate.py": "f4b83a330ac87eb617cd2e49e8a914e6b167c4b5f1f390a5c0887d0fece56db9",
+    "impl/p2/crates/ae-service/tests/network.rs": "c831f69124b76561efc081d9dc4161f7d9402de107bea499197ca3a9bc31b374"
+  },
+  "review_additions": "terminal diagnostic archive; store marker fast path; fragmented metadata restart test; P2 remote-gate readiness runner"
+}

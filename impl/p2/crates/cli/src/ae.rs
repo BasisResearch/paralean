@@ -310,6 +310,21 @@ pub async fn run(command: &str, path: &str, once: bool) -> R<ExitCode> {
             if pending.more {
                 println!("  more pending entries exist");
             }
+            let terminal = store
+                .ae_terminal_page(source, None, 64)
+                .await
+                .map_err(|e| e.to_string())?;
+            for entry in terminal.entries {
+                println!(
+                    "  archived event {} {:?}: {:?}",
+                    hex::encode(entry.event.key),
+                    entry.event.kind,
+                    entry.state
+                );
+            }
+            if terminal.more {
+                println!("  more archived terminal diagnostics exist");
+            }
         }
         return Ok(ExitCode::SUCCESS);
     }

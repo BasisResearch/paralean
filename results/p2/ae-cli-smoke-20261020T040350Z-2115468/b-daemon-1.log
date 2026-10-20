@@ -1,0 +1,11 @@
+anti-entropy ae-cli-20261020T040350Z-2115468-b listening on 127.0.0.1:24721
+anti-entropy ae-cli-20261020T040350Z-2115468-a: I/O: Connection refused (os error 111)
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 1, received_parts: 8, fetched_objects: 3, applied: 1, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 8, received_parts: 35, fetched_objects: 9, applied: 8, present: 0, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 11, received_parts: 11, fetched_objects: 0, applied: 4, present: 7, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 4, received_parts: 17, fetched_objects: 0, applied: 2, present: 2, deferred: 0, terminal: 0 }
+anti-entropy ae-cli-20261020T040350Z-2115468-a: RoundStats { received_events: 3, received_parts: 3, fetched_objects: 0, applied: 0, present: 3, deferred: 0, terminal: 0 }

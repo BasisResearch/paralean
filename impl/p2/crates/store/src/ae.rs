@@ -135,6 +135,8 @@ impl Pce for AeProgress {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AePendingPage { pub entries: Vec<AePending>, pub next: Option<Vec<u8>>, pub more: bool }
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AeTerminalPage { pub entries: Vec<AePending>, pub next: Option<Vec<u8>>, pub more: bool }
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AeObjectPage { pub refs: Vec<(Kind, Id, u64)>, pub next: Option<Vec<u8>>, pub more: bool }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ForeignCataloguePage { pub records: Vec<(Id, SignedRecord)>, pub next: Option<Vec<u8>>, pub more: bool }
@@ -231,6 +233,8 @@ impl Keys {
     pub fn ae_cursor(&self, source: &str) -> Vec<u8> { self.root.pack(&("aecursor", source)) }
     pub fn ae_pending(&self, source: &str, event: &[u8]) -> Vec<u8> { self.root.pack(&("aepending", source, Bytes::from(event))) }
     pub fn ae_pending_sub(&self, source: &str) -> foundationdb::tuple::Subspace { self.root.subspace(&("aepending", source)) }
+    pub fn ae_terminal(&self, source: &str, event: &[u8]) -> Vec<u8> { self.root.pack(&("aeterminal", source, Bytes::from(event))) }
+    pub fn ae_terminal_sub(&self, source: &str) -> foundationdb::tuple::Subspace { self.root.subspace(&("aeterminal", source)) }
     pub fn ae_count(&self, source: &str) -> Vec<u8> { self.root.pack(&("aecount", source)) }
     pub fn ae_parts(&self, source: &str, event: &[u8]) -> foundationdb::tuple::Subspace { self.root.subspace(&("aepart", source, Bytes::from(event))) }
     pub fn ae_part(&self, source: &str, event: &[u8], seq: u64) -> Vec<u8> { self.ae_parts(source, event).pack(&(seq,)) }
@@ -542,8 +546,44 @@ impl Store {
         Ok(AePendingPage { entries, next, more })
     }
 
+    /// Archived terminal diagnostics do not occupy an active pending slot. The archive is
+    /// retained indefinitely and paged separately from retryable work.
+    pub async fn ae_terminal_page(&self, source: &str, after: Option<Vec<u8>>, max_items: usize) -> Result<AeTerminalPage> {
+        self.ae_check_source(source).await?;
+        let (prefix, end) = self.meta.keys.ae_terminal_sub(source).range();
+        if after.as_ref().is_some_and(|k| k < &prefix || k >= &end) { return Err(StoreError::Invalid("terminal cursor outside source range".into())); }
+        let start = after.clone().unwrap_or(prefix);
+        let limit = max_items.clamp(1, MAX_PAGE_ITEMS);
+        let (rows, more) = self.meta.read(move |trx| {
+            let (start, end) = (start.clone(), end.clone());
+            Box::pin(async move {
+                let opt = RangeOption { limit: Some(limit), mode: StreamingMode::WantAll,
+                    ..RangeOption::from((KeySelector::first_greater_than(start), KeySelector::first_greater_or_equal(end))) };
+                let r = trx.get_range(&opt, 1, false).await?;
+                Ok((r.iter().map(|kv| (kv.key().to_vec(), kv.value().to_vec())).collect::<Vec<_>>(), r.more()))
+            })
+        }).await?;
+        let next = rows.last().map(|(k, _)| k.clone()).or(after);
+        let entries = rows.into_iter().map(|(_, v)| {
+            let p = AePending::from_pce(&v)?;
+            if !matches!(p.state, PendingState::Terminal(_)) { return Err(StoreError::Invalid("terminal archive holds active state".into())); }
+            Ok(p)
+        }).collect::<Result<_>>()?;
+        Ok(AeTerminalPage { entries, next, more })
+    }
+
+    pub async fn ae_active_pending_count(&self, source: &str) -> Result<u64> {
+        self.ae_check_source(source).await?;
+        match self.meta.get(self.meta.keys.ae_count(source)).await? {
+            None => Ok(0),
+            Some(bytes) => Ok(u64::from_be_bytes(bytes.as_slice().try_into()
+                .map_err(|_| StoreError::Invalid("bad active anti-entropy pending count".into()))?)),
+        }
+    }
+
     /// Atomically persist a bounded receiver batch. The cursor never moves backwards and the
-    /// generation is immutable for this peer; a full pending queue stops progress.
+    /// generation is immutable for this peer. Terminal upserts move to a durable diagnostic
+    /// archive while freeing their active pending slot and staged fragments in this transaction.
     pub async fn ae_save_progress(
         &self, source: &str, generation: Id, cursor: Option<Vec<u8>>,
         pending_upserts: &[AePending], pending_deletes: &[Vec<u8>],
@@ -574,6 +614,22 @@ impl Store {
                 let mut count = get(trx, &count_key).await?.map(|v| u64::from_be_bytes(v.try_into().unwrap_or([0; 8]))).unwrap_or(0);
                 for p in upserts.iter() {
                     let key = keys.ae_pending(&source, &p.event.key);
+                    let terminal_key = keys.ae_terminal(&source, &p.event.key);
+                    if let PendingState::Terminal(_) = &p.state {
+                        if get(trx, &terminal_key).await?.is_none() {
+                            trx.set(&terminal_key, &p.to_pce());
+                        }
+                        if get(trx, &key).await?.is_some() {
+                            count = count.saturating_sub(1);
+                            trx.clear(&key);
+                        }
+                        let (start, end) = keys.ae_parts(&source, &p.event.key).range();
+                        trx.clear_range(&start, &end);
+                        continue;
+                    }
+                    // A stale worker must not resurrect an event already archived by
+                    // another worker; the first terminal diagnosis is retained.
+                    if get(trx, &terminal_key).await?.is_some() { continue; }
                     if get(trx, &key).await?.is_none() {
                         count += 1;
                         if count > 10_000 { return Err(StoreError::Invalid("anti-entropy pending quota exhausted".into())); }
@@ -587,6 +643,10 @@ impl Store {
                     trx.clear_range(&start, &end);
                 }
                 for (event, seq, part) in parts.iter() {
+                    if get(trx, &keys.ae_terminal(&source, event)).await?.is_some()
+                        || deletes.iter().any(|deleted| deleted == event) {
+                        continue;
+                    }
                     let key = keys.ae_part(&source, event, *seq);
                     let value = part.to_pce();
                     if let Some(old) = get(trx, &key).await? {

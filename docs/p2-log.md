@@ -737,7 +737,8 @@ The implementation design and wire/store API contract are in
 - **Layout:** add `federation/config` and `aegeneration`; append-only
   `aelog/<commit-versionstamp>/<operation>`; receiver state
   `aecursor/<source>`, `aepending/<source>/<event>`,
-  `aepart/<source>/<event>/<sequence>` and `aecount/<source>`; authenticated
+  `aeterminal/<source>/<event>`, `aepart/<source>/<event>/<sequence>` and
+  `aecount/<source>` (active pending rows only); authenticated
   `gchunks/<group>`; compatible marker copies
   `mvariant/<group>/<marker>` and `vcer/<group>/<marker>/<writer>`;
   exact signed-job evidence `jobproof/<group>/<marker>/<publisher-cert>`;
@@ -764,7 +765,9 @@ The implementation design and wire/store API contract are in
   a different deployment's signature.
   Cursor movement and pending-fragment insertion are one transaction; import
   of a verified foreign catalogue is one source-qualified transaction that
-  never advances a local fence.
+  never advances a local fence. A terminal outcome atomically archives its
+  event and reason, deletes active pending/fragments and frees its quota slot;
+  terminal diagnostics remain pageable and cannot starve later valid events.
 - **Content-addressed writes and refinement:** a new group wrapper begins with
   raw `paralean-group-chunked-v1`, then a PCE version, opaque core and ordered
   `(chunk ID, stored-preimage length)` references. Its full bytes remain under
@@ -780,6 +783,12 @@ The implementation design and wire/store API contract are in
   catalogue records, tokens and certificates remain source-qualified and do
   not become local fenced commits. The target-home rule is checked by the new
   TargetNames TLA module and its mutation case.
+- **Trust boundary:** signed TCP frames authenticate configured deployments but
+  carry plaintext. An authenticated federation member can `Fetch` any known
+  content-addressed object, including staged/unpublished bytes. This does not
+  satisfy the receipt, publication or source-certificate guards. Deployments
+  must trust their peers as content readers and protect the network path if
+  confidentiality is required; P2 does not claim certificate-gated read access.
 
 The P2 plan/README sentence is: “P2 anti-entropy is a scheduled, authenticated
 TCP service with commit-ordered bounded pages, durable replay cursors, chunk and
@@ -816,3 +825,43 @@ body IDs can have different issuer signatures: `jobproof` retains the exact
 signed envelope paired with the publisher certificate, so relay events cannot
 substitute another deployment's signature. A concurrent first-receive race now
 defers for restaging when another marker wins the slot before T9 commits.
+
+### Merged baseline verification and final review
+
+On main `cb1ca05`, the final marker fast path passed the store baseline
+**53/53**, the property suite with **150 cases**, and legacy anti-entropy
+**9/9 with 48 randomized cases**. P3's adversarial suite passed **13/13**.
+The guard-removal matrix detected **26/26** listed mutation/test pairs.
+Evidence is in `results/p2/merged-gates/`; `context.json` identifies the pinned
+fork and the read-only P1 artifacts, whose sources match merged main. The
+fast path only avoids certificate/receipt reads when no marker variants exist;
+the return value remains the legacy base marker. The anti-entropy run took
+332.48 s after this change versus 404.61 s immediately before it on the shared
+host; this is not a controlled benchmark or a claim about the historical runs.
+
+The expanded network suite passed **14/14**, including durable continuation
+from an 80 KiB marker split across metadata pages. Two actual CLI service
+processes on independent `mp2-net` and `mp2-peer` instances passed publication,
+target receipt, catalogue, incremental restart and graceful SIGTERM checks.
+The final smoke evidence is
+`results/p2/ae-cli-smoke-20261020T042041Z-2398435/`; private authority and
+transport keys remain under ignored `.runs/`.
+
+Final review found that retained terminal conflicts could exhaust the 10,000
+active-event quota and prevent newer valid events from arriving. Terminal
+diagnostics now move atomically to `aeterminal`, freeing the active count and
+staged fragments. Stale retries cannot resurrect an archived event. The
+network suite passed **14/14 again** after this fix; the conflict regression
+checks the exact durable diagnostic, zero active count, cleared fragments,
+repeated conflict status, and arrival of a later unrelated group.
+`ae-status` pages archived diagnostics separately. `--once` retains a nonzero
+conflict result, using one archive entry as an indicator rather than scanning
+or counting the entire archive.
+
+The first plain remote gate run exposed its fixed 1.5-second validator startup
+race: Bob's initial validation got `Connection refused`, causing gate items
+1 and 7 to fail while later validations and the other checks passed. That
+failure is retained in `p3-remote-final.log`. The P2-owned
+`scripts/remote-gate.py` runner loads the unchanged P3 scenario and replaces
+only its startup sleep with a bounded readiness wait; its rerun and the scoped
+fault phases remain in progress at this checkpoint.

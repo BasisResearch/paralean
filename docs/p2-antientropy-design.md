@@ -26,13 +26,15 @@ forwardable across any number of relays.
 
 Append `aelog/<commit-versionstamp>/<operation>` in the **same FDB transaction**
 that first commits T1, T8, T9, T10, or a ready T5 catalogue record. Values name
-`Group(groupID)`, `Tombstone(tombstoneID)`, or `Catalogue(recordID)`; the transaction
+an exact `GroupVariant(groupID, markerID, certificateID)`,
+`Tombstone(tombstoneID, certificateID)`, or source-qualified
+`Catalogue(source, recordID, certificateID)`; the transaction
 does not embed payload bytes in the log. FDB's commit versionstamp orders these keys
 by commit order. An insertion that commits after a page's read version has a larger
 versionstamp than every event in that page. Scanning by object ID or ordinary key
 order would be unsound: an insert behind the cursor could be missed forever. The
 versionstamp mutation and the publication must succeed or fail together. T2/T6
-certificates that appear later get their own `Certificate(kind, ID, signer)` events
+certificates that appear later get their own `Evidence(kind, ID, certificateID)` events
 when their addition changes transferable evidence. A new verified foreign
 certificate, including one attached to an item already `Present`, also gets an
 evidence event. A repair or repeated import which changes no visible state emits
@@ -41,14 +43,17 @@ per distinct certificate per deployment.
 
 The server exposes a small authenticated protocol: a signed `Hello` payload
 (deployment identity, protocol version, federation configuration digest and cursor generation),
-`Changes(after_cursor, max_items, max_bytes)` (an ordered page and a sealed
-`next_cursor`), and `Fetch(kind, ID)` (one content-addressed object as a bounded
-whole body, with a 64 MiB cap). A page contains event descriptors and certificate/metadata
-bundles only; large S3 objects are fetched separately. Clamp the server limits
-(initial design: 128 descriptors and 1 MiB encoded metadata per page; client
-in-flight object limit 2, object cap 64 MiB). If a single metadata bundle exceeds
-the byte limit, page its certificate list and use a continuation for that item;
-never silently drop it. Every scan follows FDB's `more()` flag, including a short
+`Changes(after_cursor, max_items, max_bytes)` (an ordered descriptor page and
+opaque `next_cursor`), `Materialize(event, after_part, max_bytes)` (numbered
+metadata, certificate and object-reference parts), and `Fetch(kind, ID)` (one
+content-addressed object as a bounded whole body, with a 64 MiB cap). The
+store bounds change pages to 128 descriptors and 1 MiB; the scheduler requests
+32 descriptors per round. Materialization emits at most 127 parts and 1 MiB
+per page, with a separate 8 MiB inline-metadata cap per event. An event above
+that cap fails with a diagnostic rather than being silently truncated. Each
+`Evidence` event binds exactly one certificate. S3 objects are fetched
+separately, one at a time per peer; at most two peer pull rounds run concurrently.
+Every scan follows FDB's `more()` flag, including a short
 partial batch. The server never first calls full `discover()` or builds a full
 `export()` vector to serve a page. It reads only the log range and materializes
 the selected items. A finite page is a consistent snapshot at one FDB read version;
@@ -65,23 +70,35 @@ of controller and validator processes, with a dedicated sync writer whose key is
 trusted by participants. It must avoid storing peer Garage/FDB credentials and
 must work over an ordinary network address.
 
+Transport signatures authenticate peers and frames; the TCP payload is plaintext.
+Federation members are trusted content readers: an authenticated member that
+knows a content ID may `Fetch` that object even if it was staged but never
+published. Receiving the bytes alone never makes a publication visible or
+admissible; the receipt and source-bound certificate guards still apply. A
+deployment must therefore trust its federation peers with known content and
+use an appropriately protected network path if confidentiality is required.
+
 The receiver stores `aecursor/<source-id>` with a value containing the source
-generation and last fully
-processed event and a bounded, durable `aepending/<source-id>/<event-key>` entry
+generation and last durably queued event and a bounded, durable
+`aepending/<source-id>/<event-key>` entry
 for any item that cannot yet be applied. A cursor may advance past a deferred item
 only after its pending entry is committed, with a fragment collection cursor,
 an object-scan cursor, and a durable source identity. The configured peer address
 is held by the service, not copied into every pending row. Do **not** persist whole
 64 MiB payloads in FDB. Fetch each object by ID again after restart. Persist
-terminal diagnostic outcomes; `Applied` and `Present` entries are atomically
-removed with their fragments after success. A poison event does not
-stall all later events; preserve the evidence and reason for operator inspection.
-Replay the pending queue on startup, after each page, and when an observed
-dependency arrives; bound attempts and use retry backoff. A transient missing
+terminal diagnostic outcomes under `aeterminal/<source-id>/<event-key>`.
+Archiving a terminal event atomically removes its active pending row and
+fragments and decrements its active quota count; the first diagnostic remains
+available through a separate paged API. `Applied` and `Present` entries are
+atomically removed with their fragments after success. A poison event does not
+stall all later events or consume one of the 10,000 active pending slots forever;
+preserve its event identity and reason for operator inspection.
+Replay a bounded pending page on startup and on each scheduled round, rotating
+the page cursor for fairness; connection failures use bounded retry backoff. A transient missing
 payload or parent stays pending. If the process crashes between import and cursor
 commit, retry is safe because T9/T10 and object PUTs are idempotent. Cursor write
 and pending insertion must be atomic; application may precede them. The source log
-is retained until every peer has acknowledged a cursor, or indefinitely in P2.
+is retained indefinitely in P2; there is no peer-acknowledged log compaction.
 Compaction requires a separately verified snapshot/bootstrap protocol. A changed
 generation without a bootstrap is a hard error, never an empty continuation.
 
@@ -122,6 +139,7 @@ AePending = { sourceDeployment, generation, event: AeEvent,
               lastError: option string }
 AeProgress = { generation, cursor: option bytes }
 AePendingPage = { entries: list AePending, next: option bytes, more: bool }
+AeTerminalPage = { entries: list AePending, next: option bytes, more: bool }
 AeObjectPage = { refs: list (s3Kind, id, storedPreimageLength),
                  next: option bytes, more: bool }
 ```
@@ -157,6 +175,8 @@ Store::ae_page(after, max_items, max_bytes) -> Result<AePage>
 Store::ae_materialize(event, after_part, max_bytes) -> Result<AeBundlePage>
 Store::ae_progress(source) -> Result<Option<AeProgress>>
 Store::ae_pending_page(source, after, max_items) -> Result<AePendingPage>
+Store::ae_terminal_page(source, after, max_items) -> Result<AeTerminalPage>
+Store::ae_active_pending_count(source) -> Result<u64>
 Store::ae_missing_objects(source, event, after, max_items) -> Result<AeObjectPage>
 Store::ae_save_progress(source, generation, cursor,
                         pending_upserts, pending_deletes, part_upserts) -> Result<()>
@@ -169,10 +189,12 @@ Writer::ae_import_staged(source, event) -> Result<Outcome>
 `ae_page` bounds **encoded descriptors**, not materialized payloads; clamp
 `max_items` and `max_bytes` server-side. Its `after` is exclusive, `next` is
 the last returned key (or the input cursor for an empty page), and `more`
-reflects the range's `more()` at the same FDB read version. A later commit has
+reflects the range's `more()` or the descriptor byte limit at the same FDB read version. A later commit has
 a greater versionstamp, so another page will see it even if `more` was false.
 `ae_pending_page` is likewise bounded and uses its own exclusive key cursor;
-startup replay never loads the whole deferred queue at once.
+startup replay never loads the whole deferred queue at once. Terminal outcomes
+move to `ae_terminal_page` atomically with removal from active pending and
+fragment keys, and do not count against the active quota.
 `ae_missing_objects` pages the staged `ObjectRef` parts and returns only refs
 whose local S3 GET is absent or corrupt. Its `after` is exclusive over the
 stable part key. The client fetches these refs by ID from the peer, verifies
@@ -183,8 +205,8 @@ missing-object page is the scheduler's recovery path; it need not parse the
 free-text `Outcome::Deferred(String)` reason.
 `ae_materialize` caps the encoded part page and advances by stable sequence
 number; a part never changes under the same event key. If a single metadata
-object exceeds the store's object-size limit, report an explicit terminal
-diagnostic. The receiver stores fragments under
+object or event exceeds the size limit, report an explicit materialization
+error and retain the event for retry or operator diagnosis. The receiver stores fragments under
 `aepart/<source>/<event-key>/<sequence>` with an idempotent compare; it can
 resume collection after a crash. `ae_save_progress` commits cursor advancement,
 pending state and received fragments atomically for each bounded page. A fully
@@ -229,7 +251,7 @@ target's configured home; the relay's own certificate cannot confer target
 ownership.
 
 An item already present locally still processes and commits newly received
-valid evidence. The new `xcert` key and its change event are written atomically;
+valid evidence. The new `xcertv` key and its change event are written atomically;
 the original publication and local certificate remain untouched. If a key
 exists with identical bytes, return `Present` without a log event. If the same
 provenance key holds different bytes, report a certificate conflict and leave
@@ -260,8 +282,8 @@ can build this wrapper from `(core, ordered chunk objects)` and return `Opaque`.
 P2 validates the wrapper's exact PCE, nonempty core, bounded reference count,
 each chunk length in `1..=64 MiB`, and absence of trailing bytes; it does not
 interpret the core's Lean declarations. An unsupported `paralean-group-chunked-*`
-magic or malformed v1 wrapper is a precise `UnsupportedGroupEncoding` or
-`InvalidGroupEncoding` error, never an empty chunk list.
+magic or malformed v1 wrapper returns a precise invalid-encoding diagnostic,
+never an empty chunk list.
 
 At publish, derive the set of `(ID, length)` from `Package.group.pce`; require
 that `Package.chunks` contains exactly those IDs (duplicate logical references
@@ -273,7 +295,7 @@ every chunk and local acknowledgement before T9. Store a derived
 `gchunks/<groupID>` index in T1/T9 for cheap enumeration, but reparse the
 authenticated group object and compare it to the index when serving or auditing;
 the index cannot add or omit a reference silently. The network service can
-stream the deduplicated set in ID order while preserving logical order in the
+page the deduplicated set in ID order while preserving logical order in the
 group bytes. Since `gchunks` is set in the publication transaction, a cursor
 event never observes a published group without its chunk index.
 
@@ -299,8 +321,9 @@ receiver stores the bundle under a source-qualified foreign namespace such as
 source token's rank and
 certificate provenance. Foreign ranks cannot be compared with the local `fence`
 or used to write local `rcert/`; local `recover_catalog` keeps its current
-meaning. A read API can enumerate verified foreign catalogues by source and
-report source-ready versus missing dependencies. Promoting a foreign snapshot
+meaning. `foreign_record` and `foreign_catalogue_page` expose verified
+source-qualified records; they do not expose a separate readiness-status field.
+Promoting a foreign snapshot
 to a local checkpoint requires a separate, locally fenced T5 commit by a local
 holder; it is not an anti-entropy side effect.
 
@@ -374,8 +397,8 @@ protocol version; migration needs a separately modelled handover. Ordinary
 non-target names keep Workspaces' deterministic collision rendering. Existing
 single-deployment APIs remain usable on stores which have never joined a
 federation; they do not authorize a federated peer. This is a protocol rule
-beyond the current single-store TargetNames model and must pass a TLA model
-with a guard removal mutation before implementation.
+beyond the current single-store TargetNames model; `verification/tla/TargetHomes.tla`
+and its guard-removal mutation check model it before the implementation.
 
 In federated mode, configure source-bound writer sets: a writer ID may certify
 for its configured origin deployment, and its certificate's replica must match
@@ -405,9 +428,11 @@ Discovery and audit enumerate the legacy marker plus variants, verify each
 variant's staged S3 copy and at least one matching local certificate, and
 select the **lowest marker ID** among eligible receipt-only variants. The
 selection is a deterministic physical representation of the same abstract
-group, not a new Workspaces position rule. `Store::marker`, rendered files and
-network export use the selected variant; export also carries the other valid
-variants and their certificates so a later peer can make the same selection.
+group, not a new Workspaces position rule. `Store::marker` and rendered files
+use the selected variant. The network change stream carries
+every valid variant and its certificate in distinct events, so a later peer
+can make the same selection; legacy in-process `export()` retains its
+canonical-only behavior.
 The receiver certifies each newly admitted variant locally in the transaction
 that stores it. A variant already stored can acquire more valid foreign
 evidence without replacing its local certificate or emitting repeated events.
@@ -454,7 +479,8 @@ converges under the existing deterministic render.
 ## Exact `store.md` delta recorded in `docs/p2-log.md`
 
 1. In **Layout**, add `aelog/<versionstamp>/<operation>`,
-   `aecursor/<source>`, `aepending/<source>/<event>`, `aepart/<source>/<event>/<sequence>`, and
+   `aecursor/<source>`, `aepending/<source>/<event>`,
+   `aeterminal/<source>/<event>`, `aepart/<source>/<event>/<sequence>`, and
    `gchunks/<group>`. Add `mvariant/<group>/<marker>` and
    `vcer/<group>/<marker>/<writer>` and certificate-ID-keyed `xcertv/`, plus
    source-qualified `xcatalog/`, `xrcert/`, `xtoken/`, `xrevision/`, `xocert/`

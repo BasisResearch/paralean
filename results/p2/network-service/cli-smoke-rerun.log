@@ -1,0 +1,5 @@
+[2026-10-20T04:03:50Z] generate distinct random local authority, validator, writer and transport keys
+[2026-10-20T04:03:50Z] pin identical public federation roster before publication
+[2026-10-20T04:03:52Z] publish a free group, checkpoint, and home-target group at A
+[2026-10-20T04:03:57Z] B discovered free and home-target groups; cursor drained and audit passed
+[2026-10-20T04:03:57Z] SIGTERM B service, await clean exit, and restart with the same durable cursor
