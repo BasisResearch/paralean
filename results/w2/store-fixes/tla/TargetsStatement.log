@@ -1,0 +1,29 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 116 and seed -6821376774916203311 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1632541] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsStatement/Targets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsStatement-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsStatement-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsStatement-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-20 21:38:02)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:38:02.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.7E-10
+  based on the actual fingerprints:  val = 4.1E-11
+140910 states generated, 28674 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 17.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 3).
+Finished in 00s at (2026-10-20 21:38:02)
+==== Paralean TLC provenance ====
+module Targets
+config TargetsStatement.cfg
+expect pass
+checked b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
+checked 8ae3f57572ad3e8975681f861a3b46ec4a3d4f43b11280cdd34485e0453512bd  TargetsStatement.cfg
+==== end provenance ====

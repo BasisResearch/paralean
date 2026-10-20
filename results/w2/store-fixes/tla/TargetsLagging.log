@@ -1,0 +1,30 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 49 and seed -8067442314287389124 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1590810] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsLagging/Targets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsLagging-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsLagging-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsLagging-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-20 21:37:05)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:37:05.
+Progress(14) at 2026-10-20 21:37:08: 971,239 states generated (971,239 s/min), 287,514 distinct states found (287,514 ds/min), 103,937 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.2E-7
+  based on the actual fingerprints:  val = 2.9E-7
+7243601 states generated, 1299876 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 24.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 18s at (2026-10-20 21:37:23)
+==== Paralean TLC provenance ====
+module Targets
+config TargetsLagging.cfg
+expect pass
+checked b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
+checked cccd8066a5c099129b6471e3218b7bd6fdb92527bb03deaf98fba7218d746047  TargetsLagging.cfg
+==== end provenance ====

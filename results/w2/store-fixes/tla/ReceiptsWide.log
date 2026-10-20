@@ -1,0 +1,29 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 79 and seed -8967762740706131540 with 2 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2155339] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/ReceiptsWide/Receipts.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/ReceiptsWide-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/ReceiptsWide-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/ReceiptsWide-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Receipts
+Starting... (2026-10-20 21:56:35)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:56:35.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 2.1E-10
+  based on the actual fingerprints:  val = 3.4E-10
+293655 states generated, 13778 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 20.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 00s at (2026-10-20 21:56:36)
+==== Paralean TLC provenance ====
+module Receipts
+config ReceiptsWide.cfg
+expect pass
+checked b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
+checked 9f751810990c01a5f13e0d384e8f8d2fc84a9a80541a2ca7b5325f122e529435  ReceiptsWide.cfg
+==== end provenance ====

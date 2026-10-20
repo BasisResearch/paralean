@@ -1,0 +1,28 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 8 and seed -1386639989028784969 with 1 worker on 32 cores with 1899MB heap and 64MB offheap memory [pid: 1486629] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Receipts/Receipts.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Receipts-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Receipts-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Receipts-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Receipts
+Starting... (2026-10-20 21:32:48)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:32:48.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 2.3E-12
+26983 states generated, 1682 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 16.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 4).
+Finished in 00s at (2026-10-20 21:32:49)
+==== Paralean TLC provenance ====
+module Receipts
+config Receipts.cfg
+expect pass
+checked b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
+checked 8509edf912636f023c58fd31a3f0357986241b41c8d647576099f7672b6a9f4b  Receipts.cfg
+==== end provenance ====

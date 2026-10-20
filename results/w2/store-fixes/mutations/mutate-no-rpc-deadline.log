@@ -1,0 +1,22 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.35s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-91e53519424e0ff2)
+
+running 1 test
+test server::tests::incomplete_frames_expire_and_release_admission ... FAILED
+
+failures:
+
+---- server::tests::incomplete_frames_expire_and_release_admission stdout ----
+
+thread 'server::tests::incomplete_frames_expire_and_release_admission' (2349461) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p3/crates/control/src/server.rs:148:9:
+incomplete frame survived its deadline
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server::tests::incomplete_frames_expire_and_release_admission
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.50s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

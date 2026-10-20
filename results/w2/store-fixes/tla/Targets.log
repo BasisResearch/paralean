@@ -1,0 +1,30 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 29 and seed 6273754180549981044 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1589775] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Targets/Targets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Targets-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Targets-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/Targets-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Starting... (2026-10-20 21:36:53)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:36:53.
+Progress(14) at 2026-10-20 21:36:56: 1,222,440 states generated (1,222,440 s/min), 319,597 distinct states found (319,597 ds/min), 113,162 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.9E-7
+  based on the actual fingerprints:  val = 2.9E-8
+4984733 states generated, 838428 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 21.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 11s at (2026-10-20 21:37:04)
+==== Paralean TLC provenance ====
+module Targets
+config Targets.cfg
+expect pass
+checked b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
+checked a25a9014846da0978e87ee2bbb325d212a3acb23973749f59c89662587fbe065  Targets.cfg
+==== end provenance ====

@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_private_socket_and_absent_tcp_are_required (__main__.StorageBoundary.test_private_socket_and_absent_tcp_are_required)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-boundary-mutation-qq09429u/test-storage-boundary.py", line 26, in test_private_socket_and_absent_tcp_are_required
+    with self.assertRaisesRegex(ValueError, "TCP port"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+FAILED (failures=1)

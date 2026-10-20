@@ -1,0 +1,22 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.32s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-f14c8ee4725386d7)
+
+running 1 test
+test server::tests::connection_admission_is_bounded_before_authentication ... FAILED
+
+failures:
+
+---- server::tests::connection_admission_is_bounded_before_authentication stdout ----
+
+thread 'server::tests::connection_admission_is_bounded_before_authentication' (2348232) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p3/crates/control/src/server.rs:137:9:
+excess unauthenticated connection got a challenge: Ok(Ok(Challenge { nonce: [237, 172, 197, 98, 138, 181, 205, 145, 144, 90, 138, 101, 93, 67, 132, 185, 70, 85, 242, 229, 39, 246, 202, 99, 96, 207, 132, 104, 32, 122, 104, 93], signature: [80, 120, 4, 100, 59, 31, 9, 232, 36, 46, 116, 240, 169, 177, 189, 124, 147, 130, 111, 209, 164, 104, 105, 20, 203, 82, 95, 214, 140, 198, 189, 107, 4, 35, 194, 5, 30, 183, 145, 90, 136, 71, 130, 219, 20, 51, 112, 166, 33, 33, 179, 80, 31, 72, 12, 90, 176, 239, 198, 224, 235, 224, 228, 5] }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server::tests::connection_admission_is_bounded_before_authentication
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

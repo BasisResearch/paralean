@@ -1,0 +1,22 @@
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p2/crates/s3-guard)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-c56f17719d47cb70)
+
+running 1 test
+test tests::encoded_and_unknown_mutations_are_denied ... FAILED
+
+failures:
+
+---- tests::encoded_and_unknown_mutations_are_denied stdout ----
+
+thread 'tests::encoded_and_unknown_mutations_are_denied' (2350501) panicked at crates/s3-guard/src/main.rs:221:13:
+/b?%64elete
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::encoded_and_unknown_mutations_are_denied
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p s3-guard --bin s3-guard`

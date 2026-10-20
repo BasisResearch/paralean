@@ -1,0 +1,40 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 86 and seed -6983063149271994278 with 2 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2057453] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide/TargetsWide.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide/Targets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/.runs/tla/run/TargetsWide-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Targets
+Semantic processing of module TLC
+Semantic processing of module TargetsWide
+Starting... (2026-10-20 21:50:58)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:50:58.
+Progress(13) at 2026-10-20 21:51:01: 311,852 states generated (311,852 s/min), 80,605 distinct states found (80,605 ds/min), 46,079 states left on queue.
+Progress(18) at 2026-10-20 21:52:01: 15,571,766 states generated (15,259,914 s/min), 2,675,891 distinct states found (2,595,286 ds/min), 1,021,756 states left on queue.
+Progress(20) at 2026-10-20 21:53:01: 33,429,865 states generated (17,858,099 s/min), 5,078,302 distinct states found (2,402,411 ds/min), 1,539,743 states left on queue.
+Progress(21) at 2026-10-20 21:54:01: 56,934,378 states generated (23,504,513 s/min), 7,782,939 distinct states found (2,704,637 ds/min), 1,751,172 states left on queue.
+Progress(23) at 2026-10-20 21:55:01: 79,885,319 states generated (22,950,941 s/min), 10,026,327 distinct states found (2,243,388 ds/min), 1,511,438 states left on queue.
+Progress(25) at 2026-10-20 21:56:01: 103,362,699 states generated (23,477,380 s/min), 11,857,261 distinct states found (1,830,934 ds/min), 704,637 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 6.8E-5
+  based on the actual fingerprints:  val = 2.7E-6
+113659398 states generated, 12400854 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 28.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
+Finished in 05min 36s at (2026-10-20 21:56:34)
+==== Paralean TLC provenance ====
+module TargetsWide
+config TargetsWide.cfg
+expect pass
+checked b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
+checked 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+checked 59a565148cbbdff5b511cc32b2e9fc1046079c6d5267663fc6607929d607b889  TargetsWide.cfg
+==== end provenance ====

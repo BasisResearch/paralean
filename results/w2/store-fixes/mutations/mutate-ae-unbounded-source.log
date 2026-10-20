@@ -1,0 +1,23 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.15s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-b1ce292b76ae99ec)
+
+running 1 test
+test declared_objects_are_bounded_per_source ... FAILED
+
+failures:
+
+---- declared_objects_are_bounded_per_source stdout ----
+
+thread 'declared_objects_are_bounded_per_source' (2375473) panicked at crates/ae-service/tests/network.rs:1533:5:
+38654705664 bytes of references staged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    declared_objects_are_bounded_per_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.65s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

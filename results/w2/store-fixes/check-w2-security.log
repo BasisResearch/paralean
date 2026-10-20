@@ -1,0 +1,19 @@
+detected mutate-public-key-file
+detected mutate-weak-signature
+detected mutate-key-debug
+detected mutate-unbounded-pce
+detected mutate-unbounded-s3-read
+detected mutate-unbounded-rpc
+detected mutate-no-rpc-deadline
+detected mutate-oversized-frame
+detected mutate-allow-delete
+detected mutate-unbounded-body
+detected mutate-receive-no-cancel-check
+detected mutate-receive-no-dep-check
+detected mutate-no-statement-pin-check
+detected mutate-ae-unbounded-parts
+detected mutate-ae-unbounded-objects
+detected mutate-ae-unbounded-source
+detected private_backend_mode
+detected private_backend_tcp
+W2 security mutations: 18/18 detected

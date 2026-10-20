@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/guards.rs (impl/p2/target/debug/deps/guards-f225bf0c80197b20)
+
+running 1 test
+test t1_requires_the_pinned_target_statement ... FAILED
+
+failures:
+
+---- t1_requires_the_pinned_target_statement stdout ----
+
+thread 't1_requires_the_pinned_target_statement' (2357809) panicked at crates/store/tests/common/mod.rs:118:18:
+expected a guard failure, got Ok(PublishOutcome { marker: 7eed2d182b0b, fresh: true })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    t1_requires_the_pinned_target_statement
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p paralean-store --test guards`

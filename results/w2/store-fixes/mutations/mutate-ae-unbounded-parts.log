@@ -1,0 +1,24 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a3f5b09e476077412/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.10s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-a7d31ccb77d3fa98)
+
+running 1 test
+test endless_event_parts_are_capped_and_archived ... FAILED
+
+failures:
+
+---- endless_event_parts_are_capped_and_archived stdout ----
+
+thread 'endless_event_parts_are_capped_and_archived' (2362437) panicked at crates/ae-service/tests/network.rs:1475:9:
+assertion failed: staged_parts(b, &source, &event).await as u64 <=
+    paralean_store::ae::MAX_EVENT_PARTS
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    endless_event_parts_are_capped_and_archived
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 5.96s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`
