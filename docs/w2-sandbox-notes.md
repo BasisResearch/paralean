@@ -153,7 +153,7 @@ fixtures with `PARALEAN_BIN` and skip with a message only when it is absent):
 | `sandbox_fails_closed_when_bwrap_is_missing` | a missing Bubblewrap → `NoVerdict::Crashed` and the checker never ran |
 | `production_config_enables_the_sandbox` | `from_env` sets `sandbox` and `cgroup` |
 | `real_plain_theorem_passes_inside_and_outside_the_sandbox` | a captured F01 theorem checks `ok` both direct and sandboxed |
-| `real_initializer_materializes_in_private_scratch` | a captured F13 initializer package checks `ok` under the sandbox, materializing in the tmpfs, not the host store |
+| `real_initializer_is_refused_before_materialization` | a captured F13 initializer package checks `ok` under the sandbox, materializing in the tmpfs, not the host store |
 | `native_lean_tactic_cannot_reach_host` | the `run_tac` package of `fixtures/Attack.lean.in` (reads a key, writes outside, opens the host TCP listener) is fully contained and its legitimate `trivial` proof still checks |
 
 `tests/checker_protocol.rs` (framing, no Lean/store needed):
@@ -256,3 +256,17 @@ package's code judge another's.
   passing, none ignored.
 - `results/w2/sandbox-mutations.log` — full `check-mutations.sh` output.
 - `results/w2/sandbox-overhead.log` — the overhead table above.
+
+## Update after the capsule command gate (W2-18)
+
+The command gate refuses `run_tac` and initializer capsules in `check-group`, so the
+two real-Lean attack fixtures no longer reach the sandbox through the published-capsule
+path. `real_initializer_is_refused_before_materialization` now checks that an
+initializer group is refused before anything materializes on the host.
+`native_lean_tactic_cannot_reach_host` checks both layers. First, the gate refuses the
+capsule in `check-group`. Second, the same source is elaborated by the toolchain's
+`lean` inside the production sandbox profile. There its tactic demonstrably runs (a
+scratch marker) while every host effect fails. With the sandbox removed
+(`mutate-no-checker-sandbox`) the tactic reads the key file, and the test detects it.
+Controller-behaviour tests whose stand-in checkers rely on the environment run those
+clusters unsandboxed; containment is covered here.
