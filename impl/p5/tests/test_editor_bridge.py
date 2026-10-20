@@ -133,7 +133,9 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         (self.root / "work" / "A.lean").write_text("theorem P5.answer : True := by trivial\n")
         self.ws = Workspace(self.root)
         self.uri = (self.root / "work" / "A.lean").as_uri()
-        self.ws.open_documents[self.uri] = {"version": 1, "text": "theorem P5.answer : True := by trivial\n"}
+        # The router records the client's URI with every opened document (lsp.py didOpen).
+        self.ws.open_documents[self.uri] = {"version": 1, "text": "theorem P5.answer : True := by trivial\n",
+                                            "public_uri": self.uri}
         self.backend = Backend()
         self.bridge = ControllerBridge(Proxy(self.ws), self.backend)
         self.bridge.captures[("w0", self.uri)] = {
