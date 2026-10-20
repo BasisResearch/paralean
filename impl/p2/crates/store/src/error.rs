@@ -23,6 +23,8 @@ pub enum GuardFailure {
     NotRevisingHead(Name),
     #[error("package has no revision for target name {0}")]
     MissingTargetRevision(Name),
+    #[error("the job's statement for target {0} is not the pinned statement")]
+    TargetStatement(Name),
     #[error("group {group:?} already published with marker {existing:?}")]
     AlreadyPublished { group: Id, existing: Id },
     #[error("parent revision {0:?} is not admitted (absent from the store)")]

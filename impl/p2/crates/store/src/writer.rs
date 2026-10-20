@@ -425,4 +425,10 @@ impl Controller {
     pub async fn reassign(&self, name: &Name, owner: WorkspaceId, request: &[u8]) -> Result<u64> {
         self.store.meta.t4_reassign(name.clone(), owner, request.to_vec()).await
     }
+    /// Pin the statement hash (P1 `typeHash`) every published proof of `name` must have
+    /// (W2 A-4). Write-once. A controller issuing a job for the name stamps this value
+    /// instead of the worker's, and T1 compares the job's binding with it.
+    pub async fn pin_statement(&self, name: &Name, statement: &[u8]) -> Result<bool> {
+        self.store.meta.pin_target_statement(name.clone(), statement.to_vec()).await
+    }
 }

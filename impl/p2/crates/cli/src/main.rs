@@ -22,6 +22,7 @@ const USAGE: &str = "usage: paralean-p2 <command> [args]
   keys init <path> [--workspaces N] [--demo]   write a key file (random seeds unless --demo)
   status                                        fence and key counts
   assign <target> <workspace>                   T4: assign/reassign a target name
+  pin-statement <target> <hash>                 pin the statement hash (hex) a target's proofs need
   rotate <holder-workspace>                     T3: issue the next fence rank
   put <kind> <file>                             put a file as an opaque object (group|chunk|capsule)
   get <kind> <hex-id>                           verified read; writes the PCE payload to stdout
@@ -167,6 +168,12 @@ async fn run(args: Vec<String>) -> R<ExitCode> {
             let (id, _) = kf.workspace(ws).ok_or("unknown workspace")?;
             let ep = controller(&st, &kf)?.reassign(&Name::parse(target), id, &request_id()).await.map_err(es)?;
             println!("{target}: owner {ws}, epoch {ep}");
+        }
+        ["pin-statement", target, hash] => {
+            let (st, kf) = open(Faults::none())?;
+            let statement = hex::decode(hash).map_err(|_| "statement hash must be hex")?;
+            let fresh = controller(&st, &kf)?.pin_statement(&Name::parse(target), &statement).await.map_err(es)?;
+            println!("{target}: statement {hash} {}", if fresh { "pinned" } else { "already pinned" });
         }
         ["rotate", ws] => {
             let (st, kf) = open(Faults::none())?;

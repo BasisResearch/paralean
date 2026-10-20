@@ -354,3 +354,40 @@ async fn paginated_scan_follows_partial_batches() {
         assert_eq!(kvs.len(), 2000, "page {page}");
     }
 }
+
+/// Rebind a prepared target package's job to `statement` (as a controller stamps it) and
+/// re-issue its receipt and marker.
+fn with_statement(e: &Env, mut p: Package, statement: &[u8]) -> Package {
+    let mut body = p.job.body.clone();
+    for t in &mut body.targets {
+        t.statement = statement.to_vec();
+    }
+    p.job = SignedJob::sign(body, &e.authority());
+    p.receipt = fixture::receipt_for(&p.job, &e.validator, Verdict::Accepted);
+    p.marker.receipt = p.receipt.id();
+    p
+}
+
+/// W2 A-4. Once the authority pins a target's statement, T1 advances the head only with a
+/// job bound to exactly that statement: an owner's empty or other statement (e.g. a proof
+/// of `True` named as the target) is refused and the head stays.
+#[tokio::test]
+async fn t1_requires_the_pinned_target_statement() {
+    let e = assigned("t1statement", 1).await;
+    let pinned = [0x5a; 32];
+    assert!(e.ctl.pin_statement(&x(), &pinned).await.unwrap());
+    assert!(!e.ctl.pin_statement(&x(), &pinned).await.unwrap(), "re-pinning the same statement is idempotent");
+    assert!(e.ctl.pin_statement(&x(), &[0x11; 32]).await.is_err(), "the pin is write-once");
+    assert!(e.ctl.pin_statement(&Name::parse("Target.short"), &[1; 31]).await.is_err());
+    assert_eq!(e.store.meta.target_statement(&x()).await.unwrap(), Some(pinned.to_vec()));
+    for (tag, statement) in [("empty", vec![]), ("other", vec![0x11; 32])] {
+        let p = with_statement(&e, e.prepare(0, &x(), tag, 1).await.unwrap(), &statement);
+        assert_eq!(guard_of(e.w[0].publish(&p).await), GuardFailure::TargetStatement(x()), "{tag}");
+        assert!(e.store.marker(&p.group.id()).await.unwrap().is_none());
+        assert_eq!(e.store.target(&x()).await.unwrap().unwrap().head, None);
+    }
+    let p = with_statement(&e, e.prepare(0, &x(), "pinned", 1).await.unwrap(), &pinned);
+    e.w[0].publish(&p).await.unwrap();
+    assert_eq!(e.store.target(&x()).await.unwrap().unwrap().head, Some(rev_id(&p)));
+    e.audit_ok().await;
+}

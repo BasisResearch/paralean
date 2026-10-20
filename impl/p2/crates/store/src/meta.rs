@@ -901,6 +901,14 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
         if rec.head != t.head && !cfg!(feature = "mutate-no-head-cas") {
             return Err(GuardFailure::HeadMoved { name: t.name.clone(), prepared: t.head, current: rec.head }.into());
         }
+        // W2 A-4: a pinned statement fixes what the head may prove. The job's binding (stamped
+        // by the controller, and what the validator checked the group against) must carry it.
+        if let Some(pin) = get(trx, &k.target_statement(&t.name)).await? {
+            let bound = a.job.body.targets.iter().find(|b| b.name == t.name).map(|b| &b.statement);
+            if bound != Some(&pin) && !cfg!(feature = "mutate-no-statement-pin-check") {
+                return Err(GuardFailure::TargetStatement(t.name.clone()).into());
+            }
+        }
         let Some((_, rev, _)) = a.revisions.iter().find(|(_, r, _)| r.name == t.name) else {
             return Err(GuardFailure::MissingTargetRevision(t.name.clone()).into());
         };

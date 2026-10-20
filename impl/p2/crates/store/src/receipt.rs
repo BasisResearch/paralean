@@ -421,6 +421,12 @@ impl Keys {
     pub fn job_cancel(&self, request: &[u8]) -> Vec<u8> {
         self.root.pack(&("jobcancel", foundationdb::tuple::Bytes::from(request)))
     }
+    /// `tstatement/<target name>`: the statement hash (P1 `typeHash`) the controller pinned
+    /// for a target name; write-once. T1 admits a proof of the name only with a job whose
+    /// binding carries exactly this statement (W2 A-4).
+    pub fn target_statement(&self, name: &Name) -> Vec<u8> {
+        self.root.pack(&("tstatement", foundationdb::tuple::Bytes::from(name.to_pce())))
+    }
     /// `vrevoke/<validator key>`: a signed revocation.
     pub fn revocation(&self, key: &[u8; 32]) -> Vec<u8> {
         self.root.pack(&("vrevoke", foundationdb::tuple::Bytes::from(&key[..])))
@@ -491,6 +497,44 @@ impl Meta {
 
     pub async fn is_cancelled(&self, request: &[u8]) -> Result<bool> {
         Ok(self.get(self.keys.job_cancel(request)).await?.is_some())
+    }
+
+    /// The statement pinned for a target name, if any (`tstatement/<name>`).
+    pub async fn target_statement(&self, name: &Name) -> Result<Option<Vec<u8>>> {
+        self.get(self.keys.target_statement(name)).await
+    }
+
+    /// Pin the statement a proof of a target name must have. Write-once: pinning the same
+    /// statement again succeeds without writing, another one fails. Only the target's home
+    /// may pin it when a federation is pinned (as T4).
+    pub(crate) async fn pin_target_statement(&self, name: Name, statement: Vec<u8>) -> Result<bool> {
+        if statement.len() != 32 {
+            return Err(crate::error::StoreError::Invalid("a pinned target statement is a 32-byte hash".into()));
+        }
+        let (k, name, statement) = (self.keys.clone(), Arc::new(name), Arc::new(statement));
+        self.run(
+            Txn::T4Reassign,
+            Box::new(move |trx| {
+                let (k, name, statement) = (k.clone(), name.clone(), statement.clone());
+                Box::pin(async move {
+                    if let Some(cfg) = crate::ae::config_in_txn(trx, &k).await? {
+                        if cfg.target_homes.get(name.as_ref()).map(String::as_str) != Some(cfg.deployment.as_str()) {
+                            return Err(GuardFailure::ForeignTarget((*name).clone()).into());
+                        }
+                    }
+                    let key = k.target_statement(&name);
+                    match crate::meta::get(trx, &key).await? {
+                        Some(v) if v == *statement => Ok(Step::Done(false)),
+                        Some(_) => Err(crate::error::StoreError::Invalid(format!("target {name} already has another pinned statement"))),
+                        None => {
+                            trx.set(&key, &statement);
+                            Ok(Step::Commit(true))
+                        }
+                    }
+                })
+            }),
+        )
+        .await
     }
 
     pub async fn is_revoked(&self, key: &[u8; 32]) -> Result<bool> {

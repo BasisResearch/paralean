@@ -897,6 +897,11 @@ impl ControlPlane {
                 return refused(&format!("worker does not own {name}"));
             }
             let Ok(statement) = hex::decode(&t.statement) else { return refused("bad statement hash") };
+            // W2 A-4: a statement the authority pinned for the name replaces the worker's.
+            let statement = match st.meta.target_statement(&name).await {
+                Ok(pinned) => pinned.unwrap_or(statement),
+                Err(e) => return inconclusive(&e.to_string()),
+            };
             bindings.push(TargetBinding { name, epoch: rec.epoch, statement });
         }
         sort_targets(&mut bindings);
