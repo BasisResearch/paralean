@@ -96,6 +96,29 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
     log_path = logdir / f"{tag}.log"
     started = time.monotonic()
     timed_out = False
+
+    def stop_owned_group(proc: subprocess.Popen) -> None:
+        # The guard and coding CLI have their own session. On a parent-side
+        # exception, reap that session so neither process survives unnoticed.
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        guard_exited = False
+        try:
+            proc.wait(timeout=5)
+            guard_exited = True
+        except subprocess.TimeoutExpired:
+            pass
+        # The guard may exit after forwarding TERM. Its wait() can finish
+        # while a CLI descendant still ignores TERM in the same group.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        if not guard_exited:
+            proc.wait()
+
     with log_path.open("wb") as log:
         try:
             guard = Path(__file__).with_name("worker_guard.py")
@@ -104,22 +127,21 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
         except OSError as exc:
             log.write(f"worker launch failed: {exc}\n".encode())
             return WorkerResult(target.name, agent, attempt, 127, round(time.monotonic()-started, 3), False, str(log_path))
-        if stdin is not None:
-            proc.stdin.write(stdin.encode())
-            proc.stdin.close()
-        while True:
-            try:
-                returncode = proc.wait(timeout=0.5)
-                break
-            except subprocess.TimeoutExpired:
-                if (stop_event is not None and stop_event.is_set()) or time.monotonic() - started >= task.timeout_s:
-                    timed_out = True
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    try:
-                        proc.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(proc.pid, signal.SIGKILL)
-                        proc.wait()
-                    returncode = 124
+        try:
+            if stdin is not None:
+                proc.stdin.write(stdin.encode())
+                proc.stdin.close()
+            while True:
+                try:
+                    returncode = proc.wait(timeout=0.5)
                     break
+                except subprocess.TimeoutExpired:
+                    if (stop_event is not None and stop_event.is_set()) or time.monotonic() - started >= task.timeout_s:
+                        timed_out = True
+                        stop_owned_group(proc)
+                        returncode = 124
+                        break
+        except BaseException:
+            stop_owned_group(proc)
+            raise
     return WorkerResult(target.name, agent, attempt, returncode, round(time.monotonic()-started, 3), timed_out, str(log_path))

@@ -208,6 +208,35 @@ before its bridge process exits, matching P2's CLI lifecycle. The earlier native
 bridge crash remains a recorded observation; this change addresses the newly
 available shutdown contract without claiming its cause was proven.
 
+## Main integration and publication crash-window review
+
+While the fixed-version benchmark was running, the user announced
+`origin/main=cb1ca05`, merging `integrate-p2-rest` and the final P4 branch
+`604dade`. A separate integration worktree was rebased onto that main commit
+so the running benchmark's source stayed unchanged. The newly published
+`m-targets=a52c517` expiry/batch-retry changes were applied there as well.
+P1, P4 and fork sources match main; P3 matches the target branch, with P2's
+certified tombstone integration retained in the remote CLI. P2 retains its
+published robustness scripts and the target branch's dependency guards.
+
+Review found a recovery window not covered by the earlier kill gate: T1 can
+commit a valid target before P5 records `target_validated`. Unconditionally
+reassigning on recovery invalidated that immutable receipt. P5 now reconciles
+the signed current head before retrying, including after a lost publication
+reply. Its private bridge implements a small T4-compatible guarded fence,
+comparing the dispatched owner, epoch and head in the same FDB transaction
+that writes the assignment record, log and request index. A stable request is
+journaled before fencing and reused after an unknown reply. A publication that
+wins the race is reconciled; a fence that wins makes the old T1 fail. Failed
+reads never authorize fencing a newly observed head. `verify-target` now checks
+the receipt's epoch and worker against the current target record as well.
+These changes are confined to `impl/p5`; no new P2/P3 glue is required.
+
+Ten lightweight controller/recovery regressions pass in the integration
+worktree. Rebuilding the integrated binaries, the live crash-window test and
+the final gate remain pending at this checkpoint; results are recorded below
+only after execution.
+
 ## Proposed sentences for plan.md and README.md
 
 These are proposals to update after verification, not edits to those files.

@@ -133,7 +133,8 @@ def main() -> int:
     if not os.environ.get("PARALEAN_INSTANCE"):
         ap.error("PARALEAN_INSTANCE must identify this run's private cluster")
     run_dir = args.run_dir.resolve()
-    run_dir.mkdir(parents=True, exist_ok=True)
+    # This fault test deletes the whole desktop. Refuse any preexisting path.
+    run_dir.mkdir(parents=True, exist_ok=False)
     state_dir = run_dir
     export_dir = run_dir / "export"
     task = args.task.resolve()

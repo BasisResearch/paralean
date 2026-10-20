@@ -10,12 +10,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 use cache::{id_of, name_of_json, Cache};
+use paralean_store::pce::Dec;
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{self, Policy, TargetBinding};
 use paralean_store::{
     AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, Id, JobEnvelope, KeyFile, Kind,
     Manifest, Marker, Name, Object, Opaque, Package, Receipt, Revision, Signed, SignedJob,
-    Snapshot, Store, StoreConfig, TargetAssignment, TargetCheck, Verdict, Writer,
+    Snapshot, Store, StoreConfig, TargetAssignment, TargetCheck, TargetRecord, Verdict, Writer,
 };
 use paralean_store::id::sha256;
 use paralean_store::pce::{Enc, Pce};
@@ -86,6 +87,8 @@ fn ms(t: Instant) -> f64 {
 pub async fn run(args: &[String]) -> R<Value> {
     match args.first().map(String::as_str) {
         Some("assign-target") => assign(args).await,
+        Some("observe-target") => observe_target(args).await,
+        Some("fence-unfinished") => fence_unfinished(args).await,
         Some("validate-target") => validate_target(args).await,
         Some("publish-target") => publish_target(args).await,
         Some("verify-target") => verify_target(args).await,
@@ -252,6 +255,93 @@ async fn assign(args: &[String]) -> R<Value> {
         .await
         .map_err(|e| e.to_string())?;
     Ok(json!({"name": n.to_string(), "owner": wid.hex(), "epoch": epoch}))
+}
+
+fn target_json(n: &Name, rec: &TargetRecord, wid: paralean_store::WorkspaceId) -> Value {
+    json!({"name": n.to_string(), "owner": rec.owner.hex(), "epoch": rec.epoch,
+        "head": rec.head.map(|h| h.hex()), "assigned_to_agent": rec.owner == wid})
+}
+
+async fn observe_target(args: &[String]) -> R<Value> {
+    let (store, kf) = open()?;
+    let n = name(args)?;
+    let (wid, _) = workspace(&kf, args)?;
+    let rec = store.target(&n).await.map_err(|e| e.to_string())?
+        .ok_or("target record absent")?;
+    Ok(target_json(&n, &rec, wid))
+}
+
+/// T4-compatible assignment fenced by the target record read at dispatch.
+///
+/// `areq` is checked first and the request ID must be reused after an unknown
+/// commit result. The target read and all three T4 writes share one FDB
+/// transaction with T1's target-head update; exactly one side can win.
+async fn fence_unfinished(args: &[String]) -> R<Value> {
+    let (store, kf) = open()?;
+    let n = name(args)?;
+    let (wid, _) = workspace(&kf, args)?;
+    kf.authority_signer().ok_or("authority seed required for target fence")?;
+    let expected_epoch: u64 = need(args, "--expected-epoch")?.parse()
+        .map_err(|_| "invalid expected target epoch")?;
+    let expected_head = match need(args, "--expected-head")? {
+        "none" => None,
+        hex => Some(parse_id(hex)?),
+    };
+    let request = need(args, "--request")?.as_bytes().to_vec();
+    if request.is_empty() || request.len() > 128 {
+        return Err("fence request must be 1..128 bytes".into());
+    }
+    let keys = &store.meta.keys;
+    let request_key = keys.assign_request(&n, &request);
+    let target_key = keys.target(&n);
+    let mut trx = store.meta.db.create_trx().map_err(|e| e.to_string())?;
+    for _ in 0..60 {
+        // This index is the durable outcome witness if the previous commit
+        // succeeded but its reply was lost. Decode exactly P2's PCE uvarint.
+        if let Some(raw) = trx.get(&request_key, false).await.map_err(|e| e.to_string())? {
+            let mut decoder = Dec::new(&raw);
+            let request_epoch = decoder.uvarint().map_err(|e| e.to_string())?;
+            decoder.end().map_err(|e| e.to_string())?;
+            let assignment = trx.get(&keys.assign(&n, request_epoch), false).await
+                .map_err(|e| e.to_string())?.ok_or("fence request has no assignment log")?;
+            let assignment = AssignEntry::from_pce(&assignment).map_err(|e| e.to_string())?;
+            if assignment.owner != wid || assignment.request != request {
+                return Err("fence request index differs from assignment log".into());
+            }
+            let raw = trx.get(&target_key, false).await.map_err(|e| e.to_string())?
+                .ok_or("target record disappeared after fence")?;
+            let rec = TargetRecord::from_pce(&raw).map_err(|e| e.to_string())?;
+            let outcome = if rec.epoch == request_epoch && rec.owner == wid && rec.last_request == request {
+                "fenced"
+            } else { "changed" };
+            return Ok(json!({"outcome": outcome, "request_epoch": request_epoch,
+                "name": n.to_string(), "owner": rec.owner.hex(), "epoch": rec.epoch,
+                "head": rec.head.map(|h| h.hex())}));
+        }
+        let raw = trx.get(&target_key, false).await.map_err(|e| e.to_string())?
+            .ok_or("target record absent")?;
+        let rec = TargetRecord::from_pce(&raw).map_err(|e| e.to_string())?;
+        if rec.owner != wid || rec.epoch != expected_epoch || rec.head != expected_head {
+            return Ok(json!({"outcome": "changed", "name": n.to_string(),
+                "owner": rec.owner.hex(), "epoch": rec.epoch,
+                "head": rec.head.map(|h| h.hex())}));
+        }
+        let next = rec.epoch.checked_add(1).ok_or("target epoch overflow")?;
+        let updated = TargetRecord { name: n.clone(), owner: wid, epoch: next,
+            head: rec.head, last_request: request.clone() };
+        trx.set(&target_key, &updated.to_pce());
+        trx.set(&keys.assign(&n, next), &AssignEntry { owner: wid, request: request.clone() }.to_pce());
+        let mut encoded = Enc::new();
+        encoded.uvarint(next);
+        trx.set(&request_key, &encoded.out);
+        match trx.commit().await {
+            Ok(_) => return Ok(json!({"outcome": "fenced", "request_epoch": next,
+                "name": n.to_string(), "owner": wid.hex(), "epoch": next,
+                "head": rec.head.map(|h| h.hex())})),
+            Err(error) => { trx = error.on_error().await.map_err(|e| e.to_string())?; }
+        }
+    }
+    Err("target fence outcome unresolved after 60 retries; reuse the same request".into())
 }
 
 async fn validate_target(args: &[String]) -> R<Value> {
@@ -477,17 +567,21 @@ async fn verify_target(args: &[String]) -> R<Value> {
     if receipt.body.verdict != Verdict::Accepted {
         return Err("target receipt rejected".into());
     }
-    let binding = job
-        .body
-        .targets
-        .iter()
-        .find(|t| t.name == n && t.statement == statement)
-        .ok_or("published job does not bind frozen target contract")?;
+    if job.body.targets.len() != 1 {
+        return Err("published job must bind exactly one target".into());
+    }
+    let binding = &job.body.targets[0];
+    if binding.name != n || binding.statement != statement {
+        return Err("published job does not bind frozen target contract".into());
+    }
     let record = store
         .target(&n)
         .await
         .map_err(|e| e.to_string())?
         .ok_or("target record absent")?;
+    if binding.epoch != record.epoch || job.body.worker != record.owner {
+        return Err("signed target job is stale for current owner or epoch".into());
+    }
     let head = record.head.ok_or("target has no published head")?;
     let revision = store
         .revision(&head)
@@ -499,7 +593,8 @@ async fn verify_target(args: &[String]) -> R<Value> {
     }
     Ok(
         json!({"ok": true, "group": group.hex(), "name": n.to_string(),
-        "epoch": binding.epoch, "statement_hash": hex::encode(statement),
+        "epoch": record.epoch, "owner": record.owner.hex(),
+        "statement_hash": hex::encode(statement),
         "head": head.hex()}),
     )
 }

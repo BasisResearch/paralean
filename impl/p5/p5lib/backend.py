@@ -443,6 +443,43 @@ class Backend:
                               "--request", request)
         return int(result["epoch"])
 
+    def observe_target(self, name: str, agent: str) -> dict:
+        """Read the durable owner, epoch and head before dispatch or recovery."""
+        if name not in {t["name"] for t in self.task.get("targets", [])}:
+            raise BackendError(f"target outside frozen task: {name}")
+        if agent not in self.agents:
+            raise BackendError(f"unregistered agent: {agent}")
+        result = self._bridge("observe-target", "--name", name, "--ws", agent)
+        if (result.get("name") != name or not isinstance(result.get("epoch"), int) or
+                not isinstance(result.get("owner"), str) or
+                not isinstance(result.get("assigned_to_agent"), bool) or
+                (result.get("head") is not None and not isinstance(result.get("head"), str))):
+            raise BackendError("malformed durable target observation")
+        return result
+
+    def fence_unfinished(self, name: str, agent: str, expected_epoch: int,
+                         expected_head: str | None, request: str) -> dict:
+        """Fence a still-unpublished dispatch, or report that its head changed."""
+        if name not in {t["name"] for t in self.task.get("targets", [])}:
+            raise BackendError(f"target outside frozen task: {name}")
+        if agent not in self.agents:
+            raise BackendError(f"unregistered agent: {agent}")
+        if not isinstance(expected_epoch, int) or expected_epoch < 0:
+            raise BackendError("invalid expected target epoch")
+        if not request or len(request.encode()) > 128:
+            raise BackendError("invalid stable fence request ID")
+        if expected_head is not None and (len(expected_head) != 64 or
+                any(c not in "0123456789abcdef" for c in expected_head)):
+            raise BackendError("invalid expected target head")
+        result = self._bridge("fence-unfinished", "--name", name, "--ws", agent,
+                              "--expected-epoch", str(expected_epoch),
+                              "--expected-head", expected_head or "none", "--request", request)
+        if (result.get("outcome") not in ("fenced", "changed") or result.get("name") != name or
+                not isinstance(result.get("owner"), str) or not isinstance(result.get("epoch"), int) or
+                (result.get("head") is not None and not isinstance(result.get("head"), str))):
+            raise BackendError("malformed guarded target-fence result")
+        return result
+
     @staticmethod
     def _transfer_rows(directory: Path) -> list[dict]:
         path = directory / "cache" / "p3" / "transfer.jsonl"

@@ -74,15 +74,111 @@ class Controller:
                 if entry["status"] == "running":
                     stale.append((name, entry["agent"]))
                     entry["status"] = "pending"
+                    entry["epoch_ready"] = False
+                elif entry.get("fence_request"):
+                    entry["status"] = "pending"
         for agent in self.agents:
             self.backend.provision(agent, self.state_dir / agent)
-        for name, agent in stale:
-            # A vanished controller must fence any old candidate before replay.
-            epoch = self.backend.assign_target(name, agent)
-            self.state["targets"][name]["epoch"] = epoch
+        for name, entry in self.state["targets"].items():
+            if entry["status"] == "failed" and self._reconcile_published(name, entry):
+                self._save("late_publication_recovered", target=name, group=entry["group"])
         if state is not None:
-            self._save("recovered" if recover else "resumed", fenced=[x[0] for x in stale])
+            self._save("recovered" if recover else "resumed", pending_reconciliation=[x[0] for x in stale])
         self._save("workspaces_ready", agents=self.agents)
+
+    def _reconcile_published(self, name: str, entry: dict) -> bool:
+        """Adopt a P2 publication lost before its P5 journal acknowledgement.
+
+        verify-target rejects receipts for an old owner or epoch. If this returns
+        false, _prepare_assignment compares the original dispatch head atomically
+        before fencing; a concurrent publication therefore cannot be stranded.
+        """
+        if not entry.get("agent") or not isinstance(entry.get("epoch"), int):
+            return False
+        observed = self.backend.observe_target(name, entry["agent"])
+        if (not observed.get("assigned_to_agent") or observed.get("epoch") != entry["epoch"]):
+            return False
+        # A failed pull or validator lookup is not evidence that no publication
+        # committed. Propagate the error rather than fencing that proof.
+        self._record_costs(self.backend.sync(entry["agent"], self.state_dir / entry["agent"]))
+        verdict = self.backend.validate([name])
+        self._record_costs(verdict)
+        detail = verdict.get("targets", {}).get(name, {})
+        if not (verdict.get("ok") and detail.get("ok") and detail.get("group")
+                and detail.get("epoch") == entry["epoch"]):
+            return False
+        entry["group"] = detail["group"]
+        entry["status"] = "done"
+        entry["error"] = None
+        return True
+
+    def _prepare_assignment(self, name: str, entry: dict, agent: str) -> bool:
+        """Return true when a worker may start, false when an old proof was adopted."""
+        entry["agent"] = agent
+        if self._reconcile_published(name, entry):
+            self._save("published_target_recovered", target=name, group=entry["group"])
+            return False
+        if entry.get("epoch_ready"):
+            current = self.backend.observe_target(name, agent)
+            if current.get("epoch") != entry.get("epoch") or not current.get("assigned_to_agent"):
+                raise RuntimeError("journaled assignment changed before dispatch")
+            if current.get("head") != entry.get("dispatch_head"):
+                raise RuntimeError("target head changed before dispatch without valid reconciliation")
+            return True
+        if not isinstance(entry.get("epoch"), int):
+            entry["epoch"] = self.backend.assign_target(name, agent)
+            current = self.backend.observe_target(name, agent)
+            if current.get("epoch") != entry["epoch"] or not current.get("assigned_to_agent"):
+                raise RuntimeError("initial target assignment changed before dispatch")
+            entry["dispatch_head"] = current.get("head")
+            entry["epoch_ready"] = True
+            self._save("target_assignment_ready", target=name, epoch=entry["epoch"])
+            return True
+        for _ in range(8):
+            if self._reconcile_published(name, entry):
+                self._save("published_target_recovered", target=name, group=entry["group"])
+                return False
+            if not entry.get("fence_request"):
+                observed = self.backend.observe_target(name, agent)
+                if (observed.get("epoch") != entry["epoch"] or
+                        not observed.get("assigned_to_agent")):
+                    raise RuntimeError("target assignment changed outside the controller")
+                if "dispatch_head" not in entry:
+                    if observed.get("head") is not None:
+                        raise RuntimeError("cannot fence a legacy dispatch with an unverified target head")
+                    entry["dispatch_head"] = None
+                if observed.get("head") != entry["dispatch_head"]:
+                    raise RuntimeError("target head changed without valid reconciliation")
+                entry["fence_request"] = os.urandom(16).hex()
+                entry["fence_expected_epoch"] = entry["epoch"]
+                entry["fence_expected_head"] = entry["dispatch_head"]
+                # The request is durable before the potentially ambiguous T4 commit.
+                self._save("fence_planned", target=name, epoch=entry["epoch"],
+                           head=observed.get("head"))
+            result = self.backend.fence_unfinished(
+                name, agent, entry["fence_expected_epoch"],
+                entry["fence_expected_head"], entry["fence_request"])
+            if result.get("outcome") == "fenced":
+                entry["epoch"] = int(result["epoch"])
+                entry["dispatch_head"] = result.get("head")
+                entry["epoch_ready"] = True
+                for key in ("fence_request", "fence_expected_epoch", "fence_expected_head"):
+                    entry.pop(key, None)
+                self._save("target_fenced", target=name, epoch=entry["epoch"])
+                current = self.backend.observe_target(name, agent)
+                if (current.get("epoch") != entry["epoch"] or
+                        not current.get("assigned_to_agent") or
+                        current.get("head") != entry["dispatch_head"]):
+                    entry["epoch_ready"] = False
+                    self._save("fenced_assignment_changed", target=name)
+                    continue
+                return True
+            if result.get("outcome") != "changed":
+                raise RuntimeError("guarded fence returned an unknown outcome")
+            for key in ("fence_request", "fence_expected_epoch", "fence_expected_head"):
+                entry.pop(key, None)
+            self._save("fence_observation_changed", target=name)
+        raise RuntimeError("target head kept changing during reconciliation")
 
     def _owner(self, target) -> str:
         if target.owner:
@@ -109,6 +205,7 @@ class Controller:
         if outcome.returncode:
             entry["error"] = f"worker exited {outcome.returncode}; see {outcome.log}"
             entry["status"] = "failed" if entry["attempts"] >= self.task.max_attempts else "pending"
+            entry["epoch_ready"] = False
             self._save("worker_failed", target=target.name, agent=agent,
                        attempt=outcome.attempt, returncode=outcome.returncode,
                        timed_out=outcome.timed_out)
@@ -124,14 +221,20 @@ class Controller:
             target_verdict = verdict.get("targets", {}).get(target.name, {})
             entry["group"] = target_verdict.get("group") or published.get("group")
             entry["status"] = "done"
+            entry["epoch_ready"] = False
             entry["error"] = None
             self._save("target_validated", target=target.name, agent=agent,
                        group=entry["group"], attempt=outcome.attempt)
         except Exception as exc:
+            if self._reconcile_published(target.name, entry):
+                self._save("publication_reply_recovered", target=target.name, agent=agent,
+                           group=entry["group"], attempt=outcome.attempt)
+                return
             diagnostics = self.backend.conflicts()
             detail = "; ".join(x.get("diagnostic", "") for x in diagnostics[:3])
             entry["error"] = f"{exc}; conflicts: {detail}" if detail else str(exc)
             entry["status"] = "failed" if entry["attempts"] >= self.task.max_attempts else "pending"
+            entry["epoch_ready"] = False
             self._save("publication_failed", target=target.name, agent=agent,
                        attempt=outcome.attempt, reason=entry["error"])
 
@@ -196,8 +299,18 @@ class Controller:
                     try:
                         sync = self.backend.sync(agent, self.state_dir / agent)
                         self._record_costs(sync)
-                        entry["epoch"] = self.backend.assign_target(target.name, agent)
+                        if not self._prepare_assignment(target.name, entry, agent):
+                            scheduled = True
+                            continue
                     except Exception as exc:
+                        if isinstance(entry.get("epoch"), int) and not entry.get("epoch_ready"):
+                            # A published head may exist but be temporarily unreadable.
+                            # Preserve the old dispatch and stable fence request for a
+                            # later recovery instead of exhausting worker attempts.
+                            entry["error"] = f"reconciliation deferred: {exc}"
+                            self._save("reconciliation_deferred", target=target.name,
+                                       agent=agent, reason=str(exc))
+                            raise
                         entry["attempts"] += 1
                         entry["error"] = f"sync: {exc}"
                         entry["status"] = "failed" if entry["attempts"] >= self.task.max_attempts else "pending"
@@ -205,6 +318,7 @@ class Controller:
                         scheduled = True
                         continue
                     entry["status"] = "running"
+                    entry["epoch_ready"] = False
                     entry["agent"] = agent
                     entry["attempts"] += 1
                     self._save("target_dispatched", target=target.name, agent=agent,

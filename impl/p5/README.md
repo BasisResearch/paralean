@@ -49,6 +49,7 @@ Run the live recovery gate and scaling suite against a cluster you own:
 python3 impl/p5/scripts/gate.py .runs/p5-gate --worker claude \
   --task impl/p5/tasks/list_reverse_map_lengths.toml
 python3 impl/p5/scripts/adversarial.py .runs/p5-adversarial
+python3 impl/p5/scripts/recovery_fault.py .runs/p5-recovery-fault
 python3 impl/p5/scripts/benchmark.py .runs/p5-bench --worker claude --repeats 1 \
   --task impl/p5/tasks/list_reverse_map_lengths.toml
 impl/p5/scripts/cluster-down.sh
@@ -60,7 +61,9 @@ Workspace transfer totals include demand fetches by workers; validator RPC time,
 the export build and its final build attestation are reported separately.
 Command-worker replay is explicitly distinguished from actual coding-agent runs.
 The recovery gate kills the controller during a partial task and removes the
-desktop's state before resuming from the store.
+desktop's state before resuming from the store; give it a new directory.
+The recovery fault test additionally covers a committed publication whose
+controller acknowledgement is lost, and idempotent guarded fencing.
 
 A task uses `[task]`, `[controller]`, `[worker]`, and `[[targets]]` tables.
 Each target has a unique `name`, a Lean type expression in `statement`, a relative

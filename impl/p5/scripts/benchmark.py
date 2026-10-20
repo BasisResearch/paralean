@@ -174,6 +174,8 @@ def main() -> int:
     args.run_dir.mkdir(parents=True, exist_ok=True)
     series = args.series or f"p5bench-{int(time.time())}-{os.getpid()}"
     git = git_rev("HEAD")
+    upstream = {name: git_rev(f"origin/{name}") for name in
+                ("main", "m-targets", "m-p2", "m-p4")}
     rows = []
     for workers in COUNTS:
         for rep in range(1, args.repeats + 1):
@@ -191,7 +193,7 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(rows)
     result = {"series": series, "worker": args.worker, "repeats": args.repeats,
-              "git": git, "origin_main": git_rev("origin/main"),
+              "git": git, "origin_main": upstream["main"], "upstream_at_start": upstream,
               "task_sha256": hashlib.sha256(args.task.read_bytes()).hexdigest(),
               "cpu_count": os.cpu_count(),
               "counts": list(COUNTS), "max_parallel": args.max_parallel,

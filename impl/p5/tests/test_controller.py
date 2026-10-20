@@ -28,6 +28,8 @@ class DurableBackend:
         self.provisioned = []
         self.fail_once = set()
         self.epochs = {}
+        self.heads = {}
+        self.requests = {}
 
     def setup(self):
         pass
@@ -50,6 +52,22 @@ class DurableBackend:
         self.epochs[name] = self.epochs.get(name, 0) + 1
         return self.epochs[name]
 
+    def observe_target(self, name, agent):
+        return {"name": name, "owner": agent, "epoch": self.epochs.get(name, 0),
+                "head": self.heads.get(name), "assigned_to_agent": name in self.epochs}
+
+    def fence_unfinished(self, name, agent, expected_epoch, expected_head, request):
+        if request in self.requests:
+            return self.requests[request]
+        if self.epochs.get(name) != expected_epoch or self.heads.get(name) != expected_head:
+            return {"outcome": "changed", "name": name, "owner": agent,
+                    "epoch": self.epochs.get(name), "head": self.heads.get(name)}
+        self.epochs[name] += 1
+        result = {"outcome": "fenced", "name": name, "owner": agent,
+                  "epoch": self.epochs[name], "head": self.heads.get(name)}
+        self.requests[request] = result
+        return result
+
     def conflicts(self):
         return []
 
@@ -59,11 +77,15 @@ class DurableBackend:
             self.fail_once.remove(name)
             raise RuntimeError("registry conflict")
         self.groups[name] = f"group-{name}"
+        self.heads[name] = f"head-{name}"
         return {"group": self.groups[name], "metrics": {"check_ms": 5}}
 
     def validate(self, names):
-        return {"ok": all(n in self.groups for n in names),
-                "targets": {n: {"group": self.groups.get(n)} for n in names}}
+        valid = all(n in self.groups for n in names)
+        return {"ok": valid,
+                "targets": {n: {"ok": n in self.groups, "group": self.groups.get(n),
+                                 "head": self.heads.get(n), "epoch": self.epochs.get(n),
+                                 "owner": "w0"} for n in names}}
 
     def export(self, out):
         out.mkdir(parents=True, exist_ok=True)
@@ -129,7 +151,7 @@ class ControllerTest(unittest.TestCase):
         self.assertTrue(any(x["event"] == "publication_failed" for x in result["events"]))
 
     def test_task_has_eight_independent_branches_and_frozen_final_contract(self):
-        task = load(Path(__file__).resolve().parents[1] / "tasks/add_comm_eight.toml")
+        task = load(Path(os.environ.get("P5_REPO", Path.cwd())) / "impl/p5/tasks/add_comm_eight.toml")
         by_name = {t.name: t for t in task.targets}
         self.assertEqual(len(by_name), 10)
         self.assertEqual({by_name[f"P5.add_comm_{i}"].deps for i in range(1, 9)},
@@ -139,7 +161,7 @@ class ControllerTest(unittest.TestCase):
         self.assertTrue(all(f"n + {i} = {i} + n" in final.statement for i in range(1, 9)))
 
     def test_list_api_task_has_same_parallel_shape(self):
-        task = load(Path(__file__).resolve().parents[1] / "tasks/list_reverse_map_lengths.toml")
+        task = load(Path(os.environ.get("P5_REPO", Path.cwd())) / "impl/p5/tasks/list_reverse_map_lengths.toml")
         by_name = {t.name: t for t in task.targets}
         self.assertEqual(len(by_name), 10)
         self.assertEqual(by_name["P5List.map_length"].deps, ())
