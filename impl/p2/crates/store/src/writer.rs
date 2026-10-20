@@ -61,10 +61,6 @@ impl Writer {
         Writer { store, ..self.clone() }
     }
 
-    pub(crate) fn signer(&self) -> &Signer {
-        &self.signer
-    }
-
     /// The preparer's single linearizable read of a target record (§7).
     pub async fn prepare_target(&self, name: &Name) -> Result<PreparedTarget> {
         let rec = self.store.target(name).await?.ok_or_else(|| GuardFailure::NoTargetRecord(name.clone()))?;

@@ -68,7 +68,7 @@ existing cold checker also does not sandbox.
 The parent ran the integrated Rust build and live tests against the isolated
 cluster. Results: control/adversarial/auth/target/durable/protocol tests 29/29;
 process failure tests 4/4; batch and warm isolation tests 3/3; fork-validator
-test 1/1; P2 store tests 44/44. These are 37 distinct control tests and 44 store tests.
+test 1/1; P2 store tests 59/59. These are 37 distinct control tests and 59 store tests after rebasing onto cb1ca05.
 The warm test was run separately with its required fork fixtures; a stock-only
 batch test invocation reports it as passed after an early configuration return,
 which is not counted as isolation evidence. The batch test additionally
@@ -76,7 +76,9 @@ checks that a byte-distinct capsule for one group does not displace the receipt
 for the original dependency capsule. Both normal publication and the adversarial
 writer entry point reject a dependent before its prerequisites publish.
 
-The full remote gate passed 15/15 in 220.5 seconds. After the final controller
+The rebased full remote gate passed 15/15 in 224.8 seconds, including all
+five target checks with the P4 proof-loading path. Its report is
+`m-targets-remote-gate-rebased.json`. The earlier full gate passed 15/15 in 220.5 seconds. After the final controller
 and T1 changes, the target-only gate passed 5/5 in 33.3 seconds. Both JSON reports
 are in `impl/p3/results/`. The full gate verifies its baseline export before
 introducing the target fixtures; target proof consumption is checked separately
@@ -113,8 +115,8 @@ The initial full run attempted all 1,105 groups from the 18-module sample: 1,104
 were accepted and published, one was rejected. It used 1,745.646 validation
 seconds (1.580 s/group), before the final nonce, initializer-process and T1
 dependency-publication changes. Its raw report is retained as
-`m-targets-mathlib-18-initial.json`. The complete sample is being rerun on the
-final implementation in two disjoint shards, each using one validator slot.
+`m-targets-mathlib-18-initial.json`. A rerun is pending on the rebased implementation and the updated fork pin;
+it uses two disjoint shards, each with one validator slot.
 
 ## Additional crash and concurrency review
 
@@ -154,10 +156,12 @@ control scheduling tests, durable snapshot test, and target tests also pass.
   FDB/Garage costs; validator-hours and observed checker RSS are reported instead.
 - Full sample certification is blocked by the existing P1 source replay mismatch
   for M08 (`Mathlib/Tactic/ByCases.lean:37`), group
-  `8219ba1745d21c72fa9421834368a5cd89b3184e50d1d4ec5bda9ffae717b2da`.
-  Its generated macro name replays to declaration `e05ec86729e7…` instead of
-  stored `ec5cc4449883…`. A separate cold P1 `check-group` reproduces the same
-  rejection (exit 1, 1.769 s); see `m-targets-cold-M08.log`. This work does not
+  `4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4`
+  on the rebased fork. Its generated macro name replays to declaration
+  `b20f7eca3d55…` instead of stored `f5a1a2428cd2…`. A separate cold P1
+  `check-group` reproduces the rejection (exit 1, 1.977 s); see
+  `m-targets-cold-M08-rebased.log`. The older fork's reproduction is retained
+  as `m-targets-cold-M08.log`. This work does not
   modify P1 source replay or bypass the rejection.
 
 ## Reproduction
@@ -193,6 +197,23 @@ set unused `PARALEAN_VALIDATOR_PORT` and `PARALEAN_CONTROLLER_PORT`. Run
 Worker/controller clients accept comma-separated controller addresses.
 
 ## Integration notes
+
+At the user's request, the branch was rebased onto `origin/main` at `cb1ca05`,
+which includes P2 anti-entropy/tombstones and P4. The rebase required one minimal
+P2 adjustment: remove the duplicate crate-private `Writer::signer` accessor and
+retain the public accessor used by authenticated RPC clients. No upstream
+anti-entropy implementation was changed. The incoming fork pin is
+`99967f1ee50a1ee82bb178359ad95b723c8196a2`; P1 and the warm checker were rebuilt
+in this checkout against that pin. The new warm checker ID is
+`faf75494080ba4763461c8228e1861ade109d8a135e9c25762e515d741d2d8f0`.
+Fresh capture used a read-only P4 P1 build with identical Lean sources and
+produced 1,105 groups across all 18 modules in 95.776 seconds. Earlier measurements explicitly retain their older
+`dfc13cc6...` toolchain provenance.
+
+The new dependency-publication guard applies to local T1. Incoming P2 T9
+anti-entropy certification is a separate path and does not enforce this local
+dependency publication order; changing T9 is outside this workstream. This log
+does not claim the T1 guard as a new universal invariant of all replication paths.
 
 P5 and other external callers must use authenticated RPCs with the workspace
 signer for worker operations and the authority signer for administrative
