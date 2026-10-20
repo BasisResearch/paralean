@@ -251,7 +251,7 @@ async fn receipt_for_another_or_cancelled_request_fails_closed() {
     )
     .await;
     // Request 1 is cancelled after its receipt was issued: T1 reads the cancellation.
-    assert_eq!(c.call(ControlRequest::Cancel { request: "req/1".into() }).await, ControlResponse::Cancelled);
+    assert_eq!(c.call(ControlRequest::Cancel { request: "req/1".into(), worker: String::new() }).await, ControlResponse::Cancelled);
     let f = guard(w.writer.publish(&w.package(&g, r1, j1, vec![])).await);
     assert_eq!(f, GuardFailure::JobCancelled(b"req/1".to_vec()));
     assert!(!published(&c.store, &g.decl).await);
@@ -490,6 +490,40 @@ async fn changed_target_statement_is_rejected() {
     let ControlResponse::Receipt { receipt, .. } = resp else { panic!("{resp:?}") };
     let r = Receipt::from_bytes(&hex::decode(receipt).unwrap()).unwrap();
     assert!(matches!(r.body.verdict, Verdict::Rejected(_)), "{:?}", r.body.verdict);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn hostile_capsule_gid_is_refused_before_any_write() {
+    // The capsule's `gid` names the metadata file the validator writes outside the checker
+    // sandbox and an entry of `--gids`. A path or a comma there is refused, nothing is
+    // written outside the job's scratch directory.
+    let c = Cluster::start("gid", Opts { validators: vec![Mode::Real], ..Opts::default() }).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let g = w.group_declaring(&n("F01.small")).unwrap().clone();
+    for (i, gid) in ["../../../escaped".to_string(), format!("{},{}", g.gid, g.gid)].into_iter().enumerate() {
+        let mut meta = g.meta.clone();
+        meta["gid"] = serde_json::Value::String(gid.clone());
+        let meta_json = serde_json::to_vec(&meta).unwrap();
+        let hostile = paralean_control::p1::P1Group { gid, decl: g.decl, meta_json, meta, grp: g.grp.clone() };
+        upload(&w.writer, &hostile).await;
+        let resp = c.call(ControlRequest::Validate {
+            worker: w.id().hex(),
+            request: format!("gid/{i}"),
+            group: g.decl.hex(),
+            capsule: hostile.capsule_id().hex(),
+            deps: vec![],
+            targets: vec![],
+            memory_mb: 0,
+            deadline_ms: 0,
+        }).await;
+        match resp {
+            ControlResponse::Refused { reason } => assert!(reason.contains("gid"), "{reason}"),
+            other => panic!("hostile gid: {other:?}"),
+        }
+    }
+    assert!(!c.tmp.join("escaped.json").exists(), "metadata written outside the scratch store");
+    let left: Vec<_> = std::fs::read_dir(c.tmp.join("validator-0")).unwrap().collect();
+    assert!(left.is_empty(), "scratch directories left behind: {left:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

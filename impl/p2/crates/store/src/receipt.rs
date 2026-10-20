@@ -24,7 +24,7 @@
 //! whose group, base, policy, checker and targets equal the receipt's, (5) uses a pinned
 //! policy and checker, and (6) binds exactly the target names and epochs the publication was
 //! prepared under. T1 additionally reads, in its own transaction, the revocation key of the
-//! validator (`vrevoke/<key>`) and the cancellation key of the request (`jobcancel/<request>`),
+//! validator (`vrevoke/<key>`) and the cancellation key of the request (`jobcancel/<workspace>/<request>`),
 //! so revocation and cancellation are linearizable with publication.
 //!
 //! Envelopes are signed by the authority key or, for target-free jobs only, by a configured
@@ -409,17 +409,27 @@ impl Keys {
     pub fn job(&self, id: &Id) -> Vec<u8> {
         self.root.pack(&("job", foundationdb::tuple::Bytes::from(&id.0[..])))
     }
-    /// `jobreq/<request>`: the envelope the controller issued for a request (deduplication).
-    pub fn job_request(&self, request: &[u8]) -> Vec<u8> {
-        self.root.pack(&("jobreq", foundationdb::tuple::Bytes::from(request)))
+    /// `<tag>/<workspace>/<request>`. Request IDs are chosen by the requesting workspace, so
+    /// every job record is scoped by the envelope's `worker`: one workspace cannot claim
+    /// (squat) or cancel another workspace's request ID.
+    fn job_scoped(&self, tag: &str, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+        if cfg!(feature = "mutate-unscoped-job-keys") {
+            return self.root.pack(&(tag, foundationdb::tuple::Bytes::from(request)));
+        }
+        self.root.pack(&(tag, foundationdb::tuple::Bytes::from(&worker.0[..]), foundationdb::tuple::Bytes::from(request)))
     }
-    /// `jobreceipt/<request>`: the receipt a validator returned for a request.
-    pub fn job_receipt(&self, request: &[u8]) -> Vec<u8> {
-        self.root.pack(&("jobreceipt", foundationdb::tuple::Bytes::from(request)))
+    /// `jobreq/<workspace>/<request>`: the envelope the controller issued for a request
+    /// (deduplication).
+    pub fn job_request(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+        self.job_scoped("jobreq", worker, request)
     }
-    /// `jobcancel/<request>`: present iff the request was cancelled.
-    pub fn job_cancel(&self, request: &[u8]) -> Vec<u8> {
-        self.root.pack(&("jobcancel", foundationdb::tuple::Bytes::from(request)))
+    /// `jobreceipt/<workspace>/<request>`: the receipt a validator returned for a request.
+    pub fn job_receipt(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+        self.job_scoped("jobreceipt", worker, request)
+    }
+    /// `jobcancel/<workspace>/<request>`: present iff the request was cancelled.
+    pub fn job_cancel(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+        self.job_scoped("jobcancel", worker, request)
     }
     /// `tstatement/<target name>`: the statement hash (P1 `typeHash`) the controller pinned
     /// for a target name; write-once. T1 admits a proof of the name only with a job whose
@@ -449,10 +459,12 @@ impl Meta {
     ///
     /// | # | Transaction | Key |
     /// |---|---|---|
-    /// | J1 | issue an envelope for a request (retry deduplication) | `jobreq/<request>` |
-    /// | J2 | record the receipt a validator returned for a request | `jobreceipt/<request>` |
-    /// | J3 | cancel a request | `jobcancel/<request>` |
+    /// | J1 | issue an envelope for a request (retry deduplication) | `jobreq/<workspace>/<request>` |
+    /// | J2 | record the receipt a validator returned for a request | `jobreceipt/<workspace>/<request>` |
+    /// | J3 | cancel a request | `jobcancel/<workspace>/<request>` |
     /// | R1 | revoke a validator key | `vrevoke/<key>` |
+    ///
+    /// `<workspace>` is the envelope's requesting workspace (`JobEnvelope::worker`).
     ///
     /// None of them is read by T2–T7; T1 reads J3 and R1 keys in its own transaction.
     pub async fn put_once(&self, key: Vec<u8>, value: Vec<u8>) -> Result<Once> {
@@ -473,21 +485,22 @@ impl Meta {
         .await
     }
 
-    /// J1: the envelope stored for `request`, writing `job` if there is none.
+    /// J1: the envelope stored for the job's (workspace, request), writing `job` if there
+    /// is none.
     pub async fn issue_job(&self, job: &SignedJob) -> Result<SignedJob> {
-        let o = self.put_once(self.keys.job_request(&job.body.request), job.to_bytes()).await?;
+        let o = self.put_once(self.keys.job_request(&job.body.worker, &job.body.request), job.to_bytes()).await?;
         Ok(SignedJob::from_bytes(&o.value)?)
     }
 
-    /// J2: the receipt stored for `request`, writing `receipt` if there is none.
-    pub async fn record_receipt(&self, request: &[u8], receipt: &Receipt) -> Result<Receipt> {
-        let o = self.put_once(self.keys.job_receipt(request), receipt.to_bytes()).await?;
+    /// J2: the receipt stored for (`worker`, `request`), writing `receipt` if there is none.
+    pub async fn record_receipt(&self, worker: &WorkspaceId, request: &[u8], receipt: &Receipt) -> Result<Receipt> {
+        let o = self.put_once(self.keys.job_receipt(worker, request), receipt.to_bytes()).await?;
         Ok(Receipt::from_bytes(&o.value)?)
     }
 
-    /// J3: cancel `request`. Every later T1 with a receipt bound to it aborts.
-    pub async fn cancel_job(&self, request: &[u8]) -> Result<bool> {
-        Ok(self.put_once(self.keys.job_cancel(request), vec![1]).await?.fresh)
+    /// J3: cancel `worker`'s `request`. Every later T1 with a receipt bound to it aborts.
+    pub async fn cancel_job(&self, worker: &WorkspaceId, request: &[u8]) -> Result<bool> {
+        Ok(self.put_once(self.keys.job_cancel(worker, request), vec![1]).await?.fresh)
     }
 
     /// R1: revoke a validator key. Every later T1 with a receipt by that key aborts.
@@ -495,8 +508,8 @@ impl Meta {
         Ok(self.put_once(self.keys.revocation(&r.body.key), r.to_bytes()).await?.fresh)
     }
 
-    pub async fn is_cancelled(&self, request: &[u8]) -> Result<bool> {
-        Ok(self.get(self.keys.job_cancel(request)).await?.is_some())
+    pub async fn is_cancelled(&self, worker: &WorkspaceId, request: &[u8]) -> Result<bool> {
+        Ok(self.get(self.keys.job_cancel(worker, request)).await?.is_some())
     }
 
     /// The statement pinned for a target name, if any (`tstatement/<name>`).

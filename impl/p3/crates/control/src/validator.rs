@@ -21,7 +21,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use paralean_store::receipt::{target_slot, Policy, SignedJob};
-use paralean_store::{Id, Kind, Object, Receipt, ReceiptBody, Signer, Store, Verdict};
+use paralean_store::{Id, Kind, Object, Receipt, ReceiptBody, Signer, Store, Verdict, WorkspaceId};
 use paralean_validator_api::{published_receipt, ValidatorRequest, ValidatorResponse};
 use tokio::net::TcpListener;
 use tokio::sync::{watch, Semaphore};
@@ -47,6 +47,8 @@ pub struct ValidatorConfig {
 
 struct Slot {
     job: Id,
+    worker: WorkspaceId,
+    request: Vec<u8>,
     result: watch::Receiver<Option<ValidatorResponse>>,
     cancel: watch::Sender<bool>,
 }
@@ -144,10 +146,15 @@ impl Validator {
                 }
                 ValidatorResponse::Batch { responses }
             }
-            ValidatorRequest::Cancel { request } => {
+            ValidatorRequest::Cancel { request, worker } => {
                 let Ok(r) = hex::decode(&request) else { return refused("bad request ID") };
-                if let Some(s) = self.slots.lock().unwrap().get(&r) {
-                    let _ = s.cancel.send(true);
+                let worker = if worker.is_empty() { None } else {
+                    match WorkspaceId::from_hex(&worker) { Some(w) => Some(w), None => return refused("bad worker ID") }
+                };
+                for s in self.slots.lock().unwrap().values() {
+                    if s.request == r && worker.is_none_or(|w| w == s.worker) {
+                        let _ = s.cancel.send(true);
+                    }
                 }
                 ValidatorResponse::Cancelled
             }
@@ -172,9 +179,9 @@ impl Validator {
         let ring = self.cfg.store.ring.clone();
         let relaxed = cfg!(feature = "mutate-relaxed-envelope-sig");
         let issued = |key: &[u8; 32]| paralean_store::sign::verify_path(relaxed, key, &job.id(), &job.sig);
-        if !(issued(&ring.authority) || ring.job_issuers.iter().any(issued)) {
+        let Some(issuer) = std::iter::once(&ring.authority).chain(ring.job_issuers.iter()).find(|k| issued(k)).copied() else {
             return refused("envelope is not signed by the controller");
-        }
+        };
         let j = &job.body;
         if j.checker != self.checker_id {
             return refused(&format!("envelope names checker {}, this validator runs {}", j.checker.short(), self.checker_id.short()));
@@ -185,7 +192,9 @@ impl Validator {
         if j.base != self.cfg.base {
             return refused("envelope names another base");
         }
-        let request = j.request.clone();
+        // Request IDs belong to the requesting workspace and the envelope's issuer: a slot
+        // is (issuer key, workspace, request), so no workspace or issuer can occupy another's.
+        let request = slot_key(&issuer, &j.worker, &j.request);
         enum Pre {
             Wait(watch::Receiver<Option<ValidatorResponse>>),
             Run(watch::Sender<Option<ValidatorResponse>>, watch::Receiver<bool>),
@@ -203,7 +212,7 @@ impl Validator {
                     None => {
                         let (tx, rx) = watch::channel(None);
                         let (ctx, crx) = watch::channel(false);
-                        slots.insert(request.clone(), Slot { job: job.id(), result: rx, cancel: ctx });
+                        slots.insert(request.clone(), Slot { job: job.id(), worker: j.worker, request: j.request.clone(), result: rx, cancel: ctx });
                         Pre::Run(tx, crx)
                     }
                 }
@@ -254,7 +263,7 @@ impl Validator {
             Ok(true) => return refused("this validator's key is revoked"),
             Err(e) => return inconclusive(&format!("store: {e}")),
         }
-        match st.meta.is_cancelled(&j.request).await {
+        match st.meta.is_cancelled(&j.worker, &j.request).await {
             Ok(false) => {}
             Ok(true) => return ValidatorResponse::Cancelled,
             Err(e) => return inconclusive(&format!("store: {e}")),
@@ -285,10 +294,14 @@ impl Validator {
         };
         let root = groups.last().expect("fetch_inputs returns the group last").clone();
         let by_gid: BTreeMap<String, P1Group> = groups.iter().map(|g| (g.gid.clone(), g.clone())).collect();
+        if by_gid.len() != groups.len() {
+            return refused("two capsules of the job name the same package ID");
+        }
         if let Err(e) = p1::closure(&by_gid, &root.gid) {
             return refused(&format!("dependency closure incomplete: {e}"));
         }
-        let dir = self.cfg.workdir.join(format!("job-{}-{}", job.id().hex(), rand::random::<u32>()));
+        // A fresh private directory per check (`write_store` refuses an existing one).
+        let dir = self.cfg.workdir.join(format!("job-{}-{:016x}", job.id().hex(), rand::random::<u64>()));
         if let Err(e) = p1::write_store(&dir, &groups) {
             return inconclusive(&format!("scratch store: {e}"));
         }
@@ -413,7 +426,7 @@ impl Validator {
                         paralean_store::receipt::check(r, dep_job, &decl,
                             &paralean_store::receipt::prepared_of(dep_job), &st.ring).is_err() ||
                         st.meta.is_revoked(&r.body.validator_key).await.unwrap_or(true) ||
-                        st.meta.is_cancelled(&dep_job.body.request).await.unwrap_or(true) {
+                        st.meta.is_cancelled(&dep_job.body.worker, &dep_job.body.request).await.unwrap_or(true) {
                         return Err(refused("batch dependency receipt does not verify"));
                     }
                 } else if let Err(e) = published_receipt(st, &decl).await {
@@ -424,6 +437,17 @@ impl Validator {
         }
         Ok(out)
     }
+}
+
+/// The deduplication slot of a request: (envelope issuer, requesting workspace, request ID).
+fn slot_key(issuer: &[u8; 32], worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+    if cfg!(feature = "mutate-unscoped-validator-slots") {
+        return request.to_vec();
+    }
+    let mut k = issuer.to_vec();
+    k.extend_from_slice(&worker.0);
+    k.extend_from_slice(request);
+    k
 }
 
 fn retain_completed<V>(slots: &mut HashMap<Vec<u8>, V>, completed: &mut VecDeque<Vec<u8>>, request: Vec<u8>) {

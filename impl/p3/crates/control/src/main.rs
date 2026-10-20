@@ -34,7 +34,8 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   submit --controller ADDR --request R --target NAME [--memory-mb N]
   assign --controller ADDR --target NAME --worker W
   assign-group --controller ADDR --targets NAME,NAME --worker W
-  cancel --controller ADDR --request R
+  cancel --controller ADDR --request R [--worker W]
+                                   J3 for W's request R, or for every workspace's R
   status --controller ADDR";
 
 type R<T> = std::result::Result<T, String>;
@@ -247,7 +248,9 @@ async fn run(args: Vec<String>) -> R<()> {
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["cancel", ..] => {
-            let r = ctl_call(&f, ControlRequest::Cancel { request: f.get("request").ok_or("--request R")?.clone() }).await?;
+            let kf = keyfile()?;
+            let worker = f.get("worker").map(|w| kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone())).unwrap_or_default();
+            let r = ctl_call(&f, ControlRequest::Cancel { request: f.get("request").ok_or("--request R")?.clone(), worker }).await?;
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["status", ..] => {

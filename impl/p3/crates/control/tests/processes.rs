@@ -97,8 +97,8 @@ async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
     let lost_reply = tokio::spawn(async move {
         rpc::call_authenticated::<_, ControlResponse>(&a_call, &validate, &signer, &public, Duration::from_secs(35)).await
     });
-    let j1 = store.meta.keys.job_request(request_id.as_bytes());
-    let j2 = store.meta.keys.job_receipt(request_id.as_bytes());
+    let j1 = store.meta.keys.job_request(&wid, request_id.as_bytes());
+    let j2 = store.meta.keys.job_receipt(&wid, request_id.as_bytes());
     let start = Instant::now();
     loop {
         let running: std::io::Result<ValidatorResponse> = rpc::call_authenticated(&v, &ValidatorRequest::Status,

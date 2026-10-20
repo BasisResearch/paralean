@@ -48,6 +48,8 @@ mutate-no-cancel-check = []
 mutate-no-undeclared-target = []
 mutate-no-epoch-binding = []
 mutate-issuer-signs-targets = []
+# P3 job records (J1–J3) keyed by request only, not by (workspace, request).
+mutate-unscoped-job-keys = []
 # Exposes `Writer::publish_skipping_staging_check` for P3's adversarial tests. Never enable
 # it in a deployment.
 adversary = []

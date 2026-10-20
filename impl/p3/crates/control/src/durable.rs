@@ -228,9 +228,9 @@ impl Durable {
 
     /// J2 is leader-fenced as well as write-once: an old controller cannot finish
     /// dispatch after a new replica takes the lease.
-    pub async fn record_receipt(&self, request: &[u8], receipt: &Receipt, term: u64) -> Result<Receipt, String> {
+    pub async fn record_receipt(&self, worker: &WorkspaceId, request: &[u8], receipt: &Receipt, term: u64) -> Result<Receipt, String> {
         let lk = self.lease_key();
-        let rk = self.store.meta.keys.job_receipt(request);
+        let rk = self.store.meta.keys.job_receipt(worker, request);
         let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
             let Some(lease) = Self::read_lease(&trx, &lk).await? else { return Err("controller lost lease".into()) };

@@ -39,14 +39,18 @@ cases=(
   "mutate-unbounded-checker-output|checker_protocol|cold_output_flood_cannot_fill_validator_memory"
   "mutate-drop-invalid-axiom|checker_protocol|cold_malformed_axiom_cannot_be_silently_dropped"
   "mutate-unbounded-completed-slots|lib|validator::completed_tests::completed_receipt_cache_is_bounded"
+  # W2 control-plane review (results/w2/control-fixes).
+  "mutate-unchecked-gid|adversarial|hostile_capsule_gid_is_refused_before_any_write"
+  "paralean-store/mutate-unscoped-job-keys|control|request_ids_are_scoped_per_workspace"
+  "mutate-unscoped-validator-slots|control|validator_slots_are_scoped_by_issuer_and_workspace"
 )
 fail=0
 for c in "${cases[@]}"; do
   IFS='|' read -r feat target name <<<"$c"
   if [ "$target" = lib ]; then
-    out="$(cargo test -q -p paralean-control --features "$feat" --lib -- --exact "$name" 2>&1)"
+    out="$(cargo test -q -j "${PARALEAN_CARGO_JOBS:-4}" -p paralean-control --features "$feat" --lib -- --exact "$name" 2>&1)"
   else
-    out="$(cargo test -q -p paralean-control --features "$feat" --test "$target" -- --exact "$name" 2>&1)"
+    out="$(cargo test -q -j "${PARALEAN_CARGO_JOBS:-4}" -p paralean-control --features "$feat" --test "$target" -- --exact "$name" 2>&1)"
   fi
   if grep -q "$name --- FAILED\|test $name ... FAILED\|^test result: FAILED" <<<"$out"; then
     echo "detected  $feat  by $target::$name"

@@ -14,14 +14,18 @@
 //! **Validation.** `Validate` from a worker becomes an immutable envelope: the controller
 //! reads each target record and refuses unless the worker is its owner, then stamps the
 //! record's epoch, the pinned policy, checker version and base, the deadline and the
-//! memory limit, signs it, and records it under `jobreq/<request>` (J1). A retry with the
-//! same request gets the same envelope and, once there is one, the same receipt
-//! (`jobreceipt/<request>`, J2); concurrent duplicates share one dispatch; a request ID
-//! reused for another envelope is refused. Dispatch tries validators in turn; `Busy`,
-//! `Inconclusive`, `Refused`, a timeout or an invalid receipt moves on to the next
-//! validator, up to `validator_attempts` (at least once each); the answer is `Refused` only
-//! if every validator refused. `Cancel` writes `jobcancel/<request>` (J3), stops the dispatch and
-//! tells the validators; T1 refuses receipts of cancelled requests.
+//! memory limit, signs it, and records it under `jobreq/<worker>/<request>` (J1). Request
+//! IDs are the worker's own namespace: every job record, the in-flight map and the
+//! validators' slots are keyed by (worker, request), so one worker cannot squat or cancel
+//! another's request ID. A retry with the same request gets the same envelope and, once
+//! there is one, the same receipt (`jobreceipt/<worker>/<request>`, J2); concurrent
+//! duplicates share one dispatch; a request ID reused for another envelope is refused.
+//! Dispatch tries validators in turn; `Busy`, `Inconclusive`, `Refused`, a timeout or an
+//! invalid receipt moves on to the next validator, up to `validator_attempts` (at least once
+//! each); the answer is `Refused` only if every validator refused. `Cancel` (the authority)
+//! writes `jobcancel/<worker>/<request>` (J3) for the named worker, or for every configured
+//! workspace when it names none, stops the dispatch and tells the validators; T1 refuses
+//! receipts of cancelled requests.
 //!
 //! Backpressure: at most `max_work_queue` queued work jobs and `max_validations` validations
 //! in flight; beyond that the answer is `Busy` and nothing is recorded.
@@ -96,7 +100,9 @@ pub enum ControlRequest {
         #[serde(default)]
         deadline_ms: u64,
     },
-    Cancel { request: String },
+    /// Cancel `worker`'s request (hex workspace ID), or that request ID of every
+    /// configured workspace when `worker` is empty.
+    Cancel { request: String, #[serde(default)] worker: String },
     Assign { target: String, worker: String },
     AssignGroup { targets: Vec<String>, worker: String, #[serde(default)] request: String },
     Status,
@@ -270,6 +276,13 @@ fn ws(s: &str) -> Option<WorkspaceId> {
     WorkspaceId::from_hex(s)
 }
 
+/// The in-flight key of a validation: (requesting workspace, request ID).
+fn job_key(worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+    let mut k = worker.0.to_vec();
+    k.extend_from_slice(request);
+    k
+}
+
 /// Call a controller replica list such as `host-a:9000,host-b:9000`.
 /// The signed request is regenerated for each connection's challenge, while its
 /// logical request ID stays unchanged across retries and leader failover.
@@ -415,9 +428,10 @@ impl ControlPlane {
         for (_, bytes) in jobs {
             let Ok(job) = SignedJob::from_bytes(&bytes) else { continue };
             if !job.verify(&self.cfg.authority.public()) { continue }
-            let req = job.body.request.clone();
-            if self.cfg.store.meta.get(self.cfg.store.meta.keys.job_receipt(&req)).await.ok().flatten().is_some() { continue }
-            if self.cfg.store.meta.is_cancelled(&req).await.unwrap_or(true) { continue }
+            let worker = job.body.worker;
+            let req = job_key(&worker, &job.body.request);
+            if self.cfg.store.meta.get(self.cfg.store.meta.keys.job_receipt(&worker, &job.body.request)).await.ok().flatten().is_some() { continue }
+            if self.cfg.store.meta.is_cancelled(&worker, &job.body.request).await.unwrap_or(true) { continue }
             let (tx, rx) = watch::channel(None);
             let (ctx, crx) = watch::channel(false);
             {
@@ -478,7 +492,12 @@ impl ControlPlane {
             ControlRequest::Validate { worker, request, group, capsule, deps, targets, memory_mb, deadline_ms } => {
                 self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms).await
             }
-            ControlRequest::Cancel { request } => self.cancel(&request).await,
+            ControlRequest::Cancel { request, worker } => {
+                let worker = if worker.is_empty() { None } else {
+                    match ws(&worker) { Some(w) => Some(w), None => return refused("bad worker ID") }
+                };
+                self.cancel(&request, worker).await
+            }
             ControlRequest::Assign { target, worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 let target = Name::parse(&target);
@@ -920,7 +939,8 @@ impl ControlPlane {
             memory_mb: if memory_mb == 0 { self.cfg.validation_memory_mb } else { memory_mb.min(self.cfg.validation_memory_mb) },
         };
         let mut job = SignedJob::sign(env, &self.cfg.authority);
-        let req = job.body.request.clone();
+        let req = job_key(&w, &job.body.request);
+        let request = job.body.request.clone();
 
         // Deduplication: an in-flight duplicate shares the dispatch.
         let mut rx = {
@@ -938,7 +958,7 @@ impl ControlPlane {
             }
         };
         if rx.is_none() {
-            match st.meta.is_cancelled(&req).await {
+            match st.meta.is_cancelled(&w, &request).await {
                 Ok(true) => return ControlResponse::Cancelled,
                 Ok(false) => {}
                 Err(e) => return inconclusive(&e.to_string()),
@@ -954,7 +974,7 @@ impl ControlPlane {
                     tokio::time::sleep(Duration::from_millis(ms)).await;
                 }
                 // A finished request: the recorded receipt.
-                if let Ok(Some(v)) = st.meta.get(st.meta.keys.job_receipt(&req)).await {
+                if let Ok(Some(v)) = st.meta.get(st.meta.keys.job_receipt(&w, &request)).await {
                     if let Ok(r) = Receipt::from_bytes(&v) {
                         return ControlResponse::Receipt { receipt: hex::encode(r.to_bytes()), job: hex::encode(job.to_bytes()) };
                     }
@@ -1016,7 +1036,7 @@ impl ControlPlane {
             let resp = tokio::select! {
                 r = call => r,
                 _ = cancel.changed() => {
-                    self.tell_cancel(&job.body.request).await;
+                    self.tell_cancel(Some(&job.body.worker), &job.body.request).await;
                     return ControlResponse::Cancelled;
                 }
             };
@@ -1036,7 +1056,7 @@ impl ControlPlane {
                         continue;
                     }
                     let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("controller lost lease") };
-                    let stored = match self.durable.record_receipt(&job.body.request, &r, term).await {
+                    let stored = match self.durable.record_receipt(&job.body.worker, &job.body.request, &r, term).await {
                         Ok(s) => s,
                         Err(e) => return inconclusive(&e.to_string()),
                     };
@@ -1066,37 +1086,52 @@ impl ControlPlane {
         inconclusive(&format!("no validator gave a verdict ({last})"))
     }
 
-    async fn tell_cancel(&self, request: &[u8]) {
+    async fn tell_cancel(&self, worker: Option<&WorkspaceId>, request: &[u8]) {
+        let req = ValidatorRequest::Cancel { request: hex::encode(request), worker: worker.map(WorkspaceId::hex).unwrap_or_default() };
         for addr in &self.cfg.validators {
             let _: std::io::Result<ValidatorResponse> =
-                rpc::call_authenticated_any(addr, &ValidatorRequest::Cancel { request: hex::encode(request) }, &self.cfg.authority, &self.cfg.store.ring.validators, Duration::from_secs(2)).await;
+                rpc::call_authenticated_any(addr, &req, &self.cfg.authority, &self.cfg.store.ring.validators, Duration::from_secs(2)).await;
         }
     }
 
-    async fn cancel(&self, request: &str) -> ControlResponse {
+    /// Cancel `worker`'s `request`, or that request ID of every configured workspace.
+    async fn cancel(&self, request: &str, worker: Option<WorkspaceId>) -> ControlResponse {
         let req = request.as_bytes().to_vec();
+        let workers: Vec<WorkspaceId> = match worker {
+            Some(w) => vec![w],
+            None => {
+                let mut all: Vec<WorkspaceId> = self.cfg.store.ring.writers.keys().copied().collect();
+                all.extend(self.state.lock().unwrap().workers.keys().copied());
+                all.sort();
+                all.dedup();
+                all
+            }
+        };
         // J3 first: from here on no T1 accepts a receipt bound to this request.
-        if let Err(e) = self.cfg.store.meta.cancel_job(&req).await {
-            return inconclusive(&e.to_string());
+        for w in &workers {
+            if let Err(e) = self.cfg.store.meta.cancel_job(w, &req).await {
+                return inconclusive(&e.to_string());
+            }
         }
         {
             let mut s = self.state.lock().unwrap();
-            if let Some(f) = s.inflight.get(&req) {
-                let _ = f.cancel.send(true);
+            for w in &workers {
+                if let Some(f) = s.inflight.get(&job_key(w, &req)) {
+                    let _ = f.cancel.send(true);
+                }
             }
             if let Some(j) = s.work.get_mut(request) {
-                if let WorkState::Running { worker, .. } = j.state {
+                let running = match j.state { WorkState::Running { worker, .. } => Some(worker), _ => None };
+                if worker.is_none() || running == worker {
                     let mem = j.memory_mb;
-                    if let Some(i) = s.workers.get_mut(&worker) {
+                    j.state = WorkState::Cancelled;
+                    if let Some(i) = running.and_then(|r| s.workers.get_mut(&r)) {
                         i.used_mb = i.used_mb.saturating_sub(mem);
                     }
                 }
-                if let Some(j) = s.work.get_mut(request) {
-                    j.state = WorkState::Cancelled;
-                }
             }
         }
-        self.tell_cancel(&req).await;
+        self.tell_cancel(worker.as_ref(), &req).await;
         ControlResponse::Cancelled
     }
 }

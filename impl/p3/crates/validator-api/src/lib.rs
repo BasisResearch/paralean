@@ -37,7 +37,9 @@ pub enum ValidatorRequest {
     /// unpublished dependencies to later jobs; every output is a separately bound receipt.
     ValidateBatch { jobs: Vec<String> },
     /// Stop a running or queued check of this request (its checker process is killed).
-    Cancel { request: String },
+    /// `worker` (hex workspace ID) narrows it to that workspace's request; empty: every
+    /// workspace's request with this ID.
+    Cancel { request: String, #[serde(default)] worker: String },
     Status,
 }
 

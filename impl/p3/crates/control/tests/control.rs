@@ -107,7 +107,7 @@ async fn validator_timeouts_give_no_receipt() {
         other => panic!("{other:?}"),
     }
     assert!(t0.elapsed() < Duration::from_secs(20));
-    assert!(c.store.meta.get(c.store.meta.keys.job_receipt(b"to/1")).await.unwrap().is_none());
+    assert!(c.store.meta.get(c.store.meta.keys.job_receipt(&w.id(), b"to/1")).await.unwrap().is_none());
     assert_eq!(checks_run(&c), 0);
     for v in &c.validators {
         assert!(matches!(v.handle(ValidatorRequest::Status).await, ValidatorResponse::Status { running: 0, .. }));
@@ -161,7 +161,7 @@ async fn cancellation_stops_checks_and_publication() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     let t1 = Instant::now();
-    assert_eq!(c.call(ControlRequest::Cancel { request: "cx/1".into() }).await, ControlResponse::Cancelled);
+    assert_eq!(c.call(ControlRequest::Cancel { request: "cx/1".into(), worker: String::new() }).await, ControlResponse::Cancelled);
     assert_eq!(running.await.unwrap(), ControlResponse::Cancelled);
     assert!(t1.elapsed() < Duration::from_secs(10));
     // The checker process was killed.
@@ -175,7 +175,7 @@ async fn cancellation_stops_checks_and_publication() {
     // A queued work job is cancelled and never handed out.
     let sub = ControlRequest::SubmitWork { request: "cx/work".into(), target: "F01.uses_small".into(), memory_mb: 64 };
     assert_eq!(c.call(sub).await, ControlResponse::Queued);
-    assert_eq!(c.call(ControlRequest::Cancel { request: "cx/work".into() }).await, ControlResponse::Cancelled);
+    assert_eq!(c.call(ControlRequest::Cancel { request: "cx/work".into(), worker: String::new() }).await, ControlResponse::Cancelled);
     assert!(w.poll().await.unwrap().is_none());
 }
 
@@ -208,7 +208,7 @@ async fn queues_apply_backpressure() {
     }
     // The controller's validation queue is full, and nothing is recorded for the refusal.
     assert_eq!(c.call(validate_req(&w, &g, "bp/2")).await, ControlResponse::Busy);
-    assert!(c.store.meta.get(c.store.meta.keys.job_request(b"bp/2")).await.unwrap().is_none());
+    assert!(c.store.meta.get(c.store.meta.keys.job_request(&w.id(), b"bp/2")).await.unwrap().is_none());
     // The validator's own queue is full as well.
     let ControlResponse::Status { .. } = c.call(ControlRequest::Status).await else { panic!() };
     let mut env = paralean_store::receipt::JobEnvelope {
@@ -232,7 +232,7 @@ async fn queues_apply_backpressure() {
         let sub = ControlRequest::SubmitWork { request: format!("bp/work{i}"), target: format!("T{i}"), memory_mb: 64 };
         assert_eq!(c.call(sub).await, want);
     }
-    c.call(ControlRequest::Cancel { request: "bp/1".into() }).await;
+    c.call(ControlRequest::Cancel { request: "bp/1".into(), worker: String::new() }).await;
     assert_eq!(first.await.unwrap(), ControlResponse::Cancelled);
 }
 
@@ -264,4 +264,74 @@ async fn work_is_admitted_within_each_workers_memory() {
     for (t, w) in [("A.one", small.id()), ("A.two", big.id()), ("A.three", big.id()), ("A.four", small.id())] {
         assert_eq!(c.store.target(&n(t)).await.unwrap().unwrap().owner, w);
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn request_ids_are_scoped_per_workspace() {
+    // Worker w1 claims the request ID w0 will use for a dependency (`dep/<decl>` is
+    // guessable) and the authority cancels w1's request. Neither the claim (J1, the
+    // in-flight map, the validators' slots, J2) nor the cancellation (J3) reaches w0's
+    // request of the same ID.
+    let c = Cluster::start("scoped", Opts::default()).await;
+    let w0 = c.worker(0, 8192, &core_store()).await;
+    let w1 = c.worker(1, 8192, &core_store()).await;
+    let g = w0.group_declaring(&n("F01.small")).unwrap().clone();
+    let request = format!("dep/{}", g.decl.hex());
+    let (_, squat) = w1.validate(&g, &request, &[], 0).await.unwrap();
+    assert_eq!(squat.body.worker, w1.id());
+    let cancel = ControlRequest::Cancel { request: request.clone(), worker: w1.id().hex() };
+    assert_eq!(c.call(cancel).await, ControlResponse::Cancelled);
+    let (r, j) = w0.validate(&g, &request, &[], 0).await.expect("w0's own request ID");
+    assert_eq!(j.body.worker, w0.id());
+    assert_ne!(j.id(), squat.id());
+    match w1.validate(&g, &request, &[], 0).await {
+        Err(WorkerError::NoReceipt(ControlResponse::Cancelled)) => {}
+        other => panic!("w1's cancelled request: {other:?}"),
+    }
+    assert!(c.store.meta.is_cancelled(&w1.id(), request.as_bytes()).await.unwrap());
+    assert!(!c.store.meta.is_cancelled(&w0.id(), request.as_bytes()).await.unwrap());
+    w0.writer.publish(&w0.package(&g, r, j, vec![])).await.unwrap();
+    c.audit_ok().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn validator_slots_are_scoped_by_issuer_and_workspace() {
+    // One request ID in envelopes for two workspaces, and from a job issuer and the
+    // controller for one workspace: each envelope gets its own receipt.
+    let issuer = Signer::derive("p3-scoped-issuer");
+    let c = Cluster::start("vslots", Opts { validators: vec![Mode::Real], job_issuers: vec![issuer.clone()], ..Opts::default() }).await;
+    let w0 = c.worker(0, 8192, &core_store()).await;
+    let w1 = c.worker(1, 8192, &core_store()).await;
+    let g = w0.group_declaring(&n("F01.small")).unwrap().clone();
+    w0.writer.store.s3.put_opaque(&g.group_object()).await.unwrap();
+    w0.writer.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
+    let authority = c.kf.authority_signer().unwrap();
+    let env = |worker: WorkspaceId| paralean_store::receipt::JobEnvelope {
+        request: b"same/request".to_vec(),
+        group: g.decl,
+        capsule: g.capsule_id(),
+        deps: vec![],
+        base: paralean_control::checker::base_id(&c.checker.lean_githash),
+        policy: paralean_store::receipt::Policy::v1().id(),
+        checker: c.validators[0].checker_id(),
+        worker,
+        targets: vec![],
+        deadline_ms: 120_000,
+        memory_mb: 0,
+    };
+    let jobs = [
+        paralean_store::receipt::SignedJob::sign(env(w1.id()), &issuer),
+        paralean_store::receipt::SignedJob::sign(env(w1.id()), &authority),
+        paralean_store::receipt::SignedJob::sign(env(w0.id()), &authority),
+    ];
+    for job in &jobs {
+        match c.validators[0].validate(job.clone()).await {
+            ValidatorResponse::Receipt { receipt } => {
+                let r = paralean_validator_api::decode_receipt(&receipt).unwrap();
+                assert_eq!(r.body.request, Some(job.id().0.to_vec()));
+            }
+            other => panic!("envelope for {} refused: {other:?}", job.body.worker.hex()),
+        }
+    }
+    assert_eq!(checks_run(&c), 3);
 }

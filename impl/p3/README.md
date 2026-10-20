@@ -56,7 +56,7 @@ naming the group, bound to a controller-signed envelope whose group, base, polic
 and targets equal the receipt's, a pinned policy and checker, and exactly the target names
 and epochs the publication was prepared under. Workers run it before staging; T1 runs it
 again inside the publication transaction and also reads `vrevoke/<key>` and
-`jobcancel/<request>` there, and refuses a revision of any name that has a target record
+`jobcancel/<workspace>/<request>` there, and refuses a revision of any name that has a target record
 unless it is a prepared target.
 
 ## Processes
@@ -88,5 +88,5 @@ Requests and answers are length-prefixed JSON frames over TCP, one exchange per 
 | `controller::expire_leases` | immediate T4 on lease expiry | TargetNames `reassign`; stale owner fenced by T1's epoch check |
 | `validator::fetch_inputs` | dependencies must be published with a receipt that verifies | §6 "rebuilds from the dependency groups' receipted manifests" |
 | `validator::check`, `checker::run` | stock-kernel re-check; axioms from the kernel; policy; statement | §6 axiom policy; target contracts |
-| J1/J2 (`jobreq/`, `jobreceipt/`), in-flight map | retry deduplication by request ID | — |
+| J1/J2 (`jobreq/`, `jobreceipt/`), in-flight map, validator slots | retry deduplication by (workspace, request ID); one workspace cannot squat or cancel another's request ID | — |
 | `checker::run` | deadline, resident-memory watchdog, kill on cancel | "timeout/unavailable bytes are inconclusive" |

@@ -873,7 +873,7 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
         return Err(GuardFailure::ValidatorRevoked(vkey).into());
     }
     let request = &a.job.body.request;
-    if !cfg!(feature = "mutate-no-cancel-check") && get(trx, &k.job_cancel(request)).await?.is_some() {
+    if !cfg!(feature = "mutate-no-cancel-check") && get(trx, &k.job_cancel(&a.job.body.worker, request)).await?.is_some() {
         return Err(GuardFailure::JobCancelled(request.clone()).into());
     }
     // A revision of a name that has a target record must be a prepared target (TargetNames:

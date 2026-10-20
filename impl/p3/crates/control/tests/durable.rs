@@ -33,8 +33,8 @@ async fn large_snapshot_roundtrips_and_old_leader_writes_are_fenced() {
     let (worker, _) = keys.workspace("w0").unwrap();
     let receipt = fixture::package("stale-receipt", worker, &Signer::derive("validator"),
         &Name::parse("Durable.free"), vec![], None, 1).receipt;
-    assert!(old.record_receipt(b"stale-j2", &receipt, first.term).await.is_err());
-    assert!(store.meta.get(store.meta.keys.job_receipt(b"stale-j2")).await.unwrap().is_none());
+    assert!(old.record_receipt(&worker, b"stale-j2", &receipt, first.term).await.is_err());
+    assert!(store.meta.get(store.meta.keys.job_receipt(&worker, b"stale-j2")).await.unwrap().is_none());
 
     next.save(b"new leader state", second.term).await.unwrap();
     assert_eq!(old.load().await.unwrap(), Some(b"new leader state".to_vec()));
