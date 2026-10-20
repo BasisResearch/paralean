@@ -144,6 +144,9 @@ witness_items=(
   'target_home_publication TargetHomes NeverPublished'
   'target_home_receive TargetHomes NeverRemoteReceived'
   'target_home_handover TargetHomes NeverReassignedPublication'
+  'replay_original ReplayIdentity NeverOriginalAccepted'
+  'replay_synthetic_rejection ReplayIdentity NeverSyntheticRejected'
+  'replay_ordinary ReplayIdentity NeverOrdinarySyntheticAccepted'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -252,6 +255,17 @@ case_unexportable_snapshot() {
   prepare_case unexportable_snapshot
   edit_once "$neg/unexportable_snapshot/Registry.tla" '                /\ S \in Exportable' '                /\ TRUE'
   run_expected_failure unexportable_snapshot ExportRejected 'Invariant NoUnexportableCheckpoint is violated'
+}
+
+# Omitting the exact stored-content check admits a replay from the synthetic
+# module even though its generated Name literal denotes a different value.
+defcase replay_without_exact_identity
+case_replay_without_exact_identity() {
+  prepare_case replay_without_exact_identity
+  edit_once "$neg/replay_without_exact_identity/ReplayIdentity.tla" \
+    '  /\ Produced(g, c) = Stored[g]' '  /\ TRUE'
+  run_expected_failure replay_without_exact_identity ReplayIdentity \
+    'Invariant AcceptedExact is violated'
 }
 
 defcase dependent_work_blocked

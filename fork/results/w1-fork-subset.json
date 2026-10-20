@@ -1,0 +1,32 @@
+[
+  {
+    "test": "paraleanCollector.lean",
+    "mode": "1",
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "test": "paraleanInstNames.lean",
+    "mode": "1",
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "test": "paraleanSimp.lean",
+    "mode": "1",
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "test": "paraleanSync.lean",
+    "mode": "1",
+    "exit_code": 0,
+    "output": ""
+  },
+  {
+    "test": "paraleanOff.lean",
+    "mode": "off",
+    "exit_code": 0,
+    "output": ""
+  }
+]

@@ -32,11 +32,39 @@ The historical M08 failure is reproduced in
 module name in a literal in the declaration body. The canonical encoder
 preserves literal bytes, and the validator correctly rejects the result.
 
-The proposed correction is to restore the captured module context when
+The correction restores the captured module context when
 the replay closure has one source module. Identity encoding and validator
-acceptance remain exact. A replay model and mutation case precede the
-implementation; focused tests must demonstrate both successful replay
-and rejection of changed declaration bytes.
+acceptance checks are unchanged. A replay model and mutation case preceded
+the implementation. Mixed-module closures retain the synthetic module;
+this change makes no universal replay-completeness claim for such closures.
+No fork patch or fork rebuild is needed.
+
+Targeted fork reproduction preserves the historical M08 package
+`4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4`
+and declaration
+`f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa`.
+The patched cold `check-group` returns `ok: true` without diagnostics.
+M08 source, kernel, and isolated replay each pass 3/3 groups.
+
+The five fork hook fixtures pass against a private copy of the pinned
+`99967f1ee50a1ee82bb178359ad95b723c8196a2` installation, including the mode-off
+fixture. Evidence: `fork/results/w1-fork-subset.json`.
+
+## Identity scope
+
+[The identity analysis](w1-identity.md) inventories the 26 historical export
+mismatches and explains why a universal quotient of module-dependent name
+literals cannot preserve their observable values. The interface notes now
+state the narrower claim explicitly. No literal normalization or export
+validator exception was added.
+
+The real `register_simp_attr` witness passes on stock and fork: two identical
+commands elaborated in different modules contain different module-name
+values in their generated initializer bodies. Logs:
+`verification/results/w1/identity-stock.log` and `identity-fork.log`.
+The Lean proof separates declaration-name rendering from observable values
+inside terms. Initializer materialization remains a separate existing effect
+coverage mechanism; it does not establish exact export-body identity.
 
 ## Results
 

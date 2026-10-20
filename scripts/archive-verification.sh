@@ -217,7 +217,7 @@ fi
 } > verification/results/tlc/toolchain.txt
 
 if [[ $mode == all ]]; then
-  for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks LeanNames PublicationReceipts TargetNames CatalogFencing AckCertificates CatalogCertificates Hardened HardenedExecution Workspaces Audit; do
+  for module in Registry Durability Convergence Composition EndToEnd Commit Groups Delivery DeliveryAlternatives Admission AdmissionExecution Recovery RecoveryAncestry RecoveryAdequacy PublicationDiscovery CompletionRecovery Protocol CompletionRecoveryExecution ProtocolExecution ProtocolGuardChecks LeanNames InitializerIdentity PublicationReceipts TargetNames CatalogFencing AckCertificates CatalogCertificates Hardened HardenedExecution Workspaces Audit; do
     cp ".runs/veil/$module.log" "verification/results/lean/$module.log"
   done
   {

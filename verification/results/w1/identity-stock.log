@@ -1,0 +1,5 @@
+_private.verification.fixtures.identity.IdentityOriginal.0.initFn._@.verification.fixtures.identity.IdentityOriginal.1111279983._hygCtx._hyg.28: [IdentityOriginal]
+_private.verification.fixtures.identity.IdentityOriginal.0.initFn._@.verification.fixtures.identity.IdentityOriginal.1111279983._hygCtx._hyg.5: [IdentityOriginal]
+_private.verification.fixtures.identity.IdentityRelocated.0.initFn._@.verification.fixtures.identity.IdentityRelocated.1111279983._hygCtx._hyg.28: [IdentityRelocated]
+_private.verification.fixtures.identity.IdentityRelocated.0.initFn._@.verification.fixtures.identity.IdentityRelocated.1111279983._hygCtx._hyg.5: [IdentityRelocated]
+PASS: generated initializer literals differ with the Lean module

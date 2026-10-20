@@ -8,7 +8,7 @@ run_cmd do
     `ParaleanGroups, `ParaleanGroupComposition, `ParaleanDelivery, `ParaleanArtifacts,
     `ParaleanAdmission, `ParaleanRecovery, `ParaleanPublicationDiscovery,
     `ParaleanCompletionRecovery, `ParaleanProtocol, `ParaleanProtocolGuardChecks,
-    `ParaleanLeanNames, `ParaleanPublicationReceipts, `ParaleanTargetNames,
+    `ParaleanLeanNames, `ParaleanInitializerIdentity, `ParaleanPublicationReceipts, `ParaleanTargetNames,
     `ParaleanCatalogFencing, `ParaleanAckCertificates, `ParaleanCatalogCertificates, `ParaleanHardened, `ParaleanWorkspaces]
   let allowed := #[`propext, `Classical.choice, `Quot.sound]
   let mut count : Nat := 0
