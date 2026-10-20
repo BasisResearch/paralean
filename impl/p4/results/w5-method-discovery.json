@@ -1,0 +1,40 @@
+{
+  "method": "PASS",
+  "published": [
+    "fa6b2ce306c178587de67f30bf765d57ca702100d01ab38512c3c49ed5525f8b"
+  ],
+  "check": {
+    "auditMs": 1,
+    "axioms": [
+      [
+        "propext",
+        1
+      ]
+    ],
+    "constants": 18,
+    "disallowedAxioms": [],
+    "elabMs": 859,
+    "errors": [],
+    "file": "Use.lean",
+    "loadedAxioms": [
+      [
+        "propext"
+      ]
+    ],
+    "loadedConstants": 18,
+    "localAxioms": []
+  },
+  "forkGithash": "bd12276840543d83766ce66c82cf260d818b8d83",
+  "baselineComparison": {
+    "probe": "remote_decl% <published Foo group>; def use2 (x : Foo) : Nat := x.field",
+    "oldRuntimeSha256": "84d6c0bcba32b8bc67b4152a33ae55d537f4b43bb0435068ba375439bc0608b8",
+    "newRuntimeSha256": "fd8c38dfc377a8178570bb5057f9b3be0da4fa6e3e1874f7ded61c11377de350",
+    "oldErrors": [
+      "Probe.lean:2: Unknown constant `Foo.field`"
+    ],
+    "newErrors": [],
+    "fixture": "copied published W5 method fixture; same signed capsules and store deployment",
+    "oldForkGithash": "99967f1ee50a1ee82bb178359ad95b723c8196a2",
+    "fooGroup": "12a33bf140f6f577a64586426f51ec7ec6354c0a9aae6dbd45b209fc9f1de6d2"
+  }
+}

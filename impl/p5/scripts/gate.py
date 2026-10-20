@@ -129,6 +129,18 @@ def main() -> int:
     ap.add_argument("--controller", type=Path, default=CLI)
     ap.add_argument("--worker", choices=("codex", "claude", "command"), default="codex")
     ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("--parallelism", type=int, default=2,
+                    help="maximum simultaneous CLI worker processes")
+    ap.add_argument("--lsp-worker", action="store_true",
+                    help="also run a scripted worker that edits and publishes through real LSP")
+    ap.add_argument("--lsp-ssh-host")
+    ap.add_argument("--lsp-ssh-user")
+    ap.add_argument("--lsp-ssh-port", type=int, default=22)
+    ap.add_argument("--lsp-ssh-identity", type=Path)
+    ap.add_argument("--lsp-ssh-known-hosts", type=Path)
+    ap.add_argument("--lsp-ssh-root", type=Path)
+    ap.add_argument("--lsp-lean-server")
+    ap.add_argument("--lsp-revoke-policy", action="store_true")
     args = ap.parse_args()
     if not os.environ.get("PARALEAN_INSTANCE"):
         ap.error("PARALEAN_INSTANCE must identify this run's private cluster")
@@ -156,7 +168,8 @@ def main() -> int:
         result["versions"]["origin_main"] = subprocess.check_output(["git", "rev-parse", "origin/main"], cwd=ROOT, text=True).strip()
         with (evidence_dir / "first-controller.log").open("w") as log:
             proc = subprocess.Popen(cmd + ["run", str(local_task), "--state", str(state_dir), "--worker", args.worker,
-                                    "--no-export"], stdout=log, stderr=subprocess.STDOUT, env=env,
+                                    "--parallelism", str(args.parallelism), "--no-export"],
+                                    stdout=log, stderr=subprocess.STDOUT, env=env,
                                     start_new_session=True)
             try:
                 partial = wait_for_partial(proc, state_dir / "run.json", len(names), args.timeout)
@@ -179,7 +192,8 @@ def main() -> int:
         if discovered_id != task_id:
             raise RuntimeError("store catalogue did not recover the unique lost task ID")
         run_cmd(cmd + ["recover", discovered_id, "--state", str(state_dir), "--worker", args.worker,
-                       "--no-export"], evidence_dir / "recovery.log", args.timeout, env)
+                       "--parallelism", str(args.parallelism), "--no-export"],
+                evidence_dir / "recovery.log", args.timeout, env)
         recovered = read_json(state_dir / "run.json")
         found = groups(recovered)
         statuses = {n: recovered.get("targets", {}).get(n, {}).get("status") for n in names}
@@ -212,6 +226,29 @@ def main() -> int:
                 remote.append(str(p.relative_to(state_dir)))
         result["checks"]["remote_helpers"] = {"ok": bool(remote), "files": remote}
         result["metrics"] = recovered.get("metrics", {})
+        if args.lsp_worker:
+            lsp_dir = run_dir.with_name(run_dir.name + "-lsp")
+            lsp_cmd = [sys.executable, str(ROOT / "impl/p5/scripts/lsp_gate.py"), str(lsp_dir)]
+            if args.lsp_lean_server:
+                lsp_cmd += ["--lean-server", args.lsp_lean_server]
+            if args.lsp_revoke_policy:
+                lsp_cmd += ["--revoke-policy"]
+            if args.lsp_ssh_host:
+                lsp_cmd += ["--remote-dependent"]
+                lsp_cmd += ["--ssh-host", args.lsp_ssh_host,
+                            "--ssh-user", args.lsp_ssh_user or "",
+                            "--ssh-port", str(args.lsp_ssh_port),
+                            "--ssh-identity", str(args.lsp_ssh_identity or ""),
+                            "--ssh-known-hosts", str(args.lsp_ssh_known_hosts or ""),
+                            "--ssh-root", str(args.lsp_ssh_root or "")]
+            run_cmd(lsp_cmd, evidence_dir / "lsp-worker.log", args.timeout, env)
+            lsp_result = read_json(lsp_dir / "lsp-gate.json")
+            result["checks"]["lsp_worker"] = {
+                "ok": lsp_result.get("ok") is True,
+                "provenance": "scripted JSON-RPC worker",
+                "transport": lsp_result.get("transport"),
+                "evidence": str(lsp_dir / "lsp-gate.json"),
+                "details": lsp_result.get("checks")}
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     result["ok"] = "error" not in result and all(v["ok"] for v in result["checks"].values())

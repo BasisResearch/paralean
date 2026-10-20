@@ -46,7 +46,7 @@ async fn run(args: Vec<String>) -> R<Value> {
     let space = keyspace(&dep);
     let cmd = args.first().map(String::as_str).ok_or("missing command")?;
     match cmd {
-        "assign-target" | "observe-target" | "fence-unfinished" | "validate-target" |
+        "policy-state" | "revoke-validator" | "assign-target" | "observe-target" | "fence-unfinished" | "validate-target" |
         "publish-target" | "verify-target" | "checkpoint-targets" => targets::run(&args).await,
         "put" => {
             let task = task_id(need(&args, "--task")?)?;

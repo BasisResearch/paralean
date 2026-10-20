@@ -34,6 +34,30 @@ workspace without exposing its worker path. `workspace/symbol` and
 RPC sessions and completion items are bound to their original document,
 environment and worker generation.
 
+With the controller bridge enabled, cross-workspace rename uses
+`paralean/renameTransaction`. Its request names the declaring group's exact ID,
+the origin `uri` and `position`, `newName`, and one `{uri, position}` anchor in
+each affected workspace. First open and successfully capture every Lean file in
+every registered work root using `paralean/capture`; an uncaptured, closed or
+stale file makes the dependency inventory incomplete. The router computes the
+reverse dependency closure from those captures and refuses missing anchors,
+worker errors, edits outside the closure and changed buffer or environment
+stamps. Because capture does not certify every reference in standalone commands,
+the transaction currently requires every registered Lean source file to belong
+to that closure; an unrelated file causes a safe refusal. It commits all planned
+replay buffers in one router operation, increments
+their versions, sends `$/paralean/buffersCommitted` with the full updated texts,
+and replays the texts to the workers. Clients using this custom request must
+replace all listed editor buffers with the returned versions. The transaction
+does not write source files or provide durable file-system atomicity. Ordinary
+`textDocument/rename` is refused in a multi-workspace router session because
+its editor-applied WorkspaceEdit cannot establish the same all-buffer commit.
+Published `remote%` projections can place the actual reference only in a signed
+capsule and duplicate a group in several workspace files. This transaction
+refuses that layout until capsule-aware source rewriting and identity mapping
+are available. `tests/rename_projection_probe.py FIXTURE` audits the refusal
+against an existing P3 fixture without changing its store.
+
 ## Incremental publication capture
 
 Run one `paralean ws-capture-server --dir COPY` per document with the copy's
@@ -51,6 +75,43 @@ trust invalidate command snapshots. A changed document, base environment or
 worker generation requires a new process; non-increasing versions are refused.
 This worker stages capture artifacts; publication still goes through the
 validator, planner and store.
+
+## Controller-owned editor publication
+
+Attach a provisioned, frozen P5 task using `--p5-task TASK.toml --p5-state STATE`.
+Register exactly its `w0`, `w1`, … workspace roots under `STATE`. P5's
+`p5lib.lsp_provision` provisions dedicated SSH roots and constructs the router
+arguments. Its SSH endpoints require a client identity and pinned known-hosts
+file. An existing remote directory must carry the matching ownership marker
+before synchronization can remove files within it.
+
+After `didOpen`/`didChange`, send `paralean/capture` with `uri` and `version`.
+Capture remains private. An explicit `paralean/publish` request supplies:
+
+```json
+{"uri":"file:///absolute/STATE/w0/work/A.lean","version":3,"target":"Example.theorem","owner":"w0","epoch":0,"policy":"frozen-target"}
+```
+
+Use the current assigned epoch from the controller. Publication requires a
+successful capture of that exact buffer, its owning workspace, the frozen
+target contract, current policy and a validator receipt. The controller
+rechecks the buffer and policy after validation and before the store commit.
+Document notifications alone do not publish.
+
+The controller polls authoritative store policy every second and pushes
+`paralean/environmentChanged`. A change fences the old worker, RPC sessions
+and captures, synchronizes a remote root, and starts a replacement worker.
+Policy-query or synchronization failure leaves the workspace unavailable.
+Ordinary worker messages wait for an in-flight policy decision and are checked
+against the resulting generation. This is a polling-backed push feed, with
+polling and query latency, rather than a native database watch.
+
+`impl/p5/scripts/lsp_gate.py` exercises these requests against live services.
+P5's integrated `scripts/gate.py --lsp-worker` includes that scripted JSON-RPC
+worker after its CLI-worker recovery checks. Add `--lsp-ssh-*` options for SSH
+and a dependent published declaration, and `--lsp-revoke-policy` to test an
+idle session's invalidation. See `docs/w5-log.md` from the repository root for
+the isolated configuration, reports and the published-rename limitation.
 
 ## Collision resolution and Git projection
 

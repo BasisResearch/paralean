@@ -1,0 +1,28 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 25 and seed 8543486964813916688 with 1 worker on 32 cores with 1899MB heap and 64MB offheap memory [pid: 2704662] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/tla/run/EditorPublication/EditorWiring.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module EditorWiring
+Starting... (2026-10-20 16:04:56)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:04:57.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.1E-15
+607 states generated, 178 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 9.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 3).
+Finished in 01s at (2026-10-20 16:04:57)
+==== Paralean TLC provenance ====
+module EditorWiring
+config EditorPublication.cfg
+expect pass
+checked e701ebb084e7c14de78034035eb932dcca203554e270d21df003c8102e8ff95c  EditorWiring.tla
+checked 4779d11ac145aea710bc81c5e52d4854f60b4e092e3e2739f5931b402f5af7b9  EditorPublication.cfg
+==== end provenance ====

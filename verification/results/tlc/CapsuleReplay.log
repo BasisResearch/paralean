@@ -1,0 +1,28 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 75 and seed 6893671638687325769 with 1 worker on 32 cores with 1899MB heap and 64MB offheap memory [pid: 2705650] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/tla/run/CapsuleReplay/EditorWiring.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module EditorWiring
+Starting... (2026-10-20 16:05:00)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:05:01.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 3.8E-18
+19 states generated, 5 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 3 and the 95th percentile is 3).
+Finished in 01s at (2026-10-20 16:05:01)
+==== Paralean TLC provenance ====
+module EditorWiring
+config CapsuleReplay.cfg
+expect pass
+checked e701ebb084e7c14de78034035eb932dcca203554e270d21df003c8102e8ff95c  EditorWiring.tla
+checked aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
+==== end provenance ====

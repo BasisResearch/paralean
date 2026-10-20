@@ -120,8 +120,24 @@ unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit)
       | none => throw <| IO.userError s!"capture: dependency {(d.take 12).toString} of {g.short} is neither published nor in this batch"
     out := out.push (Json.mkObj [("pid", pid), ("group", g.declId), ("capsule", cid), ("deps", toJson deps),
       ("names", toJson (g.publicNames.map toString)), ("line", g.capsule.startLine)])
+  -- Read-only source inventory for editor transactions. A published element is listed
+  -- with its signed capsule ID but never becomes a staging candidate again.
+  let mut groups := #[]
+  for pid in r.groups do
+    let alreadyPublished := published.contains pid
+    let g ← if alreadyPublished then Remote.getMetaIO pid else cache.getMeta pid
+    let capsule ← if alreadyPublished then
+      match (← Remote.pkgIndex.get)[pid]? with
+      | some (_, cid) => pure cid
+      | none => throw <| IO.userError s!"capture: published package {pid} has no capsule index"
+      else pure (capsuleIdOf (← IO.FS.readBinFile (cache.metaPath pid)))
+    groups := groups.push (Json.mkObj [("pid", toJson pid), ("group", toJson g.declId),
+      ("capsule", toJson capsule), ("deps", toJson (g.deps ++ g.feDeps)),
+      ("names", toJson (g.publicNames.map toString)), ("line", toJson g.capsule.startLine),
+      ("alreadyPublished", toJson alreadyPublished), ("fieldRefs", toJson g.fieldRefs)])
   let rejected := r.diags.filter (·.severity == "reject") |>.map toString
-  return Json.mkObj [("packages", Json.arr out), ("rejected", toJson rejected), ("rejectedPids", toJson r.rejected)]
+  return Json.mkObj [("packages", Json.arr out), ("groups", Json.arr groups),
+    ("rejected", toJson rejected), ("rejectedPids", toJson r.rejected)]
 
 /-! ## Placement of new records -/
 

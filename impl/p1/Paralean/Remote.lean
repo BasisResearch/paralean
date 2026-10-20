@@ -134,12 +134,38 @@ def countRecords (_root : System.FilePath) : IO Nat := recordsVersion.get
 /-- Capsules already verified in this process (capsule ID ↦ package ID). -/
 initialize capsuleSeen : IO.Ref (Std.HashMap String String) ← IO.mkRef {}
 
+/-- Field spans recovered by a content-checked replay in a separate process. These are
+process-local rendering hints, never written into a signed capsule or receipt. -/
+initialize recapturedFields : IO.Ref (Std.HashMap String (Array FieldRef)) ← IO.mkRef {}
+initialize recapturing : IO.Ref Bool ← IO.mkRef false
+
+def withRecapturedFields (capsule : String) (g : GroupRec) : IO GroupRec := do
+  if g.fieldRefs.isSome then return g
+  return { g with fieldRefs := (← recapturedFields.get)[capsule]? }
+
+def recaptureIfNeeded (root : System.FilePath) (capsule : String)
+    (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupRec) : IO GroupRec := do
+  if (← recapturing.get) || g.fieldRefs.isSome ||
+      !(renamedGroup ren g).diags.any (·.code == "legacy-field-recapture") then return g
+  let some bin ← IO.getEnv "PARALEAN_BIN" | return g
+  let result ← IO.Process.output
+    { cmd := bin, args := #["recapture-one", "--store", root.toString, "--pid", g.gid] }
+  if result.exitCode != 0 then return g
+  let .ok json := Json.parse result.stdout | return g
+  let .ok (refs : Array FieldRef) := fromJson? json | return g
+  -- Empty or irrelevant metadata cannot discharge a rename that requires field spans.
+  let m := textRenames ren g
+  unless refs.any (fun ref => renameName m ref.target != ref.target) do return g
+  recapturedFields.modify (·.insert capsule refs)
+  return { g with fieldRefs := some refs }
+
 /-- A known package's metadata from its stored capsule (hash-checked). -/
 def metaOfCapsule (root : System.FilePath) (capsule : String) : IO GroupRec := do
   match ← loadCapsule root capsule with
   | .error e => throw <| IO.userError s!"remote%: {e}"
   | .ok g =>
     pkgIndex.modify (·.insert g.gid (g.declId, capsule))
+    let g ← withRecapturedFields capsule g
     metaCache.modify (·.insert g.gid g)
     capsuleSeen.modify (·.insert capsule g.gid)
     return g
@@ -174,7 +200,14 @@ def view : IO Rga.View := do
   let mut metas : Std.HashMap String GroupRec := {}
   for mk in known.markers do
     metas := metas.insert mk.pid (← metaOfCapsule root mk.capsule)
-  let v := Rga.View.of known metas
+  let mut v := Rga.View.of known metas
+  -- The helper replays against the original signed closure in a fresh process.
+  for mk in known.markers do
+    let some g := v.metas[mk.pid]? | continue
+    let g ← recaptureIfNeeded root mk.capsule v.renames g
+    metas := metas.insert mk.pid g
+    metaCache.modify (·.insert mk.pid g)
+  v := Rga.View.of known metas
   viewCache.set (n, some v)
   return v
 
@@ -195,14 +228,24 @@ def markerOf (group : String) : IO Marker := do
   | none => throw <| IO.userError s!"remote%: no published declaration with ID {group}"
 
 def getMetaIO (pid : String) : IO GroupRec := do
-  if let some g := (← metaCache.get)[pid]? then return g
+  if let some g := (← metaCache.get)[pid]? then
+    if g.fieldRefs.isSome || (← recapturing.get) then return g
+    let v ← view
+    if let some (_, capsule) := (← pkgIndex.get)[pid]? then
+      let g ← recaptureIfNeeded (← storeRoot) capsule v.renames g
+      metaCache.modify (·.insert pid g)
+      return g
+    return g
   discard <| view
   let some (group, capsule) := (← pkgIndex.get)[pid]?
     | throw <| IO.userError s!"remote%: package {(pid.take 12).toString} is unknown to this copy"
   let root ← storeRoot
   unless ← (root / "p3" / "capsules" / s!"{capsule}.json").pathExists do
     discard <| markerOf group
-  metaOfCapsule root capsule
+  let g ← metaOfCapsule root capsule
+  let g ← recaptureIfNeeded root capsule (← view).renames g
+  metaCache.modify (·.insert pid g)
+  return g
 
 def getMeta (pid : String) : CommandElabM GroupRec := getMetaIO pid
 

@@ -1,0 +1,49 @@
+{
+  "p5UnitTests": 50,
+  "p5Skipped": 0,
+  "renameUnitTests": 25,
+  "realLeanRenameTests": 3,
+  "guardMutants": {
+    "editorProvisionRouter": 31,
+    "rustAuthorityGuard": 1,
+    "rename": 18,
+    "leanRecapture": 11
+  },
+  "integratedGateChecks": 9,
+  "sshSamplesPerCondition": 10,
+  "sourceSha256": {
+    "impl/p4/lsp.py": "501b57ca78d0a57c968e75fcca5955b525200c4e067fa109701265e19c8747cf",
+    "impl/p4/controller_bridge.py": "9dd6a0bc44e32fd42c0296d9cd608c9e0ff45020cf74ead05b5d8964795a290b",
+    "impl/p4/rename_transaction.py": "8fcfc935dea8947b68b5a4ca290d1c4c381511a3a873a7854ddae4a22c8e5e2e",
+    "impl/p5/p5lib/backend.py": "a84ccf41389353b255a397ad5b0465d2f0526bcdfeca50ee05926a6e14b287fe",
+    "impl/p5/p5lib/lsp_provision.py": "367d737657b9103df0aabf72a11415aebf568be3eb513a8f07af507fed7238b3",
+    "impl/p5/p5lib/remote_worker.py": "37807b66f424a669c3308c1c8edd4948bd33d999f777ff7bc4e8a540fdff69af",
+    "impl/p5/store-bridge/src/targets.rs": "eadd81f1f221c0185ea1796eb9dca08b9ff5fe0e9ef5886d4cdd0538caca8a35",
+    "impl/p1/Main.lean": "228b06af473fa7c49fbb48fe6bb9e5272f7551657f38767155e286c5fcaf1e20",
+    "impl/p1/Paralean/Remote.lean": "de4ed5c372e0dff91526365014a1b7347f9b30b14255609550e87b93c7330506",
+    "impl/p1/Paralean/Copy.lean": "dfce056142a647cd2580d24324e003c443126c0f0b80ef69646568a3ffdfc94b"
+  },
+  "forkGithash": "bd12276840543d83766ce66c82cf260d818b8d83",
+  "p1BinarySha256": "fd8c38dfc377a8178570bb5057f9b3be0da4fa6e3e1874f7ded61c11377de350",
+  "notes": [
+    "Real Lean rename fixture supplies its dependency inventory; published P3 projections are refused.",
+    "Rust authority mutation compiles the extracted production guard; the live gate independently checks worker-only key refusal.",
+    "Recapture mutants use isolated P1 builds and an authentically signed legacy fixture.",
+    "Integrated LSP worker is scripted JSON-RPC; ten original task targets use ordinary Claude CLI workers."
+  ],
+  "ordinaryMethodModesPassed": [
+    "Paralean disabled",
+    "Paralean enabled without store"
+  ],
+  "tlaArchive": {
+    "defaultPositive": 24,
+    "expectedOutcome": 99,
+    "wide": 4,
+    "hardened": 29,
+    "total": 156,
+    "rearchive": "PASS",
+    "verify": "PASS",
+    "newW5SafetyMutants": 11,
+    "newW5ReachabilityWitnesses": 3
+  }
+}

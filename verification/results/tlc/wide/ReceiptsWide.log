@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 61 and seed -2021639264514418749 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 3373060] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/ReceiptsWide/Receipts.tla
+Running breadth-first search Model-Checking with fp 112 and seed 2617757985403676550 with 2 workers on 32 cores with 2731MB heap and 64MB offheap memory [pid: 3642907] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/tla/run/ReceiptsWide/Receipts.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
@@ -8,9 +8,9 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Receipts
-Starting... (2026-10-20 12:03:43)
+Starting... (2026-10-20 16:48:16)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:03:44.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:48:17.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -18,7 +18,7 @@ Model checking completed. No error has been found.
 25358 states generated, 1513 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 19.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 3).
-Finished in 01s at (2026-10-20 12:03:44)
+Finished in 01s at (2026-10-20 16:48:17)
 ==== Paralean TLC provenance ====
 module Receipts
 config ReceiptsWide.cfg

@@ -86,6 +86,8 @@ fn ms(t: Instant) -> f64 {
 
 pub async fn run(args: &[String]) -> R<Value> {
     match args.first().map(String::as_str) {
+        Some("policy-state") => policy_state().await,
+        Some("revoke-validator") => revoke_validator(args).await,
         Some("assign-target") => assign(args).await,
         Some("observe-target") => observe_target(args).await,
         Some("fence-unfinished") => fence_unfinished(args).await,
@@ -95,6 +97,41 @@ pub async fn run(args: &[String]) -> R<Value> {
         Some("checkpoint-targets") => checkpoint_targets(args).await,
         _ => Err("unknown target bridge command".into()),
     }
+}
+
+/// Live revocation view for every pinned validator, including validators with
+/// no published groups yet. The LSP controller uses this to invalidate cached
+/// elaboration before a newly revoked receipt can be reused.
+async fn policy_state() -> R<Value> {
+    let (store, keys) = open()?;
+    let mut validators = Vec::new();
+    for key in &keys.ring().validators {
+        validators.push(json!({"key": hex::encode(key),
+            "revoked": store.meta.is_revoked(key).await.map_err(|e| e.to_string())?}));
+    }
+    validators.sort_by(|a, b| a["key"].as_str().cmp(&b["key"].as_str()));
+    Ok(json!({"validators": validators, "policies": keys.policies,
+              "checkers": keys.checkers}))
+}
+
+/// Authority-only maintenance operation, used by the isolated editor policy
+/// gate. Workspace keys cannot issue this signed revocation.
+async fn revoke_validator(args: &[String]) -> R<Value> {
+    let (store, keys) = open()?;
+    let signer = keys.authority_signer().ok_or("authority seed required for revocation")?;
+    let raw = hex::decode(need(args, "--key")?).map_err(|_| "invalid validator key")?;
+    let key: [u8; 32] = raw.try_into().map_err(|_| "validator key must be 32 bytes")?;
+    if !keys.ring().validators.contains(&key) {
+        return Err("validator key is not pinned by this deployment".into());
+    }
+    let reason = need(args, "--reason")?;
+    if reason.is_empty() || reason.len() > 256 {
+        return Err("revocation reason must be 1..256 bytes".into());
+    }
+    let signed = receipt::SignedRevocation::sign(
+        receipt::Revocation { key, reason: reason.to_owned() }, &signer);
+    let fresh = store.meta.revoke_validator(&signed).await.map_err(|e| e.to_string())?;
+    Ok(json!({"key": hex::encode(key), "revoked": true, "fresh": fresh}))
 }
 
 /// A P5 checkpoint is selected from exact live revision IDs by the exporter. The

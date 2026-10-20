@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 120 and seed -2147927829974137770 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 3438224] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/FencingWide/Fencing.tla
+Running breadth-first search Model-Checking with fp 16 and seed 5886405316190185826 with 2 workers on 32 cores with 2731MB heap and 64MB offheap memory [pid: 3895781] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/tla/run/FencingWide/Fencing.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/TLC.tla
@@ -10,23 +10,28 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-20 12:07:33)
+Starting... (2026-10-20 16:59:39)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:07:33.
-Progress(14) at 2026-10-20 12:07:36: 321,139 states generated (321,139 s/min), 34,567 distinct states found (34,567 ds/min), 16,602 states left on queue.
-Progress(23) at 2026-10-20 12:08:36: 12,154,560 states generated (11,833,421 s/min), 756,299 distinct states found (721,732 ds/min), 174,277 states left on queue.
-Progress(25) at 2026-10-20 12:09:36: 22,334,796 states generated (10,180,236 s/min), 1,257,228 distinct states found (500,929 ds/min), 226,987 states left on queue.
-Progress(27) at 2026-10-20 12:10:36: 31,654,075 states generated (9,319,279 s/min), 1,608,423 distinct states found (351,195 ds/min), 195,087 states left on queue.
-Progress(32) at 2026-10-20 12:11:36: 42,247,470 states generated (10,593,395 s/min), 1,859,796 distinct states found (251,373 ds/min), 2,134 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:59:40.
+Progress(12) at 2026-10-20 16:59:43: 71,617 states generated (71,617 s/min), 10,155 distinct states found (10,155 ds/min), 5,827 states left on queue.
+Progress(20) at 2026-10-20 17:00:43: 4,326,746 states generated (4,255,129 s/min), 303,473 distinct states found (293,318 ds/min), 81,229 states left on queue.
+Progress(22) at 2026-10-20 17:01:43: 8,945,452 states generated (4,618,706 s/min), 575,153 distinct states found (271,680 ds/min), 141,424 states left on queue.
+Progress(23) at 2026-10-20 17:02:43: 13,454,920 states generated (4,509,468 s/min), 827,251 distinct states found (252,098 ds/min), 183,356 states left on queue.
+Progress(24) at 2026-10-20 17:03:43: 17,934,392 states generated (4,479,472 s/min), 1,054,502 distinct states found (227,251 ds/min), 209,338 states left on queue.
+Progress(25) at 2026-10-20 17:04:43: 22,674,267 states generated (4,739,875 s/min), 1,275,287 distinct states found (220,785 ds/min), 227,308 states left on queue.
+Progress(26) at 2026-10-20 17:05:43: 27,293,830 states generated (4,619,563 s/min), 1,458,687 distinct states found (183,400 ds/min), 221,728 states left on queue.
+Progress(27) at 2026-10-20 17:06:43: 31,933,124 states generated (4,639,294 s/min), 1,618,791 distinct states found (160,104 ds/min), 195,909 states left on queue.
+Progress(28) at 2026-10-20 17:07:43: 36,211,519 states generated (4,278,395 s/min), 1,742,712 distinct states found (123,921 ds/min), 145,371 states left on queue.
+Progress(30) at 2026-10-20 17:08:43: 40,698,110 states generated (4,486,591 s/min), 1,837,576 distinct states found (94,864 ds/min), 46,057 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.1E-6
-  based on the actual fingerprints:  val = 2.0E-7
+  based on the actual fingerprints:  val = 9.0E-8
 42295515 states generated, 1860196 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 34.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
-Finished in 04min 04s at (2026-10-20 12:11:37)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
+Finished in 09min 28s at (2026-10-20 17:09:07)
 ==== Paralean TLC provenance ====
 module Fencing
 config FencingWide.cfg

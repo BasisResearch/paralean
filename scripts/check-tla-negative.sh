@@ -122,6 +122,54 @@ run_expected_missing_witness() {
 cases=()
 defcase() { cases+=("$1"); }
 
+# W5: editor publication, policy fencing, atomic rename and private recapture.
+editor_mutation() {
+  local label="$1" old="$2" replacement="$3" invariant="$4" config="$5"
+  prepare_case "$label"
+  edit_once "$neg/$label/EditorWiring.tla" "$old" "$replacement"
+  run_expected_failure "$label" EditorWiring "Invariant $invariant is violated" "$config"
+}
+defcase editor_no_receipt
+case_editor_no_receipt() { editor_mutation editor_no_receipt 'ReceiptOK == receipt' 'ReceiptOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_no_action
+case_editor_no_action() { editor_mutation editor_no_action 'ActionOK == authorized' 'ActionOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_stale_publish
+case_editor_stale_publish() { editor_mutation editor_stale_publish 'FreshOK == captured = Stamp' 'FreshOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_no_policy_fence
+case_editor_no_policy_fence() { editor_mutation editor_no_policy_fence 'FenceSession == FALSE' 'FenceSession == TRUE' SessionFenced EditorPublication; }
+defcase rename_missing_participant
+case_rename_missing_participant() { editor_mutation rename_missing_participant 'AllPrepared == prepared = Workspaces' 'AllPrepared == TRUE' RenameSafe EditorRename; }
+defcase rename_incomplete_inventory
+case_rename_incomplete_inventory() { editor_mutation rename_incomplete_inventory 'InventoryOK == complete' 'InventoryOK == TRUE' RenameSafe EditorRename; }
+defcase rename_invalid_plan
+case_rename_invalid_plan() { editor_mutation rename_invalid_plan 'PlansOK == validPlans' 'PlansOK == TRUE' RenameSafe EditorRename; }
+defcase rename_stale_plan
+case_rename_stale_plan() { editor_mutation rename_stale_plan 'FreshOK == captured = Stamp' 'FreshOK == TRUE' RenameSafe EditorRename; }
+defcase rename_partial_commit
+case_rename_partial_commit() { editor_mutation rename_partial_commit 'RenameSet == Workspaces' 'RenameSet == {"a"}' RenameAtomic EditorRename; }
+defcase recapture_unverified
+case_recapture_unverified() { editor_mutation recapture_unverified 'ReplayOK == replayVerified' 'ReplayOK == TRUE' OverlaySafe CapsuleReplay; }
+defcase recapture_wrong_identity
+case_recapture_wrong_identity() { editor_mutation recapture_wrong_identity 'IdentityOK == capsuleMatches' 'IdentityOK == TRUE' OverlaySafe CapsuleReplay; }
+defcase editor_publish_work
+case_editor_publish_work() {
+  prepare_case editor_publish_work
+  printf '%s\n' 'INVARIANT NeverPublished' >> "$neg/editor_publish_work/EditorPublication.cfg"
+  run_expected_failure editor_publish_work EditorWiring 'Invariant NeverPublished is violated' EditorPublication
+}
+defcase editor_rename_work
+case_editor_rename_work() {
+  prepare_case editor_rename_work
+  printf '%s\n' 'INVARIANT NeverRenamed' >> "$neg/editor_rename_work/EditorRename.cfg"
+  run_expected_failure editor_rename_work EditorWiring 'Invariant NeverRenamed is violated' EditorRename
+}
+defcase editor_recapture_work
+case_editor_recapture_work() {
+  prepare_case editor_recapture_work
+  printf '%s\n' 'INVARIANT NeverOverlay' >> "$neg/editor_recapture_work/CapsuleReplay.cfg"
+  run_expected_failure editor_recapture_work EditorWiring 'Invariant NeverOverlay is violated' CapsuleReplay
+}
+
 # ---------------------------------------------------------------------------
 # Reachability witnesses: each invariant must be violated.
 witness_items=(
