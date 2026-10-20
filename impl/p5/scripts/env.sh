@@ -21,6 +21,9 @@ export PARALEAN_FORK_PREFIX="${PARALEAN_FORK_PREFIX:-/data/home/kirancodes/Docum
 export LEAN_NUM_THREADS="${LEAN_NUM_THREADS:-1}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 . "$p5_here/../../p3/scripts/env.sh"
+# Recovery credentials belong to the controller, separate from workers' S3
+# credentials. This existing service secret survives deletion of desktop state.
+export PARALEAN_P5_RECOVERY_SECRET="${PARALEAN_P5_RECOVERY_SECRET:-${PARALEAN_GARAGE_ADMIN_TOKEN:-}}"
 export PARALEAN_PLR="${PARALEAN_PLR:-$PARALEAN_P2_DIR/target/release/plr}"
 export PARALEAN_P3_BIN="${PARALEAN_P3_BIN:-$PARALEAN_P2_DIR/target/release/paralean-p3}"
 export PARALEAN_P5_BRIDGE="${PARALEAN_P5_BRIDGE:-$PARALEAN_P2_DIR/target/release/paralean-p5-store}"

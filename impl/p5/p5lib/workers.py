@@ -74,7 +74,9 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
     env = os.environ.copy()
     # The controller's full key file may hold authority and validator seeds. Every
     # coding agent receives only its own workspace signing seed.
-    env.pop("PARALEAN_KEYS", None)
+    for secret in ("PARALEAN_KEYS", "PARALEAN_P5_RECOVERY_SECRET",
+                   "PARALEAN_GARAGE_ADMIN_TOKEN", "PARALEAN_GARAGE_RPC_SECRET"):
+        env.pop(secret, None)
     env["PARALEAN_KEYS"] = str(directory / "keys.json")
     env["PARALEAN_TRUST"] = str(directory.parent / "trust.json")
     env["PARALEAN_STORE"] = str(directory / "cache")

@@ -71,8 +71,9 @@ class Backend:
         with tempfile.NamedTemporaryFile(dir=state_dir, delete=False) as tmp:
             path = Path(tmp.name)
         try:
+            bridge_env = {k: v for k, v in source_env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"}
             proc = subprocess.run([bridge, "get", "--task", task_id, "--out", str(path)],
-                                  env=source_env, capture_output=True, text=True)
+                                  env=bridge_env, capture_output=True, text=True)
             if proc.returncode:
                 raise BackendError("task recovery from store failed")
             result = json.loads(proc.stdout)
@@ -98,7 +99,14 @@ class Backend:
             raise BackendError("missing deployment configuration: " + ", ".join(missing))
 
     def _run(self, argv: list[str], *, env: dict | None = None, cwd: Path | None = None) -> Any:
-        proc = subprocess.run(argv, cwd=cwd, env={**self.env, **(env or {})},
+        child_env = dict(self.env)
+        child_env.pop("PARALEAN_P5_RECOVERY_SECRET", None)
+        for key, value in (env or {}).items():
+            if value is None:
+                child_env.pop(key, None)
+            else:
+                child_env[key] = value
+        proc = subprocess.run(argv, cwd=cwd, env=child_env,
                               text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if proc.returncode:
             self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -122,18 +130,28 @@ class Backend:
     def _bridge(self, *args: str, env: dict | None = None) -> dict:
         return self._run([self.bridge, *args], env=env)
 
+    def _encryption_key(self, *, legacy: bool = False) -> bytes:
+        if legacy:
+            secret = self.env["PARALEAN_S3_SECRET_KEY"]
+        else:
+            secret = self.env.get("PARALEAN_P5_RECOVERY_SECRET")
+            if not secret:
+                raise BackendError("PARALEAN_P5_RECOVERY_SECRET is required for durable signing keys")
+        salt = (self.env["PARALEAN_DEPLOYMENT"] + "/p5/" + self.task_id).encode()
+        return hashlib.pbkdf2_hmac("sha256", secret.encode(), salt, 100_000, 32)
+
     def _seal(self, data: bytes) -> str:
-        # Existing deployment credentials are the recovery secret. No key material is logged.
-        secret = self.env["PARALEAN_S3_SECRET_KEY"].encode()
-        key = hashlib.pbkdf2_hmac("sha256", secret, (self.env["PARALEAN_DEPLOYMENT"] + "/p5/" + self.task_id).encode(), 100_000, 32)
+        key = self._encryption_key()
         nonce = os.urandom(12)
-        return base64.b64encode(nonce + AESGCM(key).encrypt(nonce, data, self.contract_hash.encode())).decode()
+        ciphertext = nonce + AESGCM(key).encrypt(nonce, data, self.contract_hash.encode())
+        return "v2:" + base64.b64encode(ciphertext).decode()
 
     def _open(self, value: str) -> bytes:
-        secret = self.env["PARALEAN_S3_SECRET_KEY"].encode()
-        key = hashlib.pbkdf2_hmac("sha256", secret, (self.env["PARALEAN_DEPLOYMENT"] + "/p5/" + self.task_id).encode(), 100_000, 32)
-        b = base64.b64decode(value, validate=True)
-        return AESGCM(key).decrypt(b[:12], b[12:], self.contract_hash.encode())
+        legacy = not value.startswith("v2:")
+        encoded = value if legacy else value[3:]
+        b = base64.b64decode(encoded, validate=True)
+        return AESGCM(self._encryption_key(legacy=legacy)).decrypt(
+            b[:12], b[12:], self.contract_hash.encode())
 
     def _key_paths(self) -> list[Path]:
         out = []
@@ -164,6 +182,11 @@ class Backend:
 
     def _commit(self, data: dict) -> str:
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        if data.get("keys") and any(not encrypted.startswith("v2:") for encrypted in data["keys"].values()):
+            data = dict(data)
+            data["keys"] = {name: self._seal(self._open(encrypted))
+                            for name, encrypted in data["keys"].items()}
+            data["format"] = 2
         with tempfile.NamedTemporaryFile(mode="wb", dir=self.state_dir, delete=False) as tmp:
             path = Path(tmp.name)
             tmp.write(_canonical(data))
@@ -220,7 +243,7 @@ class Backend:
             self._run([self.plr, "keys-init", str(key_path), str(trust), str(rogue),
                        "--agents", ",".join(self.agents)])
         hashes = self._freeze_contracts()
-        self._commit({"format": 1, "task": self.task_id, "contract_hash": self.contract_hash,
+        self._commit({"format": 2, "task": self.task_id, "contract_hash": self.contract_hash,
                       "contract_hashes": hashes, "spec": self.task, "state": {}, "sources": {}, "keys": self._capture_keys()})
 
     def _start_validator(self) -> None:
@@ -241,7 +264,8 @@ class Backend:
             self.validator_process = subprocess.Popen(
                 ["python3", str(guard), p3, "validator", "--listen", self.env["PARALEAN_VALIDATOR"], "--key", "v0",
                  "--max-running", "1", "--max-queued", "8", "--workdir", str(workdir)],
-                env={**self.env, "PARALEAN_P5_PARENT_PID": str(os.getpid())},
+                env={**{k: v for k, v in self.env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"},
+                     "PARALEAN_P5_PARENT_PID": str(os.getpid())},
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         finally:
             log.close()
@@ -329,7 +353,8 @@ class Backend:
     def _ws(self, action: str, agent: str, directory: Path, *args: str) -> dict:
         env = {"PARALEAN_AGENT": agent}
         proc = subprocess.run(["python3", self.ws, action, str(directory), *args],
-                              env={**self.env, **env}, text=True, capture_output=True)
+                              env={**{k: v for k, v in self.env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"},
+                                   **env}, text=True, capture_output=True)
         if proc.returncode:
             raise BackendError(f"ws.py {action} failed for {agent} (exit {proc.returncode})")
         result = {}
@@ -346,7 +371,8 @@ class Backend:
         self.paths[agent] = Path(directory).resolve()
         result = self._ws("sync", agent, directory)
         pull = result.get("pull", [{}])[-1]
-        result["metrics"] = {"transfer_bytes": int(pull.get("bytes") or 0), "check_ms": 0}
+        result["metrics"] = {"transfer_bytes": int(pull.get("bytes") or 0),
+                             "transfer_ms": float(pull.get("ms") or 0), "check_ms": 0}
         return result
 
     def assign_target(self, name: str, agent: str) -> int:
@@ -372,6 +398,47 @@ class Backend:
                 pass
         return rows
 
+    def _dependency_closure(self, cache: Path, roots: list[str]) -> set[str]:
+        capsules = cache / "p3" / "capsules"
+        by_gid = {}
+        if capsules.exists():
+            for file in capsules.glob("*.json"):
+                meta = json.loads(file.read_text())
+                if meta.get("gid"):
+                    by_gid[meta["gid"]] = meta
+        closure: set[str] = set()
+        todo = list(roots)
+        while todo:
+            gid = todo.pop()
+            if gid in closure:
+                continue
+            closure.add(gid)
+            meta = by_gid.get(gid)
+            if meta:
+                todo.extend(meta.get("deps", []))
+        return closure
+
+    def _required_dependency_gids(self, names: list[str]) -> dict[str, str]:
+        if not names:
+            return {}
+        verified = self.validate(names)
+        if not verified["ok"]:
+            raise BackendError("required predecessor target is not currently verified")
+        groups = {name: verified["targets"][name]["group"] for name in names}
+        found = {}
+        for directory in self.paths.values():
+            records = directory / "cache" / "p3" / "records"
+            for record in records.glob("m-*.json"):
+                marker = json.loads(record.read_text())
+                for name, group in groups.items():
+                    if marker.get("group") == group:
+                        capsule = directory / "cache" / "p3" / "capsules" / (marker["capsule"] + ".json")
+                        if capsule.exists():
+                            found[name] = json.loads(capsule.read_text())["gid"]
+        if set(found) != set(names):
+            raise BackendError("published predecessor capsule is missing from the synced cache")
+        return found
+
     def publish(self, agent: str, directory: Path, file: str, targets: list[str] = (), epoch: int | None = None) -> dict:
         if file not in self.task.get("files", []):
             raise BackendError(f"file outside frozen task: {file}")
@@ -383,6 +450,7 @@ class Backend:
             rows = self._transfer_rows(directory)[before_transfer:]
             return {"groups": result.get("published", [[]])[-1], "steps": result,
                     "metrics": {"transfer_bytes": sum(int(r.get("bytes", 0)) for r in rows),
+                                "transfer_ms": sum(float(r.get("ms") or 0) for r in rows if r.get("kind") != "validate-target"),
                                 "check_ms": sum(float(v.get("ms") or 0) for v in result.get("validate", []))}}
         if len(targets) != 1:
             raise BackendError("target publication accepts one fixed target at a time")
@@ -395,6 +463,7 @@ class Backend:
             raise BackendError(f"target outside frozen task: {name}")
         hashes = (self.payload or {}).get("contract_hashes", {})
         frozen = hashes.get(name)
+        required_gids = self._required_dependency_gids(list(spec.get("deps", [])))
         if not frozen:
             raise BackendError(f"trusted frozen statement hash unavailable for {name}")
         cache = directory / "cache"
@@ -412,6 +481,10 @@ class Backend:
             if name not in names:
                 # Non-target helpers use the ordinary P3 path in a separate call.
                 continue
+            closure = self._dependency_closure(cache, item.get("deps", []))
+            missing = [dependency for dependency, gid in required_gids.items() if gid not in closure]
+            if missing:
+                raise BackendError(f"target {name} proof does not depend on required helpers: {missing}")
             self._run([self.plr, "stage", "--cache", str(cache), "--pkg", pkg], env=own_env)
             v = self._bridge("validate-target", "--cache", str(cache), "--ws", agent,
                              "--validator", self.env["PARALEAN_VALIDATOR"], "--pkg", pkg,
@@ -419,7 +492,8 @@ class Backend:
                              "--statement-hash", frozen, "--epoch", str(epoch))
             check_ms += float(v.get("ms") or 0)
             if not v.get("accepted"):
-                raise BackendError(f"trusted validator rejected target {name}")
+                reason = str(v.get("reason") or "no reason returned")[:500]
+                raise BackendError(f"trusted validator rejected target {name}: {reason}")
             receipt = directory / "p5-target-receipt.json"
             receipt.write_text(json.dumps(v))
             plan = directory / "p5-target-plan.json"
@@ -445,6 +519,7 @@ class Backend:
         rows = self._transfer_rows(directory)[before_transfer:]
         return {"groups": published, "target": name, "validated": check["targets"][name],
                 "metrics": {"transfer_bytes": sum(int(r.get("bytes", 0)) for r in rows),
+                            "transfer_ms": sum(float(r.get("ms") or 0) for r in rows if r.get("kind") != "validate-target"),
                             "check_ms": check_ms}}
 
     def _ensure_paths(self) -> None:
@@ -533,11 +608,28 @@ class Backend:
         stock_lake = self.env.get("PARALEAN_STOCK_LAKE")
         if not stock_lake or not Path(stock_lake).exists():
             raise BackendError("PARALEAN_STOCK_LAKE must name an installed stock Lean lake")
+        sources = list(self.task.get("sources", {}).values()) + [
+            (_inside(directory / "work", f).read_text() if _inside(directory / "work", f).exists() else "")
+            for f in self.task.get("files", [])]
+        uses_mathlib = any("import Mathlib" in source or "import all Mathlib" in source for source in sources)
+        mathlib = self.env.get("PARALEAN_MATHLIB")
+        if uses_mathlib and (not mathlib or not Path(mathlib).exists()):
+            raise BackendError("task imports Mathlib but PARALEAN_MATHLIB is unavailable")
         result = self._run([self.lean, "ws-export", "--dir", str(directory), "--out", str(out)],
                            env={"PARALEAN_STORE": str(directory / "cache"), "PARALEAN_VISIBILITY": "1",
-                                "PARALEAN_LAKE": stock_lake})
+                                "PARALEAN_LAKE": stock_lake,
+                                "PARALEAN_MATHLIB": mathlib if uses_mathlib else None})
         if not result.get("ok"):
-            raise BackendError("stock Lean export or replay verification failed")
+            detail = {k: result.get(k) for k in ("build", "diags", "modules", "groups", "identical", "effectOnly") if k in result}
+            text = json.dumps(detail, ensure_ascii=False)[:4000]
+            for key in ("PARALEAN_S3_SECRET_KEY", "PARALEAN_S3_ACCESS_KEY", "PARALEAN_P5_RECOVERY_SECRET"):
+                if self.env.get(key):
+                    text = text.replace(self.env[key], "[redacted]")
+            log = self.state_dir / "backend.log"
+            with log.open("a") as handle:
+                handle.write("ws-export reported failure: " + text + "\n")
+            log.chmod(0o600)
+            raise BackendError(f"stock Lean export or replay verification failed; see {log}")
         if self.conflicts():
             raise BackendError("workspace conflict diagnostics prevent final checkpoint")
         records = directory / "cache" / "p3" / "records"
@@ -564,7 +656,8 @@ class Backend:
             data["export"] = {"output": str(out), "result": result, "checkpoint": cp}
             self._commit(data)
         return {**result, "output": str(out), "checkpoint": cp,
-                "metrics": {"transfer_bytes": 0, "check_ms": float(result.get("buildMs") or 0)}}
+                "metrics": {"transfer_bytes": 0, "transfer_ms": 0,
+                            "check_ms": float(result.get("buildMs") or 0)}}
 
     def conflicts(self) -> list[dict]:
         issues = []

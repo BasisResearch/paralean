@@ -13,6 +13,7 @@ import csv
 import json
 import os
 import re
+import statistics
 import subprocess
 import sys
 import time
@@ -71,7 +72,8 @@ def trial(args: argparse.Namespace, workers: int, rep: int, series: str) -> dict
            and done == len(targets) and bool(targets) and bool(export.get("ok")),
            "targets_done": done, "targets_total": len(targets), "wall_s": elapsed,
            "controller_wall_s": metrics.get("wall_s"), "worker_wall_s": metrics.get("worker_wall_s"),
-           "transfer_bytes": metrics.get("transfer_bytes"), "check_ms": metrics.get("check_ms"),
+           "transfer_bytes": metrics.get("transfer_bytes"), "transfer_ms": metrics.get("transfer_ms"),
+           "check_ms": metrics.get("check_ms"),
            "export_build_ms": export.get("buildMs"), "groups": export.get("groups"),
            "state": str(state), "log": str(directory / "controller.log")}
     (directory / "result.json").write_text(json.dumps(row, indent=2, sort_keys=True) + "\n")
@@ -106,14 +108,30 @@ def main() -> int:
             print(json.dumps(row), flush=True)
     fields = ["trial", "workers", "parallelism", "repeat", "kind", "provenance", "deployment", "returncode", "ok",
               "targets_done", "targets_total", "wall_s", "controller_wall_s", "worker_wall_s",
-              "transfer_bytes", "check_ms", "export_build_ms", "groups", "state", "log"]
+              "transfer_bytes", "transfer_ms", "check_ms", "export_build_ms", "groups", "state", "log"]
     with (args.run_dir / f"{series}.csv").open("w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(rows)
     result = {"series": series, "worker": args.worker, "repeats": args.repeats,
               "git": git_rev("HEAD"), "origin_main": git_rev("origin/main"),
-              "counts": list(COUNTS), "results": rows}
+              "counts": list(COUNTS), "max_parallel": args.max_parallel,
+              "summary": {str(n): {
+                  "successful_trials": sum(r["ok"] for r in rows if r["workers"] == n),
+                  "wall_s_median": statistics.median(r["wall_s"] for r in rows if r["workers"] == n),
+                  "transfer_bytes_median": statistics.median(
+                      r["transfer_bytes"] for r in rows if r["workers"] == n and
+                      isinstance(r["transfer_bytes"], (int, float))) if any(
+                      isinstance(r["transfer_bytes"], (int, float)) for r in rows if r["workers"] == n) else None,
+                  "transfer_ms_median": statistics.median(
+                      r["transfer_ms"] for r in rows if r["workers"] == n and
+                      isinstance(r["transfer_ms"], (int, float))) if any(
+                      isinstance(r["transfer_ms"], (int, float)) for r in rows if r["workers"] == n) else None,
+                  "check_ms_median": statistics.median(
+                      r["check_ms"] for r in rows if r["workers"] == n and
+                      isinstance(r["check_ms"], (int, float))) if any(
+                      isinstance(r["check_ms"], (int, float)) for r in rows if r["workers"] == n) else None,
+              } for n in COUNTS}, "results": rows}
     (args.run_dir / f"{series}.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     return 0 if all(x["ok"] for x in rows) else 1
 

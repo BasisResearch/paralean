@@ -42,7 +42,7 @@ class Controller:
                     t.name: {"status": "pending", "attempts": 0, "agent": t.owner,
                              "group": None, "error": None, "worker": None} for t in self.task.targets},
                 "events": [], "metrics": {"started_at": time.time(), "wall_s": 0,
-                    "worker_wall_s": 0, "transfer_bytes": 0, "check_ms": 0},
+                    "worker_wall_s": 0, "transfer_bytes": 0, "transfer_ms": 0, "check_ms": 0},
                 "export": None, "contract_validation": None, "catalog": None}
 
     def _save(self, event: str, **details) -> None:
@@ -97,10 +97,10 @@ class Controller:
         details = result.get("metrics", result)
         if not isinstance(details, dict):
             details = result
-        for key in ("transfer_bytes", "check_ms"):
+        for key in ("transfer_bytes", "transfer_ms", "check_ms"):
             val = details.get(key, 0)
             if isinstance(val, (int, float)):
-                self.state["metrics"][key] += val
+                self.state["metrics"][key] = self.state["metrics"].get(key, 0) + val
 
     def _finish_worker(self, target, agent: str, outcome) -> None:
         entry = self.state["targets"][target.name]
