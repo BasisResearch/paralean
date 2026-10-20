@@ -177,6 +177,11 @@ impl Cluster {
         if wrapped {
             checker.bin = wrapper(&tmp);
             checker.env.push(("PARALEAN_REAL_BIN".into(), real.bin.display().to_string()));
+            // The misbehaving stand-ins are selected by environment and exec the real binary
+            // by host path; the sandbox clears both. These clusters test the controller's
+            // handling of sleeping, oversized and cancelled checks, not containment, which
+            // tests/sandbox.rs covers with the production profile.
+            checker.sandbox = false;
         }
         let checker_id = checker.version().unwrap().id();
         let mut kf = KeyFile::demo(6);
@@ -287,7 +292,7 @@ impl Cluster {
     }
 
     pub async fn assign(&self, target: &str, worker: WorkspaceId) -> u64 {
-        match self.call(ControlRequest::Assign { target: target.into(), worker: worker.hex() }).await {
+        match self.call(ControlRequest::Assign { target: target.into(), worker: worker.hex(), statement: String::new() }).await {
             ControlResponse::Assigned { epoch } => epoch,
             other => panic!("assign: {other:?}"),
         }

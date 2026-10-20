@@ -414,7 +414,7 @@ async fn cancelled_request_is_not_received_by_its_issuer() {
     let (a, b) = pair("ae-cancel", N, Faults::none(), Faults::none());
     let mut p = a.plain_package(0, "Sh.cancelled", "cancelled");
     fixture::place(&mut p, F, None, None);
-    assert!(a.store.meta.cancel_job(&p.job.body.request).await.unwrap());
+    assert!(a.store.meta.cancel_job(&p.job.body.worker, &p.job.body.request).await.unwrap());
     assert!(matches!(guard_of(a.w[0].publish(&p).await), GuardFailure::JobCancelled(_)));
     // T1 put the payloads before it aborted; the worker signs its own certificate.
     let cert = Cert::sign(CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[0].id }, a.w[0].signer());

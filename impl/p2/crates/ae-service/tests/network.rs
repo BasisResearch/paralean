@@ -1347,7 +1347,7 @@ async fn federated_import_rejects_a_cancelled_local_request() {
     let net = Net::new("net-cancelled", None).await;
     let a = &net.envs[0];
     let p = a.plain_package(0, "Net.cancelled", "cancelled");
-    assert!(a.store.meta.cancel_job(&p.job.body.request).await.unwrap());
+    assert!(a.store.meta.cancel_job(&p.job.body.worker, &p.job.body.request).await.unwrap());
     assert!(a.w[0].publish(&p).await.is_err(), "T1 reads the cancellation");
     let cert = Cert::sign(
         CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[0].id },

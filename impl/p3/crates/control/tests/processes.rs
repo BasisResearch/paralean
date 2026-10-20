@@ -94,7 +94,15 @@ async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
     let dep = deployment("validation-failover");
     let real = CheckerConfig::from_env().unwrap();
     let wrapper = tmp.join("delayed-checker.sh");
-    std::fs::write(&wrapper, "#!/usr/bin/env bash\nsleep 6\nexec \"$PARALEAN_REAL_BIN\" \"$@\"\n").unwrap();
+    // The validator runs this inside its sandbox, which clears the environment and mounts
+    // only declared paths: name the real binary directly, and declare its directory as a
+    // read-only Lean path so the sandbox mounts it.
+    let real_bin = real.bin.canonicalize().unwrap();
+    std::fs::write(&wrapper, format!("#!/usr/bin/env bash\nsleep 6\nexec {:?} \"$@\"\n", real_bin.display().to_string())).unwrap();
+    let bin_dir = real_bin.parent().unwrap().to_path_buf();
+    let lean_path = std::env::split_paths(&std::env::var_os("LEAN_PATH").unwrap_or_default())
+        .filter(|p| !p.as_os_str().is_empty()).chain(std::iter::once(bin_dir)).collect::<Vec<_>>();
+    let lean_path = std::env::join_paths(lean_path).unwrap().into_string().unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
     let mut wrapped = real.clone();
@@ -106,7 +114,7 @@ async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
     std::fs::write(&keys, serde_json::to_string(&kf).unwrap()).unwrap();
     let env = vec![("PARALEAN_KEYS", keys.display().to_string()), ("PARALEAN_DEPLOYMENT", dep.clone()),
         ("TMPDIR", tmp.display().to_string()), ("PARALEAN_BIN", wrapper.display().to_string()),
-        ("PARALEAN_REAL_BIN", real.bin.display().to_string())];
+        ("LEAN_PATH", lean_path)];
     let (a, b, v) = (format!("127.0.0.1:{}", free_port()), format!("127.0.0.1:{}", free_port()),
         format!("127.0.0.1:{}", free_port()));
     let _validator = spawn(&["validator", "--listen", &v, "--key", "v0", "--workdir", &tmp.join("v0").display().to_string()],

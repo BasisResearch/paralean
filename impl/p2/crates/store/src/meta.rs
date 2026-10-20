@@ -1177,7 +1177,7 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
             None => a.local_issuers.iter().any(|key| a.job.verify(key)),
         };
         let request = &a.job.body.request;
-        if local && !cfg!(feature = "mutate-receive-no-cancel-check") && get(trx, &k.job_cancel(request)).await?.is_some() {
+        if local && !cfg!(feature = "mutate-receive-no-cancel-check") && get(trx, &k.job_cancel(&a.job.body.worker, request)).await?.is_some() {
             return Err(GuardFailure::JobCancelled(request.clone()).into());
         }
         if !cfg!(feature = "mutate-receive-no-dep-check") {

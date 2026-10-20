@@ -56,6 +56,9 @@ async fn batch_retries_joined_standalone_dependency_refusal() {
     checker.bin = wrapper;
     checker.env.retain(|(key, _)| key != "PARALEAN_P3_WARM_BIN");
     checker.env.push(("PARALEAN_REAL_BIN".into(), real_bin.display().to_string()));
+    // The slow stand-in finds the real binary by host path and environment, which the
+    // sandbox withholds; this test is about request-slot sharing, not containment.
+    checker.sandbox = false;
     let c = Cluster::start("batch-joined-refusal", Opts {
         validators: vec![Mode::Real], checker: Some(checker), validator_max_running: 1,
         ..Opts::default()
