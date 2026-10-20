@@ -544,6 +544,10 @@ in P1.
 
 ## Not done
 
+This is the historical `p2-rest` backlog. The `m-p2` workstream below records
+which anti-entropy and fault items have since been implemented and verified,
+with remaining limitations kept explicit.
+
 - Buildability beyond the build-receipt verdict (unchanged from `p2`). Receipt binding is
   P3's (merged; see below).
 - **Tombstones.**
@@ -819,8 +823,9 @@ Two real failures found during review/testing were fixed rather than weakening
 the cases. A mutable S3 HEAD length could persist corrupt-object length metadata
 and prevent later repair: materialization now derives lengths from hash-verified
 GETs and checks derived chunk indexes against the group bytes. This costs a GET
-for each referenced object when materializing an event, including continuation
-pages; it still avoids full-store export each round. Also, signed jobs with equal
+for referenced non-chunk objects when materializing an event, including continuation
+pages; chunk lengths come from the authenticated group manifest. It still avoids
+full-store export each round. Also, signed jobs with equal
 body IDs can have different issuer signatures: `jobproof` retains the exact
 signed envelope paired with the publisher certificate, so relay events cannot
 substitute another deployment's signature. A concurrent first-receive race now
@@ -846,6 +851,10 @@ target receipt, catalogue, incremental restart and graceful SIGTERM checks.
 The final smoke evidence is
 `results/p2/ae-cli-smoke-20261020T042041Z-2398435/`; private authority and
 transport keys remain under ignored `.runs/`.
+Two earlier smoke attempts are retained: the first incorrectly searched the
+abbreviated `discover` output for a full ID, and the second signalled a shell
+wrapper instead of the service process. The corrected script checks an exact-ID
+GET and uses `exec` so SIGTERM and `wait` address the actual daemon.
 
 Final review found that retained terminal conflicts could exhaust the 10,000
 active-event quota and prevent newer valid events from arriving. Terminal
@@ -875,3 +884,27 @@ records, 368 object certificates, three targets and 29 tombstones. Normal
 production binaries and all workspace tests were rebuilt after the archive fix;
 their hashes are in `binary-sha256-archive.txt`. Implementation checkpoint
 `5179bcd` is pushed; the scoped fault phases remain in progress.
+
+### Merged fault-run findings
+
+The FDB stress phase passed all eight kill/pause/partition and single/double
+disk-loss stages on six FDB processes (`triple`, five coordinators) plus one
+Garage node and one worker. All **1,339 acknowledged effects** were present;
+the audit passed with 494 certified groups, 306 committed records and
+89 tombstones. There were no worker errors. After the double disk loss,
+reported tolerance for two zone failures returned 100 seconds after restart.
+The serial probe succeeded 188/203 times; these are samples, not a continuous
+availability measurement. Exact commands and evidence:
+`results/p2/merged-fault-summary.md`.
+
+The first fixture-under-chaos attempt is **failed/aborted**, not a pass.
+In round 9, `paginated_scan_follows_partial_batches` unwrapped a raw setup
+commit that returned `Transaction may or may not have committed`; no scan
+assertion had run yet. Its setup now uses FDB's `on_error()` retry path for
+each fixed-key/fixed-value batch, with a 60-attempt bound. Retrying these
+writes is idempotent even when the first commit landed. All 2,000 keys,
+400-byte values and page-size assertions remain unchanged. The failed logs
+and safe interruption are retained under
+`results/p2/faults-mp2-fdb-gate/fdb/fixtures/20261020T043454Z-2668337/`.
+A fresh full 20-round fixture run follows the focused verification of this
+test-only fix; production binaries are unchanged.

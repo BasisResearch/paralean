@@ -308,11 +308,20 @@ async fn paginated_scan_follows_partial_batches() {
     let e = Env::new("scan", 1);
     let sub = e.store.meta.keys.sub("scantest");
     for chunk in 0..10u64 {
-        let trx = e.store.meta.db.create_trx().unwrap();
-        for i in 0..200u64 {
-            trx.set(&sub.pack(&(chunk * 200 + i)), &[0xab; 400]);
+        let mut trx = e.store.meta.db.create_trx().unwrap();
+        let mut committed = false;
+        for _ in 0..60 {
+            // A commit_unknown_result can mean these writes already landed. Replaying
+            // the same fixed keys and values after on_error is therefore idempotent.
+            for i in 0..200u64 {
+                trx.set(&sub.pack(&(chunk * 200 + i)), &[0xab; 400]);
+            }
+            match trx.commit().await {
+                Ok(_) => { committed = true; break; }
+                Err(error) => trx = error.on_error().await.unwrap(),
+            }
         }
-        trx.commit().await.unwrap();
+        assert!(committed, "scan setup chunk {chunk} did not commit after retries");
     }
     for page in [3usize, 500, 10_000] {
         let kvs = e.store.meta.scan(&sub, page, |_| None).await.unwrap();
