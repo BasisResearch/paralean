@@ -26,7 +26,7 @@ use crate::faults::{Faults, GetFault, PutFault};
 use crate::id::{sha256, Id, Kind};
 use crate::objects::{Object, Opaque};
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct S3Config {
     pub endpoint: String,
     pub bucket: String,
@@ -35,6 +35,30 @@ pub struct S3Config {
     pub secret_key: String,
     /// Key prefix (one per deployment in tests; empty in production).
     pub prefix: String,
+}
+
+impl std::fmt::Debug for S3Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("S3Config").field("endpoint", &self.endpoint)
+            .field("bucket", &self.bucket).field("region", &self.region)
+            .field("access_key", &self.access_key)
+            .field("secret_key", &"[REDACTED]").field("prefix", &self.prefix).finish()
+    }
+}
+
+/// Matches the gateway's object bound, including content-address domain overhead.
+pub const MAX_OBJECT_BYTES: usize = 65 * 1024 * 1024;
+
+async fn read_bounded(mut body: ByteStream, cap: usize) -> std::result::Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    while let Some(chunk) = body.next().await {
+        let chunk = chunk.map_err(|e| e.to_string())?;
+        if !cfg!(feature = "mutate-unbounded-s3-read") && chunk.len() > cap.saturating_sub(bytes.len()) {
+            return Err("S3 object exceeds byte limit".into());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
 }
 
 impl S3Config {
@@ -195,12 +219,13 @@ impl Payloads {
             let r = self.client.get_object().bucket(&self.bucket).key(&key).send().await;
             match r {
                 Ok(o) => {
-                    let mut bytes = match o.body.collect().await {
-                        Ok(b) => b.into_bytes().to_vec(),
-                        Err(e) => {
+                    let mut bytes = match tokio::time::timeout(Duration::from_secs(60), read_bounded(o.body, MAX_OBJECT_BYTES)).await {
+                        Ok(Ok(b)) => b,
+                        Ok(Err(e)) => {
                             last = e.to_string();
                             continue;
                         }
+                        Err(_) => { last = "S3 object body timed out".into(); continue; }
                     };
                     if self.faults.get_fault(kind) == GetFault::Corrupt && !bytes.is_empty() {
                         let i = bytes.len() / 2;
@@ -296,5 +321,21 @@ impl Payloads {
             .await
             .map(|_| ())
             .map_err(|e| format!("{}", aws_sdk_s3::error::DisplayErrorContext(e)))
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[tokio::test]
+    async fn oversized_s3_body_is_rejected_before_hashing() {
+        assert!(read_bounded(ByteStream::from(vec![0; 4097]), 4096).await.is_err());
+        assert_eq!(read_bounded(ByteStream::from(vec![7; 4096]), 4096).await.unwrap().len(), 4096);
+    }
+    #[test]
+    fn config_debug_redacts_credentials() {
+        let config = S3Config { endpoint: "http://local".into(), bucket: "b".into(), region: "r".into(),
+            access_key: "public".into(), secret_key: "do-not-log-secret".into(), prefix: "".into() };
+        assert!(!format!("{config:?}").contains(&config.secret_key));
     }
 }

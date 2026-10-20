@@ -120,6 +120,9 @@ pub async fn call_authenticated_any<Q: Serialize, A: DeserializeOwned + Serializ
 
 pub async fn write_frame<T: Serialize>(s: &mut TcpStream, v: &T) -> std::io::Result<()> {
     let b = serde_json::to_vec(v).map_err(std::io::Error::other)?;
+    if !cfg!(feature = "mutate-oversized-frame") && b.len() > MAX_FRAME {
+        return Err(std::io::Error::other("outgoing frame exceeds MAX_FRAME"));
+    }
     s.write_all(&(b.len() as u32).to_be_bytes()).await?;
     s.write_all(&b).await?;
     s.flush().await
@@ -129,12 +132,28 @@ pub async fn read_frame<T: DeserializeOwned>(s: &mut TcpStream) -> std::io::Resu
     let mut len = [0u8; 4];
     s.read_exact(&mut len).await?;
     let n = u32::from_be_bytes(len) as usize;
-    if n > MAX_FRAME {
+    if !cfg!(feature = "mutate-oversized-frame") && n > MAX_FRAME {
         return Err(std::io::Error::other(format!("frame of {n} bytes")));
     }
     let mut b = vec![0; n];
     s.read_exact(&mut b).await?;
     serde_json::from_slice(&b).map_err(std::io::Error::other)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn oversized_frame_is_rejected_without_waiting_for_body() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mut sender = TcpStream::connect(listener.local_addr().unwrap()).await.unwrap();
+        let (mut receiver, _) = listener.accept().await.unwrap();
+        sender.write_all(&((MAX_FRAME + 1) as u32).to_be_bytes()).await.unwrap();
+        let result = tokio::time::timeout(Duration::from_millis(100), read_frame::<serde_json::Value>(&mut receiver)).await;
+        assert!(matches!(result, Ok(Err(_))), "oversized frame waited for attacker body");
+    }
 }
 
 /// One request/response exchange with a deadline covering connect, send and receive.

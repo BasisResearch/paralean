@@ -8,12 +8,13 @@
 //! memory limit, checker crash, cancellation and unavailable bytes give no receipt.
 //!
 //! Requests are deduplicated by request ID: a duplicate of a running check waits for the
-//! same result, a duplicate of a finished check gets the same receipt, and a request ID
-//! reused with another envelope is refused. Inconclusive results are not kept, so a retry
+//! same result, a recent finished check gets the same receipt, and a request ID
+//! reused with another envelope is refused while retained. The last 256 completed
+//! receipts stay in memory; older retries are checked anew. Inconclusive results are not kept, so a retry
 //! checks again. At most `max_running` checks run at once and at most `max_queued` wait;
 //! beyond that the answer is `Busy`.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -54,6 +55,7 @@ pub struct Validator {
     cfg: ValidatorConfig,
     checker_id: Id,
     slots: Mutex<HashMap<Vec<u8>, Slot>>,
+    completed: Mutex<VecDeque<Vec<u8>>>,
     permits: Semaphore,
     queued: AtomicUsize,
     running: AtomicUsize,
@@ -71,6 +73,7 @@ impl Validator {
             cfg,
             checker_id,
             slots: Mutex::new(HashMap::new()),
+            completed: Mutex::new(VecDeque::new()),
             queued: AtomicUsize::new(0),
             running: AtomicUsize::new(0),
             checks_run: AtomicU64::new(0),
@@ -232,6 +235,11 @@ impl Validator {
             self.slots.lock().unwrap().remove(&request);
         }
         let _ = tx.send(Some(r.clone()));
+        if matches!(r, ValidatorResponse::Receipt { .. }) {
+            let mut completed = self.completed.lock().unwrap();
+            let mut slots = self.slots.lock().unwrap();
+            retain_completed(&mut slots, &mut completed, request);
+        }
         r
     }
 
@@ -292,8 +300,8 @@ impl Validator {
                 statement: if policy.check_target_statements { hex::encode(&t.statement) } else { String::new() },
             })
             .collect();
-        let deadline = Duration::from_millis(if j.deadline_ms == 0 { 600_000 } else { j.deadline_ms });
-        let memory = if j.memory_mb == 0 { self.cfg.checker.default_memory_mb } else { j.memory_mb };
+        let deadline = Duration::from_millis(if j.deadline_ms == 0 { 600_000 } else { j.deadline_ms.min(600_000) });
+        let memory = if j.memory_mb == 0 { self.cfg.checker.default_memory_mb } else { j.memory_mb }.min(16 * 1024);
         // Materialized initializers load process-global code. Keep such jobs in a
         // disposable checker; only immutable pinned base imports persist in the pool.
         let initializer = groups.iter().any(|g| {
@@ -413,6 +421,35 @@ impl Validator {
             out.push(g);
         }
         Ok(out)
+    }
+}
+
+fn retain_completed<V>(slots: &mut HashMap<Vec<u8>, V>, completed: &mut VecDeque<Vec<u8>>, request: Vec<u8>) {
+    completed.push_back(request);
+    if !cfg!(feature = "mutate-unbounded-completed-slots") {
+        while completed.len() > 256 {
+            if let Some(old) = completed.pop_front() { slots.remove(&old); }
+        }
+    }
+}
+
+#[cfg(test)]
+mod completed_tests {
+    use super::*;
+
+    #[test]
+    fn completed_receipt_cache_is_bounded() {
+        let mut slots = HashMap::new();
+        let mut order = VecDeque::new();
+        for id in 0..300u16 {
+            let key = id.to_be_bytes().to_vec();
+            slots.insert(key.clone(), id);
+            retain_completed(&mut slots, &mut order, key);
+        }
+        assert_eq!(slots.len(), 256);
+        assert_eq!(order.len(), 256);
+        assert!(!slots.contains_key(&0u16.to_be_bytes().to_vec()));
+        assert!(slots.contains_key(&299u16.to_be_bytes().to_vec()));
     }
 }
 

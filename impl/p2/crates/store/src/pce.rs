@@ -44,6 +44,10 @@ pub enum DecodeError {
 
 pub type DResult<T> = Result<T, DecodeError>;
 
+/// Budget for containers allocated by one decoder. Counts are attacker controlled;
+/// checking against input bytes alone still permits large allocation amplification.
+pub const MAX_DECODE_ALLOCATION: usize = 64 * 1024 * 1024;
+
 /// Byte writer.
 #[derive(Default, Debug, Clone)]
 pub struct Enc {
@@ -138,11 +142,12 @@ impl Enc {
 pub struct Dec<'a> {
     buf: &'a [u8],
     pos: usize,
+    allocated: usize,
 }
 
 impl<'a> Dec<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        Dec { buf, pos: 0 }
+        Dec { buf, pos: 0, allocated: 0 }
     }
     pub fn pos(&self) -> usize {
         self.pos
@@ -196,7 +201,16 @@ impl<'a> Dec<'a> {
     }
     pub fn string(&mut self) -> DResult<String> {
         let b = self.bytes()?;
+        self.charge(b.len())?;
         std::str::from_utf8(b).map(|s| s.to_string()).map_err(|_| DecodeError::BadUtf8)
+    }
+    fn charge(&mut self, n: usize) -> DResult<()> {
+        let total = self.allocated.checked_add(n).ok_or(DecodeError::Invalid("PCE allocation budget"))?;
+        if !cfg!(feature = "mutate-unbounded-pce") && total > MAX_DECODE_ALLOCATION {
+            return Err(DecodeError::Invalid("PCE allocation budget"));
+        }
+        self.allocated = total;
+        Ok(())
     }
     pub fn bool(&mut self) -> DResult<bool> {
         match self.byte()? {
@@ -228,6 +242,7 @@ impl<'a> Dec<'a> {
         if n > self.remaining() as u64 {
             return Err(DecodeError::Eof);
         }
+        self.charge((n as usize).checked_mul(std::mem::size_of::<T>()).ok_or(DecodeError::Invalid("PCE allocation budget"))?)?;
         let mut v = Vec::with_capacity(n as usize);
         for _ in 0..n {
             v.push(f(self)?);
@@ -240,6 +255,7 @@ impl<'a> Dec<'a> {
         if n > self.remaining() as u64 {
             return Err(DecodeError::Eof);
         }
+        self.charge((n as usize).checked_mul(std::mem::size_of::<T>()).ok_or(DecodeError::Invalid("PCE allocation budget"))?)?;
         let mut v = Vec::with_capacity(n as usize);
         let mut prev: Option<&'a [u8]> = None;
         for _ in 0..n {
@@ -285,6 +301,25 @@ pub trait Pce: Sized {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hostile_counts_are_bounded_before_container_allocation() {
+        // A 1 KiB frame asks for over 64 MiB of elements. The callback must not
+        // run: rejecting only the element's later parse is too late.
+        let mut e = Enc::new();
+        e.uvarint(1024).raw(&[0; 1024]);
+        for set in [false, true] {
+            let mut called = false;
+            let mut d = Dec::new(&e.out);
+            let mut parse = |_: &mut Dec<'_>| -> DResult<[u8; 65537]> {
+                called = true;
+                Err(DecodeError::Eof)
+            };
+            let result = if set { d.set(&mut parse) } else { d.list(&mut parse) };
+            assert!(result.is_err());
+            assert!(!called, "oversized allocation reached element decoder");
+        }
+    }
 
     #[test]
     fn uvarint_matches_leb128_and_p1() {
