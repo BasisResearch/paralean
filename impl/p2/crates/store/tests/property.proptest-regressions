@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc d3f0e1c1fff8ddfec6b99850cb68acbaec10ca8b6844ff744e4bc9861e7bc559 # shrinks to ops = [(Rotate { to: 1 }, None), (PublishFree { w: 1 }, None), (Prepare { w: 0, t: 0 }, None), (Commit { w: 1 }, InterleaveRotate(0))]
+cc ccf84bba2c5eefd958cad7a2b086405d28a61ee8aa8d3ae80a240e7f71572b39 # shrinks to ops = [(Rotate { to: 2 }, None), (PublishFree { w: 2 }, None), (Commit { w: 2 }, InterleaveRotate(0)), (Prepare { w: 0, t: 0 }, None)]
+cc 60c86563f039b43491555195a1d409d62a78519c369bb67076b18a23368c2234 # shrinks to ops = [(PublishFree { w: 0 }, None), (Tombstone { w: 0 }, None), (Prepare { w: 0, t: 0 }, None), (Prepare { w: 0, t: 0 }, None)]

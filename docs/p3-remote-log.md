@@ -84,8 +84,9 @@ process.
 
 **Anti-entropy** (`plr pull`):
 
-- Discovery reads certificates (P2 `discover`) and scans tombstones, which are
-  writer-signed and author-checked.
+- Discovery is P2's `discover`: groups by their publication certificates, tombstones by
+  their tombstone certificates (T8; since the merge with p2-rest, below). Raw keys are never
+  evidence, and an uncertified tombstone is not delivered.
 - Each newly delivered record brings its revisions with their ancestry, the receipt, the
   job envelope and the capsules of the closure the envelope pins. All of this is metadata.
 - Payloads (proof terms) are fetched only on demand, by `remote%`.
@@ -212,6 +213,27 @@ The last row is what v1 adds. The prototype elaborated only the statement and ad
 placeholder axiom, so it would have accepted `Cross.bad` and every theorem built on it.
 The clean export rejects it as well (its capsule rebuilds to another group). The P1
 validator rejects its source replay.
+
+## After the merge with p2-rest (branch `integrate-p2-rest`, 2026-10-20)
+
+P2's leftovers (tombstones T8 with tombstone certificates, anti-entropy between
+deployments) were merged into main. `plr` now uses that store API instead of its own
+copies:
+
+- `plr tombstone` is `Writer::tombstone` (T8). It no longer writes a raw
+  `Signed<Tombstone>` key; deviation 9 is updated.
+- `plr pull` takes groups and tombstones from P2's `discover` (certificate discovery for
+  both) and delivers a tombstone only if it has a certificate. Its own tombstone scan and
+  signature check are removed.
+
+The gate was rerun with the merged build on this agent's instance `ia` (fork `dfc13cc6`
+and its Mathlib build borrowed read-only from the p3-remote clone). All items passed in
+134.5 s on deployment `p3gate1792465387`, including item 4 (the tombstone is now a T8
+tombstone) and the clean export. P2's audit of that deployment is clean: 16 markers, 1
+tombstone with 1 tombstone certificate, every receipt re-checked against its stored
+envelope. Results are in `impl/p3-remote/results/gate-integrate.{json,log}`. A first run
+failed only the clean export, because this clone had no `.deps/mathlib-fork` for the export
+build.
 
 ## Measured costs
 
@@ -395,13 +417,15 @@ Pulling all of it took 35 s and 17.4 MB.
    own job-issuer key (P3 control `99987f8`; issuer-signed envelopes may name no target).
    A copy's key file holds only its own workspace and issuer seeds. The gate's
    checkpoint step uses the full key file, acting as controller (T3) and bob (T5).
-9. **Tombstones.**
-   - Stored at FDB key `tombstone/<id>` as a `Signed<Tombstone>` by the author's
-     workspace key, written once the target is published, certified, and by the same
-     author (OPEN-19 default).
-   - Readers verify the signature and the author.
-   - They are not acknowledged with per-replica certificates as §11.4 asks; P2 has no
-     tombstone transaction yet.
+9. **Tombstones.** Since the merge with p2-rest, `plr tombstone` is P2's T8
+   (`Writer::tombstone`): the staged copy is acknowledged by S3, then `tombstone/<id>` and
+   the author workspace's tombstone certificate `tcert/<id>/<workspace>` are written in one
+   transaction, which checks that the target is published and certified, in the same file,
+   older, by the same author and workspace (OPEN-19 default) and not a target name. Readers
+   get tombstones from P2's certificate discovery. Tombstone IDs are unchanged (the ID of
+   the `Tombstone` body). Before the merge a tombstone was a `Signed<Tombstone>` written
+   raw at `tombstone/<id>` and had no certificate; P2's discovery ignores such keys and its
+   audit does not accept them (they are not T8's stored form).
 10. **Revocations are not consulted by working copies.** `remote%` verifies receipts and
     envelopes in Lean but does not read `vrevoke/`; T1 does. `plr check-receipt` runs P3
     control's full consumer check (`published_receipt`, including revocation).
@@ -432,8 +456,7 @@ Pulling all of it took 35 s and 17.4 MB.
 - OPEN-26: rendered collision renames are not committable. The registry conflict stays
   until a revision or tombstone resolves it; there is no tooling for that beyond the
   diagnostic.
-- Per-replica certificates for tombstones; moves (OPEN-20); deletion by the controller
-  (OPEN-19).
+- Moves (OPEN-20); deletion by the controller (OPEN-19).
 - Revocation checks in `remote%` (Lean); lazy loading below group granularity (payloads
   are fetched per group, unchunked).
 - §11.6 in full: history-preserving or rewritten projection branches and snapshot tags.

@@ -74,6 +74,27 @@ impl KeyRing {
     pub fn is_validator(&self, k: &[u8; 32]) -> bool {
         self.validators.contains(k)
     }
+    /// Also trust another deployment's writers and validators (anti-entropy peers), and its
+    /// controller and job issuers as issuers of target-free job envelopes, so that its
+    /// receipts can pass this deployment's staging rule. Its fence authority is not trusted
+    /// as an authority: fences, target epochs and revocations are per deployment, so an
+    /// envelope binding a target never passes here (`receipt::check`). Pins are not merged:
+    /// the policies and checkers a deployment accepts are its own.
+    pub fn trust(&mut self, peer: &KeyRing) {
+        for (w, k) in &peer.writers {
+            self.writers.entry(*w).or_insert(*k);
+        }
+        for v in &peer.validators {
+            if !self.validators.contains(v) {
+                self.validators.push(*v);
+            }
+        }
+        for k in std::iter::once(&peer.authority).chain(&peer.job_issuers) {
+            if *k != self.authority && !self.job_issuers.contains(k) {
+                self.job_issuers.push(*k);
+            }
+        }
+    }
 }
 
 /// A key file: seeds for the fence authority, validators and workspaces. The CLI reads it
@@ -109,7 +130,13 @@ pub struct KeyEntry {
 impl KeyFile {
     /// A deterministic key set with `n` workspaces named `w0..w{n-1}` and one validator.
     pub fn demo(n: usize) -> KeyFile {
-        let auth = Signer::derive("authority");
+        KeyFile::demo_prefixed("", n)
+    }
+
+    /// As `demo`, with authority and workspace keys and IDs derived under `prefix`, so two
+    /// deployments get distinct identities (the validator is shared).
+    pub fn demo_prefixed(prefix: &str, n: usize) -> KeyFile {
+        let auth = Signer::derive(&format!("{prefix}authority"));
         let val = Signer::derive("validator");
         let mut kf = KeyFile {
             authority: Some(hex::encode(auth.seed())),
@@ -124,11 +151,11 @@ impl KeyFile {
         );
         for i in 0..n {
             let name = format!("w{i}");
-            let s = Signer::derive(&name);
+            let s = Signer::derive(&format!("{prefix}{name}"));
             kf.workspaces.insert(
                 name.clone(),
                 KeyEntry {
-                    id: WorkspaceId::derive(&name).hex(),
+                    id: WorkspaceId::derive(&format!("{prefix}{name}")).hex(),
                     public: hex::encode(s.public()),
                     seed: Some(hex::encode(s.seed())),
                 },

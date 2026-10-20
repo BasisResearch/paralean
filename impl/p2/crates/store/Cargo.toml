@@ -43,6 +43,18 @@ mutate-issuer-signs-targets = []
 # Exposes `Writer::publish_skipping_staging_check` for P3's adversarial tests. Never enable
 # it in a deployment.
 adversary = []
+mutate-tombstone-cert-outside = []
+mutate-tombstone-no-target-check = []
+mutate-tombstone-no-author-check = []
+mutate-tombstone-raw-scan = []
+mutate-render-ignores-tombstones = []
+mutate-render-ignores-supersession = []
+mutate-receive-unverified-certs = []
+mutate-receive-foreign-cert = []
+mutate-receive-overwrite-marker = []
+mutate-receive-no-payload-ack = []
+# Receipt binding across deployments (merge of p2-rest with p3-control).
+mutate-receive-no-receipt-check = []
 
 [dev-dependencies]
 proptest = "1"

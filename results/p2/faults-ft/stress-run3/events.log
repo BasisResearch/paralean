@@ -1,0 +1,76 @@
+[23:36:47] fault tolerance >= 2 after 1s
+[23:36:52] garage nodes up: 3 of 3
+[23:37:02] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:21101)
+[23:37:15] fault tolerance >= 2 after 2s
+[23:37:15] FAULT pause fdbserver-2 (SIGSTOP)
+STOP fdbserver-2
+CONT fdbserver-2
+[23:37:30] fault tolerance >= 2 after 1s
+[23:37:30] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[23:37:45] fault tolerance >= 2 after 1s
+[23:37:45] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+KILL fdbserver-0
+KILL fdbserver-4
+started fdbserver-0 (127.0.0.1:21100)
+started fdbserver-4 (127.0.0.1:21104)
+[23:38:29] fault tolerance >= 2 after 3s
+[23:38:29] FAULT pause fdbserver-1 and partition fdbserver-5
+STOP fdbserver-1
+isolated fdbservers: 5
+CONT fdbserver-1
+healed
+[23:38:44] fault tolerance >= 2 after 1s
+[23:38:44] FAULT partition fdbservers 2 and 3 together (a minority side)
+isolated fdbservers: 2 3
+healed
+[23:39:03] fault tolerance >= 2 after 2s
+[23:39:03] FAULT kill and wipe fdbserver-2 (disk loss)
+KILL fdbserver-2
+fdbserver-2 is running; kill it first
+started fdbserver-2 (127.0.0.1:21102)
+[23:39:08] fault tolerance >= 2 after 1s
+[23:39:08] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:21103)
+started fdbserver-5 (127.0.0.1:21105)
+[23:40:44] fault tolerance >= 2 after 61s
+[23:40:44] FAULT kill garage-0 (the gateway's first upstream)
+KILL garage-0
+started garage-0
+[23:41:09] garage nodes up: 3
+[23:41:09] FAULT pause garage-1 (SIGSTOP)
+STOP garage-1
+CONT garage-1
+[23:41:34] garage nodes up: 3
+[23:41:34] FAULT kill and wipe garage-2 (disk loss), resync blocks
+KILL garage-2
+wiped garage-2 data blocks (empty replacement disk)
+started garage-2
+4f9434a096efbc41  Repair launched
+[23:41:45] block resync launched on garage-2
+[23:42:05] garage nodes up: 3
+[23:42:05] faults done; stopping workers
+[23:42:09] acknowledged effects logged: 3359
+acknowledged effects present: {"assign": 466, "group": 1450, "rank": 1060, "record": 79, "tombstone": 304}; lost: 0
+certified groups   1450
+committed records  79
+markers            1450
+object certs       4739
+received evidence  0
+records            79
+targets            3
+tombstones         304
+uncertified markers 0
+audit ok
+probe: 826 probes, 784 ok (94.9%), longest failed run 26 probes; latency ok p50 67 ms, max 4066 ms
+  unavailable from 23:37:20 for about 69 s
+  unavailable from 23:38:35 for about 14 s
+  unavailable from 23:39:13 for about 28 s
+[23:46:00] phase stress: PASS

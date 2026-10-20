@@ -7,7 +7,7 @@
 mod cache;
 mod receipt;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::process::ExitCode;
 use std::time::Instant;
 
@@ -323,56 +323,29 @@ async fn publish(a: &[&str]) -> R<Value> {
     Ok(json!(out))
 }
 
+/// P2's T8 (§11.4): the staged copy is acknowledged by S3, then the tombstone and this
+/// workspace's tombstone certificate are written in one transaction, which checks that the
+/// target is published and certified, in the same file, older, by this author and workspace,
+/// and not a target name (`Writer::tombstone`).
 async fn tombstone(a: &[&str]) -> R<Value> {
     let (st, kf) = open()?;
     let ws = need(a, "--ws")?;
     let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
     let target = Id::from_hex(need(a, "--target")?).ok_or("bad target")?;
-    let (_, m) = st.marker(&target).await.map_err(es)?.ok_or("target is not published")?;
-    if st.certs(&target).await.map_err(es)?.is_empty() {
-        return Err("target has no certificate".into());
-    }
-    // OPEN-19 default: only the element's author deletes it.
-    if m.author.0 != wid.0 {
-        return Err("only the author of an element may delete it".into());
-    }
     let t = Tombstone {
         file_path: need(a, "--file")?.to_string(),
         target,
         lamport: need(a, "--lamport")?.parse().map_err(es)?,
+        // A copy's agent ID is its workspace ID (`publish` checks the same for markers).
         author: AgentId(wid.0),
         receipt: None,
     };
-    if t.file_path != m.file_path || t.lamport <= m.lamport {
-        return Err("a tombstone names its target's file and is newer than it".into());
-    }
-    let s = Signed::sign(t, &signer);
-    st.meta.raw_set(st.meta.keys.tombstone(&s.id()), s.to_bytes()).await.map_err(es)?;
-    Ok(json!({"tombstone": s.id().hex()}))
+    let fresh = Writer::new(st, wid, signer).tombstone(&t).await.map_err(es)?;
+    Ok(json!({"tombstone": t.id().hex(), "fresh": fresh}))
 }
 
 // ---------------------------------------------------------------- anti-entropy
 
-struct Discovered {
-    markers: BTreeMap<Id, (Id, Marker)>, // group -> (marker id, marker)
-    tombs: BTreeMap<Id, Tombstone>,
-}
-
-async fn discover_all(st: &Store) -> R<Discovered> {
-    let d = discover(st).await.map_err(es)?;
-    let mut markers = BTreeMap::new();
-    for (g, p) in d.groups {
-        markers.insert(g, (p.marker_id, p.marker));
-    }
-    let mut tombs = BTreeMap::new();
-    for (_, v) in st.meta.scan(&st.meta.keys.sub("tombstone"), st.page, |_| None).await.map_err(es)? {
-        let Ok(s) = Signed::<Tombstone>::from_bytes(&v) else { continue };
-        if st.ring.verify_writer(&WorkspaceId(s.body.author.0), &s.id(), &s.sig) {
-            tombs.insert(s.id(), s.body);
-        }
-    }
-    Ok(Discovered { markers, tombs })
-}
 
 /// Write one published group's records into the cache (marker, revisions, receipt, capsule).
 async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) -> R<usize> {
@@ -450,8 +423,10 @@ async fn pull(a: &[&str]) -> R<Value> {
         let ids = |k: &str| -> R<Vec<Id>> { v[k].as_array().ok_or(k.to_string())?.iter().map(id_of).collect() };
         (ids("groups")?, ids("tombstones")?)
     } else {
-        let d = discover_all(&st).await?;
-        (d.markers.keys().copied().collect(), d.tombs.keys().copied().collect())
+        // P2 discovery: groups by publication certificates, tombstones by tombstone
+        // certificates (raw keys are never evidence).
+        let d = discover(&st).await.map_err(es)?;
+        (d.groups.keys().copied().collect(), d.tombstones.keys().copied().collect())
     };
     if let Some(f) = flag(a, "--save") {
         let v = json!({"groups": resp_markers.iter().map(|g| g.hex()).collect::<Vec<_>>(), "tombstones": resp_tombs.iter().map(|t| t.hex()).collect::<Vec<_>>()});
@@ -494,9 +469,11 @@ async fn pull(a: &[&str]) -> R<Value> {
             bytes += deliver_marker(&st, &c, &mid, &m, "records").await?;
             delivered.push(json!(["marker", id.hex()]));
         } else {
-            let v = st.meta.get(st.meta.keys.tombstone(&id)).await.map_err(es)?.ok_or("tombstone vanished")?;
-            let s = Signed::<Tombstone>::from_bytes(&v).map_err(es)?;
-            let tv = tomb_json(&id, &s.body).to_string();
+            let tb = st.tombstone(&id).await.map_err(es)?.ok_or("tombstone vanished")?;
+            if st.tcerts(&id).await.map_err(es)?.is_empty() {
+                continue; // never deliver an uncertified tombstone
+            }
+            let tv = tomb_json(&id, &tb).to_string();
             bytes += tv.len();
             c.write_new(&c.tomb_rec(&id), tv.as_bytes()).map_err(es)?;
             delivered.push(json!(["tombstone", id.hex()]));

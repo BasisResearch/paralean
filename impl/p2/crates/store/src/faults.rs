@@ -23,7 +23,8 @@ use rand::{Rng, SeedableRng};
 use crate::error::{Result, StoreError};
 use crate::id::Kind;
 
-/// The store transactions of store.md, plus the staging write of a catalogue record.
+/// The store transactions of store.md, plus the staging write of a catalogue record, the
+/// tombstone publication (T8) and the anti-entropy receives (T9, T10).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Txn {
     T1Publish,
@@ -36,6 +37,9 @@ pub enum Txn {
     T7Repair,
     /// P3 job records (receipt.rs: J1 issue, J2 receipt, J3 cancel, R1 revoke).
     P3Job,
+    T8Tombstone,
+    T9ReceiveGroup,
+    T10ReceiveTombstone,
 }
 
 pub type Hook = Arc<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>;

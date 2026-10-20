@@ -36,8 +36,17 @@ impl Env {
     }
 
     pub fn open(cfg: StoreConfig, nwriters: usize, faults: Arc<Faults>) -> Env {
-        let kf = KeyFile::demo(nwriters.max(1));
-        let store = Store::open(&cfg, kf.ring(), faults).expect("open store");
+        Env::open_keys(cfg, KeyFile::demo(nwriters.max(1)), nwriters, faults, None)
+    }
+
+    /// A deployment with its own key file; `peer` adds another deployment's writers and
+    /// validators to the trusted ring (anti-entropy).
+    pub fn open_keys(cfg: StoreConfig, kf: KeyFile, nwriters: usize, faults: Arc<Faults>, peer: Option<&KeyRing>) -> Env {
+        let mut ring = kf.ring();
+        if let Some(p) = peer {
+            ring.trust(p);
+        }
+        let store = Store::open(&cfg, ring, faults).expect("open store");
         let ctl = Controller::new(store.clone(), kf.authority_signer().unwrap());
         let w = (0..nwriters)
             .map(|i| {
@@ -59,7 +68,7 @@ impl Env {
         let w = &self.w[wi];
         let pt = w.prepare_target(name).await?;
         let parents = pt.head.into_iter().collect();
-        Ok(fixture::package(tag, w.id, &self.validator, name, parents, Some(pt), lamport))
+        Ok(fixture::package_by(&self.authority(), tag, w.id, &self.validator, name, parents, Some(pt), lamport))
     }
 
     /// Prepare and publish a proof of a target name.
@@ -71,7 +80,18 @@ impl Env {
 
     /// A non-target group (free name) publication.
     pub fn plain_package(&self, wi: usize, name: &str, tag: &str) -> Package {
-        fixture::package(tag, self.w[wi].id, &self.validator, &Name::parse(name), vec![], None, 1)
+        fixture::package_by(&self.authority(), tag, self.w[wi].id, &self.validator, &Name::parse(name), vec![], None, 1)
+    }
+
+    /// This deployment's controller key (it signs the fixture job envelopes).
+    pub fn authority(&self) -> Signer {
+        self.kf.authority_signer().unwrap()
+    }
+
+    /// R1 at this deployment: revoke a validator key, signed by its controller.
+    pub async fn revoke(&self, key: [u8; 32]) {
+        let r = receipt::SignedRevocation::sign(receipt::Revocation { key, reason: "test".into() }, &self.authority());
+        self.store.meta.revoke_validator(&r).await.unwrap();
     }
 
     pub async fn audit_ok(&self) -> audit::AuditReport {
@@ -139,4 +159,28 @@ pub fn reassign_hook(ctl: &Controller, name: Name, owner: WorkspaceId, request: 
             ctl.reassign(&name, owner, &request).await.unwrap();
         })
     })
+}
+
+/// The second deployment's configuration: its own FoundationDB cluster and S3 store when
+/// `scripts/test.sh` runs with `PARALEAN_PEER_INSTANCE` (PARALEAN_PEER_*), otherwise another
+/// key root on the same cluster.
+pub fn peer_config(name: &str) -> StoreConfig {
+    let dep = deployment(name);
+    if std::env::var("PARALEAN_PEER_FDB_CLUSTER").is_ok() {
+        StoreConfig::from_env_with("PARALEAN_PEER_", &dep).unwrap()
+    } else {
+        eprintln!("PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster");
+        StoreConfig::from_env(&dep).unwrap()
+    }
+}
+
+/// Two independent deployments A and B (distinct identities, fences and replicas), each
+/// trusting the other's writers. Writer `n-1` of each is its anti-entropy agent.
+pub fn pair(name: &str, n: usize, fa: Arc<Faults>, fb: Arc<Faults>) -> (Env, Env) {
+    let (ka, kb) = (KeyFile::demo_prefixed("a/", n), KeyFile::demo_prefixed("b/", n));
+    let ca = StoreConfig::from_env(&deployment(&format!("{name}-a"))).unwrap();
+    let cb = peer_config(&format!("{name}-b"));
+    let a = Env::open_keys(ca, ka.clone(), n, fa, Some(&kb.ring()));
+    let b = Env::open_keys(cb, kb, n, fb, Some(&ka.ring()));
+    (a, b)
 }

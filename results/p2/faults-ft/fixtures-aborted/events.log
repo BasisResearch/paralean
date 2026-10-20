@@ -1,0 +1,25 @@
+[00:02:40] writes ok and fault tolerance >= 2 after 0 s
+[00:02:45] garage nodes up: 3 of 3
+[00:02:45] running the test suite under chaos
+[00:02:45] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:21103)
+[00:02:53] writes ok and fault tolerance >= 2 after 0 s
+[00:02:53] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[00:03:02] writes ok and fault tolerance >= 2 after 1 s
+[00:03:02] FAULT partition fdbserver-0
+isolated fdbservers: 0
+healed
+[00:03:11] writes ok and fault tolerance >= 2 after 1 s
+[00:03:11] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[00:03:21] writes ok and fault tolerance >= 2 after 2 s
+[00:03:21] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[00:03:29] writes ok and fault tolerance >= 2 after 0 s
+[00:03:29] FAULT pause fdbserver-0
+STOP fdbserver-0

@@ -31,15 +31,32 @@ pub fn package(
     target: Option<PreparedTarget>,
     lamport: u64,
 ) -> Package {
+    package_by(&authority(), tag, workspace, validator, name, parents, target, lamport)
+}
+
+/// As [`package`], with the job envelope signed by `issuer` (a deployment's own controller
+/// key, or a job-issuer key for a target-free group) instead of the demo authority.
+#[allow(clippy::too_many_arguments)]
+pub fn package_by(
+    issuer: &Signer,
+    tag: &str,
+    workspace: WorkspaceId,
+    validator: &Signer,
+    name: &Name,
+    parents: Vec<Id>,
+    target: Option<PreparedTarget>,
+    lamport: u64,
+) -> Package {
     let group = Opaque::new(Kind::Group, group_bytes(tag));
     let capsule = Opaque::new(Kind::Capsule, format!("capsule of {tag}").into_bytes());
     let chunks = vec![Opaque::new(Kind::Chunk, format!("chunk of {tag}").into_bytes())];
     let g = group.id();
-    let job = job_for(tag, g, capsule.id(), workspace, target.as_slice());
+    let job = job_by(issuer, tag, g, capsule.id(), workspace, target.as_slice());
     let receipt = receipt_for(&job, validator, Verdict::Accepted);
     let mut parents = parents;
     parents.sort();
     parents.dedup();
+    let fresh = parents.is_empty();
     let rev = Revision { group: g, name: name.clone(), parents, capsule: capsule.id(), workspace };
     let author = AgentId::derive(&format!("agent/{}", workspace.hex()));
     let marker = Marker {
@@ -50,7 +67,9 @@ pub fn package(
         anchor: Anchor::FileStart,
         lamport,
         author,
-        root_path: vec![],
+        // A fresh insertion at the file start is its own lineage root, so its root path is
+        // its own key; a revision's root path is its lineage root's (set it with `place`).
+        root_path: if fresh { vec![(g, lamport, author)] } else { vec![] },
         lineage_keys: vec![(name.clone(), lamport, author)],
     };
     Package { group, chunks, capsule, receipt, job, revisions: vec![rev], marker, targets: target.into_iter().collect() }
@@ -63,6 +82,11 @@ pub fn authority() -> Signer {
 
 /// A controller-signed envelope for a fixture group, bound to the prepared targets.
 pub fn job_for(tag: &str, group: Id, capsule: Id, worker: WorkspaceId, targets: &[PreparedTarget]) -> SignedJob {
+    job_by(&authority(), tag, group, capsule, worker, targets)
+}
+
+/// As [`job_for`], signed by `issuer`.
+pub fn job_by(issuer: &Signer, tag: &str, group: Id, capsule: Id, worker: WorkspaceId, targets: &[PreparedTarget]) -> SignedJob {
     let mut ts: Vec<TargetBinding> =
         targets.iter().map(|t| TargetBinding { name: t.name.clone(), epoch: t.epoch, statement: vec![] }).collect();
     sort_targets(&mut ts);
@@ -79,7 +103,7 @@ pub fn job_for(tag: &str, group: Id, capsule: Id, worker: WorkspaceId, targets: 
         deadline_ms: 0,
         memory_mb: 0,
     };
-    SignedJob::sign(env, &authority())
+    SignedJob::sign(env, issuer)
 }
 
 /// A receipt answering `job`, as a validator holding `validator` would sign it.
@@ -126,4 +150,31 @@ pub fn checkpoint(workspace: WorkspaceId, contents: Vec<Id>, predecessor: Option
         build_receipt: Manifest::id(&build_receipt),
     };
     Checkpoint { snapshot, source_root, build_receipt, predecessor, token }
+}
+
+/// Place a package in `file`: a fresh insertion after `anchor` (`None`: the file start) or,
+/// with `revises`, a revision taking its lineage root's position. The carried fields are
+/// computed as the author does at staging (§11.1): a fresh insertion's root path is its
+/// anchor's path plus its own key; a revision carries its lineage root's path and lineage key.
+pub fn place(p: &mut Package, file: &str, anchor: Option<&Marker>, revises: Option<&Marker>) {
+    let m = &mut p.marker;
+    m.file_path = file.to_string();
+    match revises {
+        Some(r) => {
+            m.anchor = r.anchor.clone();
+            m.root_path = r.root_path.clone();
+            m.lineage_keys = r.lineage_keys.clone();
+        }
+        None => {
+            m.anchor = anchor.map_or(Anchor::FileStart, |a| Anchor::After(a.group));
+            let mut path = anchor.map(|a| a.root_path.clone()).unwrap_or_default();
+            path.push((m.group, m.lamport, m.author));
+            m.root_path = path;
+        }
+    }
+}
+
+/// A tombstone of a published marker by its author (§11.4).
+pub fn tombstone_of(m: &Marker, lamport: u64) -> Tombstone {
+    Tombstone { file_path: m.file_path.clone(), target: m.group, lamport, author: m.author, receipt: None }
 }

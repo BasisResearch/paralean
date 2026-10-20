@@ -39,14 +39,19 @@ pub struct S3Config {
 
 impl S3Config {
     pub fn from_env() -> Result<S3Config> {
-        let v = |k: &str| std::env::var(k).map_err(|_| StoreError::Invalid(format!("{k} is not set")));
+        S3Config::from_env_with("PARALEAN_")
+    }
+
+    /// From `<p>S3_ENDPOINT`, `<p>S3_ACCESS_KEY`, ... (`PARALEAN_PEER_` names a peer deployment).
+    pub fn from_env_with(p: &str) -> Result<S3Config> {
+        let v = |k: &str| std::env::var(format!("{p}{k}")).map_err(|_| StoreError::Invalid(format!("{p}{k} is not set")));
         Ok(S3Config {
-            endpoint: v("PARALEAN_S3_ENDPOINT")?,
-            bucket: std::env::var("PARALEAN_S3_BUCKET").unwrap_or_else(|_| "paralean".into()),
-            region: std::env::var("PARALEAN_S3_REGION").unwrap_or_else(|_| "garage".into()),
-            access_key: v("PARALEAN_S3_ACCESS_KEY")?,
-            secret_key: v("PARALEAN_S3_SECRET_KEY")?,
-            prefix: std::env::var("PARALEAN_S3_PREFIX").unwrap_or_default(),
+            endpoint: v("S3_ENDPOINT")?,
+            bucket: v("S3_BUCKET").unwrap_or_else(|_| "paralean".into()),
+            region: v("S3_REGION").unwrap_or_else(|_| "garage".into()),
+            access_key: v("S3_ACCESS_KEY")?,
+            secret_key: v("S3_SECRET_KEY")?,
+            prefix: v("S3_PREFIX").unwrap_or_default(),
         })
     }
 }

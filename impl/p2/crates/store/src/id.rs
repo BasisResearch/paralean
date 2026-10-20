@@ -101,9 +101,9 @@ id16!(
     ReplicaId
 );
 
-/// Hash domains. §1.2 lists all but `Blob` (store.md), `Manifest` and `Token` (added by P2,
-/// see docs/p2-log.md), and `Job`, `Policy`, `Checker` and `Revocation` (added by P3's
-/// receipt binding, `receipt.rs`, docs/p3-log.md).
+/// Hash domains. §1.2 lists all but `Blob` (store.md), `Manifest`, `Token` and `TCert`
+/// (added by P2, see docs/p2-log.md), and `Job`, `Policy`, `Checker` and `Revocation` (added
+/// by P3's receipt binding, `receipt.rs`, docs/p3-log.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub enum Domain {
     Group,
@@ -126,6 +126,8 @@ pub enum Domain {
     Policy,
     Checker,
     Revocation,
+    /// Tombstone certificate (§11.4: tombstones are certificate-discovered like markers).
+    TCert,
 }
 
 impl Domain {
@@ -151,6 +153,7 @@ impl Domain {
             Domain::Policy => "v0/policy",
             Domain::Checker => "v0/checker",
             Domain::Revocation => "v0/revocation",
+            Domain::TCert => "v0/tcert",
         }
     }
 
@@ -203,10 +206,12 @@ pub enum Kind {
     Blob,
     /// The acknowledged copy of a marker before the publish transaction (§8.2 step 2).
     StagedMarker,
+    /// The acknowledged copy of a tombstone before its publish transaction (T8).
+    StagedTombstone,
 }
 
 impl Kind {
-    pub const S3_KINDS: [Kind; 7] = [
+    pub const S3_KINDS: [Kind; 8] = [
         Kind::Group,
         Kind::Chunk,
         Kind::Capsule,
@@ -214,6 +219,7 @@ impl Kind {
         Kind::Manifest,
         Kind::Blob,
         Kind::StagedMarker,
+        Kind::StagedTombstone,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -224,6 +230,7 @@ impl Kind {
             Kind::Manifest => "manifest",
             Kind::Blob => "blob",
             Kind::StagedMarker => "marker",
+            Kind::StagedTombstone => "tombstone",
         }
     }
     pub fn from_name(s: &str) -> Option<Kind> {
@@ -238,6 +245,7 @@ impl Kind {
             Kind::Manifest => Domain::Manifest,
             Kind::Blob => Domain::Blob,
             Kind::StagedMarker => Domain::Marker,
+            Kind::StagedTombstone => Domain::Tombstone,
         }
     }
 }

@@ -1,0 +1,273 @@
+[02:59:19] writes ok and fault tolerance >= 2 after 1 s
+[02:59:24] garage nodes up: 3 of 3
+[02:59:24] running the test suite under chaos
+[02:59:24] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:22104)
+[02:59:32] writes ok and fault tolerance >= 2 after 0 s
+[02:59:32] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[02:59:41] writes ok and fault tolerance >= 2 after 1 s
+[02:59:41] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[02:59:49] writes ok and fault tolerance >= 2 after 0 s
+[02:59:49] FAULT kill fdbserver-5, partition fdbserver-3
+KILL fdbserver-5
+isolated fdbservers: 3
+healed
+started fdbserver-5 (127.0.0.1:22105)
+[03:00:22] writes ok and fault tolerance >= 2 after 25 s
+[03:00:22] FAULT pause fdbserver-2 and fdbserver-1
+STOP fdbserver-2
+STOP fdbserver-1
+CONT fdbserver-2
+CONT fdbserver-1
+[03:00:30] writes ok and fault tolerance >= 2 after 0 s
+[03:00:30] FAULT kill garage-0
+KILL garage-0
+started garage-0
+[03:00:39] writes ok and fault tolerance >= 2 after 1 s
+[03:00:39] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:22104)
+[03:00:47] writes ok and fault tolerance >= 2 after 0 s
+[03:00:47] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[03:00:56] writes ok and fault tolerance >= 2 after 1 s
+[03:00:56] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[03:01:04] writes ok and fault tolerance >= 2 after 0 s
+[03:01:04] FAULT kill fdbserver-0, partition fdbserver-2
+KILL fdbserver-0
+isolated fdbservers: 2
+healed
+started fdbserver-0 (127.0.0.1:22100)
+[03:01:41] writes ok and fault tolerance >= 2 after 28 s
+[03:01:41] FAULT pause fdbserver-5 and fdbserver-3
+STOP fdbserver-5
+STOP fdbserver-3
+CONT fdbserver-5
+CONT fdbserver-3
+[03:01:50] writes ok and fault tolerance >= 2 after 0 s
+[03:01:50] FAULT kill garage-1
+KILL garage-1
+started garage-1
+[03:01:58] writes ok and fault tolerance >= 2 after 0 s
+[03:01:58] FAULT kill fdbserver-3
+KILL fdbserver-3
+[03:01:59] fast suites: 3 rounds done
+started fdbserver-3 (127.0.0.1:22103)
+[03:02:10] writes ok and fault tolerance >= 2 after 4 s
+[03:02:10] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[03:02:18] writes ok and fault tolerance >= 2 after 0 s
+[03:02:18] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[03:02:36] writes ok and fault tolerance >= 2 after 10 s
+[03:02:36] FAULT kill fdbserver-4, partition fdbserver-2
+KILL fdbserver-4
+isolated fdbservers: 2
+healed
+started fdbserver-4 (127.0.0.1:22104)
+[03:02:44] writes ok and fault tolerance >= 2 after 0 s
+[03:02:44] FAULT pause fdbserver-3 and fdbserver-0
+STOP fdbserver-3
+STOP fdbserver-0
+CONT fdbserver-3
+CONT fdbserver-0
+[03:02:53] writes ok and fault tolerance >= 2 after 0 s
+[03:02:53] FAULT kill garage-2
+KILL garage-2
+started garage-2
+[03:03:13] writes ok and fault tolerance >= 2 after 12 s
+[03:03:13] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:22100)
+[03:03:22] writes ok and fault tolerance >= 2 after 1 s
+[03:03:22] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[03:03:31] writes ok and fault tolerance >= 2 after 1 s
+[03:03:31] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[03:03:40] writes ok and fault tolerance >= 2 after 1 s
+[03:03:40] FAULT kill fdbserver-5, partition fdbserver-3
+KILL fdbserver-5
+isolated fdbservers: 3
+healed
+started fdbserver-5 (127.0.0.1:22105)
+[03:04:16] writes ok and fault tolerance >= 2 after 28 s
+[03:04:16] FAULT pause fdbserver-3 and fdbserver-2
+STOP fdbserver-3
+STOP fdbserver-2
+CONT fdbserver-3
+CONT fdbserver-2
+[03:04:26] writes ok and fault tolerance >= 2 after 2 s
+[03:04:26] FAULT kill garage-1
+KILL garage-1
+started garage-1
+[03:04:34] writes ok and fault tolerance >= 2 after 0 s
+[03:04:34] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:22105)
+[03:04:42] writes ok and fault tolerance >= 2 after 0 s
+[03:04:42] FAULT pause fdbserver-2
+STOP fdbserver-2
+CONT fdbserver-2
+[03:05:07] writes ok and fault tolerance >= 2 after 17 s
+[03:05:07] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[03:05:16] writes ok and fault tolerance >= 2 after 1 s
+[03:05:16] FAULT kill fdbserver-1, partition fdbserver-4
+KILL fdbserver-1
+isolated fdbservers: 4
+healed
+started fdbserver-1 (127.0.0.1:22101)
+[03:05:25] writes ok and fault tolerance >= 2 after 1 s
+[03:05:25] FAULT pause fdbserver-3 and fdbserver-0
+STOP fdbserver-3
+STOP fdbserver-0
+CONT fdbserver-3
+CONT fdbserver-0
+[03:05:33] writes ok and fault tolerance >= 2 after 0 s
+[03:05:33] FAULT kill garage-2
+KILL garage-2
+started garage-2
+[03:05:56] writes ok and fault tolerance >= 2 after 15 s
+[03:05:56] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:22103)
+[03:06:06] writes ok and fault tolerance >= 2 after 2 s
+[03:06:06] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[03:06:14] writes ok and fault tolerance >= 2 after 0 s
+[03:06:14] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[03:06:22] writes ok and fault tolerance >= 2 after 0 s
+[03:06:22] FAULT kill fdbserver-3, partition fdbserver-0
+KILL fdbserver-3
+isolated fdbservers: 0
+healed
+started fdbserver-3 (127.0.0.1:22103)
+[03:06:31] writes ok and fault tolerance >= 2 after 1 s
+[03:06:31] FAULT pause fdbserver-2 and fdbserver-4
+STOP fdbserver-2
+STOP fdbserver-4
+CONT fdbserver-2
+CONT fdbserver-4
+[03:06:39] writes ok and fault tolerance >= 2 after 0 s
+[03:06:39] FAULT kill garage-2
+KILL garage-2
+started garage-2
+[03:07:02] writes ok and fault tolerance >= 2 after 15 s
+[03:07:02] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:22101)
+[03:07:12] writes ok and fault tolerance >= 2 after 2 s
+[03:07:12] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[03:07:21] writes ok and fault tolerance >= 2 after 1 s
+[03:07:21] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[03:07:31] writes ok and fault tolerance >= 2 after 2 s
+[03:07:31] FAULT kill fdbserver-1, partition fdbserver-3
+KILL fdbserver-1
+isolated fdbservers: 3
+healed
+started fdbserver-1 (127.0.0.1:22101)
+[03:07:41] writes ok and fault tolerance >= 2 after 2 s
+[03:07:41] FAULT pause fdbserver-3 and fdbserver-0
+STOP fdbserver-3
+STOP fdbserver-0
+CONT fdbserver-3
+CONT fdbserver-0
+[03:07:49] writes ok and fault tolerance >= 2 after 0 s
+[03:07:49] FAULT kill garage-2
+KILL garage-2
+started garage-2
+[03:07:58] writes ok and fault tolerance >= 2 after 1 s
+[03:07:58] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:22104)
+[03:08:34] writes ok and fault tolerance >= 2 after 28 s
+[03:08:34] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[03:08:43] writes ok and fault tolerance >= 2 after 1 s
+[03:08:43] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[03:08:52] writes ok and fault tolerance >= 2 after 1 s
+[03:08:52] FAULT kill fdbserver-5, partition fdbserver-3
+KILL fdbserver-5
+isolated fdbservers: 3
+healed
+started fdbserver-5 (127.0.0.1:22105)
+[03:09:24] writes ok and fault tolerance >= 2 after 24 s
+[03:09:24] FAULT pause fdbserver-3 and fdbserver-1
+STOP fdbserver-3
+STOP fdbserver-1
+CONT fdbserver-3
+CONT fdbserver-1
+[03:09:33] writes ok and fault tolerance >= 2 after 0 s
+[03:09:33] FAULT kill garage-2
+KILL garage-2
+started garage-2
+[03:09:41] writes ok and fault tolerance >= 2 after 0 s
+      1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.50s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 149.30s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.28s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.83s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.50s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.39s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 203.99s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.79s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.54s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.26s
+[03:09:41] faults injected during the tests: 48
+probe: 220 probes, 149 ok (67.7%), longest failed run 8 probes; latency ok p50 78 ms, max 4704 ms
+  unavailable from 02:59:28 for about 1 s
+  unavailable from 02:59:38 for about 3 s
+  unavailable from 02:59:55 for about 27 s
+  unavailable from 03:00:28 for about 2 s
+  unavailable from 03:00:39 for about 1 s
+  unavailable from 03:00:53 for about 2 s
+  unavailable from 03:01:10 for about 31 s
+  unavailable from 03:01:48 for about 2 s
+  unavailable from 03:02:15 for about 21 s
+  unavailable from 03:02:42 for about 2 s
+  unavailable from 03:03:02 for about 11 s
+  unavailable from 03:03:27 for about 4 s
+  unavailable from 03:03:37 for about 44 s
+  unavailable from 03:04:53 for about 14 s
+  unavailable from 03:05:13 for about 3 s
+  unavailable from 03:05:22 for about 3 s
+  unavailable from 03:05:42 for about 14 s
+  unavailable from 03:06:11 for about 3 s
+  unavailable from 03:06:28 for about 11 s
+  unavailable from 03:06:53 for about 9 s
+  unavailable from 03:07:18 for about 3 s
+  unavailable from 03:07:27 for about 4 s
+  unavailable from 03:07:36 for about 3 s
+  unavailable from 03:07:47 for about 3 s
+  unavailable from 03:08:03 for about 31 s
+  unavailable from 03:08:40 for about 2 s
+  unavailable from 03:08:49 for about 3 s
+  unavailable from 03:08:58 for about 26 s
+  unavailable from 03:09:30 for about 3 s
+[03:09:41] phase fixtures: PASS

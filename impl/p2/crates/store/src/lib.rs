@@ -11,7 +11,9 @@
 //! | `receipt` | P3 receipt binding (OPEN-7): job envelopes, policy and checker IDs, revocation, the staging rule |
 //! | `audit` | whole-store invariant checks |
 //! | `faults` | client-side fault injection |
+//! | `antientropy` | exchange of published groups and tombstones between deployments |
 
+pub mod antientropy;
 pub mod audit;
 pub mod error;
 pub mod faults;

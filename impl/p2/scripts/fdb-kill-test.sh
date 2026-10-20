@@ -20,7 +20,10 @@ for w in 0 1 2 3; do
   pids+=($!)
 done
 sleep "${KILL_AFTER:-2}"
-fdbpid="$(cat "$PARALEAN_P2_PREFIX/run/fdbserver.pid")"
+# The cluster's own fdbserver: the default cluster's, or process 0 of an instance.
+pidfile="$PARALEAN_HOME/run/fdbserver.pid"
+[ -n "$PARALEAN_INSTANCE" ] && pidfile="$PARALEAN_HOME/run/fdbserver-0.pid"
+fdbpid="$(cat "$pidfile")"
 running=0; for p in "${pids[@]}"; do kill -0 "$p" 2>/dev/null && running=$((running + 1)); done
 echo "killing fdbserver $fdbpid with $running of ${#pids[@]} workers running"; kill -9 "$fdbpid"
 sleep "${DOWN_FOR:-4}"

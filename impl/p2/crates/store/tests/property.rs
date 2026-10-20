@@ -9,7 +9,8 @@
 //! - at most one head per target, equal to the record's head, topping every proof;
 //! - the selected catalogue record is fenced (its commit certificate carries an issued
 //!   token) and is ready; no orphan commits;
-//! - no metadata key names an object absent from S3.
+//! - no metadata key names an object absent from S3;
+//! - published tombstones are certified, and no tombstoned group is rendered.
 //!
 //! Cases: `PROPTEST_CASES` (default 12), each up to 24 operations.
 
@@ -34,6 +35,7 @@ enum Op {
     Rotate { to: usize },
     Stage { w: usize },
     Commit { w: usize },
+    Tombstone { w: usize },
     Crash { w: usize },
 }
 
@@ -55,6 +57,7 @@ fn op() -> impl Strategy<Value = Op> {
         2 => (0..W).prop_map(|to| Op::Rotate { to }),
         1 => (0..W).prop_map(|w| Op::Stage { w }),
         3 => (0..W).prop_map(|w| Op::Commit { w }),
+        2 => (0..W).prop_map(|w| Op::Tombstone { w }),
         1 => (0..W).prop_map(|w| Op::Crash { w }),
     ]
 }
@@ -77,6 +80,7 @@ fn tname(t: usize) -> Name {
 struct Local {
     pending: BTreeMap<usize, Package>,
     published: Vec<Id>,
+    free: Vec<Marker>,
     last_commit: Option<Id>,
     token: Option<TokenRef>,
 }
@@ -118,6 +122,12 @@ async fn run_case(ops: Vec<(Op, Fault)>) -> std::result::Result<(), String> {
                     let p = e.plain_package(*w, &format!("Prop.free.{tag}"), &tag);
                     e.w[*w].publish(&p).await?;
                     local[*w].published.push(rev_id(&p));
+                    local[*w].free.push(p.marker.clone());
+                }
+                Op::Tombstone { w } => {
+                    if let Some(m) = local[*w].free.pop() {
+                        e.w[*w].tombstone(&fixture::tombstone_of(&m, 1000 + step as u64)).await?;
+                    }
                 }
                 Op::Reassign { t, to } => {
                     e.ctl.reassign(&tname(*t), e.w[*to].id, format!("ras{step}").as_bytes()).await?;
@@ -157,8 +167,18 @@ async fn run_case(ops: Vec<(Op, Fault)>) -> std::result::Result<(), String> {
         // Drop a rule the operation did not consume (it aborted before committing).
         faults.clear_rules();
         let a = paralean_store::audit::audit(&e.store).await.map_err(|x| x.to_string())?;
-        if !a.ok() || !a.uncertified_markers.is_empty() {
-            return Err(format!("step {step} {op:?} {f:?}: {:?} uncertified {:?}", a.violations, a.uncertified_markers));
+        if !a.ok() || !a.uncertified_markers.is_empty() || !a.uncertified_tombstones.is_empty() {
+            return Err(format!(
+                "step {step} {op:?} {f:?}: {:?} uncertified {:?} {:?}",
+                a.violations, a.uncertified_markers, a.uncertified_tombstones
+            ));
+        }
+        // Rendering honours tombstones: no tombstoned group is in any rendered file.
+        let d = paralean_store::recovery::discover(&e.store).await.map_err(|x| x.to_string())?;
+        for t in d.tombstones.values() {
+            if d.files.values().any(|f| f.contains(&t.tombstone.target)) {
+                return Err(format!("step {step}: tombstoned group {:?} is rendered", t.tombstone.target));
+            }
         }
         for w in 0..W {
             let rec = recover_catalog(&e.store, e.w[w].id).await.map_err(|x| x.to_string())?;

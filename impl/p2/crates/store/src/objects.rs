@@ -391,6 +391,39 @@ impl Object for CertBody {
     const DOMAIN: Domain = Domain::Cert;
 }
 
+/// Tombstone certificate body: `{replica, tombstoneID, target, writer}` (domain `v0/tcert`).
+/// §11.4 says tombstones are "certificate-discovered like markers"; a publication
+/// certificate (`v0/cert`) names a marker and a group, so tombstones get their own kind.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TombstoneCertBody {
+    pub replica: ReplicaId,
+    pub tombstone: Id,
+    pub target: Id,
+    pub writer: WorkspaceId,
+}
+
+impl Pce for TombstoneCertBody {
+    fn encode(&self, e: &mut Enc) {
+        put_format(e);
+        self.replica.encode(e);
+        self.tombstone.encode(e);
+        self.target.encode(e);
+        self.writer.encode(e);
+    }
+    fn decode(d: &mut Dec<'_>) -> DResult<Self> {
+        get_format(d)?;
+        Ok(TombstoneCertBody {
+            replica: ReplicaId::decode(d)?,
+            tombstone: Id::decode(d)?,
+            target: Id::decode(d)?,
+            writer: WorkspaceId::decode(d)?,
+        })
+    }
+}
+impl Object for TombstoneCertBody {
+    const DOMAIN: Domain = Domain::TCert;
+}
+
 /// Object certificate body: `{replica, kind, id, writer}`.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ObjectCertBody {
@@ -722,6 +755,7 @@ impl<T: Object> Signed<T> {
 
 pub type Receipt = Signed<ReceiptBody>;
 pub type Cert = Signed<CertBody>;
+pub type TombstoneCert = Signed<TombstoneCertBody>;
 pub type ObjectCert = Signed<ObjectCertBody>;
 pub type CommitCert = Signed<CommitCertBody>;
 pub type Token = Signed<TokenBody>;

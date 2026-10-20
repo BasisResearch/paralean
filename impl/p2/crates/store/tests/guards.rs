@@ -246,6 +246,14 @@ async fn t7_repair_is_unfenced_signed_and_needs_existing_bytes() {
     assert!(dst.w[0].repair_cert(&src.store, key.clone()).await.unwrap());
     assert!(!dst.w[0].repair_cert(&src.store, key).await.unwrap(), "idempotent");
     assert_eq!(dst.store.certs(&g).await.unwrap().len(), 1);
+    // Another deployment (another abstract replica σ') holding the same bytes is not a
+    // replacement of σ: copying σ's certificate there would certify on σ's behalf.
+    let other = Env::new("t7other", 1);
+    assert_ne!(other.store.replica, src.store.replica);
+    let mv = src.store.meta.get(src.store.meta.keys.marker(&g)).await.unwrap().unwrap();
+    other.store.meta.raw_set(other.store.meta.keys.marker(&g), mv).await.unwrap();
+    let r = other.w[0].repair_cert(&src.store, CertKey::Publication { group: g, writer: src.w[0].id }).await;
+    assert_eq!(guard_of(r), GuardFailure::RepairInvalid("certificate names another replica".into()));
     // A forged certificate (bad signature) in the source is refused.
     let forged = Cert::sign(
         CertBody { replica: src.store.replica, marker: p.marker.id(), group: g, writer: src.w[0].id },

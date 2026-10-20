@@ -214,6 +214,38 @@ validated and published in dependency order through the controller and two stock
 | Payload | 326 kB |
 | Mean closure | 1.9 groups |
 
+## After the merge with p2-rest (branch `integrate-p2-rest`, 2026-10-20)
+
+P2's leftovers (tombstones T8, anti-entropy T9/T10 between deployments, instance clusters)
+were merged into main after this branch. The receipt rules now also hold on the new paths
+([p2-log](p2-log.md), "Merge with P3"):
+
+- **Anti-entropy.** A group received from another deployment must pass `receipt::check`
+  against its job envelope under the *receiver's* key ring, and T9 reads the receiver's
+  `vrevoke/<key>` in its transaction. The envelope travels with the group and is stored at
+  `job/<id>`, so the receiver's audit and `published_receipt` re-check it.
+  `KeyRing::trust(peer)` lists the peer's controller and job issuers as issuers of
+  target-free envelopes only. A receipt bound to targets therefore never passes at
+  another deployment, and target-bound groups stay at their home deployment. A sender does
+  not export groups whose validator it has revoked.
+- **Tombstones.** T8 (and the receive T10) refuses a tombstone whose named receipt's
+  validator is revoked, reading `vrevoke/<key>` in the transaction.
+- **Mutations.** `mutate-no-revocation-check` now also removes those reads; P2's mutation
+  script lists it against `received_groups_need_a_receipt_valid_here` and
+  `t8_named_receipt_respects_revocation`.
+
+Rerun on this agent's P2 instance `ia` (`impl/p3/scripts/test.sh` with
+`PARALEAN_P3_PREFIX` pointing at the instance, a separate cargo target directory, the fork
+build borrowed from the p3-remote clone):
+
+- `test.sh`: adversarial 13/13, control 6/6, processes 1/1, fork 1/1, measure ignored.
+  The fork test failed once with "memory limit 512 MiB exceeded (513 MiB resident)" and
+  passed on rerun. Main's impl/p1 now also holds the remote-imports modules, and the fork
+  checker's peak is at the 512 MiB work limit of that test. The merge did not change
+  impl/p1 or the validator.
+- `check-mutations.sh`: 14/14 detected.
+- P2's suite, its 26 mutation cases and the fault runs with bound receipts: p2-log.
+
 ## Findings
 
 - **T1 did not guard every group declaring a target name** (fixed). T1 read target records

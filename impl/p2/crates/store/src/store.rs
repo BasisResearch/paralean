@@ -29,12 +29,18 @@ impl StoreConfig {
     /// From `PARALEAN_FDB_CLUSTER`, `PARALEAN_S3_*` and the given deployment; the S3 prefix
     /// defaults to `<deployment>/`.
     pub fn from_env(deployment: &str) -> Result<StoreConfig> {
-        let mut s3 = S3Config::from_env()?;
-        if std::env::var("PARALEAN_S3_PREFIX").is_err() {
+        StoreConfig::from_env_with("PARALEAN_", deployment)
+    }
+
+    /// As `from_env`, reading `<p>FDB_CLUSTER` and `<p>S3_*` (`PARALEAN_PEER_`: a peer
+    /// deployment's own cluster and store, for anti-entropy).
+    pub fn from_env_with(p: &str, deployment: &str) -> Result<StoreConfig> {
+        let mut s3 = S3Config::from_env_with(p)?;
+        if std::env::var(format!("{p}S3_PREFIX")).is_err() {
             s3.prefix = format!("{deployment}/");
         }
         Ok(StoreConfig {
-            cluster_file: std::env::var("PARALEAN_FDB_CLUSTER").ok(),
+            cluster_file: std::env::var(format!("{p}FDB_CLUSTER")).ok(),
             deployment: deployment.to_string(),
             s3,
             replica: ReplicaId::derive(&format!("sigma/{deployment}")),
@@ -111,6 +117,25 @@ impl Store {
         let Some(stored) = self.open_value(&v).await? else { return Ok(None) };
         let m = Marker::from_preimage(&stored)?;
         Ok(Some((m.id(), m)))
+    }
+
+    pub async fn tombstone(&self, id: &Id) -> Result<Option<Tombstone>> {
+        self.unsigned(self.meta.keys.tombstone(id), id).await
+    }
+
+    /// The valid tombstone certificates of a tombstone.
+    pub async fn tcerts(&self, t: &Id) -> Result<Vec<TombstoneCert>> {
+        let kvs = self.meta.scan(&self.meta.keys.tcerts_of(t), self.page, |_| None).await?;
+        let mut out = Vec::new();
+        for (k, v) in kvs {
+            let (_, _, w): (String, foundationdb::tuple::Bytes, foundationdb::tuple::Bytes) =
+                self.meta.keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+            let Ok(c) = TombstoneCert::from_bytes(&v) else { continue };
+            if c.body.tombstone == *t && c.body.writer.0[..] == w[..] && self.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) {
+                out.push(c);
+            }
+        }
+        Ok(out)
     }
 
     pub async fn revision(&self, id: &Id) -> Result<Option<Revision>> {

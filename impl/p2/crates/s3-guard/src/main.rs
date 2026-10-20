@@ -13,9 +13,14 @@
 //! `POST ?delete` (DeleteObjects); `PUT` with a `lifecycle`, `policy`, `website`, `cors`,
 //! `versioning`, `object-lock`, `retention` or `legal-hold` sub-resource; `PUT` of a bucket
 //! (create; buckets are created by up.sh through Garage's admin CLI).
+//!
+//! `--upstream` takes a comma-separated list (the S3 ports of a multi-node Garage cluster).
+//! A request goes to the first upstream that accepts the connection, so the gateway rides
+//! through the loss of a node; the request body is buffered for that.
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use http_body_util::{combinators::BoxBody, BodyExt, Full};
@@ -73,27 +78,44 @@ fn denied(msg: &str) -> Response<Body> {
 }
 
 async fn handle(
-    client: Client<HttpConnector, Incoming>,
-    upstream: String,
-    mut req: Request<Incoming>,
+    client: Client<HttpConnector, Full<Bytes>>,
+    upstreams: Arc<Vec<String>>,
+    req: Request<Incoming>,
 ) -> Result<Response<Body>, Infallible> {
     if let Some(msg) = refusal(req.method(), req.uri()) {
         eprintln!("s3-guard: refused {} {}", req.method(), req.uri());
         return Ok(denied(msg));
     }
     let pq = req.uri().path_and_query().map(|p| p.as_str().to_string()).unwrap_or_else(|| "/".into());
-    let uri: Uri = format!("http://{upstream}{pq}").parse().unwrap();
-    *req.uri_mut() = uri;
-    match client.request(req).await {
-        Ok(resp) => Ok(resp.map(|b| b.boxed())),
-        Err(e) => {
-            eprintln!("s3-guard: upstream error: {e}");
-            Ok(Response::builder()
-                .status(StatusCode::BAD_GATEWAY)
-                .body(Full::new(Bytes::from_static(b"upstream error")).map_err(|n: Infallible| match n {}).boxed())
-                .unwrap())
+    let (parts, body) = req.into_parts();
+    let body = match body.collect().await {
+        Ok(b) => b.to_bytes(),
+        Err(e) => return Ok(error(StatusCode::BAD_REQUEST, &format!("request body: {e}"))),
+    };
+    let mut last = String::new();
+    for up in upstreams.iter() {
+        let mut r = Request::from_parts(parts.clone(), Full::new(body.clone()));
+        *r.uri_mut() = format!("http://{up}{pq}").parse().unwrap();
+        match client.request(r).await {
+            Ok(resp) => return Ok(resp.map(|b| b.boxed())),
+            // Only a refused or failed connection moves on: a request that reached a node
+            // may have had an effect, and its reply is that node's answer.
+            Err(e) if e.is_connect() => last = format!("{up}: {e}"),
+            Err(e) => {
+                eprintln!("s3-guard: upstream {up} error: {e}");
+                return Ok(error(StatusCode::BAD_GATEWAY, "upstream error"));
+            }
         }
     }
+    eprintln!("s3-guard: no upstream reachable ({last})");
+    Ok(error(StatusCode::BAD_GATEWAY, "no upstream reachable"))
+}
+
+fn error(status: StatusCode, msg: &str) -> Response<Body> {
+    Response::builder()
+        .status(status)
+        .body(Full::new(Bytes::from(msg.to_string())).map_err(|n: Infallible| match n {}).boxed())
+        .unwrap()
 }
 
 #[tokio::main]
@@ -110,13 +132,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
     let listener = TcpListener::bind(listen).await?;
     eprintln!("s3-guard: listening on {listen}, upstream {upstream}");
-    let client: Client<HttpConnector, Incoming> = Client::builder(TokioExecutor::new()).build_http();
+    let client: Client<HttpConnector, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
+    let upstreams: Arc<Vec<String>> = Arc::new(upstream.split(',').map(str::to_string).collect());
     loop {
         let (stream, _) = listener.accept().await?;
         let client = client.clone();
-        let upstream = upstream.clone();
+        let upstreams = upstreams.clone();
         tokio::spawn(async move {
-            let svc = service_fn(move |req| handle(client.clone(), upstream.clone(), req));
+            let svc = service_fn(move |req| handle(client.clone(), upstreams.clone(), req));
             if let Err(e) = http1::Builder::new().serve_connection(TokioIo::new(stream), svc).await {
                 eprintln!("s3-guard: connection error: {e}");
             }

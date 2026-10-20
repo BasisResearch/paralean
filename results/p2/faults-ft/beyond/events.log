@@ -1,0 +1,50 @@
+[23:58:59] writes ok and fault tolerance >= 2 after 0 s
+[23:59:04] garage nodes up: 3 of 3
+[23:59:14] FAULT kill fdbservers 0, 1, 2 (three of five coordinators: beyond tolerance)
+KILL fdbserver-0
+KILL fdbserver-1
+KILL fdbserver-2
+[23:59:25] acks 5 s into the outage: 188; tolerance -1
+[23:59:45] a read during the outage: exit 124 (124: no answer after 20 s)
+[00:00:10] acks 30 s into the outage: 188
+[00:00:10] no effect acknowledged during the outage
+started fdbserver-0 (127.0.0.1:21100)
+started fdbserver-1 (127.0.0.1:21101)
+started fdbserver-2 (127.0.0.1:21102)
+[00:00:40] writes ok and fault tolerance >= 2 after 30 s
+[00:00:53] acknowledged effects logged: 371
+acknowledged effects present: {"assign": 55, "group": 142, "rank": 110, "record": 34, "tombstone": 30}; lost: 0
+certified groups   142
+committed records  34
+markers            142
+object certs       492
+received evidence  0
+records            34
+targets            3
+tombstones         30
+uncertified markers 0
+audit ok
+[00:01:21] FAULT kill garage-1 and garage-2 (beyond replication 3 / quorum 2)
+KILL garage-1
+KILL garage-2
+[00:01:40] publish with one Garage node: exit 2 (paralean-p2: s3: PUT faults-beyond-1791331139/obj/group/626a81d106af061543c26a7b0ab12d69f9d09f57b2ca4dc852f3ac834aa1ffa7 not acknowledged after 8 attempts: serv)
+[00:01:50] verified read of an acknowledged group with one Garage node: exit 2 (paralean-p2: s3: GET faults-beyond-1791331139/obj/group/4ec978c3736898105225c77d7552d9a0d1ef9e3531eee72ede961df003686e14 failed: service error: unhandled error )
+[00:01:50] no marker written while payloads could not be acknowledged (142 markers)
+started garage-1
+started garage-2
+[00:02:00] the same publish after recovery: ok
+[00:02:00] acknowledged effects logged: 371
+acknowledged effects present: {"assign": 55, "group": 142, "rank": 110, "record": 34, "tombstone": 30}; lost: 0
+certified groups   143
+committed records  34
+markers            143
+object certs       492
+received evidence  0
+records            34
+targets            3
+tombstones         30
+uncertified markers 0
+audit ok
+probe: 126 probes, 113 ok (89.7%), longest failed run 13 probes; latency ok p50 68 ms, max 4745 ms
+  unavailable from 23:59:20 for about 79 s
+[00:02:24] phase beyond: PASS
