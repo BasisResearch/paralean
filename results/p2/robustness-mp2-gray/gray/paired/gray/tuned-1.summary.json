@@ -1,0 +1,15 @@
+{
+  "probes": 22,
+  "failed_probes": 2,
+  "max_probe_duration_s": 8.05,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465253020315275,
+      "last_failed_end_ns": 1792465268835626475,
+      "failed_samples": 2,
+      "observed_failure_span_s": 15.815,
+      "last_ok_to_next_ok_s": 17.902
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}

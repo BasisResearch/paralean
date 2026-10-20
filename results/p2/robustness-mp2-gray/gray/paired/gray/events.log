@@ -1,0 +1,212 @@
+2026-10-20T02:57:26Z restart fdbserver-0 with default failure detection delay
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:24100)
+2026-10-20T02:57:27Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T02:57:27Z restart fdbserver-1 with default failure detection delay
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:24101)
+2026-10-20T02:57:33Z healthy: write and fault tolerance >=2 after 6 s
+2026-10-20T02:57:33Z restart fdbserver-2 with default failure detection delay
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:24102)
+2026-10-20T02:57:35Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T02:57:35Z restart fdbserver-3 with default failure detection delay
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:24103)
+2026-10-20T02:57:35Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T02:57:35Z restart fdbserver-4 with default failure detection delay
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:24104)
+2026-10-20T02:57:36Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T02:57:36Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T02:57:41Z baseline-1: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T02:57:57Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T02:58:02Z baseline-1: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T02:58:20Z healthy: write and fault tolerance >=2 after 3 s
+{
+  "probes": 22,
+  "failed_probes": 2,
+  "max_probe_duration_s": 8.04,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465082900001768,
+      "last_failed_end_ns": 1792465098280029132,
+      "failed_samples": 2,
+      "observed_failure_span_s": 15.38,
+      "last_ok_to_next_ok_s": 17.47
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T02:58:26Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T02:58:31Z baseline-2: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T02:58:46Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T02:58:51Z baseline-2: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T02:59:08Z healthy: write and fault tolerance >=2 after 2 s
+{
+  "probes": 19,
+  "failed_probes": 3,
+  "max_probe_duration_s": 8.047,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465111467359435,
+      "last_failed_end_ns": 1792465119514007697,
+      "failed_samples": 1,
+      "observed_failure_span_s": 8.047,
+      "last_ok_to_next_ok_s": 15.914
+    },
+    {
+      "first_failed_start_ns": 1792465131823532318,
+      "last_failed_end_ns": 1792465146727528825,
+      "failed_samples": 2,
+      "observed_failure_span_s": 14.904,
+      "last_ok_to_next_ok_s": 17.131
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T02:59:14Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T02:59:19Z baseline-3: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T02:59:35Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T02:59:40Z baseline-3: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T02:59:58Z healthy: write and fault tolerance >=2 after 3 s
+{
+  "probes": 19,
+  "failed_probes": 3,
+  "max_probe_duration_s": 8.05,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465160369567448,
+      "last_failed_end_ns": 1792465168408594128,
+      "failed_samples": 1,
+      "observed_failure_span_s": 8.039,
+      "last_ok_to_next_ok_s": 15.924
+    },
+    {
+      "first_failed_start_ns": 1792465180587192087,
+      "last_failed_end_ns": 1792465196203039566,
+      "failed_samples": 2,
+      "observed_failure_span_s": 15.616,
+      "last_ok_to_next_ok_s": 17.714
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T03:00:03Z restart fdbserver-0 with failure_detection_delay=1.0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:24100)
+2026-10-20T03:00:17Z healthy: write and fault tolerance >=2 after 14 s
+2026-10-20T03:00:17Z restart fdbserver-1 with failure_detection_delay=1.0
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:24101)
+2026-10-20T03:00:23Z healthy: write and fault tolerance >=2 after 6 s
+2026-10-20T03:00:23Z restart fdbserver-2 with failure_detection_delay=1.0
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:24102)
+2026-10-20T03:00:24Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T03:00:24Z restart fdbserver-3 with failure_detection_delay=1.0
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:24103)
+2026-10-20T03:00:26Z healthy: write and fault tolerance >=2 after 2 s
+2026-10-20T03:00:26Z restart fdbserver-4 with failure_detection_delay=1.0
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:24104)
+2026-10-20T03:00:26Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:00:27Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T03:00:32Z tuned-1: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:00:47Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:00:52Z tuned-1: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:01:10Z healthy: write and fault tolerance >=2 after 3 s
+{
+  "probes": 22,
+  "failed_probes": 2,
+  "max_probe_duration_s": 8.05,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465253020315275,
+      "last_failed_end_ns": 1792465268835626475,
+      "failed_samples": 2,
+      "observed_failure_span_s": 15.815,
+      "last_ok_to_next_ok_s": 17.902
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T03:01:16Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:01:21Z tuned-2: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:01:36Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:01:42Z tuned-2: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:01:59Z healthy: write and fault tolerance >=2 after 2 s
+{
+  "probes": 20,
+  "failed_probes": 3,
+  "max_probe_duration_s": 8.045,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465281966949784,
+      "last_failed_end_ns": 1792465290011493995,
+      "failed_samples": 1,
+      "observed_failure_span_s": 8.045,
+      "last_ok_to_next_ok_s": 15.95
+    },
+    {
+      "first_failed_start_ns": 1792465302232217480,
+      "last_failed_end_ns": 1792465317142022076,
+      "failed_samples": 2,
+      "observed_failure_span_s": 14.91,
+      "last_ok_to_next_ok_s": 16.999
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T03:02:05Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:02:10Z tuned-3: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:02:26Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T03:02:31Z tuned-3: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:02:49Z healthy: write and fault tolerance >=2 after 3 s
+{
+  "probes": 19,
+  "failed_probes": 3,
+  "max_probe_duration_s": 8.071,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465331248328304,
+      "last_failed_end_ns": 1792465339319825061,
+      "failed_samples": 1,
+      "observed_failure_span_s": 8.071,
+      "last_ok_to_next_ok_s": 15.993
+    },
+    {
+      "first_failed_start_ns": 1792465351563113940,
+      "last_failed_end_ns": 1792465367119801716,
+      "failed_samples": 2,
+      "observed_failure_span_s": 15.557,
+      "last_ok_to_next_ok_s": 17.631
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}

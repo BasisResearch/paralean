@@ -1,0 +1,124 @@
+{
+  "trials": {
+    "fast-1": {
+      "unassociated_failure_windows": [],
+      "stop": {
+        "failed_samples": 0,
+        "observed_windows": 0,
+        "max_success_bracket_s": null,
+        "max_successful_probe_latency_s": 3.14,
+        "windows": []
+      },
+      "split": {
+        "failed_samples": 4,
+        "observed_windows": 1,
+        "max_success_bracket_s": 43.803,
+        "max_successful_probe_latency_s": null,
+        "windows": [
+          {
+            "first_failed_start_ns": 1792465434786902070,
+            "last_failed_end_ns": 1792465469976113759,
+            "failed_samples": 4,
+            "first_to_last_failed_s": 35.189,
+            "success_bracket_s": 43.803
+          }
+        ]
+      }
+    },
+    "fast-2": {
+      "unassociated_failure_windows": [],
+      "stop": {
+        "failed_samples": 0,
+        "observed_windows": 0,
+        "max_success_bracket_s": null,
+        "max_successful_probe_latency_s": 4.244,
+        "windows": []
+      },
+      "split": {
+        "failed_samples": 4,
+        "observed_windows": 1,
+        "max_success_bracket_s": 43.709,
+        "max_successful_probe_latency_s": null,
+        "windows": [
+          {
+            "first_failed_start_ns": 1792465512794293303,
+            "last_failed_end_ns": 1792465548004652600,
+            "failed_samples": 4,
+            "first_to_last_failed_s": 35.21,
+            "success_bracket_s": 43.709
+          }
+        ]
+      }
+    },
+    "fast-3": {
+      "unassociated_failure_windows": [],
+      "stop": {
+        "failed_samples": 0,
+        "observed_windows": 0,
+        "max_success_bracket_s": null,
+        "max_successful_probe_latency_s": 6.224,
+        "windows": []
+      },
+      "split": {
+        "failed_samples": 4,
+        "observed_windows": 1,
+        "max_success_bracket_s": 43.643,
+        "max_successful_probe_latency_s": 0.054,
+        "windows": [
+          {
+            "first_failed_start_ns": 1792465587428415983,
+            "last_failed_end_ns": 1792465622630833324,
+            "failed_samples": 4,
+            "first_to_last_failed_s": 35.202,
+            "success_bracket_s": 43.643
+          }
+        ]
+      }
+    }
+  },
+  "aggregate": {
+    "fast": {
+      "stop": {
+        "trials": 3,
+        "failed_samples": [
+          0,
+          0,
+          0
+        ],
+        "max_success_bracket_s": [
+          null,
+          null,
+          null
+        ],
+        "max_successful_probe_latency_s": [
+          3.14,
+          4.244,
+          6.224
+        ],
+        "median_bracket_s": null,
+        "median_observed_bracket_s": null
+      },
+      "split": {
+        "trials": 3,
+        "failed_samples": [
+          4,
+          4,
+          4
+        ],
+        "max_success_bracket_s": [
+          43.803,
+          43.709,
+          43.643
+        ],
+        "max_successful_probe_latency_s": [
+          null,
+          null,
+          0.054
+        ],
+        "median_bracket_s": 43.709,
+        "median_observed_bracket_s": 43.709
+      }
+    }
+  },
+  "caveat": "A null bracket means the failed window lacks bounding successful calls, or no failure was sampled; inspect failed_samples to distinguish these. Timeouts bound outages only between adjacent successful completions. Calls are serial with variable duration; unassociated failures are reported separately."
+}

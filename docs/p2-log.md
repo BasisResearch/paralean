@@ -622,6 +622,46 @@ has not yet been incorporated; the results below do not claim a merged-code gate
   links. It blackholes crossing links, including existing connections, and closes
   them on healing. Six unit/TCP tests pass. Integration into the instance scripts
   and a live Garage partition run are still pending.
-- **Fault studies and cluster gates.** In progress on private `mp2-*` instances.
-  Measurements, permanent-loss exercises and SIGSEGV diagnosis are not yet
-  results. No existing instance is used or modified.
+- **Fault studies and cluster gates.** The gray-failure study and permanent
+  coordinator-loss results are below. Garage runs, merged-code gates and SIGSEGV
+  diagnosis remain in progress on private `mp2-*` instances. No existing instance
+  is used or modified.
+
+### Independent fault-study results
+
+FDB 7.3.79, private `mp2-gray`, five processes with distinct zones, `triple`,
+five coordinators, through netsplit; no Garage or stress workers. Three trials
+per setting pause process 2 for 15 seconds, then partition process 3 for 15
+seconds, waiting for a committed probe and tolerance 2 between faults. Each
+serial read/write probe has an eight-second timeout and a one-second gap.
+Numbers below bracket observed unavailability between adjacent successful
+completions; they are not exact outage durations. No failed probe does not
+mean no stall.
+
+| Setting | SIGSTOP failed samples per trial | Partition failed samples per trial | Median partition success bracket |
+|---|---|---|---|
+| Pinned default failure delay 4.0 s | 0, 1, 1 | 2, 2, 2 | 17.470 s |
+| Failure delay 1.0 s | 0, 1, 1 | 2, 2, 2 | 17.631 s |
+| Delay 1.0 s, connection timeout 0.5 s, monitor interval 0.25 s | 0, 0, 0 | 4, 4, 4 | 43.709 s |
+
+The first candidate provides no demonstrated improvement. The aggressive
+candidate reduces sampled pause failures but substantially worsens partition
+recovery, so neither becomes the default. In the aggressive candidate's first
+partition, traces show 41.856 seconds in `recruiting_transaction_servers`,
+33 `RecruitStorageNotAvailable` events and 23 `RkSSListFetchTimeout` events.
+The dominant long recovery is recruitment, not just the initial failure delay.
+This experiment does not establish an optimal production tuning.
+
+Raw timing rows, fault timestamps, summaries and a trace excerpt are in
+`results/p2/robustness-mp2-gray/`; the method and reproduction commands are in
+`results/p2/robustness-study.md`. The timing analyzer was reviewed and its totals
+checked independently against the raw rows.
+
+**Permanent coordinator loss: pass.** Private `mp2-coord` used six FDB processes,
+five initial coordinators, distinct loopback IPs and zones, and `triple`.
+Coordinator `127.0.0.2:24200` was killed and never restarted. `coordinators auto`
+reported `Coordination state changed` and replaced the dead endpoint with
+`127.0.0.7:24205`. The pre-loss acknowledged value remained readable, and a new
+write/read succeeded. Artifacts: `results/p2/robustness-mp2-coord/coordinator/`.
+Distinct IPs let the single-host test exercise the automatic coordinator
+selection rule. Both FDB-only study instances were stopped afterward.
