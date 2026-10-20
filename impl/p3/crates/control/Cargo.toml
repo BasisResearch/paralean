@@ -53,6 +53,7 @@ mutate-unscoped-validator-slots = []
 mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-validator-checks-issuer-targets = []
+mutate-recover-every-tick = []
 
 [dev-dependencies]
 paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }

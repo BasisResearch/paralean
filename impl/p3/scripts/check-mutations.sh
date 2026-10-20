@@ -45,6 +45,7 @@ cases=(
   "mutate-unscoped-validator-slots|control|validator_slots_are_scoped_by_issuer_and_workspace"
   "mutate-attached-validation|control|dropped_validation_still_finishes_and_releases_its_resources"
   "mutate-validator-checks-issuer-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
+  "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
 )
 fail=0
 for c in "${cases[@]}"; do

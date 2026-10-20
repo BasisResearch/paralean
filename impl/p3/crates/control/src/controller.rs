@@ -172,6 +172,8 @@ struct State {
     next_validator: usize,
     groups: Vec<StoredGroup>,
     recovery_cursor: Vec<u8>,
+    /// A recovery pass over J1 is under way (it starts on takeover and ends at the last page).
+    recovering: bool,
     poll_responses: BTreeMap<String, StoredPoll>,
 }
 
@@ -199,6 +201,8 @@ struct Snapshot {
     groups: Vec<StoredGroup>,
     #[serde(default)]
     recovery_cursor: Vec<u8>,
+    #[serde(default)]
+    recovering: bool,
     #[serde(default)]
     poll_responses: BTreeMap<String, StoredPoll>,
 }
@@ -258,7 +262,7 @@ impl State {
         Snapshot {
             workers: self.workers.iter().map(|(id, i)| (id.hex(), StoredWorker { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive })).collect(),
             work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts })).collect(),
-            order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), poll_responses: self.poll_responses.clone(),
+            order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), recovering: self.recovering, poll_responses: self.poll_responses.clone(),
         }
     }
     fn restore(&mut self, s: Snapshot) {
@@ -268,6 +272,7 @@ impl State {
         self.next_validator = s.next_validator;
         self.groups = s.groups;
         self.recovery_cursor = s.recovery_cursor;
+        self.recovering = s.recovering;
         self.poll_responses = s.poll_responses;
     }
 }
@@ -405,15 +410,34 @@ impl ControlPlane {
         self.durable.save(&bytes, term).await
     }
 
+    /// True on the first operation of a new term: this replica just took the lease. A
+    /// takeover starts one recovery pass over J1 (`recover_pending`).
     fn on_leadership(&self, term: u64) -> bool {
-        self.seen_term.swap(term, Ordering::SeqCst) != term
+        let takeover = self.seen_term.swap(term, Ordering::SeqCst) != term;
+        if takeover {
+            let mut state = self.state.lock().unwrap();
+            state.recovering = true;
+            state.recovery_cursor.clear();
+        }
+        takeover
     }
 
+    /// One page of the recovery pass a takeover started: re-dispatch envelopes (J1) with
+    /// no receipt (J2) and no cancellation (J3), whose client may be gone with the old
+    /// leader. The pass ends after the last page; each envelope is recovered at most
+    /// `validator_attempts` times over all takeovers (a durable count), so an envelope
+    /// no validator can decide is not re-dispatched forever.
     async fn recover_pending(self: &Arc<Self>) {
+        let every_tick = cfg!(feature = "mutate-recover-every-tick");
+        let (cursor, recovering) = {
+            let state = self.state.lock().unwrap();
+            (state.recovery_cursor.clone(), state.recovering)
+        };
+        if !recovering && !every_tick { return }
+        let Ok(Some(lease)) = self.durable.current().await else { return };
         let sub = self.cfg.store.meta.keys.sub("jobreq");
-        let cursor = self.state.lock().unwrap().recovery_cursor.clone();
         let (begin, end) = sub.range();
-        let start = if cursor.is_empty() { KeySelector::first_greater_or_equal(begin) } else { KeySelector::first_greater_than(cursor) };
+        let start = if cursor.is_empty() { KeySelector::first_greater_or_equal(begin) } else { KeySelector::first_greater_than(cursor.clone()) };
         let opt = RangeOption {
             limit: Some(128), mode: StreamingMode::WantAll,
             ..RangeOption::from((start, KeySelector::first_greater_or_equal(end)))
@@ -424,19 +448,40 @@ impl ControlPlane {
         {
             let mut state = self.state.lock().unwrap();
             state.recovery_cursor = if page.more() { jobs.last().map(|(key, _)| key.clone()).unwrap_or_default() } else { Vec::new() };
+            state.recovering = page.more();
         }
-        for (_, bytes) in jobs {
+        let mut previous = cursor;
+        for (key, bytes) in jobs {
+            let resume_here = previous.clone();
+            previous = key;
             let Ok(job) = SignedJob::from_bytes(&bytes) else { continue };
             if !job.verify(&self.cfg.authority.public()) { continue }
             let worker = job.body.worker;
             let req = job_key(&worker, &job.body.request);
             if self.cfg.store.meta.get(self.cfg.store.meta.keys.job_receipt(&worker, &job.body.request)).await.ok().flatten().is_some() { continue }
             if self.cfg.store.meta.is_cancelled(&worker, &job.body.request).await.unwrap_or(true) { continue }
+            {
+                let mut state = self.state.lock().unwrap();
+                if state.inflight.contains_key(&req) { continue }
+                if state.inflight.len() >= self.cfg.max_validations {
+                    // Full: resume at this envelope on a later tick.
+                    state.recovery_cursor = resume_here;
+                    state.recovering = true;
+                    break;
+                }
+            }
+            if !every_tick {
+                let limit = self.cfg.validator_attempts.max(1) as u64;
+                match self.durable.count_recovery(&worker, &job.body.request, limit, lease.term).await {
+                    Ok(true) => {}
+                    Ok(false) => continue,
+                    Err(_) => return,
+                }
+            }
             let (tx, rx) = watch::channel(None);
             let (ctx, crx) = watch::channel(false);
             {
                 let mut state = self.state.lock().unwrap();
-                if state.inflight.len() >= self.cfg.max_validations { break }
                 if state.inflight.contains_key(&req) { continue }
                 state.inflight.insert(req.clone(), Inflight { job: job.id(), result: rx, cancel: ctx });
             }

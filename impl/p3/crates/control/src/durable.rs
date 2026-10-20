@@ -59,6 +59,37 @@ impl Durable {
         self.store.meta.keys.root.pack(&("controller", "group-request", foundationdb::tuple::Bytes::from(&hash[..])))
     }
 
+    fn recovery_key(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+        let mut id = worker.0.to_vec();
+        id.extend_from_slice(request);
+        self.store.meta.keys.root.pack(&("controller", "recovery", foundationdb::tuple::Bytes::from(&sha256(&id)[..])))
+    }
+
+    /// Count one recovery dispatch of (`worker`, `request`) if fewer than `limit` happened
+    /// so far (over all leaders); false when the envelope has used them all.
+    pub async fn count_recovery(&self, worker: &WorkspaceId, request: &[u8], limit: u64, term: u64) -> Result<bool, String> {
+        let key = self.recovery_key(worker, request);
+        let lk = self.lease_key();
+        let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
+        for _ in 0..60 {
+            let Some(lease) = Self::read_lease(&trx, &lk).await? else { return Err("controller lost lease".into()) };
+            if lease.holder != self.holder || lease.term != term || lease.until_ms <= now_ms() {
+                return Err("controller lost lease".into());
+            }
+            let used = match trx.get(&key, false).await.map_err(|e| e.to_string())? {
+                Some(v) => u64::from_be_bytes(v[..].try_into().map_err(|_| "bad recovery count")?),
+                None => 0,
+            };
+            if used >= limit { return Ok(false) }
+            trx.set(&key, &(used + 1).to_be_bytes());
+            match trx.commit().await {
+                Ok(_) => return Ok(true),
+                Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
+            }
+        }
+        Err("recovery count outcome unresolved".into())
+    }
+
     pub async fn group_request(&self, request: &str) -> Result<Option<GroupRequest>, String> {
         self.store.meta.get(self.group_request_key(request)).await.map_err(|e| e.to_string())?
             .map(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string())).transpose()

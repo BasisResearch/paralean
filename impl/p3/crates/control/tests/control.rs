@@ -295,6 +295,59 @@ async fn request_ids_are_scoped_per_workspace() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn inconclusive_recovery_is_bounded() {
+    // An envelope (J1) whose client is gone and that no validator decides: a validator
+    // address that accepts and drops every connection. Each takeover re-dispatches it once,
+    // not on every lease tick, and only `validator_attempts` times over all leaders.
+    let cfg = StoreConfig::from_env(&deployment("recover")).unwrap();
+    let kf = KeyFile::demo(2);
+    let store = Store::open(&cfg, kf.ring(), Faults::none()).unwrap();
+    let authority = kf.authority_signer().unwrap();
+    let sink = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let sink_addr = sink.local_addr().unwrap().to_string();
+    let accepted = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let count = accepted.clone();
+    let sink_task = tokio::spawn(async move {
+        loop {
+            let Ok((sock, _)) = sink.accept().await else { continue };
+            count.fetch_add(1, Ordering::SeqCst);
+            drop(sock);
+        }
+    });
+    let (worker, _) = kf.workspace("w0").unwrap();
+    let job = paralean_store::receipt::SignedJob::sign(paralean_store::receipt::JobEnvelope {
+        request: b"recover/lost-client".to_vec(), group: Id([1; 32]), capsule: Id([2; 32]), deps: vec![],
+        base: Id([3; 32]), policy: Id([4; 32]), checker: Id([5; 32]), worker, targets: vec![],
+        deadline_ms: 1000, memory_mb: 0,
+    }, &authority);
+    store.meta.issue_job(&job).await.unwrap();
+    let attempts = 2;
+    let leader = || paralean_control::controller::ControlPlane::new(paralean_control::controller::ControllerConfig {
+        store: store.clone(), authority: authority.clone(), validators: vec![sink_addr.clone()],
+        base: Id([3; 32]), policy: Id([4; 32]), checker: Id([5; 32]), lease: Duration::from_millis(500),
+        max_work_queue: 4, max_validations: 4, validation_deadline: Duration::from_secs(1), validation_memory_mb: 1024,
+        validator_attempts: attempts,
+    });
+    // One dispatch tries the one validator `attempts` times.
+    let per_dispatch = attempts;
+    let mut seen = Vec::new();
+    for _ in 0..3 {
+        let ctl = leader();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let serving = ctl.serve(listener);
+        // Many lease ticks (every 125 ms) under one leader.
+        tokio::time::sleep(Duration::from_millis(2500)).await;
+        serving.abort();
+        seen.push(accepted.load(Ordering::SeqCst));
+        // Let its lease lapse so the next replica takes over with a new term.
+        tokio::time::sleep(Duration::from_millis(700)).await;
+    }
+    sink_task.abort();
+    assert_eq!(seen, vec![per_dispatch, 2 * per_dispatch, 2 * per_dispatch],
+        "recovery dispatches per leader (cumulative connection counts)");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn dropped_validation_still_finishes_and_releases_its_resources() {
     // The RPC server drops a handler future at its execution limit (and a client may go
     // away). Two checks are dropped: one running, one waiting in the queue. Both still
