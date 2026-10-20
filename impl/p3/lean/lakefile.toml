@@ -1,0 +1,12 @@
+name = "paralean-warm-checker"
+version = "0.1.0"
+defaultTargets = ["paralean-warm"]
+
+[[require]]
+name = "paralean-p1"
+path = "../../p1"
+
+[[lean_exe]]
+name = "paralean-warm"
+root = "WarmMain"
+supportInterpreter = true

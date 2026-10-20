@@ -184,7 +184,7 @@ async fn receipt_under_an_unpinned_policy_fails_closed() {
         memory_mb: 0,
     };
     let j = SignedJob::sign(env, &c.kf.authority_signer().unwrap());
-    let resp = paralean_validator_api::validate(&c.vaddrs[0], &j, Duration::from_secs(300)).await.unwrap();
+    let resp = paralean_validator_api::validate(&c.vaddrs[0], &j, &c.kf.authority_signer().unwrap(), &[c.vsigners[0].public()], Duration::from_secs(300)).await.unwrap();
     let paralean_validator_api::ValidatorResponse::Receipt { receipt } = resp else { panic!("{resp:?}") };
     let r = paralean_validator_api::decode_receipt(&receipt).unwrap();
     assert_eq!((r.body.policy, r.body.verdict.clone()), (strict_policy().id(), Verdict::Accepted));
@@ -514,8 +514,10 @@ async fn job_issuer_keys_sign_target_free_envelopes_only() {
     };
     let ask = |j: SignedJob| {
         let addr = c.vaddrs[0].clone();
+        let authority = c.kf.authority_signer().unwrap();
+        let keys = vec![c.vsigners[0].public()];
         async move {
-            match paralean_validator_api::validate(&addr, &j, Duration::from_secs(300)).await.unwrap() {
+            match paralean_validator_api::validate(&addr, &j, &authority, &keys, Duration::from_secs(300)).await.unwrap() {
                 paralean_validator_api::ValidatorResponse::Receipt { receipt } => Ok(paralean_validator_api::decode_receipt(&receipt).unwrap()),
                 other => Err(other),
             }

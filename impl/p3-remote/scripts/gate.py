@@ -182,12 +182,19 @@ def main():
     vlog = open(os.path.join(R, "validator.log"), "w")
     val = subprocess.Popen([P3BIN, "validator", "--listen", os.environ["PARALEAN_VALIDATOR"], "--key", "v0",
                             "--workdir", os.path.join(R, "validator")], stdout=vlog, stderr=vlog)
+    controller_port = os.environ.get("PARALEAN_CONTROLLER_PORT", "18592")
+    os.environ["PARALEAN_CONTROLLER"] = f"127.0.0.1:{controller_port}"
+    clog = open(os.path.join(R, "controller.log"), "w")
+    controller = subprocess.Popen([P3BIN, "controller", "--listen", os.environ["PARALEAN_CONTROLLER"],
+                                   "--validators", os.environ["PARALEAN_VALIDATOR"], "--lease-ms", "300000"],
+                                  stdout=clog, stderr=clog)
     time.sleep(1.5)
-    log("deployment", os.environ["PARALEAN_DEPLOYMENT"], "validator pid", val.pid)
+    log("deployment", os.environ["PARALEAN_DEPLOYMENT"], "validator pid", val.pid, "controller pid", controller.pid)
     try:
         scenario(rogue)
     finally:
         val.terminate()
+        controller.terminate()
         RESULTS["_wall_s"] = round(time.time() - t0, 1)
         json.dump(RESULTS, open(os.path.join(R, "gate.json"), "w"), indent=2)
     fails = [k for k, v in RESULTS.items() if isinstance(v, dict) and not v["ok"]]
@@ -369,6 +376,9 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
     # ------------------------------------------------------------ 6: forged remote%
     forgery(alice, bob, carol, rogue)
 
+    # ------------------------------------------------------------ targets: one group owns two names; handover
+    target_scenario(alice, bob)
+
     # ------------------------------------------------------------ clean export (plan's P3 gate)
     ex = sh([BIN, "ws-export", "--dir", alice.dir, "--out", os.path.join(R, "alice-export")], env=alice.env(), check=False)
     exj = json.loads(ex.stdout.strip().splitlines()[-1]) if ex.stdout.strip() else {"ok": False, "err": ex.stderr[-500:]}
@@ -400,6 +410,79 @@ def snap_copy():
     c = Copy.__new__(Copy)
     c.name, c.agent, c.dir = "snapshot", "carol", os.path.join(R, "snapshot")
     return c
+
+
+def target_scenario(alice, bob):
+    def assign(names, worker):
+        return json.loads(sh([P3BIN, "assign-group", "--controller", os.environ["PARALEAN_CONTROLLER"],
+                              "--targets", ",".join(names), "--worker", worker]).stdout)
+
+    def record(name):
+        return json.loads(sh([PLR, "target-get", "--name", name]).stdout)
+
+    # An inductive command owns its type and constructors as one captured group.
+    alice.write("Targets.lean", open(os.path.join(HERE, "..", "fixtures", "Targets.lean")).read())
+    cap = json.loads(sh([BIN, "ws-capture", "--dir", alice.dir, "Targets.lean"], env=alice.env()).stdout.strip().splitlines()[-1])
+    group = next((p for p in cap["packages"] if "Targets.Choice" in p["names"]), None)
+    if group is None or len(group["names"]) < 2:
+        result("targets: two names in one group", False, capture=cap)
+        return
+    names = ["Targets.Choice", next(n for n in group["names"] if n != "Targets.Choice")]
+    assignment = assign(names, "alice")
+    p = alice.publish("Targets.lean", env={"PARALEAN_TARGETS": ",".join(names)})
+    head = [record(n) for n in names]
+    revision_ids = (p.get("publish") or [[{}]])[-1][0].get("revisions", [])
+    both = (len(published(p)) == 1 and len(revision_ids) >= 2 and
+            all(r["head"] in revision_ids for r in head) and head[0]["head"] != head[1]["head"])
+    result("targets: one group declares two owned names", both,
+           names=names, assignment=assignment, heads=head, published=published(p))
+
+    # Pause the old owner after receiving a controller-issued receipt. A T4 handover
+    # moves the epoch while its proof remains pending; T1 must reject that proof.
+    alice.write("Pending.lean", open(os.path.join(HERE, "..", "fixtures", "Pending.lean")).read())
+    assign(["Targets.pending"], "alice")
+    flag = os.path.join(R, "resume-target-owner")
+    env = dict(os.environ, PARALEAN_TARGETS="Targets.pending", PARALEAN_PAUSE_BEFORE_PLAN=flag)
+    proc = subprocess.Popen([WS, "publish", alice.dir, "Pending.lean"], env=env,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    deadline = time.time() + 600
+    while not os.path.exists(flag + ".waiting") and proc.poll() is None and time.time() < deadline:
+        time.sleep(0.2)
+    pending = os.path.exists(flag + ".waiting")
+    if pending:
+        assign(["Targets.pending"], "bob")
+    open(flag, "w").close()
+    out, err = proc.communicate(timeout=30)
+    old = lines_json(out)
+    rejected = old.get("publish_rejected", [])
+    state = record("Targets.pending")
+    stale = (pending and any("stale epoch" in r.get("reason", "").lower() or
+                             "not owner" in r.get("reason", "").lower() for r in rejected) and
+             state["head"] is None and state["owner"] != record(names[0])["owner"])
+    result("targets: handover rejects an old owner with a pending proof", stale,
+           old_owner_rejection=rejected, target_record=state, old_owner_output=err[-300:])
+
+    bob.write("Pending.lean", open(os.path.join(HERE, "..", "fixtures", "Pending.lean")).read())
+    fresh = bob.publish("Pending.lean", env={"PARALEAN_TARGETS": "Targets.pending"})
+    current = record("Targets.pending")
+    new_revisions = (fresh.get("publish") or [[{}]])[-1][0].get("revisions", [])
+    result("targets: new owner publishes after handover", len(published(fresh)) == 1 and
+           current["head"] in new_revisions, head=current, published=published(fresh))
+
+    # The recorded head survives a second handover. The next proof must name that
+    # revision as its parent, and T1 replaces the head in the same transaction.
+    assign(["Targets.pending"], "alice")
+    alice.sync()
+    alice.write("Pending.lean", open(os.path.join(HERE, "..", "fixtures", "PendingRevision.lean")).read())
+    revised = alice.publish("Pending.lean", env={"PARALEAN_TARGETS": "Targets.pending"})
+    after = record("Targets.pending")
+    new_revisions = (revised.get("publish") or [[{}]])[-1][0].get("revisions", [])
+    rev_path = os.path.join(alice.dir, "cache", "p3", "revisions", (after["head"] or "") + ".json")
+    revision_record = json.load(open(rev_path)) if os.path.exists(rev_path) else {}
+    result("targets: handover revision compares and advances the recorded head",
+           len(published(revised)) == 1 and after["head"] in new_revisions and
+           current["head"] in revision_record.get("parents", []),
+           previous_head=current["head"], new_head=after["head"], revision=revision_record)
 
 
 def forgery(alice, bob, carol, rogue):

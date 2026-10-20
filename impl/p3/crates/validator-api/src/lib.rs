@@ -22,7 +22,7 @@ pub mod rpc;
 use std::time::Duration;
 
 use paralean_store::receipt::{check, SignedJob};
-use paralean_store::{GuardFailure, Id, Receipt, Store, StoreError};
+use paralean_store::{GuardFailure, Id, Receipt, Signer, Store, StoreError};
 use serde::{Deserialize, Serialize};
 
 pub use paralean_store::receipt;
@@ -33,6 +33,9 @@ pub use paralean_store::receipt;
 pub enum ValidatorRequest {
     /// Check the job's group. `job` is the `Signed<JobEnvelope>` bytes.
     Validate { job: String },
+    /// Check a bounded, dependency-ordered batch. Earlier accepted jobs may supply
+    /// unpublished dependencies to later jobs; every output is a separately bound receipt.
+    ValidateBatch { jobs: Vec<String> },
     /// Stop a running or queued check of this request (its checker process is killed).
     Cancel { request: String },
     Status,
@@ -43,6 +46,7 @@ pub enum ValidatorRequest {
 pub enum ValidatorResponse {
     /// A signed receipt (`Signed<ReceiptBody>` bytes), accepted or rejected.
     Receipt { receipt: String },
+    Batch { responses: Vec<ValidatorResponse> },
     /// No verdict: deadline passed, memory limit hit, checker crashed, inputs unavailable.
     Inconclusive { reason: String },
     /// The envelope is not one this validator checks (signature, checker version, policy,
@@ -62,8 +66,10 @@ pub enum ValidatorResponse {
 }
 
 /// Send an envelope to the validator at `addr`.
-pub async fn validate(addr: &str, job: &SignedJob, timeout: Duration) -> std::io::Result<ValidatorResponse> {
-    rpc::call(addr, &ValidatorRequest::Validate { job: hex::encode(job.to_bytes()) }, timeout).await
+pub async fn validate(
+    addr: &str, job: &SignedJob, signer: &Signer, validator_keys: &[[u8; 32]], timeout: Duration,
+) -> std::io::Result<ValidatorResponse> {
+    rpc::call_authenticated_any(addr, &ValidatorRequest::Validate { job: hex::encode(job.to_bytes()) }, signer, validator_keys, timeout).await
 }
 
 /// Decode a receipt returned by [`validate`].

@@ -259,7 +259,19 @@ impl Cluster {
     }
 
     pub async fn call(&self, req: ControlRequest) -> ControlResponse {
-        rpc::call(&self.ctl_addr, &req, Duration::from_secs(600)).await.unwrap()
+        let authority = self.kf.authority_signer().unwrap();
+        let worker = match &req {
+            ControlRequest::Register { worker, .. }
+            | ControlRequest::Heartbeat { worker }
+            | ControlRequest::Poll { worker }
+            | ControlRequest::Finish { worker, .. }
+            | ControlRequest::Validate { worker, .. } => Some(worker),
+            _ => None,
+        };
+        let signer = worker
+            .and_then(|id| self.kf.workspaces.iter().find(|(_, e)| &e.id == id).and_then(|(name, _)| self.kf.workspace(name).map(|(_, s)| s)))
+            .unwrap_or(authority.clone());
+        rpc::call_authenticated(&self.ctl_addr, &req, &signer, &authority.public(), Duration::from_secs(600)).await.unwrap()
     }
 
     /// The same deployment seen through another key ring (rotation, retirement).

@@ -11,6 +11,9 @@
 Environment (impl/p3-remote/scripts/env.sh): PARALEAN_BIN, PARALEAN_PLR, PARALEAN_KEYS (at
 init, the copy takes keys-<agent>.json from its directory: own seeds only),
 PARALEAN_TRUST, PARALEAN_DEPLOYMENT, PARALEAN_VALIDATOR (host:port), and the store's.
+For target proofs, set PARALEAN_CONTROLLER. Every captured public name is looked up
+in the target registry; target groups are sent to the controller. PARALEAN_TARGETS
+may supply optional pinned statement hashes as NAME:STATEMENT_HASH entries.
 Each step is a separate process; nothing is shared between copies except the store.
 Prints one JSON object per step on stdout (prefixed by the step name).
 """
@@ -78,9 +81,22 @@ def publish(d, file):
     for p in cap["packages"]:
         pkg = f'{p["group"]}:{p["capsule"]}'
         run([PLR, "stage", "--cache", cache(d), "--pkg", pkg], d)
-        v = run([PLR, "validate", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"],
-                 "--validator", os.environ["PARALEAN_VALIDATOR"], "--pkg", pkg, "--deps", ",".join(p["deps"])], d,
-                check=False)
+        named = {s.split(":", 1)[0]: s for s in os.environ.get("PARALEAN_TARGETS", "").split(",") if s}
+        if named and not os.environ.get("PARALEAN_CONTROLLER"):
+            raise SystemExit("PARALEAN_TARGETS requires PARALEAN_CONTROLLER")
+        selected = []
+        if os.environ.get("PARALEAN_CONTROLLER"):
+            for n in p["names"]:
+                rec = run([PLR, "target-get", "--name", n], d)
+                if rec["exists"]:
+                    selected.append(named.get(n, n))
+                elif n in named:
+                    raise SystemExit(f"target {n} has no controller assignment")
+        cmd = [PLR, "validate", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"],
+               "--validator", os.environ["PARALEAN_VALIDATOR"], "--pkg", pkg, "--deps", ",".join(p["deps"])]
+        if selected:
+            cmd += ["--controller", os.environ["PARALEAN_CONTROLLER"], "--targets", ",".join(selected)]
+        v = run(cmd, d, check=False)
         if "error" in v:
             # no receipt (refused, inconclusive): the group stays a draft
             v = {"accepted": False, "reason": v["error"]}
@@ -101,7 +117,18 @@ def publish(d, file):
         emit("plan", pl)
         if pl.get("planned", 0) == 0:
             continue
-        pub = run([PLR, "publish", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"], "--plan", plan], d)
+        if selected:
+            entries = json.load(open(plan))
+            for entry in entries:
+                if entry["group"] == p["group"]:
+                    entry["targets"] = v["targets"]
+            with open(plan, "w") as f:
+                json.dump(entries, f)
+        pub = run([PLR, "publish", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"], "--plan", plan], d,
+                  check=False)
+        if "error" in pub:
+            emit("publish_rejected", {"group": p["group"], "reason": pub["error"]})
+            continue
         emit("publish", pub)
         run([PLR, "pull", "--cache", cache(d), "--only", p["group"]], d)
         published.append(p["group"])

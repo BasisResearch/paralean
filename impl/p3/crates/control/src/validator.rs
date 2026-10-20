@@ -59,6 +59,7 @@ pub struct Validator {
     running: AtomicUsize,
     /// Checks that ran the checker to a verdict (for deduplication tests).
     pub checks_run: AtomicU64,
+    pub warm_pool: checker::WarmPool,
 }
 
 impl Validator {
@@ -73,6 +74,7 @@ impl Validator {
             queued: AtomicUsize::new(0),
             running: AtomicUsize::new(0),
             checks_run: AtomicU64::new(0),
+            warm_pool: checker::WarmPool::default(),
         }))
     }
 
@@ -86,7 +88,20 @@ impl Validator {
     /// Serve on `listener`.
     pub fn serve(self: &Arc<Self>, listener: TcpListener) -> JoinHandle<()> {
         let v = self.clone();
-        crate::server::serve(listener, move |req: ValidatorRequest| {
+        let ring = self.cfg.store.ring.clone();
+        crate::server::serve_authenticated(listener, self.cfg.signer.clone(), move |req: &ValidatorRequest, key: &[u8;32]| {
+            if key == &ring.authority { return true; }
+            if !ring.job_issuers.contains(key) { return false; }
+            let issued = |encoded: &String| {
+                hex::decode(encoded).ok().and_then(|b| SignedJob::from_bytes(&b).ok())
+                    .map(|j| j.verify(key)).unwrap_or(false)
+            };
+            match req {
+                ValidatorRequest::Validate { job } => issued(job),
+                ValidatorRequest::ValidateBatch { jobs } => jobs.iter().all(issued),
+                _ => false,
+            }
+        }, move |req: ValidatorRequest| {
             let v = v.clone();
             async move { v.handle(req).await }
         })
@@ -100,6 +115,29 @@ impl Validator {
                     None => return refused("undecodable envelope"),
                 };
                 self.validate(job).await
+            }
+            ValidatorRequest::ValidateBatch { jobs } => {
+                if jobs.is_empty() || jobs.len() > 64 {
+                    return refused("batch must contain 1 to 64 jobs");
+                }
+                let mut accepted = BTreeMap::new();
+                let mut responses = Vec::with_capacity(jobs.len());
+                for encoded in jobs {
+                    let job = match hex::decode(&encoded).ok().and_then(|b| SignedJob::from_bytes(&b).ok()) {
+                        Some(j) => j,
+                        None => { responses.push(refused("undecodable envelope")); continue; }
+                    };
+                    let response = self.validate_with_dependencies(job.clone(), &accepted).await;
+                    if let ValidatorResponse::Receipt { receipt } = &response {
+                        if let Ok(r) = paralean_validator_api::decode_receipt(receipt) {
+                            if r.body.verdict == Verdict::Accepted {
+                                accepted.insert(job.body.group, (r, job));
+                            }
+                        }
+                    }
+                    responses.push(response);
+                }
+                ValidatorResponse::Batch { responses }
             }
             ValidatorRequest::Cancel { request } => {
                 let Ok(r) = hex::decode(&request) else { return refused("bad request ID") };
@@ -120,6 +158,12 @@ impl Validator {
 
     /// Check one envelope (deduplicated by request ID).
     pub async fn validate(self: &Arc<Self>, job: SignedJob) -> ValidatorResponse {
+        self.validate_with_dependencies(job, &BTreeMap::new()).await
+    }
+
+    async fn validate_with_dependencies(
+        self: &Arc<Self>, job: SignedJob, accepted: &BTreeMap<Id, (Receipt, SignedJob)>,
+    ) -> ValidatorResponse {
         let ring = self.cfg.store.ring.clone();
         if !job.issued_by(&ring) {
             return refused("envelope is not signed by the controller");
@@ -170,7 +214,7 @@ impl Validator {
             }
             Pre::Run(tx, crx) => (tx, crx),
         };
-        let r = self.process(&job, &policy, cancel_rx).await;
+        let r = self.process(&job, &policy, cancel_rx, accepted).await;
         let _ = tx.send(Some(r.clone()));
         if !matches!(r, ValidatorResponse::Receipt { .. }) {
             // Only receipts are kept: a retry of anything else checks again.
@@ -179,7 +223,8 @@ impl Validator {
         r
     }
 
-    async fn process(self: &Arc<Self>, job: &SignedJob, policy: &Policy, mut cancel: watch::Receiver<bool>) -> ValidatorResponse {
+    async fn process(self: &Arc<Self>, job: &SignedJob, policy: &Policy, mut cancel: watch::Receiver<bool>,
+        accepted: &BTreeMap<Id, (Receipt, SignedJob)>) -> ValidatorResponse {
         let st = &self.cfg.store;
         let j = &job.body;
         match st.meta.is_revoked(&self.key()).await {
@@ -203,15 +248,16 @@ impl Validator {
         self.queued.fetch_sub(1, Ordering::SeqCst);
         let _permit = permit.expect("semaphore open");
         self.running.fetch_add(1, Ordering::SeqCst);
-        let r = self.check(job, policy, cancel).await;
+        let r = self.check(job, policy, cancel, accepted).await;
         self.running.fetch_sub(1, Ordering::SeqCst);
         r
     }
 
     /// Fetch the inputs, run the checker and sign.
-    async fn check(&self, job: &SignedJob, policy: &Policy, cancel: watch::Receiver<bool>) -> ValidatorResponse {
+    async fn check(&self, job: &SignedJob, policy: &Policy, cancel: watch::Receiver<bool>,
+        accepted: &BTreeMap<Id, (Receipt, SignedJob)>) -> ValidatorResponse {
         let j = &job.body;
-        let groups = match self.fetch_inputs(job).await {
+        let groups = match self.fetch_inputs(job, accepted).await {
             Ok(g) => g,
             Err(r) => return r,
         };
@@ -236,7 +282,17 @@ impl Validator {
             .collect();
         let deadline = Duration::from_millis(if j.deadline_ms == 0 { 600_000 } else { j.deadline_ms });
         let memory = if j.memory_mb == 0 { self.cfg.checker.default_memory_mb } else { j.memory_mb };
-        let out = checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await;
+        // Materialized initializers load process-global code. Keep such jobs in a
+        // disposable checker; only immutable pinned base imports persist in the pool.
+        let initializer = groups.iter().any(|g| {
+            let s = String::from_utf8_lossy(&g.meta_json);
+            s.contains("regularInitAttr") || s.contains("builtinInitAttr")
+        });
+        let out = if self.cfg.checker.warm_bin().is_some() && !initializer {
+            self.warm_pool.run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
+        } else {
+            checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
+        };
         let _ = std::fs::remove_dir_all(&dir);
         let o = match out {
             Ok(o) => o,
@@ -288,7 +344,7 @@ impl Validator {
     /// The group and its dependencies (dependencies first, the group last), each read from
     /// the payload store and re-hashed. Every dependency must be published with a receipt
     /// that verifies now; the validator never checks against unvalidated groups.
-    async fn fetch_inputs(&self, job: &SignedJob) -> Result<Vec<P1Group>, ValidatorResponse> {
+    async fn fetch_inputs(&self, job: &SignedJob, accepted: &BTreeMap<Id, (Receipt, SignedJob)>) -> Result<Vec<P1Group>, ValidatorResponse> {
         let st = &self.cfg.store;
         let j = &job.body;
         let mut out = Vec::new();
@@ -322,8 +378,16 @@ impl Validator {
             };
             let g = P1Group::from_parts(meta_json, grp).map_err(|e| refused(&e))?;
             if !is_root && !cfg!(feature = "mutate-validator-skips-dep-check") {
-                if let Err(e) = published_receipt(st, &decl).await {
-                    return Err(refused(&format!("dependency {} has no valid published receipt: {e:?}", decl.short())));
+                if let Some((r, dep_job)) = accepted.get(&decl) {
+                    if dep_job.body.capsule != *cap ||
+                        paralean_store::receipt::check(r, dep_job, &decl,
+                            &paralean_store::receipt::prepared_of(dep_job), &st.ring).is_err() ||
+                        st.meta.is_revoked(&r.body.validator_key).await.unwrap_or(true) ||
+                        st.meta.is_cancelled(&dep_job.body.request).await.unwrap_or(true) {
+                        return Err(refused("batch dependency receipt does not verify"));
+                    }
+                } else if let Err(e) = published_receipt(st, &decl).await {
+                    return Err(refused(&format!("dependency {} has no valid published or earlier batch receipt: {e:?}", decl.short())));
                 }
             }
             out.push(g);

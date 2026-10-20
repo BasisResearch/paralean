@@ -17,6 +17,9 @@ use paralean_store::*;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use paralean_store::receipt::SignedJob;
+use paralean_control::controller::{ControlRequest, ControlResponse, TargetReq};
+use paralean_validator_api::rpc;
+use std::time::Duration;
 use serde_json::{json, Value};
 
 const USAGE: &str = "usage: plr <command> [args]
@@ -24,7 +27,10 @@ const USAGE: &str = "usage: plr <command> [args]
   stage --cache C --pkg GROUP:CAPSULE ...          upload payload and capsule (staged, unpublished)
   validate --cache C --ws W --validator ADDR --pkg GROUP:CAPSULE --deps C1,C2,..
                                                    issue a job envelope, get the validator's receipt
+           [--controller ADDR --targets NAME[:STATEMENT],...]
+                                                   controller-issued target job; owner/epoch/head snapshot
   publish --cache C --ws W --plan FILE            T1 for each planned record, in order
+  target-get --name NAME                           inspect the owner, epoch and published head
   tombstone --cache C --ws W --file F --target G --lamport L
   pull --cache C [--only G,..] [--seed S --max N] [--save FILE] [--replay FILE]
   fetch-group --cache C GROUP                      payload on demand (remote%)
@@ -110,6 +116,7 @@ async fn run(a: &[&str]) -> R<Value> {
         Some("stage") => stage(&a[1..]).await,
         Some("validate") => validate(&a[1..]).await,
         Some("publish") => publish(&a[1..]).await,
+        Some("target-get") => target_get(&a[1..]).await,
         Some("tombstone") => tombstone(&a[1..]).await,
         Some("pull") => pull(&a[1..]).await,
         Some("fetch-group") => fetch_group(&a[1..]).await,
@@ -208,23 +215,135 @@ async fn validate(a: &[&str]) -> R<Value> {
     let c = Cache::new(need(a, "--cache")?);
     let (st, kf) = open()?;
     let ws = need(a, "--ws")?;
-    let (wid, _) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
+    let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
     let addr = need(a, "--validator")?;
     let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
-    let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
-        .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
+    let deps: Vec<Id> = flag(a, "--deps")
+        .unwrap_or("")
+        .split(',')
+        .filter(|s| !s.is_empty())
+        .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}")))
+        .collect::<R<_>>()?;
     let t = Instant::now();
-    let job = receipt::issue(&kf, ws, wid, g, cap, deps)?;
-    let job = st.meta.issue_job(&job).await.map_err(es)?;
-    let rc = receipt::validate(addr, &job).await?;
+    let targets = flag(a, "--targets").unwrap_or("");
+    let mut prepared = Vec::new();
+    let (job, rc) = if targets.is_empty() {
+        let job = receipt::issue(&kf, ws, wid, g, cap, deps)?;
+        let job = st.meta.issue_job(&job).await.map_err(es)?;
+        let issuer = kf.job_issuer_signer(ws).ok_or(format!("no job issuer key for {ws}"))?;
+        let rc = receipt::validate(addr, &job, &issuer, &st.ring.validators).await?;
+        (job, rc)
+    } else {
+        let controller = need(a, "--controller")?;
+        let authority: [u8; 32] = hex::decode(&kf.authority_public)
+            .map_err(es)?
+            .try_into()
+            .map_err(|_| "bad controller public key")?;
+        let call = |req: ControlRequest| {
+            let signer = signer.clone();
+            async move {
+                rpc::call_authenticated(controller, &req, &signer, &authority, Duration::from_secs(1800))
+                    .await.map_err(es)
+            }
+        };
+        let lease = match call(ControlRequest::Register {
+            worker: wid.hex(),
+            capacity_mb: 8192,
+        })
+        .await?
+        {
+            ControlResponse::Registered { lease_ms } => lease_ms,
+            other => return Err(format!("controller registration: {other:?}")),
+        };
+        let mut requests = Vec::new();
+        for target in targets.split(',').filter(|s| !s.is_empty()) {
+            let (name, statement) = target.split_once(':').unwrap_or((target, ""));
+            let name = Name::parse(name);
+            let pt = Writer::new(st.clone(), wid, signer.clone())
+                .prepare_target(&name)
+                .await
+                .map_err(es)?;
+            prepared.push(pt);
+            requests.push(TargetReq {
+                name: name.to_string(),
+                statement: statement.to_string(),
+            });
+        }
+        let request = format!(
+            "working-copy/{}/{}/{}",
+            ws,
+            g.hex(),
+            hex::encode(rand::random::<[u8; 16]>())
+        );
+        let heartbeat = tokio::spawn({
+            let controller = controller.to_string();
+            let signer = signer.clone();
+            let authority = authority;
+            let worker = wid.hex();
+            async move {
+                loop {
+                    tokio::time::sleep(Duration::from_millis((lease / 3).max(100))).await;
+                    let _: std::io::Result<ControlResponse> = rpc::call_authenticated(
+                        &controller,
+                        &ControlRequest::Heartbeat {
+                            worker: worker.clone(),
+                        },
+                        &signer,
+                        &authority,
+                        Duration::from_secs(10),
+                    )
+                    .await;
+                }
+            }
+        });
+        let response = call(ControlRequest::Validate {
+            worker: wid.hex(),
+            request,
+            group: g.hex(),
+            capsule: cap.hex(),
+            deps: deps.iter().map(Id::hex).collect(),
+            targets: requests,
+            memory_mb: 0,
+            deadline_ms: 0,
+        })
+        .await;
+        heartbeat.abort();
+        match response? {
+            ControlResponse::Receipt { receipt, job } => {
+                let rc = Receipt::from_bytes(&hex::decode(receipt).map_err(es)?).map_err(es)?;
+                let job = SignedJob::from_bytes(&hex::decode(job).map_err(es)?).map_err(es)?;
+                if job.body.targets.len() != prepared.len()
+                    || prepared.iter().any(|pt| {
+                        !job.body
+                            .targets
+                            .iter()
+                            .any(|t| t.name == pt.name && t.epoch == pt.epoch)
+                    })
+                {
+                    return Err("target owner epoch changed during validation".into());
+                }
+                (job, rc)
+            }
+            other => return Err(format!("controller validation: {other:?}")),
+        }
+    };
     let el = ms(t);
     let accepted = rc.body.verdict == Verdict::Accepted;
-    let reason = match &rc.body.verdict { Verdict::Rejected(r) => r.clone(), _ => String::new() };
-    c.write_new(&c.receipt(&rc.id()), &rc.to_bytes()).map_err(es)?;
-    c.write_new(&c.job(&job.id()), &job.to_bytes()).map_err(es)?;
+    let reason = match &rc.body.verdict {
+        Verdict::Rejected(r) => r.clone(),
+        _ => String::new(),
+    };
+    c.write_new(&c.receipt(&rc.id()), &rc.to_bytes())
+        .map_err(es)?;
+    c.write_new(&c.job(&job.id()), &job.to_bytes())
+        .map_err(es)?;
     c.log_transfer("validate", &g, 0, el);
-    Ok(json!({"group": g.hex(), "capsule": cap.hex(), "accepted": accepted, "reason": reason,
-        "receipt": rc.id().hex(), "job": job.id().hex(), "ms": el}))
+    Ok(
+        json!({"group": g.hex(), "capsule": cap.hex(), "accepted": accepted, "reason": reason,
+        "receipt": rc.id().hex(), "job": job.id().hex(), "ms": el,
+        "targets": prepared.iter().map(|p| json!({"name": name_json(&p.name), "epoch": p.epoch,
+            "head": p.head.map(|h| h.hex())})).collect::<Vec<_>>() }),
+    )
 }
 
 /// Test only (forgery suite): issue a job and sign an accepted receipt with the authority
@@ -261,6 +380,18 @@ fn forge(a: &[&str]) -> R<Value> {
 }
 
 // ---------------------------------------------------------------- publication
+
+async fn target_get(a: &[&str]) -> R<Value> {
+    let (st, _) = open()?;
+    let name = Name::parse(need(a, "--name")?);
+    let Some(record) = st.target(&name).await.map_err(es)? else {
+        return Ok(json!({"name": name.to_string(), "exists": false}));
+    };
+    Ok(
+        json!({"name": name.to_string(), "owner": record.owner.hex(), "epoch": record.epoch,
+        "head": record.head.map(|h| h.hex()), "exists": true}),
+    )
+}
 
 async fn publish(a: &[&str]) -> R<Value> {
     let c = Cache::new(need(a, "--cache")?);
@@ -315,7 +446,10 @@ async fn publish(a: &[&str]) -> R<Value> {
             job,
             revisions,
             marker: marker.clone(),
-            targets: vec![],
+            targets: e["targets"].as_array().map(|ts| ts.iter().map(|t| Ok(PreparedTarget {
+                name: name_of_json(&t["name"])?, epoch: t["epoch"].as_u64().ok_or("target epoch")?,
+                head: if t["head"].is_null() { None } else { Some(id_of(&t["head"])?) },
+            })).collect::<R<Vec<_>>>()).transpose()?.unwrap_or_default(),
         };
         let o = w.publish(&p).await.map_err(es)?;
         out.push(json!({"group": g.hex(), "marker": o.marker.hex(), "fresh": o.fresh, "revisions": rids.iter().map(|r| r.hex()).collect::<Vec<_>>(), "ms": ms(t)}));

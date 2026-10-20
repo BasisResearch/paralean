@@ -45,8 +45,10 @@ async fn duplicate_and_retried_jobs_are_deduplicated() {
     for _ in 0..4 {
         let addr = c.ctl_addr.clone();
         let req = validate_req(&w, &g, "dup/1");
+        let signer = c.kf.workspace("w0").unwrap().1;
+        let server = c.kf.authority_signer().unwrap().public();
         hs.push(tokio::spawn(async move {
-            rpc::call::<_, ControlResponse>(&addr, &req, Duration::from_secs(300)).await.unwrap()
+            rpc::call_authenticated::<_, ControlResponse>(&addr, &req, &signer, &server, Duration::from_secs(300)).await.unwrap()
         }));
     }
     let mut answers = Vec::new();
@@ -71,9 +73,11 @@ async fn duplicate_and_retried_jobs_are_deduplicated() {
     let ControlResponse::Receipt { job, .. } = &answers[0] else { unreachable!() };
     let job = paralean_store::receipt::SignedJob::from_bytes(&hex::decode(job).unwrap()).unwrap();
     let before = c.validators[0].checks_run.load(Ordering::SeqCst);
+    let authority = c.kf.authority_signer().unwrap();
+    let validator_keys = vec![c.vsigners[0].public()];
     let (a, b) = tokio::join!(
-        paralean_validator_api::validate(&c.vaddrs[0], &job, Duration::from_secs(300)),
-        paralean_validator_api::validate(&c.vaddrs[0], &job, Duration::from_secs(300))
+        paralean_validator_api::validate(&c.vaddrs[0], &job, &authority, &validator_keys, Duration::from_secs(300)),
+        paralean_validator_api::validate(&c.vaddrs[0], &job, &authority, &validator_keys, Duration::from_secs(300))
     );
     assert_eq!(a.unwrap(), b.unwrap());
     assert!(c.validators[0].checks_run.load(Ordering::SeqCst) <= before + 1);
@@ -147,7 +151,9 @@ async fn cancellation_stops_checks_and_publication() {
     w.writer.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
     let addr = c.ctl_addr.clone();
     let req = validate_req(&w, &g, "cx/1");
-    let running = tokio::spawn(async move { rpc::call::<_, ControlResponse>(&addr, &req, Duration::from_secs(120)).await.unwrap() });
+    let signer = c.kf.workspace("w0").unwrap().1;
+    let server = c.kf.authority_signer().unwrap().public();
+    let running = tokio::spawn(async move { rpc::call_authenticated::<_, ControlResponse>(&addr, &req, &signer, &server, Duration::from_secs(120)).await.unwrap() });
     // Wait until the checker runs.
     let t0 = Instant::now();
     while !matches!(c.validators[0].handle(ValidatorRequest::Status).await, ValidatorResponse::Status { running: 1, .. }) {
@@ -192,7 +198,9 @@ async fn queues_apply_backpressure() {
     w.writer.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
     let addr = c.ctl_addr.clone();
     let req = validate_req(&w, &g, "bp/1");
-    let first = tokio::spawn(async move { rpc::call::<_, ControlResponse>(&addr, &req, Duration::from_secs(120)).await.unwrap() });
+    let signer = c.kf.workspace("w0").unwrap().1;
+    let server = c.kf.authority_signer().unwrap().public();
+    let first = tokio::spawn(async move { rpc::call_authenticated::<_, ControlResponse>(&addr, &req, &signer, &server, Duration::from_secs(120)).await.unwrap() });
     let t0 = Instant::now();
     while !matches!(c.validators[0].handle(ValidatorRequest::Status).await, ValidatorResponse::Status { running: 1, .. }) {
         assert!(t0.elapsed() < Duration::from_secs(10));
@@ -218,7 +226,7 @@ async fn queues_apply_backpressure() {
     };
     env.request = b"bp/direct".to_vec();
     let job = paralean_store::receipt::SignedJob::sign(env, &c.kf.authority_signer().unwrap());
-    assert_eq!(paralean_validator_api::validate(&c.vaddrs[0], &job, Duration::from_secs(10)).await.unwrap(), ValidatorResponse::Busy);
+    assert_eq!(paralean_validator_api::validate(&c.vaddrs[0], &job, &c.kf.authority_signer().unwrap(), &[c.vsigners[0].public()], Duration::from_secs(10)).await.unwrap(), ValidatorResponse::Busy);
     // The work queue holds two jobs.
     for (i, want) in [ControlResponse::Queued, ControlResponse::Queued, ControlResponse::Busy].into_iter().enumerate() {
         let sub = ControlRequest::SubmitWork { request: format!("bp/work{i}"), target: format!("T{i}"), memory_mb: 64 };

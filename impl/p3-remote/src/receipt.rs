@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{CheckerVersion, JobEnvelope, Policy, SignedJob};
-use paralean_store::{Id, KeyFile, Object, Receipt, Signed, WorkspaceId};
+use paralean_store::{Id, KeyFile, Object, Receipt, Signed, Signer, WorkspaceId};
 use paralean_validator_api::{decode_receipt, ValidatorResponse};
 
 /// This machine's checker version (impl/p1's `paralean`, `PARALEAN_LEAN`).
@@ -51,8 +51,8 @@ pub fn issue(kf: &KeyFile, issuer: &str, worker: WorkspaceId, group: Id, capsule
 }
 
 /// Send the envelope to a validator and return its receipt (accepted or rejected).
-pub async fn validate(addr: &str, job: &SignedJob) -> Result<Receipt, String> {
-    match paralean_validator_api::validate(addr, job, Duration::from_secs(1800)).await.map_err(|e| format!("validator {addr}: {e}"))? {
+pub async fn validate(addr: &str, job: &SignedJob, signer: &Signer, validator_keys: &[[u8; 32]]) -> Result<Receipt, String> {
+    match paralean_validator_api::validate(addr, job, signer, validator_keys, Duration::from_secs(1800)).await.map_err(|e| format!("validator {addr}: {e}"))? {
         ValidatorResponse::Receipt { receipt } => decode_receipt(&receipt),
         other => Err(format!("validator {addr} gave no receipt: {other:?}")),
     }

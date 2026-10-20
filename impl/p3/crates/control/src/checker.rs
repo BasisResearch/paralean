@@ -45,19 +45,33 @@ impl CheckerConfig {
             bin,
             mode: mode.into(),
             lean_githash: lean_githash()?,
-            env: vec![("LEAN_NUM_THREADS".into(), "2".into())],
+            env: {
+                let mut env = vec![("LEAN_NUM_THREADS".into(), "2".into())];
+                if let Ok(bin) = std::env::var("PARALEAN_P3_WARM_BIN") {
+                    env.push(("PARALEAN_P3_WARM_BIN".into(), bin));
+                }
+                env
+            },
             default_memory_mb: 4096,
         })
     }
 
     /// The checker version this configuration produces (its ID goes into receipts).
     pub fn version(&self) -> Result<CheckerVersion, String> {
-        let bytes = std::fs::read(&self.bin).map_err(|e| format!("{}: {e}", self.bin.display()))?;
+        let mut bytes = std::fs::read(&self.bin).map_err(|e| format!("{}: {e}", self.bin.display()))?;
+        if let Some(bin) = self.warm_bin() {
+            bytes.extend_from_slice(b"\0paralean-warm-checker-v1\0");
+            bytes.extend(std::fs::read(bin).map_err(|e| format!("{bin}: {e}"))?);
+        }
         Ok(CheckerVersion {
             lean_githash: self.lean_githash.clone(),
             checker_sha256: paralean_store::id::sha256(&bytes).to_vec(),
             mode: self.mode.clone(),
         })
+    }
+
+    pub fn warm_bin(&self) -> Option<&str> {
+        self.env.iter().find(|(k, _)| k == "PARALEAN_P3_WARM_BIN").map(|(_, v)| v.as_str())
     }
 }
 
@@ -86,7 +100,7 @@ pub struct CheckOutcome {
 }
 
 #[derive(Deserialize)]
-struct Raw {
+pub(crate) struct Raw {
     ok: bool,
     #[serde(default)]
     axioms: Vec<serde_json::Value>,
@@ -98,6 +112,126 @@ struct Raw {
     diags: Vec<String>,
     #[serde(default)]
     closure: Vec<String>,
+}
+
+impl Raw {
+    fn outcome(self) -> CheckOutcome {
+        CheckOutcome {
+            ok: self.ok,
+            axioms: self.axioms.iter().filter_map(name_of).collect(),
+            public_names: self.public_names.iter().filter_map(name_of).collect(),
+            target_ok: self.target_ok,
+            diags: self.diags,
+            closure: self.closure,
+        }
+    }
+}
+
+/// A bounded validator's idle checker processes. Active processes are owned by one job;
+/// dropping an active future kills its process. Only a successful framed reply returns a
+/// process to this pool. The validator's admission semaphore bounds the total processes.
+#[derive(Default)]
+pub struct WarmPool {
+    idle: std::sync::Mutex<Vec<WarmProcess>>,
+    pub spawned: std::sync::atomic::AtomicU64,
+    pub peak_rss_kb: std::sync::atomic::AtomicU64,
+}
+
+struct WarmProcess {
+    child: tokio::process::Child,
+    input: tokio::process::ChildStdin,
+    output: tokio::io::BufReader<tokio::process::ChildStdout>,
+    pgid: i32,
+}
+
+impl Drop for WarmProcess {
+    fn drop(&mut self) {
+        kill_group(self.pgid);
+    }
+}
+
+impl WarmPool {
+    #[allow(clippy::too_many_arguments)]
+    pub async fn run(
+        &self, cfg: &CheckerConfig, store: &Path, gids: &[String], decl: &str,
+        targets: &[TargetArg], deadline: Duration, memory_mb: u64,
+        mut cancel: watch::Receiver<bool>,
+    ) -> Result<CheckOutcome, NoVerdict> {
+        use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+        if *cancel.borrow() { return Err(NoVerdict::Cancelled); }
+        let idle = self.idle.lock().unwrap().pop();
+        let mut proc = match idle {
+            Some(p) => p,
+            None => {
+                let bin = cfg.warm_bin().ok_or_else(|| NoVerdict::Crashed("no warm checker configured".into()))?;
+                let mut child = Command::new(bin).envs(cfg.env.iter().cloned())
+                    .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
+                    .process_group(0).kill_on_drop(true).spawn()
+                    .map_err(|e| NoVerdict::Crashed(format!("spawn {bin}: {e}")))?;
+                let pgid = child.id().unwrap_or(0) as i32;
+                self.spawned.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                WarmProcess { input: child.stdin.take().unwrap(),
+                    output: tokio::io::BufReader::new(child.stdout.take().unwrap()), child, pgid }
+            }
+        };
+        let request = serde_json::json!({
+            "store": store, "gids": gids, "decl": decl,
+            "targets": targets.iter().map(|t| serde_json::json!({
+                "name": t.name.to_string(), "statement": t.statement,
+            })).collect::<Vec<_>>(),
+        });
+        let mut bytes = serde_json::to_vec(&request).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+        bytes.push(b'\n');
+        let pgid = proc.pgid;
+        let result = {
+        let operation = async {
+            proc.input.write_all(&bytes).await.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+            proc.input.flush().await.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+            let mut total = 0;
+            loop {
+                let mut line = String::new();
+                // Limit even a single malicious output line, not only complete frames.
+                let n = (&mut proc.output).take(16 << 20).read_line(&mut line).await
+                    .map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+                total += n;
+                if n == 0 || total >= 16 << 20 {
+                    return Err(NoVerdict::Crashed("warm checker closed or exceeded output limit".into()));
+                }
+                let Some(line) = line.strip_prefix("WARM ") else { continue };
+                let v: serde_json::Value = serde_json::from_str(line).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+                if let Some(error) = v.get("error") {
+                    return Err(NoVerdict::Crashed(error.to_string()));
+                }
+                let raw: Raw = serde_json::from_value(v["result"].clone()).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+                return Ok(raw.outcome());
+            }
+        };
+        let mut tick = tokio::time::interval(Duration::from_millis(50));
+        let start = Instant::now();
+        tokio::pin!(operation);
+        loop {
+            tokio::select! {
+                r = &mut operation => break r,
+                _ = tick.tick() => {
+                    if start.elapsed() >= deadline { break Err(NoVerdict::Timeout); }
+                    let rss = group_rss_kb(pgid);
+                    self.peak_rss_kb.fetch_max(rss, std::sync::atomic::Ordering::Relaxed);
+                    if rss > memory_mb.max(1).saturating_mul(1024) {
+                        break Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 });
+                    }
+                },
+                r = cancel.changed() => if r.is_err() || *cancel.borrow() { break Err(NoVerdict::Cancelled); }
+            }
+        }
+        };
+        if result.is_ok() {
+            self.idle.lock().unwrap().push(proc);
+        } else {
+            kill_group(pgid);
+            let _ = proc.child.wait().await;
+        }
+        result
+    }
 }
 
 /// Why there is no verdict.

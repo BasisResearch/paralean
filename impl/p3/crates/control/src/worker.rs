@@ -83,7 +83,8 @@ impl WorkerNode {
     }
 
     pub async fn call(&self, req: &ControlRequest) -> Result<ControlResponse, WorkerError> {
-        rpc::call(&self.controller, req, self.call_timeout).await.map_err(|e| WorkerError::Io(e.to_string()))
+        rpc::call_authenticated(&self.controller, req, self.writer.signer(), &self.writer.store.ring.authority, self.call_timeout)
+            .await.map_err(|e| WorkerError::Io(e.to_string()))
     }
 
     pub async fn register(&self) -> Result<ControlResponse, WorkerError> {

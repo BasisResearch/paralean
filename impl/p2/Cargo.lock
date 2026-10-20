@@ -1510,6 +1510,7 @@ dependencies = [
 name = "paralean-control"
 version = "0.2.0"
 dependencies = [
+ "foundationdb",
  "hex",
  "libc",
  "paralean-store",
@@ -1561,6 +1562,7 @@ version = "0.2.0"
 dependencies = [
  "hex",
  "paralean-store",
+ "rand 0.8.8",
  "serde",
  "serde_json",
  "tokio",

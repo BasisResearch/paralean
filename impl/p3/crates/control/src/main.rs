@@ -34,6 +34,7 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
   submit --controller ADDR --request R --target NAME [--memory-mb N]
   assign --controller ADDR --target NAME --worker W
+  assign-group --controller ADDR --targets NAME,NAME --worker W
   cancel --controller ADDR --request R
   status --controller ADDR";
 
@@ -77,7 +78,9 @@ fn write_keys(path: &str, kf: &KeyFile) -> R<()> {
 
 async fn ctl_call(f: &BTreeMap<String, String>, req: ControlRequest) -> R<ControlResponse> {
     let addr = f.get("controller").ok_or("--controller ADDR")?;
-    rpc::call(addr, &req, Duration::from_secs(900)).await.map_err(|e| e.to_string())
+    let kf = keyfile()?;
+    let signer = kf.authority_signer().ok_or("the key file holds no authority seed")?;
+    rpc::call_authenticated(addr, &req, &signer, &kf.ring().authority, Duration::from_secs(900)).await.map_err(|e| e.to_string())
 }
 
 async fn run(args: Vec<String>) -> R<()> {
@@ -229,6 +232,15 @@ async fn run(args: Vec<String>) -> R<()> {
             let w = f.get("worker").ok_or("--worker W")?;
             let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
             let r = ctl_call(&f, ControlRequest::Assign { target: f.get("target").ok_or("--target NAME")?.clone(), worker: id }).await?;
+            println!("{}", serde_json::to_string(&r).unwrap());
+        }
+        ["assign-group", ..] => {
+            let kf = keyfile()?;
+            let w = f.get("worker").ok_or("--worker W")?;
+            let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
+            let targets: Vec<String> = f.get("targets").ok_or("--targets NAME,NAME")?.split(',').map(str::to_owned).collect();
+            let request = f.get("request").cloned().unwrap_or_else(|| format!("assign-group/{}", rand::random::<u64>()));
+            let r = ctl_call(&f, ControlRequest::AssignGroup { targets, worker: id, request }).await?;
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["cancel", ..] => {
