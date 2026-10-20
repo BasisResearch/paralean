@@ -32,6 +32,7 @@ impl FakeChecker {
             bin: self.script.clone(), mode: "fork".into(), lean_githash: "fixture".into(),
             env: if warm { vec![("PARALEAN_P3_WARM_BIN".into(), self.script.display().to_string())] } else { vec![] },
             default_memory_mb: 256,
+            sandbox: false,
         }
     }
 }
@@ -98,4 +99,30 @@ sys.exit(3)
     let result = checker::run(&fake.config(false), Path::new("."), &["fixture".into()], "fixture", &[],
         Duration::from_secs(3), 256, cancel).await;
     assert!(matches!(result, Err(NoVerdict::Crashed(_))), "nonzero checker exit must give no verdict: {result:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "W2 output-related subtask handed off after automated review restriction"]
+async fn cold_output_flood_cannot_fill_validator_memory() {
+    let fake = FakeChecker::new("cold-flood", r#"
+import json, sys
+sys.stdout.write('x' * (2 << 20) + '\n')
+print('CHECK ' + json.dumps({'ok': True}), flush=True)
+"#);
+    let (_cancel_sender, cancel) = cancellation();
+    let result = checker::run(&fake.config(false), Path::new("."), &["fixture".into()], "fixture", &[],
+        Duration::from_secs(3), 256, cancel).await;
+    assert!(matches!(result, Err(NoVerdict::Output)), "checker output escaped cap: {result:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cold_malformed_axiom_cannot_be_silently_dropped() {
+    let fake = FakeChecker::new("cold-malformed-axiom", r#"
+import json
+print('CHECK ' + json.dumps({'ok': True, 'axioms': [{'bad': 'name'}]}), flush=True)
+"#);
+    let (_cancel_sender, cancel) = cancellation();
+    let result = checker::run(&fake.config(false), Path::new("."), &["fixture".into()], "fixture", &[],
+        Duration::from_secs(3), 256, cancel).await;
+    assert!(matches!(result, Err(NoVerdict::Crashed(_))), "malformed axiom escaped: {result:?}");
 }

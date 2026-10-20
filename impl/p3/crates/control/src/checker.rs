@@ -8,6 +8,7 @@
 //! cancelled all kill the process group and give no verdict.
 
 use std::path::{Path, PathBuf};
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
 
@@ -33,6 +34,8 @@ pub struct CheckerConfig {
     pub env: Vec<(String, String)>,
     /// Memory limit when the job names none, in MiB.
     pub default_memory_mb: u64,
+    /// Run the checker in a restricted Bubblewrap mount and network namespace.
+    pub sandbox: bool,
 }
 
 impl CheckerConfig {
@@ -53,6 +56,7 @@ impl CheckerConfig {
                 env
             },
             default_memory_mb: 4096,
+            sandbox: true,
         })
     }
 
@@ -72,6 +76,151 @@ impl CheckerConfig {
 
     pub fn warm_bin(&self) -> Option<&str> {
         self.env.iter().find(|(k, _)| k == "PARALEAN_P3_WARM_BIN").map(|(_, v)| v.as_str())
+    }
+}
+
+/// Construct a process with an empty mount tree. Only the toolchain, checker,
+/// declared Lean imports, system runtime and this job's scratch store are visible.
+/// The caller supplies checker arguments after this function returns.
+fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path) -> Result<(Command, Option<OwnedFd>), NoVerdict> {
+    if !sandbox_active(cfg) { return Ok((Command::new(bin), None)); }
+    let store = store.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox scratch: {e}")))?;
+    if !store.is_dir() { return Err(NoVerdict::Crashed("sandbox scratch is not a directory".into())); }
+    let bin = bin.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox checker: {e}")))?;
+    let prefix = std::env::var("PARALEAN_SYSROOT").ok().map(PathBuf::from).unwrap_or_else(|| {
+        std::process::Command::new("lean").arg("--print-prefix").output()
+            .ok().map(|o| PathBuf::from(String::from_utf8_lossy(&o.stdout).trim())).unwrap_or_default()
+    });
+    let prefix = prefix.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox Lean sysroot: {e}")))?;
+    if !prefix.join("bin/lean").is_file() || !prefix.join("bin/lake").is_file() {
+        return Err(NoVerdict::Crashed("sandbox Lean sysroot has no lean/lake".into()));
+    }
+    let mut cmd = Command::new("/usr/bin/bwrap");
+    cmd.args(["--unshare-user", "--unshare-pid", "--unshare-net", "--unshare-ipc", "--unshare-uts",
+        "--cap-drop", "ALL",
+        "--disable-userns", "--die-with-parent", "--clearenv", "--proc", "/proc", "--dev", "/dev",
+        "--size", "268435456", "--tmpfs", "/tmp"]);
+    let seccomp = if cfg!(feature = "mutate-no-checker-seccomp") { None } else { Some(seccomp_filter()?) };
+    if let Some(fd) = &seccomp { cmd.arg("--seccomp").arg(fd.as_raw_fd().to_string()); }
+    for path in ["/usr", "/bin", "/lib", "/lib64"] {
+        if Path::new(path).exists() { cmd.args(["--ro-bind", path, path]); }
+    }
+    if Path::new("/etc/ld.so.cache").is_file() { cmd.args(["--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache"]); }
+    // Copy the small, verified input store into a size-capped private tmpfs.
+    // Native initializers may write under /work, but never into host scratch.
+    cmd.args(["--ro-bind", store.to_str().unwrap(), "/input",
+        "--size", if cfg!(feature = "mutate-no-checker-disk-limit") { "1073741824" } else { "268435456" }, "--tmpfs", "/work"]);
+    let mut mounts = vec![prefix.clone()];
+    mounts.push(bin.clone());
+    for key in ["PARALEAN_LIB", "PARALEAN_MATHLIB"] {
+        if let Ok(value) = std::env::var(key) {
+            if Path::new(&value).exists() { mounts.push(PathBuf::from(value)); }
+        }
+    }
+    if let Ok(value) = std::env::var("LEAN_PATH") {
+        mounts.extend(std::env::split_paths(&value));
+    }
+    for path in mounts {
+        let path = path.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox mount {}: {e}", path.display())))?;
+        if !path.is_absolute() { return Err(NoVerdict::Crashed("sandbox mount is relative".into())); }
+        cmd.arg("--ro-bind").arg(&path).arg(&path);
+    }
+    let path = format!("{}/bin:/usr/bin:/bin", prefix.display());
+    cmd.args(["--setenv", "PATH", &path, "--setenv", "HOME", "/tmp", "--setenv", "TMPDIR", "/tmp",
+        "--setenv", "PARALEAN_SYSROOT", prefix.to_str().unwrap(), "--setenv", "PARALEAN_LAKE", prefix.join("bin/lake").to_str().unwrap()]);
+    // Add environment only from the checker's declared Lean inputs. Never pass
+    // the validator's S3 credentials, FDB cluster, token or signing key.
+    for key in ["PARALEAN_LIB", "PARALEAN_MATHLIB", "LEAN_PATH", "LEAN_PARALEAN", "PARALEAN_FORK_HOOKS"] {
+        if let Ok(value) = std::env::var(key) {
+            if !matches!(key, "PARALEAN_LIB" | "PARALEAN_MATHLIB") || Path::new(&value).exists() {
+                cmd.args(["--setenv", key, &value]);
+            }
+        }
+    }
+    for (key, value) in &cfg.env {
+        if key == "LEAN_NUM_THREADS" { cmd.args(["--setenv", key, value]); }
+    }
+    cmd.args(["--chdir", "/work", "--", "/bin/sh", "-c",
+        if cfg!(feature = "mutate-no-checker-process-limit") {
+            "cp -R /input/. /work/ && exec \"$@\""
+        } else {
+            "cp -R /input/. /work/ && exec /usr/bin/prlimit --nproc=64:64 -- \"$@\""
+        }, "sandbox-checker"]);
+    cmd.arg(bin);
+    Ok((cmd, seccomp))
+}
+
+#[cfg(target_arch = "x86_64")]
+fn seccomp_filter() -> Result<OwnedFd, NoVerdict> {
+    use libc::sock_filter as F;
+    let stmt = |code, k| F { code, jt: 0, jf: 0, k };
+    let jump = |k| F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 0, jf: 1, k };
+    let deny = stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_ERRNO | libc::EPERM as u32);
+    let mut rules = vec![
+        stmt((libc::BPF_LD | libc::BPF_W | libc::BPF_ABS) as u16, 4),
+        F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 1, jf: 0, k: 0xc000003e },
+        stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_KILL_PROCESS),
+        stmt((libc::BPF_LD | libc::BPF_W | libc::BPF_ABS) as u16, 0),
+        F { code: (libc::BPF_JMP | libc::BPF_JSET | libc::BPF_K) as u16, jt: 0, jf: 1, k: 0x40000000 },
+        deny,
+    ];
+    for syscall in [libc::SYS_socket, libc::SYS_connect, libc::SYS_bind, libc::SYS_listen,
+        libc::SYS_accept, libc::SYS_accept4, libc::SYS_sendto, libc::SYS_mount,
+        libc::SYS_umount2, libc::SYS_pivot_root, libc::SYS_ptrace, libc::SYS_process_vm_readv,
+        libc::SYS_process_vm_writev, libc::SYS_bpf, libc::SYS_perf_event_open,
+        libc::SYS_keyctl, libc::SYS_add_key, libc::SYS_request_key, libc::SYS_setns,
+        libc::SYS_unshare, libc::SYS_open_by_handle_at, libc::SYS_setsid,
+        libc::SYS_setpgid, libc::SYS_pidfd_open, libc::SYS_pidfd_getfd,
+        libc::SYS_pidfd_send_signal] {
+        rules.push(jump(syscall as u32));
+        rules.push(deny);
+    }
+    rules.push(stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_ALLOW));
+    let name = b"paralean-seccomp\0";
+    let fd = unsafe { libc::memfd_create(name.as_ptr().cast(), 0) };
+    if fd < 0 { return Err(NoVerdict::Crashed(format!("seccomp memfd: {}", std::io::Error::last_os_error()))); }
+    let fd = unsafe { OwnedFd::from_raw_fd(fd) };
+    let bytes = unsafe { std::slice::from_raw_parts(rules.as_ptr().cast::<u8>(), rules.len() * std::mem::size_of::<F>()) };
+    let written = unsafe { libc::write(fd.as_raw_fd(), bytes.as_ptr().cast(), bytes.len()) };
+    if written != bytes.len() as isize || unsafe { libc::lseek(fd.as_raw_fd(), 0, libc::SEEK_SET) } != 0 {
+        return Err(NoVerdict::Crashed(format!("seccomp filter write: {}", std::io::Error::last_os_error())));
+    }
+    Ok(fd)
+}
+
+#[cfg(not(target_arch = "x86_64"))]
+fn seccomp_filter() -> Result<OwnedFd, NoVerdict> {
+    Err(NoVerdict::Crashed("sandbox seccomp supports x86_64 only".into()))
+}
+
+fn sandbox_active(cfg: &CheckerConfig) -> bool {
+    cfg.sandbox && !cfg!(feature = "mutate-no-checker-sandbox")
+}
+
+fn limit_child(cmd: &mut Command, deadline: Duration, seccomp_fd: Option<i32>) {
+    let cpu = deadline.as_secs().saturating_add(2).max(2);
+    unsafe {
+        cmd.pre_exec(move || {
+            for (resource, value) in [
+                (libc::RLIMIT_CPU, if cfg!(feature = "mutate-no-checker-cpu-limit") { libc::RLIM_INFINITY } else { cpu }),
+                (libc::RLIMIT_FSIZE, 512 * 1024 * 1024),
+                (libc::RLIMIT_NOFILE, 256),
+                (libc::RLIMIT_CORE, 0),
+                (libc::RLIMIT_AS, 16 * 1024 * 1024 * 1024),
+            ] {
+                let lim = libc::rlimit { rlim_cur: value, rlim_max: value };
+                if libc::setrlimit(resource, &lim) != 0 { return Err(std::io::Error::last_os_error()); }
+            }
+            if let Some(fd) = seccomp_fd {
+                // Native store clients may own descriptors without CLOEXEC.
+                // Existing sockets must not cross into the checker namespace.
+                if libc::syscall(libc::SYS_close_range, 3u32, u32::MAX, libc::CLOSE_RANGE_CLOEXEC) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                if libc::fcntl(fd, libc::F_SETFD, 0) < 0 { return Err(std::io::Error::last_os_error()); }
+            }
+            Ok(())
+        });
     }
 }
 
@@ -115,15 +264,22 @@ pub(crate) struct Raw {
 }
 
 impl Raw {
-    fn outcome(self) -> CheckOutcome {
-        CheckOutcome {
+    fn outcome(self) -> Result<CheckOutcome, NoVerdict> {
+        let names = |items: &[serde_json::Value]| -> Result<Vec<Name>, NoVerdict> {
+            if cfg!(feature = "mutate-drop-invalid-axiom") {
+                return Ok(items.iter().filter_map(name_of).collect());
+            }
+            items.iter().map(|value| name_of(value).ok_or_else(||
+                NoVerdict::Crashed("checker returned an invalid name".into()))).collect()
+        };
+        Ok(CheckOutcome {
             ok: self.ok,
-            axioms: self.axioms.iter().filter_map(name_of).collect(),
-            public_names: self.public_names.iter().filter_map(name_of).collect(),
+            axioms: names(&self.axioms)?,
+            public_names: names(&self.public_names)?,
             target_ok: self.target_ok,
             diags: self.diags,
             closure: self.closure,
-        }
+        })
     }
 }
 
@@ -164,9 +320,12 @@ impl WarmPool {
             Some(p) => p,
             None => {
                 let bin = cfg.warm_bin().ok_or_else(|| NoVerdict::Crashed("no warm checker configured".into()))?;
-                let mut child = Command::new(bin).envs(cfg.env.iter().cloned())
+                let (mut command, _seccomp) = checker_command(cfg, store, Path::new(bin))?;
+                command.envs(cfg.env.iter().cloned())
                     .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
-                    .process_group(0).kill_on_drop(true).spawn()
+                    .process_group(0).kill_on_drop(true);
+                limit_child(&mut command, deadline, _seccomp.as_ref().map(AsRawFd::as_raw_fd));
+                let mut child = command.spawn()
                     .map_err(|e| NoVerdict::Crashed(format!("spawn {bin}: {e}")))?;
                 let pgid = child.id().unwrap_or(0) as i32;
                 self.spawned.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -179,7 +338,7 @@ impl WarmPool {
         let nonce = hex::encode(rand::random::<[u8; 32]>());
         let request = serde_json::json!({
             "nonce": nonce,
-            "store": store, "gids": gids, "decl": decl,
+            "store": if sandbox_active(cfg) { Path::new("/work") } else { store }, "gids": gids, "decl": decl,
             "targets": targets.iter().map(|t| serde_json::json!({
                 "name": t.name.to_string(), "statement": t.statement,
             })).collect::<Vec<_>>(),
@@ -187,6 +346,7 @@ impl WarmPool {
         let mut bytes = serde_json::to_vec(&request).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
         bytes.push(b'\n');
         let pgid = proc.pgid;
+        let initial_bytes = if sandbox_active(cfg) { scratch_bytes(store) } else { 0 };
         let result = {
         let operation = async {
             proc.input.write_all(&bytes).await.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
@@ -208,7 +368,7 @@ impl WarmPool {
                     return Err(NoVerdict::Crashed(error.to_string()));
                 }
                 let raw: Raw = serde_json::from_value(v["result"].clone()).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
-                return Ok(raw.outcome());
+                return raw.outcome();
             }
         };
         let mut tick = tokio::time::interval(Duration::from_millis(50));
@@ -218,18 +378,24 @@ impl WarmPool {
             tokio::select! {
                 r = &mut operation => break r,
                 _ = tick.tick() => {
-                    if start.elapsed() >= deadline { break Err(NoVerdict::Timeout); }
+                    if !cfg!(feature = "mutate-no-checker-cpu-limit") && start.elapsed() >= deadline { break Err(NoVerdict::Timeout); }
                     let rss = group_rss_kb(pgid);
                     self.peak_rss_kb.fetch_max(rss, std::sync::atomic::Ordering::Relaxed);
-                    if rss > memory_mb.max(1).saturating_mul(1024) {
+                    if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > memory_mb.max(1).saturating_mul(1024) {
                         break Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 });
+                    }
+                    if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
+                        break Err(NoVerdict::Disk);
                     }
                 },
                 r = cancel.changed() => if r.is_err() || *cancel.borrow() { break Err(NoVerdict::Cancelled); }
             }
         }
         };
-        if result.is_ok() {
+        let result = if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
+            Err(NoVerdict::Disk)
+        } else { result };
+        if result.is_ok() && !sandbox_active(cfg) {
             self.idle.lock().unwrap().push(proc);
         } else {
             kill_group(pgid);
@@ -245,6 +411,8 @@ pub enum NoVerdict {
     Timeout,
     Memory { limit_mb: u64, peak_mb: u64 },
     Cancelled,
+    Disk,
+    Output,
     Crashed(String),
 }
 
@@ -254,6 +422,8 @@ impl std::fmt::Display for NoVerdict {
             NoVerdict::Timeout => write!(f, "deadline passed"),
             NoVerdict::Memory { limit_mb, peak_mb } => write!(f, "memory limit {limit_mb} MiB exceeded ({peak_mb} MiB resident)"),
             NoVerdict::Cancelled => write!(f, "cancelled"),
+            NoVerdict::Disk => write!(f, "checker scratch disk limit exceeded"),
+            NoVerdict::Output => write!(f, "checker output limit exceeded"),
             NoVerdict::Crashed(s) => write!(f, "checker crashed: {s}"),
         }
     }
@@ -277,8 +447,8 @@ pub async fn run(
     mut cancel: watch::Receiver<bool>,
 ) -> Result<CheckOutcome, NoVerdict> {
     let targets_arg: Vec<String> = targets.iter().map(|t| format!("{}={}", t.name, t.statement)).collect();
-    let mut cmd = Command::new(&cfg.bin);
-    cmd.arg("check-group").arg("--store").arg(store).arg("--gids").arg(gids.join(",")).arg("--decl").arg(decl);
+    let (mut cmd, _seccomp) = checker_command(cfg, store, &cfg.bin)?;
+    cmd.arg("check-group").arg("--store").arg(if sandbox_active(cfg) { Path::new("/work") } else { store }).arg("--gids").arg(gids.join(",")).arg("--decl").arg(decl);
     if !targets_arg.is_empty() {
         cmd.arg("--targets").arg(targets_arg.join(","));
     }
@@ -288,30 +458,42 @@ pub async fn run(
         .stderr(Stdio::piped())
         .process_group(0)
         .kill_on_drop(true);
+    limit_child(&mut cmd, deadline, _seccomp.as_ref().map(AsRawFd::as_raw_fd));
     let mut child = cmd.spawn().map_err(|e| NoVerdict::Crashed(format!("spawn {}: {e}", cfg.bin.display())))?;
     let pgid = child.id().unwrap_or(0) as i32;
     let mut stdout = child.stdout.take().expect("piped");
     let mut stderr = child.stderr.take().expect("piped");
-    let out_task = tokio::spawn(async move {
-        let mut s = String::new();
-        let _ = stdout.read_to_string(&mut s).await;
-        s
+    let mut out_task = tokio::spawn(async move {
+        let mut bytes = Vec::new();
+        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { (1 << 20) + 1 };
+        let _ = (&mut stdout).take(cap).read_to_end(&mut bytes).await;
+        bytes
     });
-    let err_task = tokio::spawn(async move {
-        let mut s = String::new();
-        let _ = stderr.read_to_string(&mut s).await;
-        s
+    let mut err_task = tokio::spawn(async move {
+        let mut bytes = Vec::new();
+        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { (1 << 20) + 1 };
+        let _ = (&mut stderr).take(cap).read_to_end(&mut bytes).await;
+        bytes
     });
-    let limit_kb = memory_mb.max(1) * 1024;
+    let limit_kb = memory_mb.max(1).saturating_mul(1024);
+    let initial_bytes = if sandbox_active(cfg) { scratch_bytes(store) } else { 0 };
     let start = Instant::now();
     let mut peak_kb = 0u64;
     let mut tick = tokio::time::interval(Duration::from_millis(50));
+    let mut captured_out = None;
+    let mut captured_err = None;
     let fail = loop {
         tokio::select! {
             st = child.wait() => {
                 let st = st.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
-                let out = out_task.await.unwrap_or_default();
-                let err = err_task.await.unwrap_or_default();
+                let out = match captured_out { Some(bytes) => bytes, None => out_task.await.unwrap_or_default() };
+                let err = match captured_err { Some(bytes) => bytes, None => err_task.await.unwrap_or_default() };
+                if !cfg!(feature = "mutate-unbounded-checker-output") && (out.len() > 1 << 20 || err.len() > 1 << 20) { return Err(NoVerdict::Output); }
+                let out = String::from_utf8_lossy(&out);
+                let err = String::from_utf8_lossy(&err);
+                if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
+                    return Err(NoVerdict::Disk);
+                }
                 let Some(line) = out.lines().rev().find_map(|l| l.strip_prefix("CHECK ")) else {
                     return Err(NoVerdict::Crashed(format!("{st}: {}", err.lines().last().unwrap_or(""))));
                 };
@@ -319,23 +501,29 @@ pub async fn run(
                 if raw.ok && !st.success() {
                     return Err(NoVerdict::Crashed(format!("checker reported acceptance but exited {st}")));
                 }
-                return Ok(CheckOutcome {
-                    ok: raw.ok,
-                    axioms: raw.axioms.iter().filter_map(name_of).collect(),
-                    public_names: raw.public_names.iter().filter_map(name_of).collect(),
-                    target_ok: raw.target_ok,
-                    diags: raw.diags,
-                    closure: raw.closure,
-                });
+                return raw.outcome();
+            }
+            bytes = &mut out_task, if captured_out.is_none() => {
+                let bytes = bytes.unwrap_or_default();
+                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > 1 << 20 { break NoVerdict::Output; }
+                captured_out = Some(bytes);
+            }
+            bytes = &mut err_task, if captured_err.is_none() => {
+                let bytes = bytes.unwrap_or_default();
+                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > 1 << 20 { break NoVerdict::Output; }
+                captured_err = Some(bytes);
             }
             _ = tick.tick() => {
-                if start.elapsed() >= deadline {
+                if !cfg!(feature = "mutate-no-checker-cpu-limit") && start.elapsed() >= deadline {
                     break NoVerdict::Timeout;
                 }
                 let rss = group_rss_kb(pgid);
                 peak_kb = peak_kb.max(rss);
-                if rss > limit_kb {
+                if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > limit_kb {
                     break NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 };
+                }
+                if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
+                    break NoVerdict::Disk;
                 }
             }
             r = cancel.changed() => {
@@ -348,6 +536,20 @@ pub async fn run(
     kill_group(pgid);
     let _ = child.wait().await;
     Err(fail)
+}
+
+fn scratch_bytes(path: &Path) -> u64 {
+    let mut total: u64 = 0;
+    let mut dirs = vec![path.to_path_buf()];
+    while let Some(dir) = dirs.pop() {
+        let Ok(entries) = std::fs::read_dir(dir) else { continue };
+        for entry in entries.flatten() {
+            let Ok(meta) = entry.path().symlink_metadata() else { continue };
+            if meta.is_dir() { dirs.push(entry.path()); }
+            else { total = total.saturating_add(meta.len()); }
+        }
+    }
+    total
 }
 
 fn kill_group(pgid: i32) {

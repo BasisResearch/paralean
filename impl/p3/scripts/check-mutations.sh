@@ -24,11 +24,24 @@ cases=(
   "mutate-no-request-dedup|control|duplicate_and_retried_jobs_are_deduplicated"
   "mutate-validator-skips-dep-check|adversarial|dependency_must_be_published_with_a_receipt"
   "mutate-validator-ignores-axioms|adversarial|validator_enforces_the_envelope_policy"
+  "mutate-no-checker-sandbox|sandbox|checker_cannot_read_secrets_write_outside_or_use_network"
+  "mutate-no-checker-seccomp|sandbox|checker_cannot_read_secrets_write_outside_or_use_network"
+  "mutate-no-checker-disk-limit|sandbox|checker_disk_budget_rejects_even_successful_exit"
+  "mutate-no-checker-process-limit|sandbox|checker_process_count_is_hard_limited"
+  "mutate-no-checker-memory-limit|sandbox|checker_memory_budget_kills_allocation"
+  "mutate-no-checker-cpu-limit|sandbox|checker_cpu_budget_kills_busy_loop"
+  # Output-related mutation handed off after automated review restriction; see w2-log.
+  "mutate-drop-invalid-axiom|checker_protocol|cold_malformed_axiom_cannot_be_silently_dropped"
+  "mutate-unbounded-completed-slots|lib|validator::completed_tests::completed_receipt_cache_is_bounded"
 )
 fail=0
 for c in "${cases[@]}"; do
   IFS='|' read -r feat target name <<<"$c"
-  out="$(cargo test -q -p paralean-control --features "$feat" --test "$target" -- --exact "$name" 2>&1)"
+  if [ "$target" = lib ]; then
+    out="$(cargo test -q -p paralean-control --features "$feat" --lib -- --exact "$name" 2>&1)"
+  else
+    out="$(cargo test -q -p paralean-control --features "$feat" --test "$target" -- --exact "$name" 2>&1)"
+  fi
   if grep -q "$name --- FAILED\|test $name ... FAILED\|^test result: FAILED" <<<"$out"; then
     echo "detected  $feat  by $target::$name"
   elif grep -q "test result: ok. 1 passed" <<<"$out"; then

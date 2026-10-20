@@ -1,0 +1,40 @@
+mod common;
+#[path = "../../../../../verification/fixtures/ed25519_cases.rs"]
+mod vectors;
+
+use paralean_control::checker::CheckerConfig;
+use paralean_control::validator::{Validator, ValidatorConfig};
+use paralean_store::*;
+use paralean_validator_api::ValidatorResponse;
+
+#[tokio::test]
+async fn validator_envelope_strict_signature_vectors() {
+    let cfg = StoreConfig::from_env(&common::deployment("strict-validator")).unwrap();
+    let kf = KeyFile::demo(1);
+    let authority = kf.authority_signer().unwrap();
+    let validator = kf.validator_signer("v0").unwrap();
+    let (writer, _) = kf.workspace("w0").unwrap();
+    let p = fixture::package_by(&authority, "strict", writer, &validator,
+        &Name::parse("Strict.fixture"), vec![], None, 1);
+    let checker = CheckerConfig { bin: std::env::current_exe().unwrap(), mode: "stock".into(),
+        lean_githash: "strict-test".into(), env: vec![], default_memory_mb: 256, sandbox: true };
+    let dir = common::scratch("strict-validator");
+    for case in vectors::cases(authority.public(), p.job.sig) {
+        let mut ring = kf.ring();
+        ring.authority = case.public;
+        let store = Store::open(&cfg, ring, Faults::none()).unwrap();
+        let v = Validator::new(ValidatorConfig { store, signer: validator.clone(), checker: checker.clone(),
+            base: Id([0; 32]), policies: vec![receipt::Policy::v1()], max_running: 1,
+            max_queued: 1, workdir: dir.clone() }).unwrap();
+        let mut job = p.job.clone();
+        job.sig = case.signature;
+        let response = v.validate(job).await;
+        let ValidatorResponse::Refused { reason } = response else { panic!("{}: {response:?}", case.name) };
+        if case.expected {
+            assert!(reason.starts_with("envelope names checker"), "{}: {reason}", case.name);
+        } else {
+            assert_eq!(reason, "envelope is not signed by the controller", "{}", case.name);
+        }
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}

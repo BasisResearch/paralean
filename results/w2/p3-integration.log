@@ -1,0 +1,54 @@
+   Compiling paralean-crypto v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/crypto)
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.94s
+     Running tests/adversarial.rs (/tmp/paralean-w2-sandbox-target/debug/deps/adversarial-e97e0ea842e36358)
+
+running 13 tests
+test changed_target_statement_is_rejected ... ok
+test dependency_must_be_published_with_a_receipt ... ok
+test end_to_end_target_work_publishes_with_bound_receipts ... ok
+test forged_receipts_fail_closed ... ok
+test job_issuer_keys_sign_target_free_envelopes_only ... ok
+test receipt_for_another_epoch_fails_closed ... ok
+test receipt_for_another_group_policy_checker_base_or_target_fails_closed ... ok
+test receipt_for_another_or_cancelled_request_fails_closed ... ok
+test receipt_under_an_unpinned_policy_fails_closed ... ok
+test revoked_or_retired_validator_key_fails_closed ... ok
+test stale_owner_after_lease_expiry_cannot_publish ... ok
+test validator_enforces_the_envelope_policy ... ok
+test worker_that_skips_validation_cannot_publish ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 263.07s
+
+     Running tests/auth.rs (/tmp/paralean-w2-sandbox-target/debug/deps/auth-c61f75138bf55b83)
+
+running 2 tests
+test controller_rejects_unsigned_unknown_and_replayed_rpc ... ok
+test validator_rejects_unsigned_unknown_and_replayed_rpc ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.74s
+
+     Running tests/batch_warm.rs (/tmp/paralean-w2-sandbox-target/debug/deps/batch_warm-88931c062bbd9511)
+
+running 3 tests
+test batch_retries_joined_standalone_dependency_refusal ... FAILED
+test dependent_batch_requires_earlier_accepted_receipts_and_deduplicates ... ok
+test warm_process_rechecks_same_declaration_without_leaking_environment ... ok
+
+failures:
+
+---- batch_retries_joined_standalone_dependency_refusal stdout ----
+
+thread 'batch_retries_joined_standalone_dependency_refusal' (3521332) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/batch_warm.rs:94:5:
+assertion failed: accepted(&running.await.unwrap())
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    batch_retries_joined_standalone_dependency_refusal
+
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.05s
+
+error: test failed, to rerun pass `-p paralean-control --test batch_warm`

@@ -1,0 +1,23 @@
+import Lean
+open Lean Elab Tactic
+
+theorem Attack.safe : True := by
+  run_tac do
+    let secret : System.FilePath := "__ROOT__/secret"
+    let outside : System.FilePath := "__ROOT__/protected/outside"
+    let seen ← liftM <| do
+      try
+        let _ ← IO.FS.readFile secret
+        pure true
+      catch _ => pure false
+    if seen then throwError "native tactic read validator secret"
+    let wrote ← liftM <| do
+      try
+        IO.FS.writeFile outside "escaped"
+        pure true
+      catch _ => pure false
+    if wrote then throwError "native tactic wrote outside sandbox"
+    let net ← liftM <| IO.Process.output {
+      cmd := "/bin/bash", args := #["-c", "echo leak >/dev/tcp/127.0.0.1/__PORT__"] }
+    if net.exitCode == 0 then throwError "native tactic opened network"
+  trivial

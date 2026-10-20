@@ -1,0 +1,19 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.40s
+     Running tests/sandbox.rs (/tmp/paralean-w2-sandbox-target/debug/deps/sandbox-24c1b643ac117a05)
+
+running 9 tests
+test checker_cannot_read_secrets_write_outside_or_use_network ... ok
+test checker_cpu_budget_kills_busy_loop ... ok
+test checker_disk_budget_rejects_even_successful_exit ... ok
+test checker_memory_budget_kills_allocation ... ok
+test checker_process_count_is_hard_limited ... ok
+test native_lean_tactic_cannot_reach_host_when_fixture_is_available ... ignored, requires PARALEAN_BIN and PARALEAN_LIB for a real P1 capture
+test real_initializer_materializes_in_private_scratch_when_fixture_is_available ... ignored, requires PARALEAN_W2_INIT_* private initializer fixture
+test real_lean_check_passes_inside_sandbox_when_fixture_is_available ... ignored, requires PARALEAN_W2_REAL_* private P1 fixture
+test sandbox_configuration_enforces_kernel_limits ... ok
+
+test result: ok. 6 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 1.34s
+
