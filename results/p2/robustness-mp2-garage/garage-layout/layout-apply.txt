@@ -1,0 +1,25 @@
+==== COMPUTATION OF A NEW PARTITION ASSIGNATION ====
+
+Partitions are replicated 3 times on at least 3 distinct zones.
+
+Optimal partition size:                     7.5 MiB (7.5 MiB in previous layout)
+Usable capacity / total cluster capacity:   5.6 GiB / 5.6 GiB (100.0 %)
+Effective capacity (replication factor 3):  1.9 GiB
+
+A total of 256 new copies of partitions need to be transferred.
+
+dc1                 Tags  Partitions        Capacity  Usable capacity
+  3d95d885b4ad63d1  []    256 (0 new)       1.9 GiB   1.9 GiB (100.0%)
+  TOTAL                   256 (256 unique)  1.9 GiB   1.9 GiB (100.0%)
+
+dc0                 Tags  Partitions        Capacity  Usable capacity
+  94cded3a46ca5c0e  []    256 (0 new)       1.9 GiB   1.9 GiB (100.0%)
+  TOTAL                   256 (256 unique)  1.9 GiB   1.9 GiB (100.0%)
+
+dc2                 Tags  Partitions        Capacity  Usable capacity
+  e7473f093e5236fc  []    256 (256 new)     1.9 GiB   1.9 GiB (100.0%)
+  TOTAL                   256 (256 unique)  1.9 GiB   1.9 GiB (100.0%)
+
+
+New cluster layout with updated role assignment has been applied in cluster.
+Data will now be moved around between nodes accordingly.

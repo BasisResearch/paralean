@@ -620,8 +620,8 @@ has not yet been incorporated; the results below do not claim a merged-code gate
 - **Garage proxy.** The independent `garage-netsplit` crate uses distinct loopback
   source addresses and Garage's `rpc_bind_outgoing` to identify both ends of RPC
   links. It blackholes crossing links, including existing connections, and closes
-  them on healing. Six unit/TCP tests pass. Integration into the instance scripts
-  and a live Garage partition run are still pending.
+  them on healing. Six unit/TCP tests pass. The live partition test passed using
+  staged instance scripts; integration into the merged scripts remains pending.
 - **Fault studies and cluster gates.** The gray-failure study and permanent
   coordinator-loss results are below. Garage runs, merged-code gates and SIGSEGV
   diagnosis remain in progress on private `mp2-*` instances. No existing instance
@@ -665,3 +665,29 @@ reported `Coordination state changed` and replaced the dead endpoint with
 write/read succeeded. Artifacts: `results/p2/robustness-mp2-coord/coordinator/`.
 Distinct IPs let the single-host test exercise the automatic coordinator
 selection rule. Both FDB-only study instances were stopped afterward.
+
+**Garage RPC partition: pass with a measured stall.** Private `mp2-garage`
+used three Garage 2.4.1 nodes behind the new proxy. After isolating node 2, its
+PUT timed out without acknowledgement. Nodes 0 and 1 eventually acknowledged
+and served a new object. The combined majority PUT/read stage lasted about
+59 seconds (03:11:21–03:12:20 UTC); the original harness overwrote retry errors,
+so that run cannot establish the retry count or a more precise outage duration.
+Its raw final line saying “remained available” must be read with this qualification.
+The harness now preserves every attempt's duration, exit and error. After healing,
+all nodes returned both pre-partition and majority-acknowledged bytes. Root
+independently compared the saved payloads. Artifacts:
+`results/p2/garage-partition-mp2-garage-20261020T031053Z/`.
+
+**Garage permanent loss and layout replacement: pass.** On the same private
+instance, node 2 was killed permanently and its role replaced by a new node 3.
+The first harness command used an invalid `--replace` argument order; the
+corrected remaining steps were executed manually without restarting node 2.
+Layout version 2 moved 256 partition copies. Because the dead node could not
+acknowledge the new layout, `layout skip-dead-nodes --version 2` was required;
+`--allow-missing-data` was not used. Final health was `HEALTHY`, with all three
+storage nodes up and all 256 partitions fully healthy. Pre-loss acknowledged
+bytes were read through the surviving and replacement nodes, and a post-change
+write was read through the replacement. Root independently checked the saved
+payloads. The harness records the corrected assignment and dead-node skip.
+Artifacts, including the manual continuation and before/after health:
+`results/p2/robustness-mp2-garage/garage-layout/`.

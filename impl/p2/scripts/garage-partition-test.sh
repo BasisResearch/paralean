@@ -79,17 +79,43 @@ log "minority PUT did not acknowledge (exit $minority_rc)"
 
 log 'two-node majority must acknowledge and read a new object during the cut'
 majority_ok=0
+majority_start_ms=$(date +%s%3N)
+printf 'operation\tattempt\tstart_ms\tduration_ms\texit\tdetail\n' > "$out/majority-attempts.tsv"
 for attempt in $(seq 1 12); do
+  attempt_start_ms=$(date +%s%3N)
   if s3 0 put-object --bucket "$PARALEAN_S3_BUCKET" --key "$key_base/majority" \
-    --body "$out/majority.txt" > "$out/majority-put.json" 2> "$out/majority-put.err"; then
-    majority_ok=1; break
+    --body "$out/majority.txt" > "$out/majority-put-$attempt.json" 2> "$out/majority-put-$attempt.err"; then
+    attempt_rc=0
+  else
+    attempt_rc=$?
   fi
+  attempt_end_ms=$(date +%s%3N)
+  attempt_detail="$(tail -1 "$out/majority-put-$attempt.err" | tr '\t\n' '  ')"
+  printf 'put\t%s\t%s\t%s\t%s\t%s\n' "$attempt" "$attempt_start_ms" \
+    "$((attempt_end_ms-attempt_start_ms))" "$attempt_rc" "$attempt_detail" >> "$out/majority-attempts.tsv"
+  if [ "$attempt_rc" -eq 0 ]; then
+    majority_ok=1
+    log "majority PUT acknowledged on attempt $attempt after $((attempt_end_ms-majority_start_ms)) ms"
+    break
+  fi
+  log "majority PUT attempt $attempt failed after $((attempt_end_ms-attempt_start_ms)) ms (exit $attempt_rc): $attempt_detail"
   sleep 3
 done
 [ "$majority_ok" = 1 ] || { log 'FAIL: Garage majority could not acknowledge PUT'; exit 1; }
-s3 1 get-object --bucket "$PARALEAN_S3_BUCKET" --key "$key_base/majority" \
-  "$out/majority-node1.txt" > "$out/majority-node1.json"
+get_start_ms=$(date +%s%3N)
+if s3 1 get-object --bucket "$PARALEAN_S3_BUCKET" --key "$key_base/majority" \
+  "$out/majority-node1.txt" > "$out/majority-node1.json" 2> "$out/majority-node1.err"; then
+  get_rc=0
+else
+  get_rc=$?
+fi
+get_end_ms=$(date +%s%3N)
+get_detail="$(tail -1 "$out/majority-node1.err" | tr '\t\n' '  ')"
+printf 'get\t1\t%s\t%s\t%s\t%s\n' "$get_start_ms" \
+  "$((get_end_ms-get_start_ms))" "$get_rc" "$get_detail" >> "$out/majority-attempts.tsv"
+[ "$get_rc" -eq 0 ] || { log "FAIL: majority GET exited $get_rc after $((get_end_ms-get_start_ms)) ms: $get_detail"; exit 1; }
 cmp "$out/majority.txt" "$out/majority-node1.txt"
+log "majority GET verified after $((get_end_ms-get_start_ms)) ms; cut-phase PUT+GET took $((get_end_ms-majority_start_ms)) ms"
 
 log 'heal RPC partition and verify the majority acknowledgement on every node'
 proc garage-heal >> "$out/events.log" 2>&1
@@ -116,4 +142,4 @@ for node in 0 1 2; do
   done
   [ "$found" = 1 ] || { log "FAIL: node $node cannot read pre-partition acknowledgement after healing"; exit 1; }
 done
-log 'PASS: minority did not acknowledge; majority remained available; all nodes read both acknowledged objects after healing'
+log 'PASS: minority did not acknowledge; majority eventually acknowledged and served a read; all nodes read both acknowledged objects after healing'
