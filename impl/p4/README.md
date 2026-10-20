@@ -4,11 +4,25 @@
 has its own process, store, environment identity and generation. Use
 `python3 impl/p4/lsp.py --help` for routing and worker environment configuration.
 The underlying command can be a local Lean executable or a transport wrapper
-that provides a remote worker's stdin/stdout.
+that provides a remote worker's stdin/stdout. For example, use
+`--worker-command 'alice=["ssh","host","/path/to/worker-wrapper"]'` with
+`--worker-root alice=/remote/workspace`. The wrapper must set the remote
+environment and make the remote source tree available. Per-workspace
+`--workspace-env NAME=JSON_FILE` configures local worker environment variables.
+`--environment NAME=ID` pins the base and policy identity supplied by the controller.
+Registry and trust changes additionally invalidate the worker automatically.
 
 The P4 fork automatically imports `Paralean.Visibility` when Paralean mode and
 `PARALEAN_STORE` are enabled. Put the built P1 library on `LEAN_PATH`. The
 editor's source text and positions remain unchanged.
+
+The router supports ordinary LSP hover, goals, completion (including resolve),
+rename, diagnostics and cancellation. `paralean://NAME/path.lean` addresses a
+workspace without exposing its worker path. `workspace/symbol` and
+`paralean/search` combine worker symbols with published registry names;
+`paralean/source` returns the current buffer or source file with its stamps.
+RPC sessions and completion items are bound to their original document,
+environment and worker generation.
 
 ## Incremental publication capture
 
