@@ -1,0 +1,45 @@
+observe Elab.async=true:
+  L11 declaration: new visible #[FA.kernelBad:theorem], errors reported when the command returned: 0
+  L13 declaration: new visible #[FA.usesKernelBad:theorem], errors reported when the command returned: 0
+  L15 declaration: new visible #[FA.lateBad:theorem], errors reported when the command returned: 0
+  L19 declaration: new visible #[FA.usesLateBad:theorem], errors reported when the command returned: 0
+  L21 declaration: new visible #[FA.fine:theorem], errors reported when the command returned: 0
+  final FA.kernelBad: theorem, axioms #[FA.kernelBad]
+  final FA.usesKernelBad: theorem, axioms #[FA.kernelBad]
+  final FA.lateBad: theorem, axioms #[propext, sorryAx]
+  final FA.usesLateBad: theorem, axioms #[propext, sorryAx]
+  final FA.fine: theorem, axioms #[]
+observe Elab.async=false:
+  L11 declaration: new visible #[FA.kernelBad:theorem], errors reported when the command returned: 1
+  L13 declaration: new visible #[FA.usesKernelBad:theorem], errors reported when the command returned: 0
+  L15 declaration: new visible #[FA.lateBad:theorem], errors reported when the command returned: 1
+  L19 declaration: new visible #[FA.usesLateBad:theorem], errors reported when the command returned: 0
+  L21 declaration: new visible #[FA.fine:theorem], errors reported when the command returned: 0
+  final FA.kernelBad: theorem, axioms #[FA.kernelBad]
+  final FA.usesKernelBad: theorem, axioms #[FA.kernelBad]
+  final FA.lateBad: theorem, axioms #[propext, sorryAx]
+  final FA.usesLateBad: theorem, axioms #[propext, sorryAx]
+  final FA.fine: theorem, axioms #[]
+forged publication, then validator:
+  #[FA.kernelBad]: source replay rejects, kernel+axiom validator rejects
+      replay-elab-error: <capsule 118bf175>:6:8: error: (kernel) declaration type mismatch, 'FA.kernelBad' has type
+  True
+but it is expected to have type
+  1 = 2
+      kernel: [FA.kernelBad]: (kernel) declaration type mismatch, 'FA.kernelBad' has type
+  True
+but it is expected to have type
+  1 = 2
+  #[FA.usesKernelBad]: source replay rejects, kernel+axiom validator rejects
+      replay-encode: unresolvable reference FA.kernelBad
+      rejected-dep: depends on group 118bf175a254, which the validator rejected
+      kernel: [FA.usesKernelBad]: (kernel) unknown constant 'FA.kernelBad'
+  #[FA.lateBad]: source replay rejects, kernel+axiom validator rejects
+      replay-elab-error: <capsule bfbd66ca>:3:30: error: unsolved goals
+_h : True
+⊢ False
+      axiom: FA.lateBad depends on disallowed axiom sorryAx
+  #[FA.usesLateBad]: source replay rejects, kernel+axiom validator rejects
+      replay-encode: unresolvable reference FA.lateBad
+      rejected-dep: depends on group bfbd66caffa0, which the validator rejected
+      axiom: FA.usesLateBad depends on disallowed axiom sorryAx

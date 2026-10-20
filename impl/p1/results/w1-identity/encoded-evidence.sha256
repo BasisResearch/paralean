@@ -1,0 +1,14 @@
+429f2b0a43b8465b3506dc87fe234d7dc1ddf845772e6a1b3b07c8ac5c2743f1  impl/p1/Paralean/Export.lean
+647c92b71e7f2598328c3e9da1ba79f0dbbd389f95ddace30511124920576eff  impl/p1/tests/DumpExistingExportGroup.lean
+05e5a87ec945c0f10e0fe6ffe31fa866e8ebe5a395862eac0f09ae94cce67b5f  impl/p1/scripts/summarize-export-group-diff.py
+a017a2e358e3dd70347100163b838d67431b8a91e0882e313a22c709652cccee  impl/p1/tests/ExportLookupResidualFixture.lean
+ef37767b9f8c79d7a6c862ca70c9a35d5480f404d45dac3979b2e34068039784  impl/p1/tests/ExportLookupResidualCheck.lean
+cbcd7825dfeec56a824b311b8055cab70afdf48d39b0c5e19bcae2e8af842108  impl/p1/scripts/check-export-lookup-residual-mutations.sh
+7db119542c1723b4fff2783deffb441fb281791e3b6cc107a41e16ee37783b8c  impl/p1/results/w1-identity/m08-encoded-diff.tsv
+bdea0a04ddf4bf62a39a22476867a6381a971b70f473cc8e38a1e6fa86473790  impl/p1/results/w1-identity/m08-fork-encoded-diff.tsv
+18ba3cfe8edab2d888bc86e1c39d897049a521a96a5962583b87e279893d0009  impl/p1/results/w1-identity/m17-encoded-diff.tsv
+7832694dc5a92aaeee022a82f81bc1aaacbf0989ac7c44b29a48e2223a21defd  impl/p1/results/w1-identity/m17-fork-encoded-diff.tsv
+2185774cc3bfa5a08f51bd8497aadab82800cb739a62348ef3b4982ac8732195  impl/p1/results/w1-identity/m08-dump-fork.log
+285ddf6e118e19a056b929222f6cee930a87a8cc5211bdb426dee66b36d853a4  impl/p1/results/w1-identity/m08-dump-stock.log
+1e0d882c23138286569266eb0847a725e52ef256c6d61b496ed74b964fb19ca4  impl/p1/results/w1-identity/m17-dump-fork.log
+42cda06cbb63e4d405b830e2cf29cafea64777dfa9a8aa254facd0b29ccdb932  impl/p1/results/w1-identity/m17-dump-stock.log

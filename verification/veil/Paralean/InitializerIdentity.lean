@@ -59,10 +59,44 @@ theorem concrete_module_change :
         LiteralBody (Fin 2) (Fin 1) Unit) := by
   constructor <;> decide
 
+/-- A raw-hygiene lookup admits a candidate only when its key has exactly one
+exported match. This fact is independent of the order in which the exported
+constants were enumerated. The later declaration-ID check is still required:
+matching a name does not establish equality of its body. -/
+theorem singleton_hygiene_match_sound {candidate key : Type}
+    [DecidableEq key] (candidates : List candidate) (rawKey : candidate → key)
+    (capturedKey : key) (chosen : candidate)
+    (h : candidates.filter (fun c => decide (rawKey c = capturedKey)) = [chosen]) :
+    chosen ∈ candidates ∧ rawKey chosen = capturedKey ∧
+      ∀ other ∈ candidates, rawKey other = capturedKey → other = chosen := by
+  have hchosen : chosen ∈ candidates.filter (fun c => decide (rawKey c = capturedKey)) := by
+    rw [h]
+    simp
+  have hpart := List.mem_filter.mp hchosen
+  refine ⟨hpart.1, by simpa using hpart.2, ?_⟩
+  intro other hmem hkey
+  have hother : other ∈ candidates.filter (fun c => decide (rawKey c = capturedKey)) :=
+    List.mem_filter.mpr ⟨hmem, by simpa [hkey]⟩
+  rw [h] at hother
+  simpa using hother
+
+/-- Sorting the exported list leaves the singleton candidate unchanged. -/
+theorem singleton_hygiene_match_perm {candidate key : Type}
+    [DecidableEq key] (candidates reordered : List candidate)
+    (rawKey : candidate → key) (capturedKey : key) (chosen : candidate)
+    (hperm : candidates.Perm reordered)
+    (h : candidates.filter (fun c => decide (rawKey c = capturedKey)) = [chosen]) :
+    reordered.filter (fun c => decide (rawKey c = capturedKey)) = [chosen] := by
+  have hfilter := hperm.filter (fun c => decide (rawKey c = capturedKey))
+  rw [h] at hfilter
+  exact hfilter.symm.eq_singleton
+
 #print axioms exact_implies_observable
 #print axioms private_literal_changes
 #print axioms rendered_declaration_unchanged
 #print axioms quotient_cannot_certify_exact
 #print axioms concrete_module_change
+#print axioms singleton_hygiene_match_sound
+#print axioms singleton_hygiene_match_perm
 
 end ParaleanInitializerIdentity

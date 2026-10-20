@@ -1,0 +1,2 @@
+verify: 84/85 declaration groups identical in the stock-built oleans; 18 effect-only groups (build-checked)
+  [reject:export-missing] Fixtures/F10SimpAttrDecl.lean:4: exported module Fixtures.F10SimpAttrDecl has no unique match for member _private.Fixtures.F10SimpAttrDecl.0.initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.22

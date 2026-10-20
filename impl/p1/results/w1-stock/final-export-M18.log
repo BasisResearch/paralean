@@ -1,0 +1,4 @@
+export: 1 modules, 265 groups, 132059 bytes of source
+  Mathlib.ParaleanExport.Logic.Function.Basic: 265 groups; imports #[Mathlib.Basic.ExistsUnique, Mathlib.Basic.Logic.Basic, Mathlib.Basic.Nonempty, Mathlib.Basic.Nontrivial.Defs, Mathlib.Logic.Function.Defs, Batteries.Tactic.Init, Mathlib.Order.Defs.Unbundled]
+stock lake build: OK (9687 ms)
+verify: 262/262 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)

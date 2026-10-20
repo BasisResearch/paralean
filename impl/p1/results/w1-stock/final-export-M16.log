@@ -1,0 +1,4 @@
+export: 1 modules, 211 groups, 103905 bytes of source
+  Mathlib.ParaleanExport.Logic.Relation: 211 groups; imports #[Mathlib.Logic.Relator, Mathlib.Tactic.Use, Mathlib.Tactic.MkIffOfInductiveProp, Mathlib.Tactic.SimpRw, Mathlib.Order.Defs.Prop, Mathlib.Order.Defs.Unbundled, Batteries.Logic]
+stock lake build: OK (9507 ms)
+verify: 205/205 declaration groups identical in the stock-built oleans; 6 effect-only groups (build-checked)

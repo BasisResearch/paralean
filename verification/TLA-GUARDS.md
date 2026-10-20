@@ -288,3 +288,52 @@ acknowledged but whose writer was fenced out before committing it; recovery
 adopts a record only with its parents, so that committed record was never
 adoptable. `CommitCert` now reads the parents' certificates and requires each
 to be committed (`ParentsCommittedOK`).
+
+## Source replay and export lookup
+
+W1 adds three finite, safety-only models of the Lean identity boundary. They
+abstract kernel terms as distinct values; they do not model the elaborator or
+prove cryptographic collision resistance.
+
+| Model | Guard or association | Mutation | Required counterexample |
+|---|---|---|---|
+| `ReplayIdentity` | Replayed content must equal stored content | `replay_without_exact_identity` | `AcceptedExact` |
+| `ExportLookup` | Associate generated declarations by raw hygiene key | `lookup_positional_queue` | `AttemptedKey` |
+| `ExportLookup` | A key must have exactly one exported candidate | `lookup_no_uniqueness` | `AcceptedUnique` |
+| `ExportLookup` | An exported declaration cannot serve two captured members | `lookup_no_reuse_guard` | `AcceptedNotReused` |
+| `ExportLookup` | The matched declaration must still have exact stored content | `lookup_no_exact_identity` | `AcceptedExact` |
+| `ExportLookupResidual` | Every exact-key candidate is reserved, including failed and ambiguous owners | `residual_no_exact_reservation` | `NoExactCandidateStolen` |
+| `ExportLookupResidual` derived fixture | Residual fallback is allowed only when the captured full key has no exported candidates | `residual_no_fullkey_guard` | `NoAmbiguousAccepted` |
+| `ExportLookupResidual` | A residual stem has one unmatched captured member | `residual_no_capture_uniqueness` | `NoTwoAccepted` |
+| `ExportLookupResidual` | A residual stem has one available exported candidate | `residual_no_candidate_uniqueness` | `NoMultiAccepted` |
+| `ExportLookupResidual` | Residual matching still requires exact stored content | `residual_no_exact_body` | `AcceptedExact` |
+
+The replay model has witnesses for sensitive content succeeding in its original
+module, failing in a synthetic module, and ordinary content succeeding in the
+synthetic module. The lookup model has three successful initializer matches and
+witnesses for changed literal content, ambiguous candidates, and declaration
+reuse being rejected.
+
+The residual model adds the stock F10 scope-ordinal drift witness and rejection
+witnesses for a failed exact owner, attempted theft of its candidate, an
+ambiguous exact owner and attempted theft of its candidates, two unmatched
+captures, two residual candidates, and changed content. Exact-key reservation
+is computed over all captured members, independently of whether their bodies
+later validate. With that global reservation, phase ordering is a scheduling
+choice rather than a separate safety guard; the reservation-removal mutation
+tests the safety condition. A generated variant of the residual model adds a
+third unclaimed exported candidate under the ambiguous owner's stem. The
+variant passes all configured invariants; removing only the fallback's
+`FullMatches(g) = {}` guard then admits the ambiguous owner with that third
+candidate, violating `NoAmbiguousAccepted`. The script derives both cases in
+temporary copies, so the pristine TLA model and its hash remain unchanged.
+
+Both model and implementation reserve every full-key candidate before content
+validation. The model marks a candidate used only after successful content
+validation; `exportIdentity` also marks an associated candidate used before
+`verifyExport` checks its body. The implementation is therefore stricter about
+reuse after a content failure; the model's acceptance invariants do not claim
+that every modeled acceptance is realized by the implementation. Raw-key matching is a
+lookup operation, not a quotient of kernel literals. See
+[the W1 identity analysis](../docs/w1-identity.md) for the concrete Lean evidence
+and the limits of module-independent identity.

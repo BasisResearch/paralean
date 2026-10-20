@@ -1,0 +1,1 @@
+The earlier 147-file manifest omitted 38 optional .olean.server/.olean.private files consumed by Axioms.lean and verifyExport, so it does not establish reuse of G4. A fresh full G4 run against the final built packages is recorded in g4.txt. The complete 185-file manifest is g4-artifacts-with-sidecars.tsv.

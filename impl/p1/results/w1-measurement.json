@@ -1,0 +1,609 @@
+{
+  "baseline": {
+    "fork": {
+      "G1": {
+        "isolated": {
+          "ok": 1224,
+          "total": 1225
+        },
+        "kernel": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "source": {
+          "ok": 1224,
+          "total": 1225
+        }
+      },
+      "G2": {
+        "canonical_instances": 90,
+        "public_sets": {
+          "ok": 1122,
+          "total": 1127
+        }
+      },
+      "G3": {
+        "above_p95_bound": 0,
+        "max_fixture_capsule_bytes": 390,
+        "max_mathlib_capsule_bytes": 2868,
+        "max_mathlib_p50_ratio": 3.795918,
+        "max_mathlib_p95_ratio": 9.826087,
+        "needs_larger_capsule": 0
+      },
+      "G4": {
+        "axiom_sets": {
+          "differ": 0,
+          "missing_reference_names": 3,
+          "ok": 1445,
+          "total": 1448
+        },
+        "export_builds": {
+          "ok": 23,
+          "total": 23
+        },
+        "identity": {
+          "ok": 1116,
+          "total": 1142
+        },
+        "source_mappings": {
+          "reproduced": 5,
+          "resolved": 5,
+          "total": 5
+        }
+      },
+      "G5": {
+        "required_negative_cases": {
+          "ok": 6,
+          "total": 6
+        }
+      },
+      "G6": {
+        "acyclic_modules": 3,
+        "identity": {
+          "ok": 3,
+          "total": 3
+        }
+      }
+    },
+    "stock": {
+      "G1": {
+        "isolated": {
+          "ok": 1224,
+          "total": 1225
+        },
+        "kernel": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "source": {
+          "ok": 1224,
+          "total": 1225
+        }
+      },
+      "G2": {
+        "canonical_instances": 78,
+        "public_sets": {
+          "ok": 1122,
+          "total": 1127
+        }
+      },
+      "G3": {
+        "above_p95_bound": 0,
+        "max_fixture_capsule_bytes": 390,
+        "max_mathlib_capsule_bytes": 2868,
+        "max_mathlib_p50_ratio": 3.795918,
+        "max_mathlib_p95_ratio": 9.826087,
+        "needs_larger_capsule": 0
+      },
+      "G4": {
+        "axiom_sets": {
+          "differ": 0,
+          "missing_reference_names": 3,
+          "ok": 1445,
+          "total": 1448
+        },
+        "export_builds": {
+          "ok": 23,
+          "total": 23
+        },
+        "identity": {
+          "ok": 1116,
+          "total": 1142
+        },
+        "source_mappings": {
+          "reproduced": 5,
+          "resolved": 5,
+          "total": 5
+        }
+      },
+      "G5": {
+        "required_negative_cases": {
+          "ok": 6,
+          "total": 6
+        }
+      },
+      "G6": {
+        "acyclic_modules": 3,
+        "identity": {
+          "ok": 3,
+          "total": 3
+        }
+      }
+    }
+  },
+  "baseline_sources": [
+    "docs/p1-gate.md",
+    "docs/fork-log.md"
+  ],
+  "final": {
+    "fork": {
+      "G1": {
+        "corpus_sets": 22,
+        "diagnostic_probe": {
+          "ok": 8,
+          "total": 8
+        },
+        "isolated": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "kernel": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "source": {
+          "ok": 1225,
+          "total": 1225
+        }
+      },
+      "G2": {
+        "canonical_instances": 90,
+        "explained_instance_spellings": 5,
+        "missing_anchors": 0,
+        "public_sets": {
+          "ok": 1122,
+          "total": 1127
+        },
+        "reserved_published": 0
+      },
+      "G3": {
+        "above_p95_bound": 0,
+        "groups": 1225,
+        "max_fixture_capsule_bytes": 390,
+        "max_fixture_p50_ratio": 5.542857,
+        "max_fixture_p95_ratio": 6.555556,
+        "max_mathlib_capsule_bytes": 2868,
+        "max_mathlib_p50_ratio": 3.795918,
+        "max_mathlib_p95_ratio": 9.826087,
+        "needs_larger_capsule": 0
+      },
+      "G4": {
+        "axiom_sets": {
+          "differ": 0,
+          "missing_reference_names": 3,
+          "ok": 1445,
+          "total": 1448
+        },
+        "diagnostic_probe_identity": {
+          "ok": 7,
+          "total": 7
+        },
+        "export_builds": {
+          "ok": 23,
+          "total": 23
+        },
+        "identity": {
+          "effect_only_build_checked": 83,
+          "ok": 1121,
+          "total": 1142
+        },
+        "residuals": {
+          "M08": {
+            "mismatches": 1,
+            "total": 2,
+            "verified": 1
+          },
+          "M17": {
+            "mismatches": 20,
+            "total": 21,
+            "verified": 1
+          }
+        },
+        "shared_constants": {
+          "ok": 2495,
+          "total": 2502
+        },
+        "source_mappings": {
+          "distinct_reference_lines": 4,
+          "reproduced": 5,
+          "resolved": 5,
+          "total": 5
+        }
+      },
+      "G5": {
+        "N3_validator_recheck": {
+          "kernel_accepted": 0,
+          "source_replayed": 1,
+          "total": 1
+        },
+        "cases": {
+          "N1Sorry": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom"
+            ]
+          },
+          "N2Axiom": {
+            "audit_objects": 2,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 4,
+                "rejections": 4
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom",
+              "new-axiom",
+              "rejected-dep"
+            ]
+          },
+          "N3SkipKernel": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "bypass-option"
+            ]
+          },
+          "N4ChangedTarget": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 1,
+                "diagnostics": 0,
+                "rejections": 0
+              },
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "changed-target"
+            ]
+          },
+          "N5ChangedDep": {
+            "audit_objects": 0,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 2,
+                "diagnostics": 0,
+                "rejections": 0
+              },
+              {
+                "accepted": 1,
+                "diagnostics": 2,
+                "rejections": 2
+              }
+            ],
+            "publishable_objects": 3,
+            "published_groups": 3,
+            "rejection_codes": [
+              "elab-error"
+            ]
+          },
+          "N6NativeDecide": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 2,
+                "rejections": 2
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom",
+              "new-axiom"
+            ]
+          }
+        },
+        "rejected_objects_published": 0,
+        "required_negative_cases": {
+          "ok": 6,
+          "total": 6
+        }
+      },
+      "G6": {
+        "acyclic_modules": 3,
+        "expected_early_failure": true,
+        "identity": {
+          "ok": 3,
+          "total": 3
+        }
+      },
+      "provenance": {
+        "artifact_files": 185,
+        "artifact_manifest_sha256": "cca666cbdacdf8729a61700fcec22ab0590c7a803100737061de476009edc2df",
+        "artifact_olean_sidecars": 38,
+        "binary_sha256": "217657e1f31ab6ab0eb6d1bd2c87d558b590180cf452d82cbc23507fe1776601",
+        "export_olean_sha256": "1405a334b3f1815657e6807f503fea41ef634d056c2cf67088c763dbbbaeb92b",
+        "export_source_sha256": "429f2b0a43b8465b3506dc87fe234d7dc1ddf845772e6a1b3b07c8ac5c2743f1",
+        "g4_report": "impl/p1/results/w1-fork/g4.txt",
+        "identity_status": "impl/p1/results/w1-fork/verify-existing-final2-complete/status.tsv",
+        "replay_source_sha256": "cf2e0545ac4226b523b0f41bd761561f20e70f3ee98e095e755cb2e2b047d0c1",
+        "replay_status": "impl/p1/results/w1-fork/replay-final2/status.tsv"
+      }
+    },
+    "stock": {
+      "G1": {
+        "corpus_sets": 22,
+        "diagnostic_probe": {
+          "ok": 8,
+          "total": 8
+        },
+        "isolated": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "kernel": {
+          "ok": 1225,
+          "total": 1225
+        },
+        "source": {
+          "ok": 1225,
+          "total": 1225
+        }
+      },
+      "G2": {
+        "canonical_instances": 78,
+        "explained_instance_spellings": 5,
+        "missing_anchors": 0,
+        "public_sets": {
+          "ok": 1122,
+          "total": 1127
+        },
+        "reserved_published": 0
+      },
+      "G3": {
+        "above_p95_bound": 0,
+        "groups": 1225,
+        "max_fixture_capsule_bytes": 390,
+        "max_fixture_p50_ratio": 5.542857,
+        "max_fixture_p95_ratio": 6.555556,
+        "max_mathlib_capsule_bytes": 2868,
+        "max_mathlib_p50_ratio": 3.795918,
+        "max_mathlib_p95_ratio": 9.826087,
+        "needs_larger_capsule": 0
+      },
+      "G4": {
+        "axiom_sets": {
+          "differ": 0,
+          "missing_reference_names": 3,
+          "ok": 1445,
+          "total": 1448
+        },
+        "diagnostic_probe_identity": {
+          "ok": 7,
+          "total": 7
+        },
+        "export_builds": {
+          "ok": 23,
+          "total": 23
+        },
+        "identity": {
+          "effect_only_build_checked": 83,
+          "ok": 1121,
+          "total": 1142
+        },
+        "residuals": {
+          "M08": {
+            "mismatches": 1,
+            "total": 2,
+            "verified": 1
+          },
+          "M17": {
+            "mismatches": 20,
+            "total": 21,
+            "verified": 1
+          }
+        },
+        "shared_constants": {
+          "ok": 2495,
+          "total": 2502
+        },
+        "source_mappings": {
+          "distinct_reference_lines": 4,
+          "reproduced": 5,
+          "resolved": 5,
+          "total": 5
+        }
+      },
+      "G5": {
+        "N3_validator_recheck": {
+          "kernel_accepted": 0,
+          "source_replayed": 1,
+          "total": 1
+        },
+        "cases": {
+          "N1Sorry": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom"
+            ]
+          },
+          "N2Axiom": {
+            "audit_objects": 2,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 4,
+                "rejections": 4
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom",
+              "new-axiom",
+              "rejected-dep"
+            ]
+          },
+          "N3SkipKernel": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "bypass-option"
+            ]
+          },
+          "N4ChangedTarget": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 1,
+                "diagnostics": 0,
+                "rejections": 0
+              },
+              {
+                "accepted": 0,
+                "diagnostics": 1,
+                "rejections": 1
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "changed-target"
+            ]
+          },
+          "N5ChangedDep": {
+            "audit_objects": 0,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 2,
+                "diagnostics": 0,
+                "rejections": 0
+              },
+              {
+                "accepted": 1,
+                "diagnostics": 2,
+                "rejections": 2
+              }
+            ],
+            "publishable_objects": 3,
+            "published_groups": 3,
+            "rejection_codes": [
+              "elab-error"
+            ]
+          },
+          "N6NativeDecide": {
+            "audit_objects": 1,
+            "capture_exit": 1,
+            "capture_group_summaries": [
+              {
+                "accepted": 0,
+                "diagnostics": 2,
+                "rejections": 2
+              }
+            ],
+            "publishable_objects": 0,
+            "published_groups": 0,
+            "rejection_codes": [
+              "axiom",
+              "new-axiom"
+            ]
+          }
+        },
+        "rejected_objects_published": 0,
+        "required_negative_cases": {
+          "ok": 6,
+          "total": 6
+        }
+      },
+      "G6": {
+        "acyclic_modules": 3,
+        "expected_early_failure": true,
+        "identity": {
+          "ok": 3,
+          "total": 3
+        }
+      },
+      "provenance": {
+        "artifact_files": 185,
+        "artifact_manifest_sha256": "efc322b5bfc0082fb2bfed64042b58b7849dc0343c134ec140268902d0f583b7",
+        "artifact_olean_sidecars": 38,
+        "binary_sha256": "6442bc7a11b04458fdc1b84c056f07fc70f6a03439f5897622b51ead8072993f",
+        "export_olean_sha256": "9f225e2e806d2f5f2b597286867d32571a705ed16a7250bf35e7c232749e621e",
+        "export_source_sha256": "429f2b0a43b8465b3506dc87fe234d7dc1ddf845772e6a1b3b07c8ac5c2743f1",
+        "g4_report": "impl/p1/results/w1-stock/g4.txt",
+        "identity_status": "impl/p1/results/w1-stock/verify-existing-final2-complete/status.tsv",
+        "replay_source_sha256": "cf2e0545ac4226b523b0f41bd761561f20e70f3ee98e095e755cb2e2b047d0c1",
+        "replay_status": "impl/p1/results/w1-stock/replay-final2/status.tsv"
+      }
+    }
+  },
+  "improvement": {
+    "fork": {
+      "G1_isolated_groups": 1,
+      "G1_source_groups": 1,
+      "G4_identity_groups": 5
+    },
+    "stock": {
+      "G1_isolated_groups": 1,
+      "G1_source_groups": 1,
+      "G4_identity_groups": 5
+    }
+  },
+  "schema": "paralean-w1-p1-gates/v1"
+}

@@ -1,0 +1,4 @@
+export: 1 modules, 7 groups, 2059 bytes of source
+  F16MathlibAttrs: 7 groups; imports #[Mathlib.Algebra.Group.Defs, Mathlib.Tactic.Simps.Basic, Mathlib.Data.Nat.Factorial.Basic]
+stock lake build: OK (7617 ms)
+verify: 6/6 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

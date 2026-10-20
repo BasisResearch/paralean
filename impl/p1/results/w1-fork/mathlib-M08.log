@@ -1,0 +1,25 @@
+### M08 Mathlib.Tactic.ByCases
+capture M08:Mathlib/Tactic/ByCases.lean
+  effect a1b28301 moduleDoc L11 members=0 pub=0 realized=0 deps=0 fe=0 bytes=148
+  effect 45b9968d syntax L23 members=1 pub=1 realized=0 deps=0 fe=0 bytes=616
+  skipped Lean.Parser.Command.elab (local-effect)
+  effect 4cb846e8 macro_rules L37 members=1 pub=0 realized=0 deps=0 fe=1 bytes=3059
+  => 3 groups, 6 skipped, 1 diagnostics (0 reject)
+  [unsupported:module-dependent-literal] Mathlib/Tactic/ByCases.lean:37: Mathlib.Tactic.ByCases._aux_Mathlib_Tactic_ByCases___macroRules_Mathlib_Tactic_ByCases_byCases!_1 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in
+capture-time 0.81 s maxrss 628708 KB
+capture-exit=0
+source replay: 3/3 groups reproduce their declaration ID (613 ms)
+kernel replay: 3/3 groups accepted; 2 declarations added, 0 reserved names re-realized (2 ms)
+isolated replay (exact deps only): 3/3
+replay-time 0.91 s maxrss 628672 KB
+replay-exit=0
+export: 1 modules, 3 groups, 1956 bytes of source
+  Mathlib.ParaleanExport.Tactic.ByCases: 3 groups; imports #[Batteries.Tactic.PermuteGoals, Mathlib.Tactic.Push]
+stock lake build: OK (3009 ms)
+verify: 1/2 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+  [reject:export-mismatch] Mathlib/Tactic/ByCases.lean:37: stock-built group 62bf00187bdb ≠ stored f5a1a2428cd2
+Command exited with non-zero status 1
+export-time 5.55 s maxrss 1270332 KB
+export-exit=1
+STATS {"aboveP95Bound":[],"capsuleBytes":{"max":648,"median":628,"p95":648,"sum":1580},"commandBytes":{"max":416,"median":217,"sum":801},"diagnostics":[["unsupported:module-dependent-literal",1]],"encodingBytes":{"max":3059,"median":616,"sum":3823},"groups":3,"ratio":{"p50":1.809524,"p95":2.894009},"rejected":0,"skipped":6}
+stats-exit=0

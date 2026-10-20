@@ -1,0 +1,4 @@
+export: 1 modules, 4 groups, 1899 bytes of source
+  Mathlib.ParaleanExport.Algebra.Field.ZMod: 4 groups; imports #[Mathlib.Algebra.Field.Basic, Mathlib.Data.ZMod.Basic]
+stock lake build: OK (13465 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

@@ -1,0 +1,4 @@
+export: 1 modules, 2 groups, 998 bytes of source
+  Mathlib.ParaleanExport.Data.PNat.Equiv: 2 groups; imports #[Mathlib.Data.PNat.Defs, Mathlib.Logic.Equiv.Defs]
+stock lake build: OK (3755 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

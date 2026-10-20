@@ -1,0 +1,4 @@
+export: 1 modules, 30 groups, 11740 bytes of source
+  Mathlib.ParaleanExport.Algebra.Group.Defs: 30 groups; imports #[Mathlib.Algebra.Group.DivInvMonoid]
+stock lake build: OK (3964 ms)
+verify: 22/22 declaration groups identical in the stock-built oleans; 8 effect-only groups (build-checked)

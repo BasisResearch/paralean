@@ -1,0 +1,25 @@
+materialized: 21 initializer groups imported as stock-built modules
+source replay: 22/22 groups reproduce their declaration ID (1704 ms)
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:25: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:35: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:38: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:41: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:44: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:48: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:52: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:56: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:65: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:74: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:88: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:91: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:94: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:97: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:102: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:105: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:108: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:111: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:114: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:117: initializer group imported as a stock-built module
+  [info:materialized] Mathlib/Tactic/Attr/Register.lean:154: initializer group imported as a stock-built module
+kernel replay: 22/22 groups accepted; 0 declarations added, 0 reserved names re-realized (4 ms)
+isolated replay (exact deps only): 22/22

@@ -1,0 +1,59 @@
+{
+  "gid": "4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4",
+  "declId": "f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa",
+  "fixture": "source replay: 2/2 groups reproduce their declaration ID (620 ms)\nkernel replay: 2/2 groups accepted; 2 declarations added, 0 reserved names re-realized (1 ms)\nisolated replay (exact deps only): 2/2",
+  "capture": "capture M08:Mathlib/Tactic/ByCases.lean\n  effect a1b28301 moduleDoc L11 members=0 pub=0 realized=0 deps=0 fe=0 bytes=148\n  effect 45b9968d syntax L23 members=1 pub=1 realized=0 deps=0 fe=0 bytes=616\n  skipped Lean.Parser.Command.elab (local-effect)\n  effect 4cb846e8 macro_rules L37 members=1 pub=0 realized=0 deps=0 fe=1 bytes=3059\n  => 3 groups, 6 skipped, 1 diagnostics (0 reject)\n  [unsupported:module-dependent-literal] Mathlib/Tactic/ByCases.lean:37: Mathlib.Tactic.ByCases._aux_Mathlib_Tactic_ByCases___macroRules_Mathlib_Tactic_ByCases_byCases!_1 embeds a module-private or hygienic name literal; its body depends on the module it is elaborated in",
+  "replay": "source replay: 3/3 groups reproduce their declaration ID (913 ms)\nkernel replay: 3/3 groups accepted; 2 declarations added, 0 reserved names re-realized (2 ms)\nisolated replay (exact deps only): 3/3",
+  "check": {
+    "axioms": [],
+    "closure": [
+      "a8cb7e159c05835c27d06bbba29c36f44c4c2d109500e484fc3ec53e442e1218",
+      "f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa"
+    ],
+    "declId": "f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa",
+    "diags": [],
+    "gid": "4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4",
+    "ok": true,
+    "publicNames": [],
+    "statements": [
+      [
+        [
+          "Mathlib",
+          "Tactic",
+          "ByCases",
+          "_aux_Mathlib_Tactic_ByCases___macroRules_Mathlib_Tactic_ByCases_byCases!_1"
+        ],
+        "d9c2f79d105da69727144d3accbaeb43af5577fce6dc4a087cf1d51154e6b0c8"
+      ]
+    ],
+    "targetOk": null
+  },
+  "context": "M08 context: exact replay 3/3; canonical bytes equal 3/3; old synthetic context rejected b20f7eca3d55835cdb66d5478c02ceb52d5dfa75e6285dcf0f86c5c14986d0e3",
+  "changedBody": {
+    "axioms": [],
+    "closure": [
+      "a8cb7e159c05835c27d06bbba29c36f44c4c2d109500e484fc3ec53e442e1218",
+      "f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa"
+    ],
+    "declId": "f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa",
+    "diags": [
+      "source replay of f5a1a2428cd2 failed",
+      "[capsule:replay-mismatch] Mathlib/Tactic/ByCases.lean:37: replayed declaration 0933fd7ba317 \u2260 stored f5a1a2428cd2; differing members: #[Mathlib.Tactic.ByCases.\u00ab_aux_$M___macroRules_Mathlib_Tactic_ByCases_byCases!_1\u00bb]"
+    ],
+    "gid": "4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4",
+    "ok": false,
+    "publicNames": [],
+    "statements": [
+      [
+        [
+          "Mathlib",
+          "Tactic",
+          "ByCases",
+          "_aux_Mathlib_Tactic_ByCases___macroRules_Mathlib_Tactic_ByCases_byCases!_1"
+        ],
+        "d9c2f79d105da69727144d3accbaeb43af5577fce6dc4a087cf1d51154e6b0c8"
+      ]
+    ],
+    "targetOk": null
+  }
+}
