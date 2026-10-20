@@ -1,0 +1,16 @@
+{
+  "gate": "pass",
+  "records": 17,
+  "prefix": "1d7410788c634cd4d68c274aa20d7c03aca11807",
+  "late": "0e9df877bafc86dc52dea00f054798377ddf446b",
+  "final": "1594367732f9ebf612f60d45e2585c5a86f98ab1",
+  "fullSourceArrivalOrderInvariant": true,
+  "dirtyDraftPreserved": true,
+  "snapshot": {
+    "snapshot": "749b940bc6e6d44bcdc75bd07629cdde58acb5165cb5feae8faca020278ae368",
+    "tag": "refs/tags/paralean/snapshot/749b940bc6e6d44bcdc75bd07629cdde58acb5165cb5feae8faca020278ae368",
+    "commit": "0c63b10b9d1c6a48da550021b3924d1c4826023e",
+    "created": true,
+    "fullLeanSourceWithoutRemoteStubs": true
+  }
+}

@@ -1,4 +1,5 @@
 import Paralean
+import Paralean.Interactive
 
 open Lean Paralean System
 
@@ -12,8 +13,10 @@ def usage : String := "usage:
   paralean stats | contract --names a,b | dump --decl ID | merge --into DIR --from DIR
   paralean fasync --file FAsync.lean --store DIR
   paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
-           ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] FILE... |
-           ws-delete --dir D --file F --name N | ws-check --dir D FILE... | ws-export --dir D --out DIR
+           ws-capture-server --dir D               (one document, stamped JSON lines) |
+           ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] [--source 1] FILE... |
+           ws-delete --dir D --file F --name N [or --name-json JSON] | ws-live |
+           ws-check --dir D FILE... | ws-export --dir D --out DIR
            (working copies, P3; PARALEAN_STORE = D/cache; see impl/p3-remote/scripts/ws.sh)
 "
 
@@ -62,6 +65,11 @@ unsafe def main (args : List String) : IO UInt32 := do
     Fork.setHooks {}
   enableInitializersExecution
   match args with
+  | "ws-capture-server" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    Interactive.serve dir
+    return 0
   | "capture" :: rest =>
     let (flags, files) := parseFlags rest
     let some storeDir := flags["store"]? | IO.eprintln usage; return 2
@@ -355,7 +363,7 @@ unsafe def main (args : List String) : IO UInt32 := do
   | "ws-hash" :: rest =>
     let (flags, files) := parseFlags rest
     for f in files do
-      let (h, p) ← Copy.hash f
+      let (h, p) ← Copy.hash f (source := flags["source"]? == some "1")
       if let some d := flags["write"]? then
         let path := FilePath.mk d / f
         if let some par := path.parent then IO.FS.createDirAll par
@@ -366,8 +374,14 @@ unsafe def main (args : List String) : IO UInt32 := do
     let (flags, _) := parseFlags rest
     let some dir := flags["dir"]? | IO.eprintln usage; return 2
     let some f := flags["file"]? | IO.eprintln usage; return 2
-    let some n := flags["name"]? | IO.eprintln usage; return 2
-    IO.println (← Copy.delete dir f n.toName).compress
+    let n ← match flags["name-json"]?, flags["name"]? with
+      | some s, _ => P3.ofExcept "<name-json>" (Json.parse s >>= fromJson? (α := Name))
+      | _, some s => pure s.toName
+      | _, _ => throw <| IO.userError "ws-delete requires --name or --name-json"
+    IO.println (← Copy.delete dir f n).compress
+    return 0
+  | ["ws-live"] =>
+    IO.println (← Copy.liveHeads).compress
     return 0
   | "ws-export" :: rest =>
     let (flags, _) := parseFlags rest

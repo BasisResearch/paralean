@@ -1,4 +1,8 @@
-import Lean
+module
+
+public import Lean
+
+@[expose] public section
 
 /-!
 Bridge to the Paralean Lean fork (`fork/`, docs/p1-fork-hooks.md).
@@ -26,7 +30,7 @@ open Lean Elab Command
 toolchain is the Paralean fork and the second otherwise. -/
 syntax (name := forkSelect) "#paralean_fork" command* "#paralean_stock" command* "#paralean_end" : command
 
-@[command_elab forkSelect] def elabForkSelect : CommandElab := fun stx => do
+@[command_elab forkSelect] meta def elabForkSelect : CommandElab := fun stx => do
   let fork := (← getEnv).contains `Lean.Paralean.apiVersion
   for c in (if fork then stx[1] else stx[3]).getArgs do
     elabCommand c
@@ -78,6 +82,13 @@ def simpUsed? (ci : CustomInfo) : Option (Array Name) :=
 def takeChosen : IO (Array ChosenName) := do
   return (← Lean.Paralean.takeInstNameLog).map fun r =>
     { canonical := r.canonical, stock := r.stock, passes := r.passes, derived := r.derived }
+
+/-- The imported environment before a working file's local commands. -/
+def setBaseEnv (env : Environment) : IO Unit := Lean.Paralean.setBaseEnv env
+def getBaseEnv : IO (Option Environment) := Lean.Paralean.getBaseEnv
+def setBaseScope (scope : Command.Scope) : IO Unit := Lean.Paralean.setBaseScope scope
+def getBaseScope : IO (Option Command.Scope) := Lean.Paralean.getBaseScope
+def getDocumentPath : IO (Option String) := Lean.Paralean.getDocumentPath
 #paralean_stock
 /-- Compiled against stock Lean: no fork hooks. -/
 def available : Bool := false
@@ -86,6 +97,11 @@ def declMark (_ : Environment) : Nat := 0
 def addedSince (_ : Environment) (_ : Nat) : IO (Array Added) := pure #[]
 def simpUsed? (_ : CustomInfo) : Option (Array Name) := none
 def takeChosen : IO (Array ChosenName) := pure #[]
+def setBaseEnv (_ : Environment) : IO Unit := pure ()
+def getBaseEnv : IO (Option Environment) := pure none
+def setBaseScope (_ : Command.Scope) : IO Unit := pure ()
+def getBaseScope : IO (Option Command.Scope) := pure none
+def getDocumentPath : IO (Option String) := pure none
 #paralean_end
 
 /-- The fork hooks this process uses. Fixed at start-up by `init`. -/

@@ -42,6 +42,7 @@ The switch is not an option, so `set_option` in user source cannot change it.
 | 3 | no axiom fallback | `Lean/AddDecl.lean` `addDeclCore.doAdd` | `noAxiomFallback`: a declaration the kernel rejects is not re-added as an axiom |
 | 4 | `simp` used-lemma record | `Lean/Elab/Tactic/Simp.lean` `recordSimpUsed`, called from `evalSimp`, `evalSimpAll` | `simpUsed`: a `Lean.Elab.Tactic.SimpUsedInfo` custom info leaf with the used declarations |
 | 5 | canonical instance names | `Lean/Paralean/InstName.lean` `canonicalInstanceName`, `predictInstanceName`; `Lean/Elab/Declaration.lean` `elabCanonicalInstance`; `Lean/Elab/Deriving/Util.lean` `mkInstName`; `Lean/Elab/Deriving/Basic.lean` `runDerivingHandler`, `processDefDeriving` | `canonicalInstNames`: `<stock base without project suffix>_<first 8 hex of H("v0/insttype", text(τ))>` (§1.2: SHA-256 of `"paralean" NUL "v0/insttype" NUL ‖ PCE(text)`), never `_n`; a clash is an error. `Lean.Paralean.takeInstNameLog` returns each choice with the stock name |
+| 6 | interactive worker import and base state | `Lean/Server/FileWorker.lean`, `Lean/Server/Watchdog.lean`, `Lean/Language/Lean.lean`, `Lean/Paralean/BaseEnv.lean` | With Paralean mode and `PARALEAN_STORE`, the file worker imports `Paralean.Visibility` through the module header and exposes the imported environment, initial scope, and document path to capsule elaboration. The watchdog emits `$/paralean/fileWorkerStarted` with `{uri}` on each worker start so a proxy can fence stale generations. The editor text and source positions are unchanged. |
 
 Hook 5 computes the name exactly as `impl/p1/Paralean/InstName.lean` does (same SHA-256, same
 type text, same `normName`). impl/p1 checks every name the fork chooses against its own
@@ -82,7 +83,8 @@ Not covered: anonymous instances inside `mutual` blocks (stock names; impl/p1 re
 | 0004 hook 3 | AddDecl | 5 / 2 | 136 |
 | 0005 hook 4 | Tactic/Simp | 21 / 0 | 42 |
 | 0006 hook 5 | `Lean/Paralean/InstName.lean`, `Lean.lean`, Declaration, Deriving/Basic, Deriving/Util | 451 / 3 | 107 |
-| total | 12 files | 627 / 9 | 342 |
+| 0007 hook 6 | FileWorker, Watchdog, Language/Lean, `Lean/Paralean/BaseEnv.lean`, `Lean.lean` | 51 / 1 | editor gate (`docs/p4-log.md`) |
+| total | 15 source files | 678 / 10 | 342 test lines plus the P4 editor gate |
 
 `results/` holds the test-suite logs (default mode and Paralean mode) and their classification,
 and `tools/InstNameStats.lean` the instance-name statistics tool (docs/fork-log.md).

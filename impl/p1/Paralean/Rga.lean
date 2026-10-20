@@ -4,6 +4,7 @@ public import Lean
 public import Paralean.Model
 public import Paralean.P3
 public import Paralean.Crdt
+public import Paralean.Render
 
 @[expose] public section
 
@@ -250,6 +251,24 @@ def View.projection (v : View) (file : String) : String := Id.run do
   let hdr := v.header elems file
   let body := "\n\n".intercalate blocks.toList
   return (if hdr.isEmpty then "" else hdr ++ "\n") ++ body ++ "\n"
+
+/-- Full capsule source for the history projection (§11.6). Drafts and remote
+stubs are absent. The source preserves each capsule's captured local scope. -/
+def View.sourceProjection (v : View) (file : String) : String := Id.run do
+  let elems := v.elements file
+  if elems.isEmpty then return ""
+  let mut blocks : Array String := #[]
+  for m in elems do
+    let some g := v.group m | continue
+    let mut relocated := #[]
+    for pid in g.deps ++ g.feDeps ++ g.feDepsConservative do
+      if let some d := v.metas[pid]? then
+        if d.capsule.relocate then
+          let ns := d.relocNs
+          unless relocated.contains ns do relocated := relocated.push ns
+    blocks := blocks.push (stripEnd (renderCapsule g relocated))
+  let hdr := v.header elems file
+  return (if hdr.isEmpty then "" else hdr ++ "\n") ++ "\n\n".intercalate blocks.toList ++ "\n"
 
 /-- The projection in working-copy form: each element wrapped in its own scope between
 `-- paralean:published <group>` / `-- paralean:end` lines, so drafts can sit between

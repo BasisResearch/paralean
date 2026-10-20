@@ -1,0 +1,15 @@
+P4 private fork build and regression evidence (2026-10-20)
+
+fork/GITHASH: 99967f1ee50a1ee82bb178359ad95b723c8196a2
+fork/build.sh: PASS, stage1 7,761 jobs; lean --githash equals fork/GITHASH.
+Patch 0007 replay: git am from dfc13cc6 applied cleanly; resulting tree
+2effff4e328f1d9356e3fec3975e212a29b88a1e equals private fork HEAD tree.
+Fork Paralean subset: 5/5 pass (p4-fork-subset.txt).
+Mode-off server/server_interactive: 158/158 pass (p4-server-default.txt).
+P1 Lake with private fork: 80/80 pass (p4-p1-build-v3-fork.txt).
+P1 core: source/kernel/isolated replay each 103/103; export builds, 81/85
+declaration identities; four initializer-group export mismatches exactly match
+the tracked baseline in docs/p1-gate.md and impl/p1/results/fork/core.log
+(p4-p1-core-v3.txt). The core script returns 1 for those known mismatches.
+P1 negative: six negative cases, kernel audit, version and canonical-instance
+conflicts match the tracked fork baseline (p4-p1-negative-v3.txt).

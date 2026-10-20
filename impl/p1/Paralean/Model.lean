@@ -94,6 +94,15 @@ structure Capsule where
   valueStart : Option Nat := none
   deriving ToJson, FromJson, Inhabited, Repr
 
+/-- A field token in `Capsule.text`, resolved during its original elaboration.
+Offsets are UTF-8 bytes relative to the capsule text; `target` is the projection
+actually selected by Lean, so collision rewriting does not guess from spelling. -/
+structure FieldRef where
+  start : Nat
+  stop : Nat
+  target : Name
+  deriving ToJson, FromJson, Inhabited, Repr, BEq
+
 structure GroupRec where
   /-- Package ID: declaration content + capsule + frontend dependencies. Dependencies pin these. -/
   gid : String
@@ -119,6 +128,9 @@ structure GroupRec where
   /-- Transitive axioms of the group (base + deps + own). -/
   axioms : Array Name
   capsule : Capsule
+  /-- Type-directed field references in the original capsule text (OPEN-17).
+  `none` denotes a pre-OPEN-17 capsule with no resolved-field metadata. -/
+  fieldRefs : Option (Array FieldRef) := none
   diags : Array Diag
   /-- Bytes of the binary encoding. -/
   encSize : Nat

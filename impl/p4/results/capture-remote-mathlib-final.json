@@ -1,0 +1,6 @@
+{
+  "gate": "pass", "benchmark": "Mathlib", "published_copy": true,
+  "first_ms": 1837.83, "edit_p50_ms": 399.1, "edit_p95_ms": 442.09,
+  "edit_samples_ms": [332.85, 364.12, 393.95, 369.84, 422.91, 372.04, 445.31, 438.15, 404.26, 437.55],
+  "first": {"new": 8, "reused": 0}, "edit": {"new": 2, "reused": 6}
+}

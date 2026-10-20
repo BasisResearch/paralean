@@ -36,23 +36,51 @@ unsafe def isLoadingImpl (n : Name) : Bool := unsafeBaseIO do
 /-- Rendered public name ↦ package, over the live heads of the copy's view. The file being
 elaborated (`PARALEAN_VIS_EXCLUDE`) is excluded: its own elements are in the file itself,
 and a draft that revises one of them redeclares its name. -/
+def excludedFile : IO (Option String) := do
+  if let some file ← IO.getEnv "PARALEAN_VIS_EXCLUDE" then return some file
+  let some path ← Fork.getDocumentPath | return none
+  let some root ← IO.getEnv "PARALEAN_WORK_ROOT" | return none
+  let rootPrefix := if root.endsWith "/" then root else root ++ "/"
+  if path.startsWith rootPrefix then return some (path.drop rootPrefix.length).toString
+  return none
+
 def buildIndex : IO (Std.HashMap Name String) := do
   let v ← Remote.view
-  let idx := v.index (← IO.getEnv "PARALEAN_VIS_EXCLUDE")
+  let idx := v.index (← excludedFile)
   let mut out := {}
   for (n, group) in idx.toList do
     if let some m := v.known.byGroup[group]? then out := out.insert n m.pid
   return out
 
+/-- A long-lived worker sees pulls and editor sessions without re-running module
+initializers. The index follows the copy's records generation and excluded file. -/
+initialize indexCache : IO.Ref (Nat × String × String × Std.HashMap Name String) ←
+  IO.mkRef (0, "", "", {})
+
+def currentIndex : IO (Std.HashMap Name String) := do
+  let generation ← Remote.recordsVersion.get
+  let root := (← IO.getEnv "PARALEAN_STORE").getD ""
+  let exclude := (← excludedFile).getD ""
+  let (seen, oldRoot, oldExclude, idx) ← indexCache.get
+  if seen == generation && oldRoot == root && oldExclude == exclude then return idx
+  let idx ← buildIndex
+  indexCache.set (generation, root, exclude, idx)
+  return idx
+
+unsafe def hasReservedImpl (n : Name) : Bool := unsafeBaseIO do
+  match ← EIO.toBaseIO currentIndex with
+  | .ok idx => return idx.contains n
+  | .error _ => return false
+@[implemented_by hasReservedImpl, noinline] opaque hasReserved : Name → Bool
+
 initialize do
   if (← IO.getEnv "PARALEAN_STORE").isNone then return
   if (← IO.getEnv "PARALEAN_VISIBILITY").isNone then return
-  let index ← buildIndex
   registerReservedNamePredicate fun env n =>
-    index.contains n && !env.contains n && !isLoading n &&
+    hasReserved n && !env.contains n && !isLoading n &&
       (env.getModuleIdx? `Paralean.Remote).isSome
   registerReservedNameAction fun n => do
-    let some pid := index[n]? | return false
+    let some pid := (← currentIndex)[n]? | return false
     if (← getEnv).contains n then return true
     Remote.loadInCore pid
     return true

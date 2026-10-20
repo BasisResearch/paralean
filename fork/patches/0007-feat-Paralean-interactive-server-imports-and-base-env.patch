@@ -1,0 +1,140 @@
+From 99967f1ee50a1ee82bb178359ad95b723c8196a2 Mon Sep 17 00:00:00 2001
+From: Basis Research <noreply@basisresearch.org>
+Date: Tue, 20 Oct 2026 00:00:00 +0000
+Subject: [PATCH] feat: Paralean interactive server imports and base
+ environment
+
+Co-Authored-By: GPT-6 Astra (Codex) <noreply@openai.com>
+---
+ src/Lean.lean                   |  1 +
+ src/Lean/Language/Lean.lean     |  7 +++++++
+ src/Lean/Paralean/BaseEnv.lean  | 30 ++++++++++++++++++++++++++++++
+ src/Lean/Server/FileWorker.lean |  7 ++++++-
+ src/Lean/Server/Watchdog.lean   |  7 +++++++
+ 5 files changed, 51 insertions(+), 1 deletion(-)
+ create mode 100644 src/Lean/Paralean/BaseEnv.lean
+
+diff --git a/src/Lean.lean b/src/Lean.lean
+index cd7ea93..2fe4825 100644
+--- a/src/Lean.lean
++++ b/src/Lean.lean
+@@ -52,4 +52,5 @@ public import Lean.OriginalConstKind
+ public import Lean.PostprocessTraces
+ public import Lean.Cadical
+ public import Lean.Paralean.Mode
++public import Lean.Paralean.BaseEnv
+ public import Lean.Paralean.InstName
+diff --git a/src/Lean/Language/Lean.lean b/src/Lean/Language/Lean.lean
+index 85743c0..b5ebce9 100644
+--- a/src/Lean/Language/Lean.lean
++++ b/src/Lean/Language/Lean.lean
+@@ -15,6 +15,8 @@ public import Lean.Language.Util
+ public import Lean.Language.Lean.Types
+ public import Lean.Language.Lean.Util
+ public import Lean.Elab.Import
++public import Lean.Paralean.BaseEnv
++public import Lean.Paralean.Mode
+ 
+ public section
+ 
+@@ -508,6 +510,9 @@ where
+       if msgLog.hasErrors then
+         return { diagnostics, result? := none, metaSnap := default }
+ 
++      if (← Paralean.getConfig).any && (← IO.getEnv "PARALEAN_STORE").isSome then
++        Paralean.setBaseEnv headerEnv
++
+       let mut traceState := default
+       if trace.profiler.isExporting setup.opts then
+         traceState := {
+@@ -521,6 +526,8 @@ where
+       -- now that imports have been loaded, check options again
+       opts ← reparseOptions opts
+       let cmdState := Elab.Command.mkState headerEnv msgLog opts
++      if (← Paralean.getConfig).any && (← IO.getEnv "PARALEAN_STORE").isSome then
++        Paralean.setBaseScope cmdState.scopes.getLast!
+       let cmdState := { cmdState with
+         infoState := {
+           enabled := true
+diff --git a/src/Lean/Paralean/BaseEnv.lean b/src/Lean/Paralean/BaseEnv.lean
+new file mode 100644
+index 0000000..133b57d
+--- /dev/null
++++ b/src/Lean/Paralean/BaseEnv.lean
+@@ -0,0 +1,30 @@
++/-
++Copyright (c) 2026 Basis Research Institute. All rights reserved.
++Released under Apache 2.0 license as described in the file LICENSE.
++-/
++module
++
++public import Lean.Environment
++public import Lean.Elab.Command.Scope
++
++public section
++
++namespace Lean.Paralean
++
++/-- The imported environment of the current file worker, before user commands.
++Paralean's capsule elaborator uses this to discard root-level local attributes. -/
++private initialize baseEnvRef : IO.Ref (Option Environment) ← IO.mkRef none
++private initialize baseScopeRef : IO.Ref (Option Elab.Command.Scope) ← IO.mkRef none
++private initialize documentPathRef : IO.Ref (Option String) ← IO.mkRef none
++
++def setBaseEnv (env : Environment) : BaseIO Unit := baseEnvRef.set (some env)
++
++def getBaseEnv : BaseIO (Option Environment) := baseEnvRef.get
++def setBaseScope (scope : Elab.Command.Scope) : BaseIO Unit := baseScopeRef.set (some scope)
++def getBaseScope : BaseIO (Option Elab.Command.Scope) := baseScopeRef.get
++
++/-- Absolute source path of this worker's document (one file per worker process). -/
++def setDocumentPath (path : String) : BaseIO Unit := documentPathRef.set (some path)
++def getDocumentPath : BaseIO (Option String) := documentPathRef.get
++
++end Lean.Paralean
+diff --git a/src/Lean/Server/FileWorker.lean b/src/Lean/Server/FileWorker.lean
+index f3ecc5d..836d4d1 100644
+--- a/src/Lean/Server/FileWorker.lean
++++ b/src/Lean/Server/FileWorker.lean
+@@ -389,7 +389,12 @@ def setupImports
+     -- should not be visible to user as task is already canceled
+     return .error { diagnostics := .empty, result? := none, metaSnap := default }
+ 
+-  let header := stx.toModuleHeader
++  let mut header := stx.toModuleHeader
++  if (← Paralean.getConfig).any && (← IO.getEnv "PARALEAN_STORE").isSome then
++    if let some path := System.Uri.fileUriToPath? doc.uri then
++      Paralean.setDocumentPath path.toString
++    unless header.imports.any (·.module == `Paralean.Visibility) do
++      header := { header with imports := header.imports.push { module := `Paralean.Visibility } }
+   let fileSetupResult ← setupFile doc header fun stderrLine => do
+     let progressDiagnostic := {
+       range      := ⟨⟨0, 0⟩, ⟨1, 0⟩⟩
+diff --git a/src/Lean/Server/Watchdog.lean b/src/Lean/Server/Watchdog.lean
+index dedb281..d4bce54 100644
+--- a/src/Lean/Server/Watchdog.lean
++++ b/src/Lean/Server/Watchdog.lean
+@@ -15,6 +15,7 @@ public import Lean.Server.Completion.CompletionUtils
+ public import Init.Data.List.Sort
+ public import Std.Sync.Channel
+ public import Lean.Server.Logging
++public import Lean.Paralean.Mode
+ 
+ public section
+ 
+@@ -846,6 +847,12 @@ section ServerM
+       -- open session for `kill` above
+       setsid        := true
+     }
++    -- The watchdog survives a worker restart, so a proxy cannot infer a file's
++    -- generation from the watchdog process alone. Announce every fresh worker
++    -- before forwarding its diagnostics or RPC results.
++    if (← Paralean.getConfig).any && (← IO.getEnv "PARALEAN_STORE").isSome then
++      writeMessage <| Notification.mk "$/paralean/fileWorkerStarted"
++        (Json.mkObj [("uri", toJson m.uri)])
+     let exitCode ← Std.Mutex.new none
+     let initialDependencyBuildMode := m.dependencyBuildMode
+     let updatedDependencyBuildMode :=
+-- 
+2.53.0
+
