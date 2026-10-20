@@ -261,3 +261,35 @@ buffer refactoring; see docs/w5-log.md for verified scope and limits.”
 
 For README.md: “The LSP/controller integration and reproducible SSH latency
 gate live in impl/p4 and impl/p5; docs/w5-log.md records their evidence.”
+
+## Final summary
+
+| Requested item | Result |
+|---|---|
+| 1. Controller provisioning and editor publication | Implemented and verified locally and over SSH. Explicit frozen-target publication uses the captured buffer, task owner/epoch and validator receipt; invalid and stale drafts remain private. |
+| 2. Environment identity and policy push | Implemented. The controller polls authoritative store policy and pushes environment changes; trust changes and signed validator revocation expire old sessions and synchronize workers. |
+| 3. Real SSH transport and latency | Verified through an isolated sshd on `aws-dev` loopback, with ten samples each at baseline and 40 ms added one-way delay. The final p50/p95 table above records the pinned-fork results. |
+| 4. Atomic cross-workspace rename | Verified for complete source-visible server-owned buffer transactions. General published-capsule rename is blocked: current publication/delivery is per group and lacks a certified multi-author atomic rename event or bundle. The real published projection probe refuses safely without edits. |
+| 5. Legacy recapture and unloaded methods | Implemented and verified against signed fixtures. Receipt-checked recapture derives private field-span overlays without changing capsule/receipt bytes; unloaded generalized methods resolve on the new fork. |
+| 6. End-to-end LSP worker | Full P5 gate passed all nine checks: ten task targets through ordinary CLI workers, controller loss/recovery, plus a scripted SSH LSP worker editing, capturing, publishing and consuming a dependency. |
+
+Evidence: 50 P5 tests with no skips, 25 rename unit tests, three real-Lean
+rename tests, 61 implementation guard mutation detections, all 22 recapture
+guarded/mutated observations, ordinary editor death/recovery, signed legacy
+and method-discovery fixtures, and both SSH latency conditions. All 156 TLC
+archive cases passed their expected outcomes: 24 default positive, 99
+expected-outcome, four wide and 29 hardened. W5 contributes three positive
+scenarios, eleven safety mutations and three reachability witnesses.
+`archive-verification.sh --tla-only` and `--verify` pass with wide/hardened
+coverage retained; existing Veil artifacts are unchanged. These are bounded
+model results, not a new unbounded proof.
+
+Not done: general published cross-workspace rename, for the concrete protocol
+and source-coverage dependencies described above. No claim is made that a
+client editor applies arbitrary WorkspaceEdits atomically. The tested atomic
+commit is the router's complete server-owned buffer set. The SSH test uses
+separate roots and a real SSH transport on one physical host.
+
+Implementation and verification checkpoint: `597ea03ca62129cab96934d69c6cdf85db6f8ff7` on
+`w5-lsp-wiring`, pushed to origin. The final log-only checkpoint records this
+summary. W5 services are stopped; shared services and caches were left alone.
