@@ -44,5 +44,5 @@ garage: 1 node(s), replication 1, bucket paralean
    Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-aa4c773e32d430d0a/impl/p2/crates/s3-guard)
     Finished `release` profile [optimized] target(s) in 7.97s
 s3: http://127.0.0.1:29950 (guard) -> unix:/data/home/kirancodes/paralean-p2/inst/w2-control/garage/n0/s3.sock (garage)
-fdb: /data/home/kirancodes/paralean-p2/inst/w2-control/fdb/fdb.cluster (paralean:p2w2controleb9a4f32454d@127.0.0.1:29900)
+fdb: /data/home/kirancodes/paralean-p2/inst/w2-control/fdb/fdb.cluster (paralean:<redacted>@127.0.0.1:29900)
 exit 0
