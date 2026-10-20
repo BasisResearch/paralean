@@ -175,7 +175,16 @@ struct State {
     /// A recovery pass over J1 is under way (it starts on takeover and ends at the last page).
     recovering: bool,
     poll_responses: BTreeMap<String, StoredPoll>,
+    /// Insertion counter of `poll_responses` (the oldest of a worker's tokens goes first).
+    poll_seq: u64,
 }
+
+/// Bounds on the controller snapshot, which every operation loads and saves. Request IDs
+/// and poll tokens are chosen by clients; finished work and answered poll tokens are
+/// dropped oldest first beyond these counts.
+pub const MAX_REQUEST_ID: usize = 256;
+pub const MAX_POLL_TOKENS_PER_WORKER: usize = 16;
+pub const MAX_FINISHED_WORK: usize = 1024;
 
 pub struct ControlPlane {
     pub cfg: ControllerConfig,
@@ -205,10 +214,12 @@ struct Snapshot {
     recovering: bool,
     #[serde(default)]
     poll_responses: BTreeMap<String, StoredPoll>,
+    #[serde(default)]
+    poll_seq: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct StoredPoll { worker: String, work: Option<String> }
+struct StoredPoll { worker: String, work: Option<String>, #[serde(default)] seq: u64 }
 
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredGroup {
@@ -263,6 +274,7 @@ impl State {
             workers: self.workers.iter().map(|(id, i)| (id.hex(), StoredWorker { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive })).collect(),
             work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts })).collect(),
             order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), recovering: self.recovering, poll_responses: self.poll_responses.clone(),
+            poll_seq: self.poll_seq,
         }
     }
     fn restore(&mut self, s: Snapshot) {
@@ -274,11 +286,62 @@ impl State {
         self.recovery_cursor = s.recovery_cursor;
         self.recovering = s.recovering;
         self.poll_responses = s.poll_responses;
+        self.poll_seq = s.poll_seq;
+    }
+
+    /// Bind a poll token to its answer. A worker keeps its most recent
+    /// `MAX_POLL_TOKENS_PER_WORKER` tokens: one poll is outstanding at a time, and a token
+    /// only has to outlive the retries of its own call.
+    fn remember_poll(&mut self, token: &str, worker: &WorkspaceId, work: Option<String>) {
+        self.poll_seq += 1;
+        let worker = worker.hex();
+        self.poll_responses.insert(token.into(), StoredPoll { worker: worker.clone(), work, seq: self.poll_seq });
+        if cfg!(feature = "mutate-unbounded-poll-responses") { return }
+        let mut mine: Vec<(u64, String)> = self.poll_responses.iter()
+            .filter(|(_, p)| p.worker == worker).map(|(t, p)| (p.seq, t.clone())).collect();
+        if mine.len() > MAX_POLL_TOKENS_PER_WORKER {
+            mine.sort();
+            for (_, t) in &mine[..mine.len() - MAX_POLL_TOKENS_PER_WORKER] {
+                self.poll_responses.remove(t);
+            }
+        }
+    }
+
+    /// Drop the oldest finished (done, failed, cancelled) work beyond `MAX_FINISHED_WORK`.
+    /// A dropped request ID is no longer a duplicate: submitting it again queues new work.
+    fn prune_finished_work(&mut self) {
+        if cfg!(feature = "mutate-no-work-gc") { return }
+        let finished = |j: &WorkJob| matches!(j.state, WorkState::Done | WorkState::Failed | WorkState::Cancelled);
+        let mut excess = self.work.values().filter(|j| finished(j)).count().saturating_sub(MAX_FINISHED_WORK);
+        if excess == 0 { return }
+        let mut drop = std::collections::BTreeSet::new();
+        for r in &self.order {
+            if excess == 0 { break }
+            if self.work.get(r).is_some_and(finished) {
+                drop.insert(r.clone());
+                excess -= 1;
+            }
+        }
+        self.order.retain(|r| !drop.contains(r));
+        self.work.retain(|r, _| !drop.contains(r));
     }
 }
 
 fn ws(s: &str) -> Option<WorkspaceId> {
     WorkspaceId::from_hex(s)
+}
+
+/// The client-chosen request ID or poll token of a request, if it has one.
+fn request_id(req: &ControlRequest) -> Option<&str> {
+    match req {
+        ControlRequest::SubmitWork { request, .. }
+        | ControlRequest::PollRequest { request, .. }
+        | ControlRequest::Finish { request, .. }
+        | ControlRequest::Validate { request, .. }
+        | ControlRequest::Cancel { request, .. }
+        | ControlRequest::AssignGroup { request, .. } => Some(request),
+        _ => None,
+    }
 }
 
 /// The in-flight key of a validation: (requesting workspace, request ID).
@@ -406,7 +469,11 @@ impl ControlPlane {
     }
 
     async fn save_state(&self, term: u64) -> Result<(), String> {
-        let bytes = serde_json::to_vec(&self.state.lock().unwrap().snapshot()).map_err(|e| e.to_string())?;
+        let bytes = {
+            let mut st = self.state.lock().unwrap();
+            st.prune_finished_work();
+            serde_json::to_vec(&st.snapshot()).map_err(|e| e.to_string())?
+        };
         self.durable.save(&bytes, term).await
     }
 
@@ -495,6 +562,11 @@ impl ControlPlane {
     }
 
     async fn handle_inner(self: &Arc<Self>, req: ControlRequest) -> ControlResponse {
+        if let Some(id) = request_id(&req) {
+            if id.len() > MAX_REQUEST_ID && !cfg!(feature = "mutate-unbounded-poll-responses") {
+                return refused(&format!("request ID longer than {MAX_REQUEST_ID} bytes"));
+            }
+        }
         match req {
             ControlRequest::Register { worker, capacity_mb } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -704,7 +776,7 @@ impl ControlPlane {
                         if epoch != u64::MAX {
                             j.state = WorkState::Running { worker, epoch, delivered: true };
                             let response = ControlResponse::Work { request: r.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
-                            if let Some(token) = token { st.poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(r.clone()) }); }
+                            if let Some(token) = token { st.remember_poll(token, &w, Some(r.clone())); }
                             return response;
                         }
                         pick = Some((r.clone(), j.target.clone(), j.memory_mb, j.attempts));
@@ -729,7 +801,7 @@ impl ControlPlane {
         };
         let Some((request, target, memory_mb, attempt)) = pick else {
             if let Some(token) = token {
-                self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: None });
+                self.state.lock().unwrap().remember_poll(token, &w, None);
             }
             return ControlResponse::NoWork
         };
@@ -749,7 +821,7 @@ impl ControlPlane {
                 };
                 if assigned {
                     if let Some(token) = token {
-                        self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(request.clone()) });
+                        self.state.lock().unwrap().remember_poll(token, &w, Some(request.clone()));
                     }
                     if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_ASSIGN_MS").unwrap_or_default().parse::<u64>() {
                         tokio::time::sleep(Duration::from_millis(ms)).await;
@@ -820,6 +892,9 @@ impl ControlPlane {
             for d in &dead {
                 st.workers.get_mut(d).unwrap().alive = false;
             }
+            // A dead worker's poll tokens answer nothing any more (Poll needs a live lease).
+            let dead_hex: Vec<String> = dead.iter().map(WorkspaceId::hex).collect();
+            st.poll_responses.retain(|_, p| !dead_hex.contains(&p.worker));
             let order = st.order.clone();
             for r in order {
                 let (target, mem, attempts) = {
@@ -1186,4 +1261,52 @@ fn refused(reason: &str) -> ControlResponse {
 }
 fn inconclusive(reason: &str) -> ControlResponse {
     ControlResponse::Inconclusive { reason: reason.into() }
+}
+
+#[cfg(test)]
+mod snapshot_tests {
+    use super::*;
+
+    fn snapshot_len(st: &State) -> usize {
+        serde_json::to_vec(&st.snapshot()).unwrap().len()
+    }
+
+    #[test]
+    fn worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot() {
+        let mut st = State::default();
+        let (a, b) = (WorkspaceId::derive("snapshot-a"), WorkspaceId::derive("snapshot-b"));
+        st.remember_poll("b/kept", &b, None);
+        // A worker polling with a fresh token each time, many times over.
+        for i in 0..5000 {
+            st.remember_poll(&format!("a/{i}"), &a, None);
+        }
+        let mine = st.poll_responses.values().filter(|p| p.worker == a.hex()).count();
+        assert_eq!(mine, MAX_POLL_TOKENS_PER_WORKER);
+        assert!(st.poll_responses.contains_key("a/4999") && !st.poll_responses.contains_key("a/0"));
+        assert!(st.poll_responses.contains_key("b/kept"), "another worker's token was evicted");
+        // Finished work beyond the bound goes, oldest first; queued and running work stays.
+        for i in 0..3000 {
+            let r = format!("w/{i}");
+            let state = match i % 3 { 0 => WorkState::Done, 1 => WorkState::Failed, _ => WorkState::Cancelled };
+            st.order.push(r.clone());
+            st.work.insert(r, WorkJob { target: Name::parse("T.x"), memory_mb: 1, state, attempts: 1 });
+        }
+        for i in 0..5 {
+            let r = format!("live/{i}");
+            st.order.insert(0, r.clone());
+            st.work.insert(r, WorkJob { target: Name::parse("T.y"), memory_mb: 1, state: WorkState::Queued, attempts: 0 });
+        }
+        st.prune_finished_work();
+        assert_eq!(st.work.len(), MAX_FINISHED_WORK + 5);
+        assert_eq!(st.order.len(), st.work.len());
+        assert!(st.order.iter().all(|r| st.work.contains_key(r)));
+        assert!((0..5).all(|i| st.work.contains_key(&format!("live/{i}"))));
+        assert!(st.work.contains_key("w/2999") && !st.work.contains_key("w/0"));
+        let bounded = snapshot_len(&st);
+        for i in 0..3000 {
+            st.remember_poll(&format!("again/{i}"), &a, None);
+        }
+        st.prune_finished_work();
+        assert!(snapshot_len(&st) <= bounded + 4096, "snapshot grew with poll tokens");
+    }
 }

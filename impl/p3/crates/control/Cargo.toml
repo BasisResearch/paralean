@@ -54,6 +54,9 @@ mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-validator-checks-issuer-targets = []
 mutate-recover-every-tick = []
+mutate-unbounded-poll-responses = []
+mutate-no-work-gc = []
+mutate-keep-old-snapshot-chunks = []
 
 [dev-dependencies]
 paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }

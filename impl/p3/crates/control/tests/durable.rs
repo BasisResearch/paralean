@@ -40,3 +40,21 @@ async fn large_snapshot_roundtrips_and_old_leader_writes_are_fenced() {
     assert_eq!(old.load().await.unwrap(), Some(b"new leader state".to_vec()));
     assert_eq!(next.assign_group(&[Name::parse("Durable.target")], worker, b"new assignment", second.term).await.unwrap(), vec![0]);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn superseded_snapshot_chunks_are_cleared_with_the_head_swap() {
+    let cfg = StoreConfig::from_env(&deployment("durable-gc")).unwrap();
+    let keys = KeyFile::demo(2);
+    let store = Store::open(&cfg, keys.ring(), Faults::none()).unwrap();
+    let d = Durable::new(store.clone(), Duration::from_millis(500));
+    let lease = d.acquire_or_renew().await.unwrap().unwrap();
+    let mut last = Vec::new();
+    for round in 0..5u8 {
+        // Each snapshot differs, so each has its own chunk keys (four chunks).
+        last = (0..200_000usize).map(|i| ((i * 7 + round as usize) % 251) as u8).collect();
+        d.save(&last, lease.term).await.unwrap();
+    }
+    assert_eq!(d.load().await.unwrap(), Some(last.clone()));
+    let chunks = store.meta.scan(&d.chunk_space(), 1000, |_| None).await.unwrap();
+    assert_eq!(chunks.len(), last.len().div_ceil(60 * 1024), "chunks of superseded snapshots remain");
+}

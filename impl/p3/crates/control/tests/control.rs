@@ -292,6 +292,11 @@ async fn request_ids_are_scoped_per_workspace() {
     assert!(!c.store.meta.is_cancelled(&w0.id(), request.as_bytes()).await.unwrap());
     w0.writer.publish(&w0.package(&g, r, j, vec![])).await.unwrap();
     c.audit_ok().await;
+    // Request IDs and poll tokens are bounded (they live in the controller snapshot).
+    let long = "x".repeat(paralean_control::controller::MAX_REQUEST_ID + 1);
+    for req in [ControlRequest::PollRequest { worker: w0.id().hex(), request: long.clone() }, validate_req(&w0, &g, &long)] {
+        assert!(matches!(c.call(req).await, ControlResponse::Refused { .. }), "oversized request ID accepted");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

@@ -46,6 +46,7 @@ cases=(
   "mutate-attached-validation|control|dropped_validation_still_finishes_and_releases_its_resources"
   "mutate-validator-checks-issuer-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
   "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
+  "mutate-keep-old-snapshot-chunks|durable|superseded_snapshot_chunks_are_cleared_with_the_head_swap"
 )
 fail=0
 for c in "${cases[@]}"; do

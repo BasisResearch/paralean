@@ -157,22 +157,42 @@ impl Durable {
         Ok((lease.holder == self.holder && lease.until_ms > now_ms()).then_some(lease))
     }
 
+    /// Every snapshot chunk key (`controller/chunk/<hash>/<i>`), of any snapshot.
+    pub fn chunk_space(&self) -> foundationdb::tuple::Subspace {
+        self.store.meta.keys.root.subspace(&("controller", "chunk"))
+    }
+
+    /// The head and its chunks are read in one transaction: a concurrent save, which
+    /// clears the previous snapshot's chunks, cannot interleave.
     pub async fn load(&self) -> Result<Option<Vec<u8>>, String> {
-        let Some(v) = self.store.meta.get(self.state_key()).await.map_err(|e| e.to_string())? else { return Ok(None) };
-        let head: SnapshotHead = serde_json::from_slice(&v).map_err(|e| e.to_string())?;
+        let sk = self.state_key();
+        let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
+        for _ in 0..60 {
+            match self.load_in(&trx, &sk).await {
+                Ok(v) => return v,
+                Err(e) => trx = trx.on_error(e).await.map_err(|e| e.to_string())?,
+            }
+        }
+        Err("controller state read unresolved".into())
+    }
+
+    async fn load_in(&self, trx: &Transaction, sk: &[u8]) -> Result<Result<Option<Vec<u8>>, String>, foundationdb::FdbError> {
+        let Some(v) = trx.get(sk, false).await? else { return Ok(Ok(None)) };
+        let head: SnapshotHead = match serde_json::from_slice(&v) { Ok(h) => h, Err(e) => return Ok(Err(e.to_string())) };
         if head.len > MAX_SNAPSHOT || head.chunks as usize != head.len.div_ceil(CHUNK_SIZE) {
-            return Err("invalid controller snapshot head".into());
+            return Ok(Err("invalid controller snapshot head".into()));
         }
         let mut bytes = Vec::with_capacity(head.len);
         for index in 0..head.chunks {
-            let chunk = self.store.meta.get(self.chunk_key(&head.hash, index)).await.map_err(|e| e.to_string())?
-                .ok_or_else(|| format!("controller snapshot chunk {index} missing"))?;
+            let Some(chunk) = trx.get(&self.chunk_key(&head.hash, index), false).await? else {
+                return Ok(Err(format!("controller snapshot chunk {index} missing")));
+            };
             bytes.extend_from_slice(&chunk);
         }
         if bytes.len() != head.len || hex::encode(sha256(&bytes)) != head.hash {
-            return Err("controller snapshot hash mismatch".into());
+            return Ok(Err("controller snapshot hash mismatch".into()));
         }
-        Ok(Some(bytes))
+        Ok(Ok(Some(bytes)))
     }
 
     pub async fn save(&self, bytes: &[u8], term: u64) -> Result<(), String> {
@@ -188,6 +208,12 @@ impl Durable {
             let Some(lease) = Self::read_lease(&trx, &lk).await? else { return Err("controller lost lease".into()) };
             if lease.holder != self.holder || lease.term != term || lease.until_ms <= now_ms() {
                 return Err("controller lost lease".into());
+            }
+            // The head swap drops every other snapshot's chunks in the same transaction,
+            // so superseded snapshots (and chunks orphaned by older versions) do not pile up.
+            if !cfg!(feature = "mutate-keep-old-snapshot-chunks") {
+                let (begin, end) = self.chunk_space().range();
+                trx.clear_range(&begin, &end);
             }
             for (index, chunk) in bytes.chunks(CHUNK_SIZE).enumerate() {
                 trx.set(&self.chunk_key(&hash, index as u32), chunk);
