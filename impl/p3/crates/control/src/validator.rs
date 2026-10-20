@@ -170,7 +170,9 @@ impl Validator {
         self: &Arc<Self>, job: SignedJob, accepted: &BTreeMap<Id, (Receipt, SignedJob)>,
     ) -> ValidatorResponse {
         let ring = self.cfg.store.ring.clone();
-        if !job.issued_by(&ring) {
+        let relaxed = cfg!(feature = "mutate-relaxed-envelope-sig");
+        let issued = |key: &[u8; 32]| paralean_store::sign::verify_path(relaxed, key, &job.id(), &job.sig);
+        if !(issued(&ring.authority) || ring.job_issuers.iter().any(issued)) {
             return refused("envelope is not signed by the controller");
         }
         let j = &job.body;

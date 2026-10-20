@@ -49,6 +49,27 @@
       "exit_code": 1,
       "passed": true,
       "log": "results/w2/p1-security-mutation-logs/ed25519_small_order.log"
+    },
+    {
+      "name": "ed25519_scalar_range",
+      "assertion": "vector S_malleated_plus_L: Lean Ed25519 result differs",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/ed25519_scalar_range.log"
+    },
+    {
+      "name": "ed25519_canonical_y",
+      "assertion": "vector noncanonical_A_y0_sign0: noncanonical point decoded",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/ed25519_canonical_y.log"
+    },
+    {
+      "name": "ed25519_negative_zero",
+      "assertion": "vector negative_zero_A: noncanonical point decoded",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/ed25519_negative_zero.log"
     }
   ],
   "passed": true

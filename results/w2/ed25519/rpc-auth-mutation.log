@@ -1,0 +1,24 @@
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.35s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-ffb35c0c3d969750)
+
+running 1 test
+test validator_rpc_strict_signature_vectors ... FAILED
+
+failures:
+
+---- validator_rpc_strict_signature_vectors stdout ----
+
+thread 'validator_rpc_strict_signature_vectors' (1129473) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api/tests/strict_signatures.rs:16:9:
+assertion `left == right` failed: request: small_order_A_0
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    validator_rpc_strict_signature_vectors
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p paralean-validator-api --test strict_signatures`

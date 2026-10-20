@@ -61,6 +61,11 @@ def main (args : List String) : IO UInt32 := do
     let expected : Bool ← expectOk (row.getObjValAs? Bool "expect") label
     unless Ed25519.verify publicKey message signature == expected do
       throw <| IO.userError s!"vector {label}: Lean Ed25519 result differs"
+    -- A noncanonical point encoding must not decode at all. At the signature level
+    -- these vectors also fail for other reasons, so decoding is checked directly.
+    let kind : String ← expectOk (row.getObjValAs? String "kind") label
+    if kind == "noncanonical_A" && (Ed25519.decodePoint (Ed25519.leNat publicKey 0 32)).isSome then
+      throw <| IO.userError s!"vector {label}: noncanonical point decoded"
     let vectorTrust := { t with validators := #[publicKeyHex] }
     let vectorReceipt := { receipt with id := message, key := publicKey, sig := signature }
     unless (vectorTrust.admits vectorReceipt job group capsule).isOk == expected do

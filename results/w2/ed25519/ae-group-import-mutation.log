@@ -1,0 +1,24 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-82e265b74d26a1fa)
+
+running 1 test
+test antientropy_group_import_strict_signature_vectors ... FAILED
+
+failures:
+
+---- antientropy_group_import_strict_signature_vectors stdout ----
+PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
+
+thread 'antientropy_group_import_strict_signature_vectors' (1050797) panicked at crates/store/tests/strict_signatures.rs:99:9:
+assertion `left == right` failed: small_order_A_0: Deferred("group d0a9a88a571a not acknowledged here")
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    antientropy_group_import_strict_signature_vectors
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.23s
+
+error: test failed, to rerun pass `-p paralean-store --test strict_signatures`

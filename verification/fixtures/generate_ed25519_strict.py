@@ -116,6 +116,44 @@ def main():
     for label, scalar in (("L", L), ("L_plus_1", L+1), ("max_u256", 2**256-1)):
         add_vector(f"S_ge_{label}", controls[1], public,
                    base_sig[:32] + scalar.to_bytes(32, "little"), False, "noncanonical_S")
+    # A malleated valid signature: S + L still satisfies the reduced equation, so
+    # only the S < L range check rejects it.
+    malleated = int.from_bytes(base_sig[32:], "little") + L
+    add_vector("S_malleated_plus_L", controls[1], public,
+               base_sig[:32] + malleated.to_bytes(32, "little"), False, "noncanonical_S")
+    # Mixed-order points: a torsion component makes cofactored and cofactorless
+    # verification disagree. Both Rust (dalek verify_strict) and Lean are
+    # cofactorless and must agree; these vectors catch a split.
+    base = decode(4 * pow(5, P - 2, P) % P)
+    t8 = decode(int.from_bytes(torsion[1], "little") & (2**255 - 1), torsion[1][31] >> 7)
+    a = int.from_bytes(hashlib.sha512(b"paralean-mixed-order-v1").digest(), "little") % L
+    mixed_a = encode(add(mul(a, base), t8))
+
+    def scalar(*parts):
+        return int.from_bytes(hashlib.sha512(b"".join(parts)).digest(), "little") % L
+
+    def mixed_sign(want_divisible):
+        for n in range(1 << 16):
+            message = b"mixed-order-A-" + n.to_bytes(2, "little")
+            r = scalar(b"nonce", message)
+            r_enc = encode(mul(r, base))
+            k = scalar(r_enc, mixed_a, message)
+            if (k % 8 == 0) == want_divisible:
+                return message, r_enc + ((r + k * a) % L).to_bytes(32, "little")
+        raise RuntimeError("no mixed-order message found")
+
+    message, sig = mixed_sign(True)
+    add_vector("mixed_order_A_cofactorless", message, mixed_a, sig, True, "mixed_order_A")
+    message, sig = mixed_sign(False)
+    add_vector("mixed_order_A_cofactored_only", message, mixed_a, sig, False, "mixed_order_A")
+    message = b"mixed-order-R"
+    r = scalar(b"nonce", message)
+    r_enc = encode(add(mul(r, base), t8))
+    k = scalar(r_enc, public, message)
+    secret = int.from_bytes(hashlib.sha512(bytes(range(32))).digest()[:32], "little")
+    secret = (secret & ~7 & (2**254 - 1)) | 2**254
+    add_vector("mixed_order_R_cofactored_only", message, public,
+               r_enc + ((r + k * secret) % L).to_bytes(32, "little"), False, "mixed_order_R")
     OUT.write_text(json.dumps({"format": "ed25519-strict-v1", "torsion_hex": [x.hex() for x in torsion],
                                "vectors": vectors}, indent=2) + "\n")
     print(f"{OUT}: {len(vectors)} vectors")

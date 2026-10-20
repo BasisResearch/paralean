@@ -344,7 +344,8 @@ pub fn check_bound(
     let b = &receipt.body;
     let fault = |f| Err(GuardFailure::ReceiptBinding(f));
     // (1) and (3): §6's rule.
-    if b.group != *group || !ring.is_validator(&b.validator_key) || !receipt.verify(&b.validator_key) {
+    if b.group != *group || !ring.is_validator(&b.validator_key)
+        || !crate::sign::verify_path(cfg!(feature = "mutate-relaxed-receipt-sig"), &b.validator_key, &receipt.id(), &receipt.sig) {
         return Err(GuardFailure::ReceiptRejected(*group));
     }
     // (4): the envelope and the receipt agree. An envelope binding a target must come from

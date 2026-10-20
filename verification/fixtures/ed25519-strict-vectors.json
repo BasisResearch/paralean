@@ -802,6 +802,38 @@
       "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
       "signature_hex": "8207a72261b6108779da77de294d11439f5ee144ebfa8ba62bb0763aef9047caffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
       "expect": false
+    },
+    {
+      "case": "S_malleated_plus_L",
+      "kind": "noncanonical_S",
+      "message_hex": "706172616c65616e2d656432353531392d7374726963742d7631",
+      "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+      "signature_hex": "8207a72261b6108779da77de294d11439f5ee144ebfa8ba62bb0763aef9047ca3ab295568f6dbd27eec4d072a2cd43c19845e432bcf1bbf9464becb19bc80910",
+      "expect": false
+    },
+    {
+      "case": "mixed_order_A_cofactorless",
+      "kind": "mixed_order_A",
+      "message_hex": "6d697865642d6f726465722d412d0200",
+      "public_key_hex": "d2c6bafc9078ad7915f9e94d9f6b035edb5a75a96ee3a8724f7f2cfbdf241a9c",
+      "signature_hex": "74e5ecd0dae58f9b4b33cb5a1b876987005d9e6050faf9a7afb11ba24a9074961b4a0beea5476b81c515e710743f217875be2ad47e7c5210b61950979167970f",
+      "expect": true
+    },
+    {
+      "case": "mixed_order_A_cofactored_only",
+      "kind": "mixed_order_A",
+      "message_hex": "6d697865642d6f726465722d412d0000",
+      "public_key_hex": "d2c6bafc9078ad7915f9e94d9f6b035edb5a75a96ee3a8724f7f2cfbdf241a9c",
+      "signature_hex": "33cf7db4ec9af21050768caa4a958ca7dd1d938e4b63e8942c8cdf37d30c41671b0580db82838e76cf7d8272dddb99e5bb3e61a7b52a60a0bfe11473efe37a0c",
+      "expect": false
+    },
+    {
+      "case": "mixed_order_R_cofactored_only",
+      "kind": "mixed_order_R",
+      "message_hex": "6d697865642d6f726465722d52",
+      "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+      "signature_hex": "77158d9b1e7b1ec8879159d27f9b494ddfe59e1be28bc7b8abf6cfb6ba8f44b3cd86a2785539ce06b90fb4cd91c07387098950080f622e6dba082db1af68d300",
+      "expect": false
     }
   ]
 }

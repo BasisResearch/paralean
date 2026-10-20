@@ -14,7 +14,7 @@ fn strict_vectors_match_dalek() {
         assert_eq!(paralean_crypto::verify(&public, &message, &signature), dalek, "protocol: {}", v["case"]);
         count += 1;
     }
-    assert_eq!(count, 99);
+    assert_eq!(count, 103);
 }
 
 #[test]

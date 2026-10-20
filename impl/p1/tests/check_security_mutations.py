@@ -42,6 +42,15 @@ CASES = [
     ("ed25519_small_order", "Ed25519.lean",
      "if A.double.double.double.encode == 1 || R.double.double.double.encode == 1 then false else",
      "if false then false else", "weak-key signature accepted"),
+    ("ed25519_scalar_range", "Ed25519.lean",
+     "if s ≥ L then false else", "if false then false else",
+     "vector S_malleated_plus_L: Lean Ed25519 result differs"),
+    ("ed25519_canonical_y", "Ed25519.lean",
+     "if y ≥ p then none else", "if false then none else",
+     "vector noncanonical_A_y0_sign0: noncanonical point decoded"),
+    ("ed25519_negative_zero", "Ed25519.lean",
+     "if x == 0 && sign == 1 then none", "if false then none",
+     "vector negative_zero_A: noncanonical point decoded"),
 ]
 
 

@@ -320,10 +320,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             let mut evidence = Vec::new();
             for c in certs {
                 let Ok(c) = Cert::from_bytes(c) else { continue };
-                let mut valid = c.body.group == g && c.body.marker == mid && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig);
+                let mut valid = c.body.group == g && c.body.marker == mid
+                    && st.ring.writer(&c.body.writer).is_some_and(|key| import_verify(key, &c.id(), &c.sig));
                 if let Some(cfg) = &federation {
                     valid &= cfg.members.values().any(|member| member.replica == c.body.replica
-                        && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key)));
+                        && member.writers.get(&c.body.writer).is_some_and(|key| import_verify(key, &c.id(), &c.sig)));
                 }
                 if let Some(home) = &target_home {
                     let member = &federation.as_ref().expect("home only from config").members[home];
@@ -341,7 +342,7 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                     let origin_index = evidence.iter().position(|(_, value)| Cert::from_bytes(value).ok().is_some_and(|cert| {
                         cfg.members.values().any(|member| member.replica == cert.body.replica
                             && member.writers.contains_key(&cert.body.writer)
-                            && (job.verify(&member.authority) || member.job_issuers.iter().any(|key| job.verify(key))))
+                            && std::iter::once(&member.authority).chain(&member.job_issuers).any(|key| import_verify(key, &job.id(), &job.sig)))
                     }));
                     let Some(origin_index) = origin_index else { return reject("job issuer has no matching origin publication certificate"); };
                     evidence.swap(0, origin_index);
@@ -421,8 +422,9 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             for c in certs {
                 let Ok(c) = TombstoneCert::from_bytes(c) else { continue };
                 let source_bound = federation.as_ref().is_none_or(|cfg| cfg.members.values().any(|member|
-                    member.replica == c.body.replica && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key))));
-                if c.body.tombstone == tid && c.body.target == t.target && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) && source_bound {
+                    member.replica == c.body.replica && member.writers.get(&c.body.writer).is_some_and(|key| import_verify(key, &c.id(), &c.sig))));
+                if c.body.tombstone == tid && c.body.target == t.target && source_bound
+                    && st.ring.writer(&c.body.writer).is_some_and(|key| import_verify(key, &c.id(), &c.sig)) {
                     certifiers.push(c.body.writer);
                     evidence.push((st.meta.keys.xcertv("tcert", &tid, &c.id()), c.to_bytes()));
                 }
@@ -550,6 +552,12 @@ pub async fn exchangeable_set(store: &Store) -> Result<PublishedSet> {
     }
     s.files.retain(|_, f| !f.is_empty());
     Ok(s)
+}
+
+/// Every signature import checks: peer certificates, tombstone certificates and the
+/// job issuer binding of an imported group.
+fn import_verify(key: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
+    crate::sign::verify_path(cfg!(feature = "mutate-relaxed-import-sig"), key, id, sig)
 }
 
 pub async fn published_set(store: &Store) -> Result<PublishedSet> {

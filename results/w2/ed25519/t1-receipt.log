@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-47221a59665ec5f7)
+
+running 1 test
+test t1_publication_strict_receipt_signature_vectors ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.25s
+

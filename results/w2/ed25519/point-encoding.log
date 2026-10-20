@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.04s
+     Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-61ad12458b615a0c)
+
+running 1 test
+test point_encoding_is_canonical ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

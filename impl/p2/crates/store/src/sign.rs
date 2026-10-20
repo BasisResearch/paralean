@@ -42,13 +42,17 @@ impl Signer {
 }
 
 pub fn verify(public: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
-    let Ok(vk) = VerifyingKey::from_bytes(public) else { return false };
+    verify_path(cfg!(feature = "mutate-weak-signature"), public, id, sig)
+}
+
+/// The verifier at one protocol path. `relaxed` is a compile-time constant that only a
+/// guard-removal mutation sets: it restores dalek's non-strict acceptance at that path
+/// alone, so each path's strict-vector regression is shown to exercise its own check.
+pub fn verify_path(relaxed: bool, public: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
     let Ok(sig) = <[u8; 64]>::try_from(sig) else { return false };
-    if cfg!(feature = "mutate-weak-signature") {
-        ed25519_dalek::Verifier::verify(&vk, &id.0, &Signature::from_bytes(&sig)).is_ok()
-    } else {
-        paralean_crypto::verify(public, &id.0, &sig)
-    }
+    if !relaxed { return paralean_crypto::verify(public, &id.0, &sig); }
+    let Ok(vk) = VerifyingKey::from_bytes(public) else { return false };
+    ed25519_dalek::Verifier::verify(&vk, &id.0, &Signature::from_bytes(&sig)).is_ok()
 }
 
 /// Public keys the store trusts. Writers unknown to the ring are ignored by discovery and

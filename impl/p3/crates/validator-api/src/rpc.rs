@@ -10,7 +10,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use paralean_store::{Id, Signer};
 use paralean_store::id::sha256;
-use paralean_store::sign::verify;
+
+/// Every RPC signature (challenge, request, response) is checked here.
+fn verify(public: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
+    paralean_store::sign::verify_path(cfg!(feature = "mutate-relaxed-rpc-sig"), public, id, sig)
+}
 
 /// Frames larger than this are refused (requests carry envelopes and receipts only).
 pub const MAX_FRAME: usize = 16 << 20;

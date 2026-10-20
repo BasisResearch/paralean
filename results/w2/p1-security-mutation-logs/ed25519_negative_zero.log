@@ -1,0 +1,12 @@
+uncaught exception: vector negative_zero_A: noncanonical point decoded
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpymm8srnw', '1236c25cbe3041e624f71af4b9a328610126c4879d5c03d10cdf70586f1a4dd5', 'f6be701bfcf414543eba9eaf75ec89fd713e25614e95451c2778275f6771d47f', '78b5ac5af296d52a079a52cd191713629dc9e46b330f4aba1afe3b076b0dbd7a', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '58d04cf7568760fe5497bfcead128d37d396c153ecc8b34100af8052deb05ebf', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
