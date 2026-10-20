@@ -1,0 +1,28 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 66 and seed -5091128722770974759 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 2976602] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Ingress/Ingress.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module Ingress
+Starting... (2026-10-20 16:17:49)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:17:49.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 1.8E-17
+46 states generated, 9 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 4).
+Finished in 00s at (2026-10-20 16:17:49)
+==== Paralean TLC provenance ====
+module Ingress
+config Ingress.cfg
+expect pass
+checked cbaf08c50ac2325e565793230d333c063cb368902da0ce2f1cbc803f70972699  Ingress.tla
+checked 0c576f3f4f3c1da135ae7c09d72e067d504b3726acfabad25bd39a8964051832  Ingress.cfg
+==== end provenance ====

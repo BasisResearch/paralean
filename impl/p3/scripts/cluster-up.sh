@@ -4,12 +4,14 @@
 # $PARALEAN_P3_PREFIX and the ports of scripts/env.sh. It uses the binaries of P2's
 # bootstrap.sh read-only and never touches another instance. Idempotent.
 set -euo pipefail
+umask 077
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
 B="$PARALEAN_P2_BIN_PREFIX/bin"
 P="$PARALEAN_P3_PREFIX"
 [ -x "$B/fdbserver" ] && [ -x "$B/garage" ] || { echo "no P2 install at $PARALEAN_P2_BIN_PREFIX (impl/p2/scripts/bootstrap.sh)" >&2; exit 1; }
 mkdir -p "$P"/{run,fdb/data,fdb/log,garage/meta,garage/data,garage/log}
+chmod 700 "$P/garage"
 alive() { [ -f "$P/run/$1.pid" ] && kill -0 "$(cat "$P/run/$1.pid")" 2>/dev/null; }
 
 knobs="--knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000"
@@ -62,7 +64,7 @@ rpc_secret = "$PARALEAN_GARAGE_RPC_SECRET"
 
 [s3_api]
 s3_region = "$PARALEAN_S3_REGION"
-api_bind_addr = "127.0.0.1:$PARALEAN_GARAGE_S3_PORT"
+api_bind_addr = "$P/garage/s3.sock"
 root_domain = ".s3.localhost"
 
 [admin]
@@ -84,15 +86,16 @@ garage bucket info "$PARALEAN_S3_BUCKET" >/dev/null 2>&1 || garage bucket create
 garage key info "$PARALEAN_S3_ACCESS_KEY" >/dev/null 2>&1 || \
   garage key import --yes -n paralean-app "$PARALEAN_S3_ACCESS_KEY" "$PARALEAN_S3_SECRET_KEY" >/dev/null
 garage bucket allow --read --write "$PARALEAN_S3_BUCKET" --key "$PARALEAN_S3_ACCESS_KEY" >/dev/null
+python3 "$PARALEAN_P2_DIR/scripts/check-storage-boundary.py" "$P/garage/garage.toml" "$PARALEAN_GARAGE_S3_PORT"
 echo "garage: node $node, bucket $PARALEAN_S3_BUCKET"
 
 guard="$PARALEAN_P2_DIR/target/release/s3-guard"
-[ -x "$guard" ] || ( cd "$PARALEAN_P2_DIR" && cargo build --release -p s3-guard )
+( cd "$PARALEAN_P2_DIR" && cargo build --release -p s3-guard -j 1 )
 if ! alive s3-guard; then
-  setsid nohup "$guard" --listen "127.0.0.1:$PARALEAN_S3_PORT" --upstream "127.0.0.1:$PARALEAN_GARAGE_S3_PORT" \
+  setsid nohup "$guard" --listen "127.0.0.1:$PARALEAN_S3_PORT" --upstream "unix:$P/garage/s3.sock" \
     > "$P/garage/log/s3-guard.log" 2>&1 < /dev/null &
   echo $! > "$P/run/s3-guard.pid"
 fi
 for i in $(seq 1 20); do curl -s -o /dev/null "$PARALEAN_S3_ENDPOINT" && break; sleep 0.5; done
-echo "s3: $PARALEAN_S3_ENDPOINT (guard) -> 127.0.0.1:$PARALEAN_GARAGE_S3_PORT (garage)"
+echo "s3: $PARALEAN_S3_ENDPOINT (guard) -> private Unix socket (garage)"
 echo "fdb: $PARALEAN_FDB_CLUSTER ($(cat "$PARALEAN_FDB_CLUSTER"))"

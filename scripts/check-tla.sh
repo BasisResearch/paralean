@@ -51,8 +51,9 @@ for entry in "${selected[@]}"; do
   if is_wide "$scenario"; then logdir="$root/.runs/tla/wide"; else logdir="$root/.runs/tla"; fi
   echo "Checking $scenario ($module.tla)"
   stage_sources "$dir"
+  mkdir -p "$dir-java-tmp"
   status=0
-  java -XX:+UseParallelGC -Xmx"$heap" -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
+  java "-Djava.io.tmpdir=$dir-java-tmp" -XX:+UseParallelGC -Xmx"$heap" -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
     -workers "$workers" -metadir "$dir/states" \
     -config "$dir/$scenario.cfg" "$dir/$module.tla" \
     > "$dir/result.log" 2>&1 || status=$?

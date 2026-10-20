@@ -1,34 +1,51 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 4 and seed -1321120790652104069 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 3600883] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/r_unfenced_put_adoption/Hardened.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 38 and seed -2406722121253201532 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 22891] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption/Hardened.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
-Starting... (2026-10-20 12:18:18)
+Starting... (2026-10-20 17:15:11)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:18:18.
-Progress(16) at 2026-10-20 12:18:21: 96,912 states generated (96,912 s/min), 22,674 distinct states found (22,674 ds/min), 9,340 states left on queue.
-Progress(24) at 2026-10-20 12:19:21: 4,632,029 states generated (4,535,117 s/min), 899,911 distinct states found (877,237 ds/min), 285,369 states left on queue.
-Progress(26) at 2026-10-20 12:20:21: 8,216,746 states generated (3,584,717 s/min), 1,560,633 distinct states found (660,722 ds/min), 426,034 states left on queue.
-Progress(27) at 2026-10-20 12:21:21: 11,861,929 states generated (3,645,183 s/min), 2,156,090 distinct states found (595,457 ds/min), 497,625 states left on queue.
-Progress(28) at 2026-10-20 12:22:21: 15,580,009 states generated (3,718,080 s/min), 2,743,126 distinct states found (587,036 ds/min), 497,298 states left on queue.
-Progress(29) at 2026-10-20 12:23:21: 18,993,362 states generated (3,413,353 s/min), 3,235,489 distinct states found (492,363 ds/min), 403,157 states left on queue.
-Progress(31) at 2026-10-20 12:24:21: 22,432,597 states generated (3,439,235 s/min), 3,660,930 distinct states found (425,441 ds/min), 171,148 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:15:11.
+Progress(13) at 2026-10-20 17:15:14: 27,410 states generated (27,410 s/min), 7,169 distinct states found (7,169 ds/min), 3,158 states left on queue.
+Progress(20) at 2026-10-20 17:16:14: 1,054,111 states generated (1,026,701 s/min), 218,450 distinct states found (211,281 ds/min), 78,805 states left on queue.
+Progress(22) at 2026-10-20 17:17:14: 2,068,797 states generated (1,014,686 s/min), 410,724 distinct states found (192,274 ds/min), 142,552 states left on queue.
+Progress(23) at 2026-10-20 17:18:14: 3,018,821 states generated (950,024 s/min), 598,562 distinct states found (187,838 ds/min), 201,730 states left on queue.
+Progress(23) at 2026-10-20 17:19:14: 3,956,116 states generated (937,295 s/min), 783,885 distinct states found (185,323 ds/min), 251,879 states left on queue.
+Progress(24) at 2026-10-20 17:20:14: 4,931,160 states generated (975,044 s/min), 956,671 distinct states found (172,786 ds/min), 300,678 states left on queue.
+Progress(24) at 2026-10-20 17:21:14: 5,799,310 states generated (868,150 s/min), 1,126,313 distinct states found (169,642 ds/min), 337,683 states left on queue.
+Progress(25) at 2026-10-20 17:22:14: 6,791,797 states generated (992,487 s/min), 1,287,700 distinct states found (161,387 ds/min), 373,771 states left on queue.
+Progress(25) at 2026-10-20 17:23:14: 7,790,439 states generated (998,642 s/min), 1,479,009 distinct states found (191,309 ds/min), 414,581 states left on queue.
+Progress(26) at 2026-10-20 17:24:14: 8,733,205 states generated (942,766 s/min), 1,638,629 distinct states found (159,620 ds/min), 438,012 states left on queue.
+Progress(26) at 2026-10-20 17:25:14: 9,823,899 states generated (1,090,694 s/min), 1,825,903 distinct states found (187,274 ds/min), 463,834 states left on queue.
+Progress(26) at 2026-10-20 17:26:14: 10,814,154 states generated (990,255 s/min), 2,002,179 distinct states found (176,276 ds/min), 482,586 states left on queue.
+Progress(27) at 2026-10-20 17:27:14: 11,826,118 states generated (1,011,964 s/min), 2,156,516 distinct states found (154,337 ds/min), 494,339 states left on queue.
+Progress(27) at 2026-10-20 17:28:14: 12,864,960 states generated (1,038,842 s/min), 2,326,896 distinct states found (170,380 ds/min), 504,313 states left on queue.
+Progress(27) at 2026-10-20 17:29:14: 13,913,359 states generated (1,048,399 s/min), 2,503,717 distinct states found (176,821 ds/min), 510,689 states left on queue.
+Progress(28) at 2026-10-20 17:30:14: 14,856,225 states generated (942,866 s/min), 2,637,538 distinct states found (133,821 ds/min), 496,572 states left on queue.
+Progress(28) at 2026-10-20 17:31:14: 15,944,856 states generated (1,088,631 s/min), 2,800,483 distinct states found (162,945 ds/min), 487,293 states left on queue.
+Progress(28) at 2026-10-20 17:32:14: 16,978,914 states generated (1,034,058 s/min), 2,963,453 distinct states found (162,970 ds/min), 475,249 states left on queue.
+Progress(29) at 2026-10-20 17:33:14: 17,919,287 states generated (940,373 s/min), 3,087,969 distinct states found (124,516 ds/min), 433,679 states left on queue.
+Progress(29) at 2026-10-20 17:34:14: 18,964,623 states generated (1,045,336 s/min), 3,230,072 distinct states found (142,103 ds/min), 395,879 states left on queue.
+Progress(30) at 2026-10-20 17:35:14: 19,919,532 states generated (954,909 s/min), 3,371,671 distinct states found (141,599 ds/min), 349,921 states left on queue.
+Progress(30) at 2026-10-20 17:36:14: 20,927,715 states generated (1,008,183 s/min), 3,484,830 distinct states found (113,159 ds/min), 290,353 states left on queue.
+Progress(31) at 2026-10-20 17:37:14: 21,882,667 states generated (954,952 s/min), 3,606,167 distinct states found (121,337 ds/min), 218,533 states left on queue.
+Progress(31) at 2026-10-20 17:38:14: 22,861,040 states generated (978,373 s/min), 3,709,849 distinct states found (103,682 ds/min), 121,910 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.0E-6
-  based on the actual fingerprints:  val = 2.5E-5
+  based on the actual fingerprints:  val = 2.7E-7
 23587845 states generated, 3766968 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 35.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
-Finished in 06min 29s at (2026-10-20 12:24:47)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
+Finished in 23min 55s at (2026-10-20 17:39:06)
 ==== Paralean TLC provenance ====
 module Hardened
 config run.cfg
@@ -40,8 +57,9 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+source cbaf08c50ac2325e565793230d333c063cb368902da0ce2f1cbc803f70972699  Ingress.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -66,6 +84,7 @@ source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  Fencing
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
 source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
 source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
+source 0c576f3f4f3c1da135ae7c09d72e067d504b3726acfabad25bd39a8964051832  Ingress.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg

@@ -15,6 +15,7 @@
 #   PARALEAN_FDB_REDUNDANCY=triple PARALEAN_FDB_COORDINATORS=5 PARALEAN_NETSPLIT=1 \
 #   PARALEAN_GARAGE_NODES=3 PARALEAN_GARAGE_REPLICATION=3 scripts/up.sh
 set -euo pipefail
+umask 077
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
 P="$PARALEAN_P2_PREFIX"
@@ -29,6 +30,7 @@ if [ -n "$PARALEAN_INSTANCE" ]; then
     echo "first start of instance $PARALEAN_INSTANCE needs PARALEAN_PORT_BASE" >&2; exit 1
   fi
   mkdir -p "$H/run" "$H/fdb" "$H/garage"
+  chmod 700 "$H/garage"
   if [ ! -f "$H/instance.sh" ]; then
     cat > "$H/instance.sh" <<EOF
 # Instance $PARALEAN_INSTANCE, written by up.sh on first start.
@@ -128,12 +130,13 @@ if [ -z "$PARALEAN_INSTANCE" ]; then
     echo $! > "$P/run/garage.pid"
   fi
   garage() { "$P/bin/garage" -c "$P/garage/garage.toml" "$@"; }
-  upstreams="127.0.0.1:$PARALEAN_GARAGE_S3_PORT"
+  upstreams="unix:$P/garage/s3.sock"
 else
   upstreams=""
   for j in $(seq 0 $((PARALEAN_GARAGE_NODES - 1))); do
     n="$H/garage/n$j"; mkdir -p "$n/meta" "$n/data"
-    upstreams="$upstreams${upstreams:+,}127.0.0.1:$((PARALEAN_GARAGE_S3_PORT + j))"
+    chmod 700 "$n"
+    upstreams="$upstreams${upstreams:+,}unix:$n/s3.sock"
     cat > "$n/garage.toml" <<TOML
 metadata_dir = "$n/meta"
 data_dir = "$n/data"
@@ -149,7 +152,7 @@ rpc_secret = "$PARALEAN_GARAGE_RPC_SECRET"
 
 [s3_api]
 s3_region = "$PARALEAN_S3_REGION"
-api_bind_addr = "127.0.0.1:$((PARALEAN_GARAGE_S3_PORT + j))"
+api_bind_addr = "$n/s3.sock"
 root_domain = ".s3.localhost"
 
 [admin]
@@ -196,11 +199,19 @@ garage bucket info "$PARALEAN_S3_BUCKET" >/dev/null 2>&1 || garage bucket create
 garage key info "$PARALEAN_S3_ACCESS_KEY" >/dev/null 2>&1 || \
   garage key import --yes -n paralean-app "$PARALEAN_S3_ACCESS_KEY" "$PARALEAN_S3_SECRET_KEY" >/dev/null
 garage bucket allow --read --write "$PARALEAN_S3_BUCKET" --key "$PARALEAN_S3_ACCESS_KEY" >/dev/null
+if [ -z "$PARALEAN_INSTANCE" ]; then
+  python3 "$here/check-storage-boundary.py" "$P/garage/garage.toml" "$PARALEAN_GARAGE_S3_PORT"
+else
+  for j in $(seq 0 $((PARALEAN_GARAGE_NODES - 1))); do
+    python3 "$here/check-storage-boundary.py" "$H/garage/n$j/garage.toml" "$((PARALEAN_GARAGE_S3_PORT + j))"
+  done
+fi
 echo "garage: $PARALEAN_GARAGE_NODES node(s), replication $PARALEAN_GARAGE_REPLICATION, bucket $PARALEAN_S3_BUCKET"
 
 # --- s3-guard: plain S3 passthrough to Garage that refuses every delete.
 guard="$here/../target/release/s3-guard"
-[ -x "$guard" ] || ( cd "$here/.." && cargo build --release -p s3-guard )
+# Always refresh this small gateway: an older passthrough cannot use Unix sockets.
+( cd "$here/.." && cargo build --release -p s3-guard -j 1 )
 if ! alive s3-guard; then
   logdir="$H/garage/log"; mkdir -p "$logdir"
   setsid nohup "$guard" --listen "127.0.0.1:$PARALEAN_S3_PORT" --upstream "$upstreams" \

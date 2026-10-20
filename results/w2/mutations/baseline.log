@@ -1,0 +1,65 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.63s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-544331a87705af98)
+
+running 2 tests
+test server::tests::connection_admission_is_bounded_before_authentication ... ok
+test server::tests::incomplete_frames_expire_and_release_admission ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-a15152ecf87f04e7)
+
+running 22 tests
+test group_chunks::tests::valid_wrapper_preserves_order_and_deduplicates_transfer_refs ... ok
+test group_chunks::tests::conflicting_lengths_and_unbounded_refs_are_rejected ... ok
+test pce::tests::rejects_non_minimal_and_trailing ... ok
+test id::tests::sha256_vectors ... ok
+test pce::tests::uvarint_matches_leb128_and_p1 ... ok
+test pce::tests::hostile_counts_are_bounded_before_container_allocation ... ok
+test group_chunks::tests::reserved_prefix_is_fail_closed ... ok
+test id::tests::preimage_shape_and_hash ... ok
+test s3::security_tests::oversized_s3_body_is_rejected_before_hashing ... ok
+test id::tests::matches_p1_lean_sha256 ... ok
+test objects::tests::roundtrips_and_strictness ... ok
+test sign::security_tests::debug_does_not_disclose_role_seeds ... ok
+test pce::tests::nat_and_sets ... ok
+test id::tests::p1_group_id_matches ... ok
+test objects::tests::names ... ok
+test group_chunks::tests::maximum_distinct_refs_fit_one_fdb_index_value ... ok
+test s3::security_tests::config_debug_redacts_credentials ... ok
+test group_chunks::tests::legacy_opaque_group_has_unknown_chunk_coverage ... ok
+test sign::security_tests::weak_public_key_identity_signature_is_rejected ... ok
+test sign::security_tests::private_key_file_replaces_public_inode_and_symlink ... ok
+test receipt::tests::envelope_roundtrip_and_strictness ... ok
+test objects::tests::signed_roundtrip ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-655e979269c3f81a)
+
+running 1 test
+test rpc::tests::oversized_frame_is_rejected_without_waiting_for_body ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/s3-guard)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-cd4e38f26b0e7e09)
+
+running 3 tests
+test tests::refuses_deletes_and_config ... ok
+test tests::encoded_and_unknown_mutations_are_denied ... ok
+test tests::streamed_body_limit_is_enforced ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.014s
+
+OK

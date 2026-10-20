@@ -3,6 +3,7 @@
 # payload store) in user space under $PARALEAN_P2_PREFIX, plus rustup if missing.
 # Nothing is installed system-wide and sudo is never used. Idempotent.
 set -euo pipefail
+umask 077
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
 P="$PARALEAN_P2_PREFIX"
@@ -39,6 +40,7 @@ install -m 0755 "$gdl/garage" "$P/bin/garage"
 # Garage has no deny-delete permission or bucket policy, so deletes are refused by the
 # s3-guard gateway that up.sh starts in front of Garage (clients only see the gateway).
 mkdir -p "$P/garage/meta" "$P/garage/data" "$P/garage/log"
+chmod 700 "$P/garage"
 if [ ! -f "$P/garage/credentials.sh" ]; then
   hex() { head -c "$1" /dev/urandom | od -An -tx1 | tr -d ' \n'; }
   umask 077
@@ -64,7 +66,7 @@ rpc_secret = "$PARALEAN_GARAGE_RPC_SECRET"
 
 [s3_api]
 s3_region = "$PARALEAN_S3_REGION"
-api_bind_addr = "127.0.0.1:$PARALEAN_GARAGE_S3_PORT"
+api_bind_addr = "$P/garage/s3.sock"
 root_domain = ".s3.localhost"
 
 [admin]

@@ -21,47 +21,71 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use bytes::Bytes;
-use http_body_util::{combinators::BoxBody, BodyExt, Full};
+use http_body_util::{combinators::BoxBody, BodyExt, Full, Limited};
 use hyper::body::Incoming;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode, Uri};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::{TokioExecutor, TokioIo};
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, UnixStream};
+use tokio::sync::Semaphore;
 
 type Body = BoxBody<Bytes, hyper::Error>;
 
-const DENIED_SUBRESOURCES: &[&str] = &[
-    "lifecycle", "policy", "website", "cors", "versioning", "object-lock", "retention",
-    "legal-hold", "replication", "encryption",
-];
+const MAX_BODY: usize = 65 * 1024 * 1024; // 64 MiB chunk plus domain/encoding
+const MAX_CONNECTIONS: usize = 16;
+
+fn query_key(s: &str) -> Option<String> {
+    let mut bytes = s.bytes();
+    let mut decoded = Vec::new();
+    while let Some(b) = bytes.next() {
+        decoded.push(match b {
+            b'%' => {
+                let h = (bytes.next()? as char).to_digit(16)?;
+                let l = (bytes.next()? as char).to_digit(16)?;
+                (h * 16 + l) as u8
+            }
+            b'+' => b' ',
+            other => other,
+        });
+    }
+    String::from_utf8(decoded).ok()
+}
 
 /// Why a request is refused, or `None` if it may pass.
 fn refusal(method: &Method, uri: &Uri) -> Option<&'static str> {
     let query = uri.query().unwrap_or("");
-    let keys: Vec<&str> = query
+    let keys: Option<Vec<String>> = query
         .split('&')
         .filter(|s| !s.is_empty())
-        .map(|kv| kv.split('=').next().unwrap_or(""))
+        .map(|kv| query_key(kv.split('=').next().unwrap_or("")))
         .collect();
+    let Some(keys) = keys else { return Some("invalid query encoding"); };
     let path = uri.path().trim_start_matches('/');
     let is_bucket_level = !path.contains('/') || path.ends_with('/') && path.matches('/').count() == 1;
+    if cfg!(feature = "mutate-allow-delete") { return None; }
     if method == Method::DELETE {
         return Some("deletes are denied on this store (GC is disabled)");
     }
-    if method == Method::POST && keys.contains(&"delete") {
-        return Some("DeleteObjects is denied on this store (GC is disabled)");
+    if method == Method::POST {
+        if is_bucket_level || keys.is_empty() || keys.iter().any(|k| k != "uploads" && k != "uploadId" && k != "x-id") {
+            return Some("only object multipart POST is allowed");
+        }
     }
     if method == Method::PUT {
-        if keys.iter().any(|k| DENIED_SUBRESOURCES.contains(k)) {
+        if keys.iter().any(|k| k != "uploadId" && k != "partNumber" && k != "x-id") {
             return Some("bucket and object configuration changes are denied");
         }
-        if is_bucket_level && keys.is_empty() {
+        if is_bucket_level {
             return Some("bucket creation is denied through the gateway");
         }
+    }
+    if ![Method::GET, Method::HEAD, Method::PUT, Method::POST].contains(method) {
+        return Some("unsupported method");
     }
     None
 }
@@ -83,18 +107,36 @@ async fn handle(
     req: Request<Incoming>,
 ) -> Result<Response<Body>, Infallible> {
     if let Some(msg) = refusal(req.method(), req.uri()) {
-        eprintln!("s3-guard: refused {} {}", req.method(), req.uri());
+        // Query strings may contain presigned credentials; never log them.
+        eprintln!("s3-guard: refused {}", req.method());
         return Ok(denied(msg));
     }
     let pq = req.uri().path_and_query().map(|p| p.as_str().to_string()).unwrap_or_else(|| "/".into());
     let (parts, body) = req.into_parts();
-    let body = match body.collect().await {
+    let cap = if cfg!(feature = "mutate-unbounded-body") { usize::MAX } else { MAX_BODY };
+    let body = match Limited::new(body, cap).collect().await {
         Ok(b) => b.to_bytes(),
         Err(e) => return Ok(error(StatusCode::BAD_REQUEST, &format!("request body: {e}"))),
     };
     let mut last = String::new();
     for up in upstreams.iter() {
         let mut r = Request::from_parts(parts.clone(), Full::new(body.clone()));
+        if let Some(path) = up.strip_prefix("unix:") {
+            let stream = match UnixStream::connect(path).await {
+                Ok(stream) => stream,
+                Err(e) => { last = e.to_string(); continue; }
+            };
+            *r.uri_mut() = pq.parse().unwrap();
+            let (mut sender, connection) = match hyper::client::conn::http1::handshake(TokioIo::new(stream)).await {
+                Ok(pair) => pair,
+                Err(_) => return Ok(error(StatusCode::BAD_GATEWAY, "upstream handshake failed")),
+            };
+            tokio::spawn(async move { let _ = connection.await; });
+            return Ok(match sender.send_request(r).await {
+                Ok(resp) => resp.map(|b| b.boxed()),
+                Err(_) => error(StatusCode::BAD_GATEWAY, "upstream error"),
+            });
+        }
         *r.uri_mut() = format!("http://{up}{pq}").parse().unwrap();
         match client.request(r).await {
             Ok(resp) => return Ok(resp.map(|b| b.boxed())),
@@ -121,7 +163,7 @@ fn error(status: StatusCode, msg: &str) -> Response<Body> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut listen: SocketAddr = "127.0.0.1:18433".parse()?;
-    let mut upstream = "127.0.0.1:18439".to_string();
+    let mut upstream = String::new();
     let mut args = std::env::args().skip(1);
     while let Some(a) = args.next() {
         match a.as_str() {
@@ -130,19 +172,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             other => return Err(format!("unknown argument {other}").into()),
         }
     }
+    if upstream.is_empty() { return Err("--upstream unix:/private/path/s3.sock is required".into()); }
     let listener = TcpListener::bind(listen).await?;
     eprintln!("s3-guard: listening on {listen}, upstream {upstream}");
     let client: Client<HttpConnector, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
     let upstreams: Arc<Vec<String>> = Arc::new(upstream.split(',').map(str::to_string).collect());
+    let slots = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
         let (stream, _) = listener.accept().await?;
+        let Ok(permit) = slots.clone().try_acquire_owned() else { continue };
         let client = client.clone();
         let upstreams = upstreams.clone();
         tokio::spawn(async move {
+            let _permit = permit;
             let svc = service_fn(move |req| handle(client.clone(), upstreams.clone(), req));
-            if let Err(e) = http1::Builder::new().serve_connection(TokioIo::new(stream), svc).await {
-                eprintln!("s3-guard: connection error: {e}");
-            }
+            // Includes headers, chunked request bodies, upstream and response. No
+            // keepalive lets an idle peer hold an admission slot without a bound.
+            let mut builder = http1::Builder::new();
+            builder.keep_alive(false).max_buf_size(32768);
+            let _ = tokio::time::timeout(Duration::from_secs(60),
+                builder.serve_connection(TokioIo::new(stream), svc)).await;
         });
     }
 }
@@ -164,5 +213,23 @@ mod tests {
         assert!(!r(Method::GET, "/b?list-type=2&prefix=obj/"));
         assert!(!r(Method::HEAD, "/b/obj/x"));
         assert!(!r(Method::POST, "/b/obj/x?uploads"));
+    }
+    #[test]
+    fn encoded_and_unknown_mutations_are_denied() {
+        for url in ["/b?%64elete", "/b?%64%65lete=", "/b?x=1&delete", "/b?delete&uploads",
+            "/b/obj?%64elete", "/b?%zz", "/b?uploads"] {
+            assert!(r(Method::POST, url), "{url}");
+        }
+        for url in ["/b?%6cifecycle", "/b?acl", "/b?x=1", "/b/obj?tagging", "/b/obj?%70olicy"] {
+            assert!(r(Method::PUT, url), "{url}");
+        }
+        assert!(!r(Method::PUT, "/b/obj?partNumber=1&uploadId=abc%2fdef"));
+        assert!(!r(Method::PUT, "/b/obj?x-id=PutObject"));
+    }
+    #[tokio::test]
+    async fn streamed_body_limit_is_enforced() {
+        let cap = if cfg!(feature = "mutate-unbounded-body") { usize::MAX } else { MAX_BODY };
+        let body = Full::new(Bytes::from(vec![0; MAX_BODY + 1]));
+        assert!(Limited::new(body, cap).collect().await.is_err());
     }
 }

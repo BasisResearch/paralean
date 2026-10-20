@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 13 and seed -4980205143600305796 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2882967] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/FencingLive/Fencing.tla
+Running breadth-first search Model-Checking with fp 105 and seed 7988779856112370634 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 2764040] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/FencingLive/Fencing.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/TLC.tla
@@ -10,25 +10,28 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-20 11:46:05)
+Starting... (2026-10-20 16:07:48)
 Implied-temporal checking--satisfiability problem has 2 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 11:46:05.
-Checking 2 branches of temporal properties for the current state space with 51698 total distinct states at (2026-10-20 11:46:08)
-Finished checking temporal properties in 00s at 2026-10-20 11:46:08
-Progress(13) at 2026-10-20 11:46:08: 186,583 states generated (186,583 s/min), 25,849 distinct states found (25,849 ds/min), 7,778 states left on queue.
-Progress(21) at 2026-10-20 11:46:23: 1,241,435 states generated, 103,200 distinct states found, 0 states left on queue.
-Checking 2 branches of temporal properties for the complete state space with 206400 total distinct states at (2026-10-20 11:46:23)
-Finished checking temporal properties in 00s at 2026-10-20 11:46:23
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:07:48.
+Checking 2 branches of temporal properties for the current state space with 8874 total distinct states at (2026-10-20 16:07:51)
+Finished checking temporal properties in 00s at 2026-10-20 16:07:51
+Progress(9) at 2026-10-20 16:07:51: 20,374 states generated (20,374 s/min), 4,437 distinct states found (4,437 ds/min), 2,197 states left on queue.
+Checking 2 branches of temporal properties for the current state space with 148128 total distinct states at (2026-10-20 16:08:51)
+Finished checking temporal properties in 01s at 2026-10-20 16:08:53
+Progress(16) at 2026-10-20 16:08:53: 644,989 states generated (624,615 s/min), 74,067 distinct states found (69,630 ds/min), 18,442 states left on queue.
+Progress(21) at 2026-10-20 16:09:43: 1,241,435 states generated, 103,200 distinct states found, 0 states left on queue.
+Checking 2 branches of temporal properties for the complete state space with 206400 total distinct states at (2026-10-20 16:09:43)
+Finished checking temporal properties in 04s at 2026-10-20 16:09:47
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.4E-9
-  based on the actual fingerprints:  val = 1.3E-8
+  based on the actual fingerprints:  val = 5.9E-9
 1241435 states generated, 103200 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 18s at (2026-10-20 11:46:24)
+Finished in 02min 00s at (2026-10-20 16:09:47)
 ==== Paralean TLC provenance ====
 module Fencing
 config FencingLive.cfg

@@ -69,7 +69,8 @@ run_tlc() {
   local label="$1" module="$2" cfg="$3" expect="$4"
   local dir="$out/$label" start end
   start=$(date +%s)
-  if java "-Xmx$heap" -XX:+UseParallelGC -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
+  mkdir -p "$dir-java-tmp"
+  if java "-Djava.io.tmpdir=$dir-java-tmp" "-Xmx$heap" -XX:+UseParallelGC -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
     -workers "$workers" -metadir "$dir/states" -config "$dir/$cfg.cfg" \
     "$dir/$module.tla" > "$dir/result.log" 2>&1; then
     tlc_exit=0

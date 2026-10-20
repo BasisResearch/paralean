@@ -1,0 +1,12 @@
+Checking ReceiptsWide (Receipts.tla)
+25358 states generated, 1513 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 18:34:42)
+Checking TargetsWide (TargetsWide.tla)
+113659398 states generated, 12400854 distinct states found, 0 states left on queue.
+Finished in 11min 52s at (2026-10-20 18:46:35)
+Checking FencingWide (Fencing.tla)
+42295515 states generated, 1860196 distinct states found, 0 states left on queue.
+Finished in 13min 32s at (2026-10-20 19:00:09)
+Checking WorkspaceWide (Workspace.tla)
+64966 states generated, 25725 distinct states found, 0 states left on queue.
+Finished in 01min 04s at (2026-10-20 19:01:14)

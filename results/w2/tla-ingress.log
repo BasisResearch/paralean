@@ -1,0 +1,7 @@
+Checking Ingress (Ingress.tla)
+46 states generated, 9 distinct states found, 0 states left on queue.
+Finished in 00s at (2026-10-20 15:48:09)
+ingress_connections: expected counterexample found
+ingress_size: expected counterexample found
+ingress_delete: expected counterexample found
+ingress_backend: expected counterexample found

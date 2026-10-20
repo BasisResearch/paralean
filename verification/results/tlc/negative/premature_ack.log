@@ -1,20 +1,20 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 56 and seed 8234815121321999436 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 3035265] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/negative/premature_ack/Quorums.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/negative/premature_ack/Durability.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 87 and seed -8950451503561350343 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 3503498] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack/Quorums.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack/Durability.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/premature_ack-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Durability
 Semantic processing of module Quorums
-Starting... (2026-10-20 11:48:31)
+Starting... (2026-10-20 16:41:37)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 11:48:31.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:41:38.
 Error: Invariant WitnessSurvives is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -31,7 +31,7 @@ State 2: <Ack line 26, col 14 to line 30, col 42 of module Durability>
 
 8 states generated, 8 distinct states found, 6 states left on queue.
 The depth of the complete state graph search is 2.
-Finished in 00s at (2026-10-20 11:48:31)
+Finished in 01s at (2026-10-20 16:41:38)
 ==== Paralean TLC provenance ====
 module Quorums
 config Quorums.cfg
@@ -43,8 +43,9 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+source cbaf08c50ac2325e565793230d333c063cb368902da0ce2f1cbc803f70972699  Ingress.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -69,6 +70,7 @@ source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  Fencing
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
 source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
 source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
+source 0c576f3f4f3c1da135ae7c09d72e067d504b3726acfabad25bd39a8964051832  Ingress.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg

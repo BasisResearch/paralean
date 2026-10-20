@@ -1,0 +1,66 @@
+Checking Chain (Chain.tla)
+1741289 states generated, 125232 distinct states found, 0 states left on queue.
+Finished in 19s at (2026-10-20 16:00:19)
+Checking Collision (Collision.tla)
+186121 states generated, 15928 distinct states found, 0 states left on queue.
+Finished in 18s at (2026-10-20 16:00:39)
+Checking Revision (Revision.tla)
+2499053 states generated, 174512 distinct states found, 0 states left on queue.
+Finished in 17s at (2026-10-20 16:00:57)
+Checking Revert (Revert.tla)
+1314857 states generated, 99756 distinct states found, 0 states left on queue.
+Finished in 12s at (2026-10-20 16:01:10)
+Checking Rejected (Rejected.tla)
+91 states generated, 17 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 16:01:12)
+Checking Quorums (Quorums.tla)
+3457 states generated, 439 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 16:01:14)
+Checking Integrated (Integrated.tla)
+1405609 states generated, 89428 distinct states found, 0 states left on queue.
+Finished in 10s at (2026-10-20 16:01:25)
+Checking CheckpointReuse (CheckpointReuse.tla)
+649369 states generated, 43888 distinct states found, 0 states left on queue.
+Finished in 06s at (2026-10-20 16:01:33)
+Checking ExportRejected (ExportRejected.tla)
+89 states generated, 22 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 16:01:35)
+Checking Receipts (Receipts.tla)
+2083 states generated, 181 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 16:01:36)
+Checking Targets (Targets.tla)
+4984733 states generated, 838428 distinct states found, 0 states left on queue.
+Finished in 30s at (2026-10-20 16:02:08)
+Checking TargetsLagging (Targets.tla)
+7243601 states generated, 1299876 distinct states found, 0 states left on queue.
+Finished in 44s at (2026-10-20 16:02:53)
+Checking TargetsLive (Targets.tla)
+1082018 states generated, 185674 distinct states found, 0 states left on queue.
+Finished in 01min 35s at (2026-10-20 16:04:29)
+Checking Fencing (Fencing.tla)
+12301947 states generated, 754348 distinct states found, 0 states left on queue.
+Finished in 03min 15s at (2026-10-20 16:07:45)
+Checking FencingLive (Fencing.tla)
+1241435 states generated, 103200 distinct states found, 0 states left on queue.
+Finished in 02min 00s at (2026-10-20 16:09:47)
+Checking Certificates (Certificates.tla)
+10832390 states generated, 536937 distinct states found, 0 states left on queue.
+Finished in 01min 50s at (2026-10-20 16:11:40)
+Checking CertificatesLagging (Certificates.tla)
+22711736 states generated, 1182911 distinct states found, 0 states left on queue.
+Finished in 03min 38s at (2026-10-20 16:15:19)
+Checking CertificatesLive (Certificates.tla)
+104881 states generated, 9292 distinct states found, 0 states left on queue.
+Finished in 09s at (2026-10-20 16:15:30)
+Checking Workspace (Workspace.tla)
+197037 states generated, 62098 distinct states found, 0 states left on queue.
+Finished in 02min 07s at (2026-10-20 16:17:38)
+Checking WorkspacePending (Workspace.tla)
+10025 states generated, 4199 distinct states found, 0 states left on queue.
+Finished in 07s at (2026-10-20 16:17:46)
+Checking TargetHomes (TargetHomes.tla)
+179 states generated, 133 distinct states found, 0 states left on queue.
+Finished in 01s at (2026-10-20 16:17:48)
+Checking Ingress (Ingress.tla)
+46 states generated, 9 distinct states found, 0 states left on queue.
+Finished in 00s at (2026-10-20 16:17:49)

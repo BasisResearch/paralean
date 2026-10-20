@@ -67,7 +67,8 @@ prepare_case() {
 run_tlc() {
   local label="$1" module="$2" cfg="$3" expect="$4"
   local dir="$neg/$label"
-  if java -XX:+UseParallelGC -Xmx4g -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
+  mkdir -p "$dir-java-tmp"
+  if java "-Djava.io.tmpdir=$dir-java-tmp" -XX:+UseParallelGC -Xmx4g -cp "$root/.deps/tla2tools.jar" tlc2.TLC \
     -workers "$workers" -metadir "$dir/states" -config "$dir/$cfg.cfg" \
     "$dir/$module.tla" > "$dir/result.log" 2>&1; then
     tlc_exit=0
@@ -688,6 +689,31 @@ case_workspace_receive_unknown_revision() {
   prepare_case workspace_receive_unknown_revision
   edit_once "$neg/workspace_receive_unknown_revision/Workspace.tla" $'\\notin known[x]\n    /\\ Rev[d] = None \\/ Rev[d] \\in known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ lamport\'' $'\\notin known[x]\n    /\\ known\' = [known EXCEPT ![x] = @ \\cup {d}]\n    /\\ lamport\''
   run_expected_failure workspace_receive_unknown_revision Workspace 'Invariant RenderComplete is violated'
+}
+
+defcase ingress_connections
+case_ingress_connections() {
+  prepare_case ingress_connections
+  edit_once "$neg/ingress_connections/Ingress.tla" 'ConnectionRoom == active < MaxConnections' 'ConnectionRoom == TRUE'
+  run_expected_failure ingress_connections Ingress 'Invariant ConnectionsBounded is violated'
+}
+defcase ingress_size
+case_ingress_size() {
+  prepare_case ingress_size
+  edit_once "$neg/ingress_size/Ingress.tla" 'SizeOK(n) == n <= MaxBytes' 'SizeOK(n) == TRUE'
+  run_expected_failure ingress_size Ingress 'Invariant AllocationBounded is violated'
+}
+defcase ingress_delete
+case_ingress_delete() {
+  prepare_case ingress_delete
+  edit_once "$neg/ingress_delete/Ingress.tla" 'DeleteAllowed == FALSE' 'DeleteAllowed == TRUE'
+  run_expected_failure ingress_delete Ingress 'Invariant AppendOnly is violated'
+}
+defcase ingress_backend
+case_ingress_backend() {
+  prepare_case ingress_backend
+  edit_once "$neg/ingress_backend/Ingress.tla" 'BackendReachable == FALSE' 'BackendReachable == TRUE'
+  run_expected_failure ingress_backend Ingress 'Invariant AppendOnly is violated'
 }
 
 # Redundant checks and the independent failure oracle for each effective guard

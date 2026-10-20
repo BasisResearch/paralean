@@ -1,0 +1,22 @@
+   Compiling syn v3.0.6
+   Compiling tokio-macros v2.7.2
+   Compiling tokio v1.53.2
+   Compiling futures-channel v0.3.34
+   Compiling futures-task v0.3.34
+   Compiling hyper v1.11.1
+   Compiling futures-util v0.3.34
+   Compiling tracing v0.1.44
+   Compiling hyper-util v0.1.21
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/s3-guard)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.09s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-cd4e38f26b0e7e09)
+
+running 3 tests
+test tests::refuses_deletes_and_config ... ok
+test tests::encoded_and_unknown_mutations_are_denied ... ok
+test tests::streamed_body_limit_is_enforced ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/s3-guard)
+    Finished `release` profile [optimized] target(s) in 5.36s

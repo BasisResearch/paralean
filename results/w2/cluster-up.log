@@ -1,0 +1,8 @@
+started fdbserver-0 (127.0.0.1:29600)
+Database created
+The database is available, but has issues (type 'status' for more information).
+started garage-0
+garage: 1 node(s), replication 1, bucket paralean
+    Finished `release` profile [optimized] target(s) in 0.41s
+s3: http://127.0.0.1:29650 (guard) -> unix:/data/home/kirancodes/paralean-p2/inst/w2-audit/garage/n0/s3.sock (garage)
+fdb: /data/home/kirancodes/paralean-p2/inst/w2-audit/fdb/fdb.cluster (paralean:p2w2audit4a205553a1fb@127.0.0.1:29600)

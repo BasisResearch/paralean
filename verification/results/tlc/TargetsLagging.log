@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 22 and seed 7849635983134698626 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2821998] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/TargetsLagging/Targets.tla
+Running breadth-first search Model-Checking with fp 54 and seed -112839563943767560 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 2657336] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsLagging/Targets.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
@@ -8,19 +8,19 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-20 11:45:07)
+Starting... (2026-10-20 16:02:09)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 11:45:07.
-Progress(17) at 2026-10-20 11:45:10: 2,437,082 states generated (2,437,082 s/min), 616,190 distinct states found (616,190 ds/min), 161,628 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 16:02:10.
+Progress(12) at 2026-10-20 16:02:13: 258,920 states generated (258,920 s/min), 91,132 distinct states found (91,132 ds/min), 41,914 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.2E-7
-  based on the actual fingerprints:  val = 4.5E-8
+  based on the actual fingerprints:  val = 2.7E-8
 7243601 states generated, 1299876 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 24.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
-Finished in 08s at (2026-10-20 11:45:15)
+Finished in 44s at (2026-10-20 16:02:53)
 ==== Paralean TLC provenance ====
 module Targets
 config TargetsLagging.cfg

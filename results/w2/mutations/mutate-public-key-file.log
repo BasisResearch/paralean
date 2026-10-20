@@ -1,0 +1,24 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.35s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-b033c014d71d5188)
+
+running 1 test
+test sign::security_tests::private_key_file_replaces_public_inode_and_symlink ... FAILED
+
+failures:
+
+---- sign::security_tests::private_key_file_replaces_public_inode_and_symlink stdout ----
+
+thread 'sign::security_tests::private_key_file_replaces_public_inode_and_symlink' (2770147) panicked at crates/store/src/sign.rs:293:9:
+assertion `left == right` failed
+  left: 436
+ right: 384
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sign::security_tests::private_key_file_replaces_public_inode_and_symlink
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p paralean-store --lib`

@@ -1,20 +1,20 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 121 and seed 4073916725014152936 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 3594124] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/w_completed_unready_after_loss/HardenedMC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/w_completed_unready_after_loss/Hardened.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/TLC.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 40 and seed -1848074729700026849 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 4416] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss/HardenedMC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss/Hardened.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/w_completed_unready_after_loss-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
 Semantic processing of module HardenedMC
-Starting... (2026-10-20 12:17:44)
+Starting... (2026-10-20 17:14:16)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:17:44.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:14:16.
 Error: Invariant NeverCompletedUnreadyAfterLoss is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -279,7 +279,7 @@ State 9: <CommitCert line 424, col 3 to line 435, col 59 of module Hardened>
 /\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
 /\ fence = 1
 /\ certFence = (<<1, "p1">> :> 1 @@ <<1, "p2">> :> 0)
-/\ rcReply = (<<1, "p1">> :> {r1, r3} @@ <<1, "p2">> :> {})
+/\ rcReply = (<<1, "p1">> :> {r1, r2} @@ <<1, "p2">> :> {})
 /\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
   w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
 /\ recHead = "p1"
@@ -293,7 +293,7 @@ State 9: <CommitCert line 424, col 3 to line 435, col 59 of module Hardened>
 /\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
 /\ lateAck = {}
 /\ used = {"p1"}
-/\ rcert = (r1 :> {<<1, "p1">>} @@ r2 :> {} @@ r3 :> {<<1, "p1">>})
+/\ rcert = (r1 :> {<<1, "p1">>} @@ r2 :> {<<1, "p1">>} @@ r3 :> {})
 /\ published = {"p1"}
 /\ known = [w1 |-> {"p1"}, w2 |-> {}]
 /\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
@@ -311,7 +311,7 @@ State 10: <Complete line 453, col 3 to line 459, col 77 of module Hardened>
 /\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
 /\ fence = 1
 /\ certFence = (<<1, "p1">> :> 1 @@ <<1, "p2">> :> 0)
-/\ rcReply = (<<1, "p1">> :> {r1, r3} @@ <<1, "p2">> :> {})
+/\ rcReply = (<<1, "p1">> :> {r1, r2} @@ <<1, "p2">> :> {})
 /\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
   w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
 /\ recHead = "p1"
@@ -325,7 +325,7 @@ State 10: <Complete line 453, col 3 to line 459, col 77 of module Hardened>
 /\ cert = (r1 :> {"p1"} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
 /\ lateAck = {}
 /\ used = {"p1"}
-/\ rcert = (r1 :> {<<1, "p1">>} @@ r2 :> {} @@ r3 :> {<<1, "p1">>})
+/\ rcert = (r1 :> {<<1, "p1">>} @@ r2 :> {<<1, "p1">>} @@ r3 :> {})
 /\ published = {"p1"}
 /\ known = [w1 |-> {"p1"}, w2 |-> {}]
 /\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
@@ -343,7 +343,7 @@ State 11: <LoseReplica line 466, col 3 to line 478, col 59 of module Hardened>
 /\ revises = [p1 |-> {}, p2 |-> {}, x |-> {}]
 /\ fence = 1
 /\ certFence = (<<1, "p1">> :> 1 @@ <<1, "p2">> :> 0)
-/\ rcReply = (<<1, "p1">> :> {r1, r3} @@ <<1, "p2">> :> {})
+/\ rcReply = (<<1, "p1">> :> {r1, r2} @@ <<1, "p2">> :> {})
 /\ certReply = [ w1 |-> [p1 |-> {r1, r2, r3}, p2 |-> {}, x |-> {}],
   w2 |-> [p1 |-> {}, p2 |-> {}, x |-> {}] ]
 /\ recHead = "p1"
@@ -357,7 +357,7 @@ State 11: <LoseReplica line 466, col 3 to line 478, col 59 of module Hardened>
 /\ cert = (r1 :> {} @@ r2 :> {"p1"} @@ r3 :> {"p1"})
 /\ lateAck = {}
 /\ used = {"p1"}
-/\ rcert = (r1 :> {} @@ r2 :> {} @@ r3 :> {<<1, "p1">>})
+/\ rcert = (r1 :> {} @@ r2 :> {<<1, "p1">>} @@ r3 :> {})
 /\ published = {"p1"}
 /\ known = [w1 |-> {"p1"}, w2 |-> {}]
 /\ stamp = [p1 |-> 0, p2 |-> 0, x |-> 0]
@@ -369,10 +369,10 @@ State 11: <LoseReplica line 466, col 3 to line 478, col 59 of module Hardened>
 /\ owner = "w1"
 /\ head = [w1 |-> "p1", w2 |-> "none"]
 
-1297 states generated, 444 distinct states found, 182 states left on queue.
-The depth of the complete state graph search is 12.
+1125 states generated, 397 distinct states found, 165 states left on queue.
+The depth of the complete state graph search is 11.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 6 and the 95th percentile is 4).
-Finished in 00s at (2026-10-20 12:17:45)
+Finished in 01s at (2026-10-20 17:14:17)
 ==== Paralean TLC provenance ====
 module HardenedMC
 config run.cfg
@@ -384,8 +384,9 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+source cbaf08c50ac2325e565793230d333c063cb368902da0ce2f1cbc803f70972699  Ingress.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -410,6 +411,7 @@ source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  Fencing
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
 source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
 source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
+source 0c576f3f4f3c1da135ae7c09d72e067d504b3726acfabad25bd39a8964051832  Ingress.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
