@@ -17,7 +17,7 @@ export PARALEAN_VALIDATOR_PORT="${PARALEAN_VALIDATOR_PORT:-18891}"
 export PARALEAN_VALIDATOR="${PARALEAN_VALIDATOR:-127.0.0.1:$PARALEAN_VALIDATOR_PORT}"
 export PARALEAN_LEAN="${PARALEAN_LEAN:-fork}"
 # The compiler is a read-only, pinned installation. Override on other machines.
-export PARALEAN_FORK_PREFIX="${PARALEAN_FORK_PREFIX:-/data/home/kirancodes/Documents/code/paralean-fork/.deps/lean4-paralean/build/release/stage1}"
+export PARALEAN_FORK_PREFIX="${PARALEAN_FORK_PREFIX:-/data/home/kirancodes/Documents/code/paralean-m-p4/.deps/lean4-paralean/build/release/stage1}"
 export LEAN_NUM_THREADS="${LEAN_NUM_THREADS:-1}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 . "$p5_here/../../p3/scripts/env.sh"

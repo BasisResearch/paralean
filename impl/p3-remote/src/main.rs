@@ -456,10 +456,6 @@ async fn publish(a: &[&str]) -> R<Value> {
     Ok(json!(out))
 }
 
-/// P2's T8 (§11.4): the staged copy is acknowledged by S3, then the tombstone and this
-/// workspace's tombstone certificate are written in one transaction, which checks that the
-/// target is published and certified, in the same file, older, by this author and workspace,
-/// and not a target name (`Writer::tombstone`).
 async fn tombstone(a: &[&str]) -> R<Value> {
     let (st, kf) = open()?;
     let ws = need(a, "--ws")?;
@@ -469,16 +465,15 @@ async fn tombstone(a: &[&str]) -> R<Value> {
         file_path: need(a, "--file")?.to_string(),
         target,
         lamport: need(a, "--lamport")?.parse().map_err(es)?,
-        // A copy's agent ID is its workspace ID (`publish` checks the same for markers).
         author: AgentId(wid.0),
         receipt: None,
     };
+    // T8 atomically checks the author's authority and certifies the tombstone.
     let fresh = Writer::new(st, wid, signer).tombstone(&t).await.map_err(es)?;
     Ok(json!({"tombstone": t.id().hex(), "fresh": fresh}))
 }
 
 // ---------------------------------------------------------------- anti-entropy
-
 
 /// Write one published group's records into the cache (marker, revisions, receipt, capsule).
 async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) -> R<usize> {
@@ -556,8 +551,7 @@ async fn pull(a: &[&str]) -> R<Value> {
         let ids = |k: &str| -> R<Vec<Id>> { v[k].as_array().ok_or(k.to_string())?.iter().map(id_of).collect() };
         (ids("groups")?, ids("tombstones")?)
     } else {
-        // P2 discovery: groups by publication certificates, tombstones by tombstone
-        // certificates (raw keys are never evidence).
+        // Certificate discovery excludes raw, uncertified tombstones.
         let d = discover(&st).await.map_err(es)?;
         (d.groups.keys().copied().collect(), d.tombstones.keys().copied().collect())
     };

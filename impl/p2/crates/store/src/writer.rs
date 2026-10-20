@@ -50,16 +50,17 @@ pub struct Writer {
 }
 
 impl Writer {
-    /// Workspace signing key for authenticated worker control-plane calls.
-    pub fn signer(&self) -> &Signer {
-        &self.signer
-    }
     pub fn new(store: Store, id: WorkspaceId, signer: Signer) -> Writer {
         Writer { store, id, signer }
     }
 
     pub fn with_store(&self, store: Store) -> Writer {
         Writer { store, ..self.clone() }
+    }
+
+    /// Workspace signing key for authenticated worker control-plane calls.
+    pub fn signer(&self) -> &Signer {
+        &self.signer
     }
 
     /// The preparer's single linearizable read of a target record (§7).

@@ -147,7 +147,11 @@ async fn run(args: Vec<String>) -> R<Value> {
 #[tokio::main]
 async fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    match run(args).await {
+    let result = run(args).await;
+    // Join the native FDB network thread before process teardown, as P2's CLI
+    // does. The upstream lifecycle API arrived with the P2 robustness changes.
+    paralean_store::meta::shutdown();
+    match result {
         Ok(value) => { println!("{value}"); ExitCode::SUCCESS }
         Err(error) => { eprintln!("paralean-p5-store: {error}"); ExitCode::from(2) }
     }

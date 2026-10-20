@@ -189,6 +189,25 @@ its assertion; the complete rerun passed. No native-client retry or upstream
 change hides that failure. The final P2 integration is `32549af` (gray-failure and
 coordinator-replacement scripts/evidence only); the Rust API is unchanged.
 
+## Latest upstream integration
+
+After the hardened gate passed, another fetch found targets `bd081a4`, P2
+`c727a58` and P4 `bae5195`. P2 had rebased onto its integrated `p2-rest` merge;
+P4 now changes P1 and pins fork `99967f1ee50a1ee82bb178359ad95b723c8196a2`.
+The branch was rebased onto all three, preserving P2's merge history. Recreating
+that merge omitted some original manual resolutions, so the published P2 tree
+and P3 tombstone/certificate integration were explicitly restored. Relative to
+`c727a58`, P2 differs only by the published m-targets Cargo.lock, T1 dependency
+certificate guards and Writer signer visibility. This is integration resolution,
+not additional P5 store functionality. P1, the fork patches and P4 match
+`bae5195` exactly. Both P3 logs and the P2 log retain their upstream versions.
+
+P5 reads the already-built P4 fork installation without changing it and rebuilds
+its own P1 artifacts. It also now calls P2's new native FDB network shutdown API
+before its bridge process exits, matching P2's CLI lifecycle. The earlier native
+bridge crash remains a recorded observation; this change addresses the newly
+available shutdown contract without claiming its cause was proven.
+
 ## Proposed sentences for plan.md and README.md
 
 These are proposals to update after verification, not edits to those files.
