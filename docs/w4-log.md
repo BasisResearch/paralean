@@ -329,3 +329,47 @@ README: “Controllers support independent fixed shards, store-ordered leases an
 disabled-by-default history compaction and snapshot GC. Protocol objects and
 durable replay records remain retained; the optional GC S3 principal is authenticated by Garage. See
 docs/w4-log.md for checks, scale measurements and remaining limits.”
+
+## Final summary — 2026-10-20
+
+Verified implementation commit:
+`296e08b9a6d32dc9258f7a1d71268444461b7a24`, pushed to `origin/w4-scale`.
+The preceding S3-principal checkpoint is
+`128cf15db8fc4a6e046fce10cbbabceb95e143fb`. This summary and the consolidated
+verification report are recorded in a subsequent documentation commit.
+`origin/main` remains `fee94d9`; no rebase was needed.
+
+| Item | Result and evidence |
+| --- | --- |
+| 1. Logical leases | Implemented shard-local store counters and transactional holder/term/expiry fences. The live process test injects opposing 100-day wall-clock offsets and a paused leader, preserves queued work through takeover, and leaves the other shard's leader active. `W4Scale` checks bounded fencing/handover behavior and its guard mutations fail as expected. |
+| 2. Controller sharding | Implemented fixed target-key routing, separate FDB heads and elections, shard-local validation recovery indices, and worker polling/heartbeats across shards. Cross-shard prerequisite publication is tested. Four current shard snapshots totaling 12 MiB recover successfully, exceeding the former global cap. |
+| 3. GC protocol | Disabled by default. Logical grace, atomic replay-record creation and history pruning, current-head/pin protection, incarnation revalidation and fenced deletion are implemented. Twelve history tests include crash-boundary recovery, late retries with GC disabled, cancellation overlay, epoch-bound poll tokens and bounded-scan progress. S3 guard admits only authenticated GC-principal object deletion; default, application, forged, bucket and bulk deletes are denied. |
+| 4. Scale tests | Completed on the private W4 instances. One/two/four shards measured 61.29/99.57/169.97 submissions per second, with all 512 jobs recovered in each sample. GC deleted 36 MiB of superseded snapshot payload. History compaction moved 256 work and 128 poll records to replay storage and reduced the current snapshot from 47,121 to 349 bytes. |
+
+Final evidence: **62 distinct P3 tests**, one explicit live benchmark, **33
+implementation mutation cases**, three S3-guard unit tests and seven signed live
+gateway checks passed. P5 ran 28 local tests: 26 passed and two environmental
+cases skipped. The final combined P3 run passed 61 tests; the final twelve-test
+history run overlaps eleven of them and adds the epoch regression.
+
+TLA passed **23 positive scenarios, 119 negative-suite expected outcomes and 29
+hardened cases**. The two new models explored 428,800 and 3,780 distinct states;
+their 13 witnesses and 21 mutations produced the required counterexamples.
+Six standalone Lean transition lemmas passed. Four unchanged wide-model logs
+were retained after source-hash verification, and existing full Veil logs were
+preserved; those suites were not rerun. Both re-archiving with `--tla-only` and
+the final `scripts/archive-verification.sh --verify` passed.
+
+Remaining scope is explicit: topology is fixed, each shard retains its 8 MiB
+active-state cap, and online resharding/legacy migration are not implemented.
+Oversized replay records remain in the current snapshot, and grace stamping
+requires headroom. Replay IDs and global protocol/routing records remain
+retained because forgetting them would break unlimited retry, anti-entropy or
+recovery semantics. Physical P2/S3 object GC requires a distributed retirement
+protocol covering disconnected peers and stale advertisements; it is not
+enabled or claimed safe here. The models and Lean lemmas are bounded/local
+evidence, not a Rust refinement or full-system liveness proof.
+
+The private W4 services are stopped, their data is retained, and no shared
+instance or Mathlib cache was modified. Detailed commands, transcripts and
+measurements are above and in `impl/p3/results/w4-verification.json`.
