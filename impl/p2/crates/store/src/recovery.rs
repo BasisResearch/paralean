@@ -50,6 +50,8 @@ pub struct PublishedTombstone {
 #[derive(Clone, Debug, Default)]
 pub struct Discovery {
     pub groups: BTreeMap<Id, Published>,
+    /// Every certified placement, including moved and concurrent variants.
+    pub positions: BTreeMap<(Id, Id), Published>,
     /// Tombstones with a valid tombstone certificate, by tombstone ID.
     pub tombstones: BTreeMap<Id, PublishedTombstone>,
     /// Tombstone keys with no valid certificate: ignored.
@@ -58,6 +60,8 @@ pub struct Discovery {
     pub superseded: BTreeSet<Id>,
     /// The rendered sequence of live groups of every file.
     pub files: BTreeMap<String, Vec<Id>>,
+    /// Rendered names of live groups; registry conflicts remain in `conflicts`.
+    pub rendered_names: BTreeMap<(Id, Name), Name>,
     /// Marker keys with no valid certificate: ignored, reported for diagnosis only.
     pub ignored_markers: Vec<Id>,
     /// Certificates whose marker key is missing or names another marker.
@@ -123,11 +127,15 @@ pub async fn discover_with(
     }
     let mut d = Discovery::default();
     for (g, markers) in by_group {
-        match store.marker(&g).await? {
-            Some((mid, m)) if markers.contains_key(&mid) => {
-                d.groups.insert(g, Published { marker_id: mid, marker: m, certifiers: markers[&mid].clone() });
+        for (mid, certifiers) in markers {
+            match store.marker_variant(&g, &mid).await? {
+                Some(m) => {
+                    let p = Published { marker_id: mid, marker: m, certifiers };
+                    d.positions.insert((g, mid), p.clone());
+                    d.groups.entry(g).or_insert(p);
+                }
+                None => d.dangling_certs += 1,
             }
-            _ => d.dangling_certs += 1,
         }
     }
     // Diagnostics: marker keys without certificates.
@@ -150,12 +158,59 @@ pub async fn discover_with(
     d.conflicts = d.heads.iter().filter(|(_, h)| h.len() > 1).map(|(n, _)| n.clone()).collect();
     discover_tombstones(store, &mut d).await?;
     d.superseded = superseded_groups(store, &d.revisions).await?;
-    let paths: BTreeSet<String> = d.groups.values().map(|p| p.marker.file_path.clone()).collect();
+    let paths: BTreeSet<String> = d.positions.values().map(|p| p.marker.file_path.clone()).collect();
     for path in paths {
         let seq = render(&d, &path);
         d.files.insert(path, seq);
     }
+    d.rendered_names = rendered_names(&d);
     Ok(d)
+}
+
+/// §11.5: the oldest lineage key keeps a public name. A projection rename
+/// never changes a revision, dependency or registry head.
+pub fn rendered_names(d: &Discovery) -> BTreeMap<(Id, Name), Name> {
+    let mut candidates: BTreeMap<Name, Vec<(Id, u64, [u8; 16])>> = BTreeMap::new();
+    let mut declared: BTreeSet<(Id, Name)> = BTreeSet::new();
+    for g in d.groups.keys() {
+        if !live(d, g) { continue; }
+        let Some(p) = d.positions.iter().filter(|((group, _), p)| group == g && live_position(d, p))
+            .map(|(_, p)| p).min_by_key(|p| (p.marker.lamport, p.marker.author.0, p.marker_id)) else { continue };
+        for rid in &p.marker.revisions {
+            let Some(r) = d.revisions.get(rid) else { continue };
+            declared.insert((*g, r.name.clone()));
+            let (lamport, author) = p.marker.lineage_keys.iter().find(|(name, _, _)| name == &r.name)
+                .map(|(_, l, a)| (*l, a.0)).unwrap_or((p.marker.lamport, p.marker.author.0));
+            let c = candidates.entry(r.name.clone()).or_default();
+            if !c.iter().any(|(candidate, _, _)| candidate == g) { c.push((*g, lamport, author)); }
+        }
+    }
+    let mut losing_prefixes: BTreeMap<Id, Vec<Name>> = BTreeMap::new();
+    for (name, mut gs) in candidates {
+        gs.sort_by_key(|(g, l, a)| (*l, *a, *g));
+        for (i, (g, _, _)) in gs.into_iter().enumerate() {
+            if i > 0 {
+                losing_prefixes.entry(g).or_default().push(name.clone());
+            }
+        }
+    }
+    let mut names = BTreeMap::new();
+    for (g, name) in declared {
+        let mut rendered = name.clone();
+        // Rename the longest losing namespace prefix. Thus T.mk follows T to
+        // T✝pl<group>.mk, even when T.mk has no independent collision.
+        if let Some(prefix) = losing_prefixes.get(&g).and_then(|prefixes| prefixes.iter()
+            .filter(|prefix| name.0.starts_with(&prefix.0))
+            .max_by_key(|prefix| prefix.0.len())) {
+            let index = prefix.0.len() - 1;
+            match &mut rendered.0[index] {
+                NameComp::Str(s) => s.push_str(&format!("✝pl{}", g.hex())),
+                NameComp::Num(_) => rendered.0.insert(index + 1, NameComp::Str(format!("✝pl{}", g.hex()))),
+            }
+        }
+        names.insert((g, name), rendered);
+    }
+    names
 }
 
 /// Tombstones by certificates (`tcert/` scan), as markers are discovered by `cert/`.
@@ -257,26 +312,34 @@ pub fn pos_cmp(a: &Marker, b: &Marker) -> std::cmp::Ordering {
     }
 }
 
-/// The (group, file) pairs deleted by discovered tombstones.
-fn tombstoned(d: &Discovery) -> BTreeSet<(Id, &str)> {
-    d.tombstones.values().map(|t| (t.tombstone.target, t.tombstone.file_path.as_str())).collect()
+/// A position-specific tombstone leaves other placements of the same group live.
+fn tombstoned(d: &Discovery, p: &Published) -> bool {
+    d.tombstones.values().any(|t| t.tombstone.target == p.marker.group
+        && t.tombstone.file_path == p.marker.file_path
+        && (cfg!(feature = "mutate-position-group-wide-delete") || t.tombstone.position.is_none_or(|id| id == p.marker_id)))
 }
 
-fn live_in(d: &Discovery, dead: &BTreeSet<(Id, &str)>, g: &Id) -> bool {
-    let Some(p) = d.groups.get(g) else { return false };
-    (!dead.contains(&(*g, p.marker.file_path.as_str())) || cfg!(feature = "mutate-render-ignores-tombstones"))
-        && (!d.superseded.contains(g) || cfg!(feature = "mutate-render-ignores-supersession"))
+fn live_position(d: &Discovery, p: &Published) -> bool {
+    (!tombstoned(d, p) || cfg!(feature = "mutate-render-ignores-tombstones"))
+        && (!d.superseded.contains(&p.marker.group) || cfg!(feature = "mutate-render-ignores-supersession"))
 }
 
 /// Is a discovered group live (rendered)? Known, not tombstoned, not superseded.
 pub fn live(d: &Discovery, g: &Id) -> bool {
-    live_in(d, &tombstoned(d), g)
+    d.positions.iter().any(|((group, _), p)| group == g && live_position(d, p))
 }
 
 /// The rendered sequence of `path`: its live groups in `PosLt` order.
 pub fn render(d: &Discovery, path: &str) -> Vec<Id> {
-    let dead = tombstoned(d);
-    let mut gs: Vec<&Published> = d.groups.iter().filter(|(g, p)| p.marker.file_path == path && live_in(d, &dead, g)).map(|(_, p)| p).collect();
+    let mut chosen: BTreeMap<Id, &Published> = BTreeMap::new();
+    for ((g, _), p) in &d.positions {
+        if p.marker.file_path != path || !live_position(d, p) { continue; }
+        if chosen.get(g).is_none_or(|old| (p.marker.lamport, p.marker.author.0, p.marker_id)
+            < (old.marker.lamport, old.marker.author.0, old.marker_id)) {
+            chosen.insert(*g, p);
+        }
+    }
+    let mut gs: Vec<&Published> = chosen.into_values().collect();
     gs.sort_by(|a, b| pos_cmp(&a.marker, &b.marker));
     gs.iter().map(|p| p.marker.group).collect()
 }

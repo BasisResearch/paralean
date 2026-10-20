@@ -30,10 +30,9 @@
 //! late or broken is deferred or rejected and supplied again by a later round. Rounds
 //! repeat until neither side changes. The published set (groups with their markers,
 //! tombstones) only grows and each item's effect is a function of the item, so any delivery
-//! order reaches the same union. The exception is a group published at two deployments
-//! with different markers; the store holds one marker per group (as the Workspaces model's
-//! `Layout` holds one position per group), so that is reported as a conflict and neither
-//! side's marker is replaced.
+//! order reaches the same union. Receipt-only variants of a group's marker can coexist
+//! when their immutable fields agree. Different position or lineage fields conflict;
+//! neither side's placement is replaced.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
@@ -56,7 +55,7 @@ pub enum Item {
     Object { kind: Kind, id: Id, bytes: Vec<u8> },
     /// `job` is the signed job envelope the receipt answers (P3 receipt binding).
     Group { marker: Vec<u8>, revisions: Vec<Vec<u8>>, receipt: Vec<u8>, job: Vec<u8>, certs: Vec<Vec<u8>> },
-    Tombstone { tombstone: Vec<u8>, certs: Vec<Vec<u8>> },
+    Tombstone { tombstone: Vec<u8>, certs: Vec<Vec<u8>>, controller_grant: Option<Vec<u8>> },
 }
 
 impl Pce for Item {
@@ -77,11 +76,13 @@ impl Pce for Item {
                     e.bytes(c);
                 });
             }
-            Item::Tombstone { tombstone, certs } => {
+            Item::Tombstone { tombstone, certs, controller_grant } => {
                 e.byte(2).bytes(tombstone);
                 e.list(certs, |e, c| {
                     e.bytes(c);
                 });
+                // Preserve the original v0 bytes when no controller grant is present.
+                if let Some(grant) = controller_grant { e.byte(1).bytes(grant); }
             }
         }
     }
@@ -100,7 +101,12 @@ impl Pce for Item {
                 job: d.bytes()?.to_vec(),
                 certs: bytes_list(d)?,
             }),
-            2 => Ok(Item::Tombstone { tombstone: d.bytes()?.to_vec(), certs: bytes_list(d)? }),
+            2 => {
+                let tombstone = d.bytes()?.to_vec();
+                let certs = bytes_list(d)?;
+                let controller_grant = if d.remaining() == 0 { None } else { d.option(|d| Ok(d.bytes()?.to_vec()))? };
+                Ok(Item::Tombstone { tombstone, certs, controller_grant })
+            }
             tag => Err(DecodeError::UnknownTag { what: "anti-entropy item", tag }),
         }
     }
@@ -139,7 +145,7 @@ pub async fn export(store: &Store) -> Result<Vec<Item>> {
     let mut objects = Vec::new();
     let mut groups = Vec::new();
     let mut seen = BTreeSet::new();
-    for p in d.groups.values() {
+    for p in d.positions.values() {
         let mut revs = Vec::new();
         for rid in &p.marker.revisions {
             revs.push(store.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?);
@@ -201,7 +207,8 @@ pub async fn export(store: &Store) -> Result<Vec<Item>> {
                 if !certs.contains(&value) { certs.push(value); }
             }
         }
-        out.push(Item::Tombstone { tombstone: pt.tombstone.preimage(), certs });
+        let controller_grant = store.meta.get(store.meta.keys.delete_grant(tid)).await?;
+        out.push(Item::Tombstone { tombstone: pt.tombstone.preimage(), certs, controller_grant });
     }
     Ok(out)
 }
@@ -323,11 +330,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 let mut valid = c.body.group == g && c.body.marker == mid && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig);
                 if let Some(cfg) = &federation {
                     valid &= cfg.members.values().any(|member| member.replica == c.body.replica
-                        && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key)));
+                        && member.verify_writer(&st.ring, &c.body.writer, &c.id(), &c.sig));
                 }
                 if let Some(home) = &target_home {
                     let member = &federation.as_ref().expect("home only from config").members[home];
-                    valid &= c.body.replica == member.replica && member.writers.contains_key(&c.body.writer);
+                    valid &= c.body.replica == member.replica && member.verify_writer(&st.ring, &c.body.writer, &c.id(), &c.sig);
                 }
                 if valid || cfg!(feature = "mutate-receive-unverified-certs") {
                     evidence.push((st.meta.keys.xcertv("cert", &g, &c.id()), c.to_bytes()));
@@ -340,7 +347,7 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 if let Some(cfg) = &federation {
                     let origin_index = evidence.iter().position(|(_, value)| Cert::from_bytes(value).ok().is_some_and(|cert| {
                         cfg.members.values().any(|member| member.replica == cert.body.replica
-                            && member.writers.contains_key(&cert.body.writer)
+                            && member.verify_writer(&st.ring, &cert.body.writer, &cert.id(), &cert.sig)
                             && (job.verify(&member.authority) || member.job_issuers.iter().any(|key| job.verify(key))))
                     }));
                     let Some(origin_index) = origin_index else { return reject("job issuer has no matching origin publication certificate"); };
@@ -348,12 +355,25 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 }
             }
             let base = st.marker_base(&g).await?;
+            let author_cert = evidence.iter().filter_map(|(_, value)| Cert::from_bytes(value).ok())
+                .find(|cert| {
+                    let Some(public) = st.ring.signing_writer_key(&cert.body.writer, &cert.id(), &cert.sig) else { return false };
+                    let author_bound = st.ring.agent_keys.iter().any(|grant| grant.parts().is_some_and(|(agent, workspace, key, _)|
+                        agent == m.author && workspace == cert.body.writer && key == public && grant.verify()));
+                    author_bound && target_home.as_ref().is_none_or(|home| federation.as_ref().is_some_and(|cfg|
+                        cfg.members[home].replica == cert.body.replica && cfg.members[home].verify_writer(&st.ring, &cert.body.writer, &cert.id(), &cert.sig)))
+                })
+                .ok_or_else(|| StoreError::Invalid("origin author certificate missing".into()))?;
+            let author_writer = author_cert.body.writer;
+            let author_public = st.ring.signing_writer_key(&author_writer, &author_cert.id(), &author_cert.sig)
+                .ok_or_else(|| StoreError::Invalid("origin author certificate key untrusted".into()))?;
             let variant = base.as_ref().is_some_and(|(local, _)| *local != mid);
-            if let Some((local, existing)) = st.marker(&g).await? {
-                let mut comparable = existing.clone();
-                comparable.receipt = m.receipt;
-                if comparable != m && !cfg!(feature = "mutate-receive-overwrite-marker") {
-                    return Ok(Outcome::Conflict { group: g, local, remote: mid });
+            if let Some((local, existing)) = &base {
+                let same_lineage = existing.group == m.group && existing.revisions == m.revisions
+                    && existing.lineage_keys == m.lineage_keys && existing.author == m.author;
+                if (!same_lineage || (variant && cfg!(feature = "mutate-position-receive-conflict")))
+                    && !cfg!(feature = "mutate-receive-overwrite-marker") {
+                    return Ok(Outcome::Conflict { group: g, local: *local, remote: mid });
                 }
             }
             let group_bytes = st.s3.get(Kind::Group, &g).await?;
@@ -388,6 +408,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             let args = ReceiveGroupArgs {
                 group: g,
                 marker_id: mid,
+                author: m.author,
+                author_writer,
+                author_public,
+                author_replica: author_cert.body.replica,
+                ring: st.ring.clone(),
                 marker_value: st.stage_value(mid, m.preimage()).await?,
                 revisions: rv,
                 receipt_id: receipt.id(),
@@ -412,7 +437,10 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 Err(e) => guard_outcome(e),
             }
         }
-        Item::Tombstone { tombstone, certs } => {
+        Item::Tombstone { tombstone, certs, controller_grant } => {
+            let controller_grant: Option<crate::authority::ControllerDeleteGrant> = controller_grant.as_ref()
+                .map(|bytes| serde_json::from_slice(bytes).map_err(|_| StoreError::Invalid("bad controller deletion grant".into())))
+                .transpose()?;
             let Ok(t) = Tombstone::from_preimage(tombstone) else { return reject("tombstone does not decode") };
             let tid = t.id();
             let federation = st.ae_federation().await?;
@@ -421,9 +449,10 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             for c in certs {
                 let Ok(c) = TombstoneCert::from_bytes(c) else { continue };
                 let source_bound = federation.as_ref().is_none_or(|cfg| cfg.members.values().any(|member|
-                    member.replica == c.body.replica && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key))));
+                    member.replica == c.body.replica && member.verify_writer(&st.ring, &c.body.writer, &c.id(), &c.sig)));
                 if c.body.tombstone == tid && c.body.target == t.target && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) && source_bound {
-                    certifiers.push(c.body.writer);
+                    let public = st.ring.signing_writer_key(&c.body.writer, &c.id(), &c.sig).expect("verified above");
+                    certifiers.push((c.body.writer, public, c.body.replica));
                     evidence.push((st.meta.keys.xcertv("tcert", &tid, &c.id()), c.to_bytes()));
                 }
             }
@@ -433,9 +462,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             if st.s3.get_acked(Kind::StagedTombstone, &tid).await?.is_none() {
                 return Ok(Outcome::Deferred("tombstone copy not acknowledged here".into()));
             }
-            // T10's transactional tombstone guard binds the immutable base marker.
-            // Receipt-only variants carry the same revisions and layout.
-            let Some((_, m)) = st.marker_base(&t.target).await? else {
+            let target = match t.position {
+                Some(position) => st.marker_variant(&t.target, &position).await?.map(|m| (position, m)),
+                None => st.marker_base(&t.target).await?,
+            };
+            let Some((_, m)) = target else {
                 return Ok(Outcome::Deferred(format!("target {:?} not published here", t.target)));
             };
             let (mut names, mut workspaces) = (Vec::new(), Vec::new());
@@ -446,7 +477,7 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             }
             // The deleter is a certifier who is the target's author workspace (T8 wrote its
             // certificate); receivers' certificates do not make them deleters.
-            let deleter = certifiers.iter().find(|c| workspaces.contains(c)).copied().unwrap_or(certifiers[0]);
+            let (deleter, deleter_public, deleter_replica) = certifiers.iter().find(|(writer, _, _)| workspaces.contains(writer)).copied().unwrap_or(certifiers[0]);
             st.faults.point("receive:before-tombstone")?;
             let mine = TombstoneCert::sign(
                 TombstoneCertBody { replica: st.replica, tombstone: tid, target: t.target, writer: w.id },
@@ -460,6 +491,10 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 target_names: names,
                 target_workspaces: workspaces,
                 deleter,
+                deleter_public,
+                deleter_replica,
+                ring: st.ring.clone(),
+                controller_grant,
                 cert: (st.meta.keys.tcert(&tid, &w.id), mine.to_bytes()),
                 evidence,
             };

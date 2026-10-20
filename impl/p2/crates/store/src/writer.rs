@@ -172,6 +172,7 @@ impl Writer {
             writer: self.id,
             group: g,
             marker_id: mid,
+            author: p.marker.author,
             marker_value,
             revisions,
             receipt_id: p.receipt.id(),
@@ -200,10 +201,16 @@ impl Writer {
     /// which writes the tombstone and this writer's tombstone certificate atomically.
     /// Returns false if the tombstone was already published by this writer.
     pub async fn tombstone(&self, t: &Tombstone) -> Result<bool> {
+        self.tombstone_authorized(t, None).await
+    }
+
+    /// Controller deletion carries a signed, fence-bound grant for this exact tombstone.
+    pub async fn tombstone_authorized(&self, t: &Tombstone, grant: Option<crate::authority::ControllerDeleteGrant>) -> Result<bool> {
         let st = &self.store;
-        // T8 compares this target against immutable marker/<group>, while receipt-only
-        // variants can have a lower canonical ID. Their carried revisions are identical.
-        let (_, m) = st.marker_base(&t.target).await?.ok_or(GuardFailure::NotPublished(t.target))?;
+        let m = match t.position {
+            Some(position) => st.marker_variant(&t.target, &position).await?,
+            None => st.marker_base(&t.target).await?.map(|(_, m)| m),
+        }.ok_or(GuardFailure::NotPublished(t.target))?;
         let (mut names, mut workspaces) = (Vec::new(), Vec::new());
         for rid in &m.revisions {
             let r = st.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?;
@@ -227,12 +234,61 @@ impl Writer {
             target_marker: m,
             target_names: names,
             target_workspaces: workspaces,
+            ring: st.ring.clone(),
+            controller_grant: grant,
         };
         let fresh = st.meta.t8_tombstone(Arc::new(args)).await?;
         st.faults.point("tombstone:before-cert")?;
         #[cfg(feature = "mutate-tombstone-cert-outside")]
         st.meta.t8_raw_cert(st.meta.keys.tcert(&tid, &self.id), cert.to_bytes()).await?;
         Ok(fresh)
+    }
+
+    /// Reinsert a group's position after a certified position tombstone. The
+    /// marker keeps the same receipt, revisions and lineage keys; only placement
+    /// and Lamport fields change. Concurrent moves remain separate certified
+    /// positions and recovery chooses a deterministic live one.
+    pub async fn move_position(&self, marker: &Marker, old: &Tombstone) -> Result<bool> {
+        let old_id = old.position.ok_or_else(|| GuardFailure::BadPackage("move requires position tombstone".into()))?;
+        let old_marker = self.store.marker_variant(&old.target, &old_id).await?
+            .ok_or(GuardFailure::NotPublished(old.target))?;
+        if marker.group != old.target || (!cfg!(feature = "mutate-position-cross-file") && marker.file_path != old.file_path)
+            || marker.author != old_marker.author || (!cfg!(feature = "mutate-position-author") && marker.author != old.author)
+            || (!cfg!(feature = "mutate-position-lineage")
+                && (marker.revisions != old_marker.revisions || marker.receipt != old_marker.receipt
+                    || marker.lineage_keys != old_marker.lineage_keys)) || marker.lamport <= old.lamport
+            || (!cfg!(feature = "mutate-position-bad-root")
+                && marker.root_path.last() != Some(&(marker.group, marker.lamport, marker.author))) {
+            return Err(GuardFailure::BadPackage("move changes lineage or has invalid placement".into()).into());
+        }
+        let Some(t) = self.store.tombstone(&old.id()).await? else {
+            return Err(GuardFailure::BadPackage("move tombstone absent".into()).into());
+        };
+        if t != *old || (!cfg!(feature = "mutate-position-no-tombstone-guard")
+            && !self.store.tcerts(&old.id()).await?.iter().any(|c| c.body.writer == self.id)) {
+            return Err(GuardFailure::BadPackage("move tombstone uncertified".into()).into());
+        }
+        let anchor_marker = if cfg!(feature = "mutate-position-no-anchor") { None } else { match marker.anchor {
+            Anchor::FileStart => None,
+            Anchor::After(group) => {
+                if group == marker.group || marker.root_path.len() < 2 {
+                    return Err(GuardFailure::BadPackage("move anchor is cyclic or path is short".into()).into());
+                }
+                let d = crate::recovery::discover(&self.store).await?;
+                let prefix = &marker.root_path[..marker.root_path.len() - 1];
+                d.positions.iter().filter(|((g, _), p)| *g == group
+                    && p.marker.file_path == marker.file_path && p.marker.root_path == prefix)
+                    .map(|(_, p)| p.marker.clone()).next()
+                    .ok_or_else(|| GuardFailure::BadPackage("move anchor position is not certified".into()))?
+                    .into()
+            }
+        }};
+        let mid = marker.id();
+        self.store.s3.put(Kind::StagedMarker, &marker.preimage()).await?;
+        let value = self.store.stage_value(mid, marker.preimage()).await?;
+        let cert = Cert::sign(CertBody { replica: self.store.replica, marker: mid,
+            group: marker.group, writer: self.id }, &self.signer);
+        self.store.meta.t11_move_position(marker.clone(), old_marker, anchor_marker, old.clone(), value, cert.to_bytes(), self.id, self.store.ring.clone()).await
     }
 
     /// T2: certify a group already published (and certified by someone).
@@ -269,23 +325,24 @@ impl Writer {
         SignedRecord::sign(CatalogRecord { workspace: self.id, snapshot, predecessor, token }, &self.signer)
     }
 
-    fn commit_args(&self, rec: &SignedRecord) -> Arc<CommitArgs> {
+    fn commit_args(&self, rec: &SignedRecord, snapshot: Option<Snapshot>) -> Arc<CommitArgs> {
         let rc = CommitCert::sign(
             CommitCertBody { replica: self.store.replica, catalog: rec.id(), token: rec.body.token },
             &self.signer,
         );
-        Arc::new(CommitArgs { record: rec.clone(), record_value: rec.to_bytes(), rcert_value: rc.to_bytes() })
+        Arc::new(CommitArgs { record: rec.clone(), record_value: rec.to_bytes(), rcert_value: rc.to_bytes(), snapshot, ring: self.store.ring.clone(), replica: self.store.replica })
     }
 
     /// T5 (staging form): fenced first write of the record's bytes, no commit certificate.
     pub async fn stage_record(&self, rec: &SignedRecord) -> Result<bool> {
-        self.store.meta.t5_stage(self.commit_args(rec)).await
+        self.store.meta.t5_stage(self.commit_args(rec, None)).await
     }
 
     /// T5: fenced write of the record and its commit certificate; parents must be committed
     /// and the record's snapshot certified.
     pub async fn commit_record(&self, rec: &SignedRecord) -> Result<bool> {
-        self.store.meta.t5_commit(self.commit_args(rec)).await
+        let snapshot = self.store.s3.get_object::<Snapshot>(Kind::Snapshot, &rec.body.snapshot).await?;
+        self.store.meta.t5_commit(self.commit_args(rec, snapshot)).await
     }
 
     /// Commit a checkpoint: own certificates for every group (T2), object certificates for
@@ -414,6 +471,24 @@ impl Controller {
     /// T3: issue the next rank to `holder`.
     pub async fn rotate(&self, holder: WorkspaceId, request: &[u8]) -> Result<TokenRef> {
         self.store.meta.t3_rotate(request.to_vec(), holder, self.signer.clone()).await
+    }
+    pub async fn deletion_grant(&self, tombstone: &Tombstone) -> Result<crate::authority::ControllerDeleteGrant> {
+        if self.signer.public() != self.store.ring.authority { return Err(StoreError::Invalid("controller key is not this deployment's authority".into())); }
+        if tombstone.author != crate::authority::controller_agent_id(&self.signer.public()) {
+            return Err(GuardFailure::ControllerDeleteDenied.into());
+        }
+        let fence = self.store.meta.fence().await?;
+        Ok(crate::authority::ControllerDeleteGrant::sign(tombstone.id(), fence, &self.signer))
+    }
+    pub async fn register_agent_key(&self, agent: crate::id::AgentId, workspace: WorkspaceId, public: [u8; 32]) -> Result<bool> {
+        if self.signer.public() != self.store.ring.authority { return Err(StoreError::Invalid("controller key is not this deployment's authority".into())); }
+        let grant = crate::authority::AgentKeyGrant::sign(agent, workspace, public, &self.signer);
+        self.store.meta.register_agent_key(grant, self.store.ring.authority).await
+    }
+    pub async fn revoke_agent_key(&self, public: [u8; 32]) -> Result<bool> {
+        if self.signer.public() != self.store.ring.authority { return Err(StoreError::Invalid("controller key is not this deployment's authority".into())); }
+        let revocation = crate::authority::AgentKeyRevocation::sign(public, &self.signer);
+        self.store.meta.revoke_agent_key(revocation, self.store.ring.authority).await
     }
     /// T4: assign (first call) or reassign a target name; returns the new epoch.
     pub async fn reassign(&self, name: &Name, owner: WorkspaceId, request: &[u8]) -> Result<u64> {

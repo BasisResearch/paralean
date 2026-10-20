@@ -144,6 +144,7 @@ pub fn tomb_json(tid: &Id, t: &Tombstone) -> Value {
         "id": tid.hex(),
         "file": t.file_path,
         "target": t.target.hex(),
+        "position": t.position.map(|p| p.hex()),
         "lamport": t.lamport,
         "author": t.author.hex(),
     })

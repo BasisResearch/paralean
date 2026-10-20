@@ -26,7 +26,7 @@ set (`render_carried`, `view_carried`).
 * **Names.** For a public name `x`, the candidates are the live groups declaring it. The
   least (lineage key for `x`, own key) keeps `x`; every other candidate is renamed to the
   reserved fresh name `fresh x g` (OPEN-25 spelling: the last component gets the suffix
-  `✝pl<first 8 hex of the group ID>`). Validators reject groups declaring a name with a
+  `✝pl<full 64 hex of the group ID>`). Validators reject groups declaring a name with a
   `✝` component, so a fresh name never clashes with a declared one. Renaming is
   hierarchical (derived names follow their prefix).
 -/
@@ -44,8 +44,8 @@ def isReserved (n : Name) : Bool :=
 
 def fresh (x : Name) (group : String) : Name :=
   match x with
-  | .str p s => .str p s!"{s}{reservedMark}{(group.take 8).toString}"
-  | n => .str n s!"{reservedMark}{(group.take 8).toString}"
+  | .str p s => .str p s!"{s}{reservedMark}{group}"
+  | n => .str n s!"{reservedMark}{group}"
 
 /-- Revision ancestry. -/
 structure Graph where
@@ -81,6 +81,7 @@ def Graph.of (k : Known) : Graph := Id.run do
 /-- The groups a copy can render, with their metadata. -/
 structure View where
   known : Known
+  positions : Array Marker
   graph : Graph
   metas : Std.HashMap String GroupRec
   live : Std.HashSet String
@@ -90,15 +91,27 @@ structure View where
   losers : Array (Name × String × String)
 
 def tombstoned (k : Known) (m : Marker) : Bool :=
-  k.tombs.any fun t => t.target == m.group && t.author == m.author && t.file == m.file
+  k.tombs.any fun t => t.target == m.group && t.file == m.file &&
+    (t.position.isNone || t.position == some m.id)
+
+def chosenPositions (k : Known) : Array Marker := Id.run do
+  let mut byGroup : Std.HashMap String Marker := {}
+  for m in k.markers do
+    if tombstoned k m then continue
+    match byGroup[m.group]? with
+    | none => byGroup := byGroup.insert m.group m
+    | some old =>
+      if keyLt m.key old.key || (m.key == old.key && m.id < old.id) then
+        byGroup := byGroup.insert m.group m
+  return byGroup.toList.map (·.2) |>.toArray
 
 def computeLive (k : Known) (g : Graph) : Std.HashSet String := Id.run do
   let mut superseded : Std.HashSet String := {}
   for m in k.markers do
     for a in g.anc.getD m.group {} do superseded := superseded.insert a
   let mut live := {}
-  for m in k.markers do
-    if !superseded.contains m.group && !tombstoned k m then live := live.insert m.group
+  for m in chosenPositions k do
+    if !superseded.contains m.group then live := live.insert m.group
   return live
 
 def keyLe (a b : Nat × String) : Bool := !keyLt b a
@@ -126,10 +139,11 @@ def lineageKey (m : Marker) (x : Name) : Nat × String :=
 
 def View.of (k : Known) (metas : Std.HashMap String GroupRec) : View := Id.run do
   let graph := Graph.of k
+  let positions := chosenPositions k
   let live := computeLive k graph
   -- candidates per public name
   let mut cands : Std.HashMap Name (Array Marker) := {}
-  for m in k.markers do
+  for m in positions do
     unless live.contains m.group do continue
     let some g := metas[m.pid]? | continue
     for x in declaredNames g do
@@ -147,11 +161,11 @@ def View.of (k : Known) (metas : Std.HashMap String GroupRec) : View := Id.run d
     for m in sorted.extract 1 sorted.size do
       renames := renames.insert m.pid ((renames.getD m.pid {}).insert x (fresh x m.group))
       losers := losers.push (x, m.group, w.group)
-  return { known := k, graph, metas, live, renames, losers := losers.qsort (fun a b => a.2.1 < b.2.1) }
+  return { known := k, positions, graph, metas, live, renames, losers := losers.qsort (fun a b => a.2.1 < b.2.1) }
 
 /-- Live elements of `file`, in rendered order. -/
 def View.elements (v : View) (file : String) : Array Marker :=
-  (v.known.markers.filter fun m => m.file == file && v.live.contains m.group).qsort posLt
+  (v.positions.filter fun m => m.file == file && v.live.contains m.group).qsort posLt
 
 def View.files (v : View) : Array String :=
   (v.known.markers.foldl (fun acc m => if acc.contains m.file then acc else acc.push m.file) #[]).qsort (· < ·)
@@ -159,7 +173,7 @@ def View.files (v : View) : Array String :=
 /-- Rendered public name ↦ group, over the live heads of every file except `exclude`. -/
 def View.index (v : View) (exclude : Option String := none) : Std.HashMap Name String := Id.run do
   let mut idx := {}
-  for m in v.known.markers do
+  for m in v.positions do
     if !v.live.contains m.group || some m.file == exclude then continue
     let some g := v.metas[m.pid]? | continue
     let own := v.renames.getD m.pid {}

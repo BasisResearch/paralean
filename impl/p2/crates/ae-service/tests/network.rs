@@ -42,13 +42,23 @@ impl Net {
             .iter()
             .map(|name| StoreConfig::from_env(name).unwrap())
             .collect();
-        let keys: Vec<_> = (0..3)
+        let mut keys: Vec<_> = (0..3)
             .map(|i| {
                 let mut keys = KeyFile::demo_prefixed(&format!("{label}/{i}/"), 3);
                 keys.add_validator("v0", &Signer::derive(&format!("{label}/{i}/validator")));
                 keys
             })
             .collect();
+        // These three cases deliberately publish the same marker layout with two
+        // receipt issuers. B's controller explicitly registers A's AgentID to B's
+        // writer key; equal author fields are therefore authenticated on both sides.
+        if matches!(label, "net-marker-variants" | "net-base-marker-guards" | "net-variant-race") {
+            let (a_writer, _) = keys[0].workspace("w0").unwrap();
+            let (b_writer, b_signer) = keys[1].workspace("w0").unwrap();
+            let author = AgentId::derive(&format!("agent/{}", a_writer.hex()));
+            let controller = keys[1].authority_signer().unwrap();
+            keys[1].agent_keys.push(AgentKeyGrant::sign(author, b_writer, b_signer.public(), &controller));
+        }
         let identities: Vec<_> = names
             .iter()
             .enumerate()
@@ -740,7 +750,7 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
     pb.receipt = Receipt::sign(receipt_body, &b.validator);
     pb.marker.receipt = pb.receipt.id();
     pb.marker.lamport = 2;
-    pb.marker.author = AgentId::derive("different layout author");
+    pb.marker.author = AgentId(b.w[0].id.0);
     pb.marker.root_path = vec![(pb.group.id(), 2, pb.marker.author)];
     a.w[0].publish(&pa).await.unwrap();
     b.w[0].publish(&pb).await.unwrap();
@@ -1329,4 +1339,111 @@ async fn chunked_group_fetches_deduplicated_chunk_and_retries_missing_source() {
         a.w[0].publish(&invalid).await.is_err(),
         "declared chunk length must be checked before T1"
     );
+}
+
+// Stage exact network materialization through the durable receiver queue. The
+// optional mutation changes only a signature, preserving the content-addressed
+// body and event IDs, so hash checking cannot mask the signature guard under test.
+async fn stage_catalogue(net: &Net, id: Id, attack: Option<&str>) -> paralean_store::ae::AeEvent {
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let page = a.store.ae_page(None, 128, 1024 * 1024).await.unwrap();
+    let event = page.events.into_iter().find(|event| matches!(event.kind,
+        AeKind::Catalogue { id: record, .. } if record == id)).expect("catalogue event");
+    let mut parts = Vec::new();
+    let mut after = None;
+    loop {
+        let page = a.store.ae_materialize(&event, after, 1024 * 1024).await.unwrap();
+        parts.extend(page.parts);
+        if page.complete { break; }
+        after = page.next_part;
+    }
+    let mut changed = false;
+    for (_, part) in &mut parts {
+        match part {
+            AePart::ObjectRef { kind, id, .. } => {
+                let bytes = a.store.s3.get(*kind, id).await.unwrap().unwrap();
+                b.store.s3.put(*kind, &bytes).await.unwrap();
+            }
+            AePart::CertificateFragment { kind, bytes, .. }
+                if attack == Some("rcert") && kind == "rcert" => {
+                let mut cert = CommitCert::from_bytes(bytes).unwrap();
+                cert.sig[0] ^= 1;
+                *bytes = cert.to_bytes();
+                changed = true;
+            }
+            AePart::CertificateFragment { kind, bytes, .. }
+                if attack == Some("ocert") && kind.starts_with("ocert/") => {
+                let mut cert = ObjectCert::from_bytes(bytes).unwrap();
+                cert.sig[0] ^= 1;
+                *bytes = cert.to_bytes();
+                changed = true;
+            }
+            AePart::MetaFragment { kind, bytes, .. }
+                if attack == Some("token") && kind == "token" => {
+                let mut token = TokenEntry::from_pce(bytes).unwrap();
+                token.token.sig[0] ^= 1;
+                *bytes = token.to_pce();
+                changed = true;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(changed, attack.is_some());
+    let origin = &net.identities[0].deployment;
+    let generation = a.store.ae_identity().await.unwrap().generation;
+    // A retry fetches a new, complete page after discarding failed materialization.
+    b.store.ae_save_progress(origin, generation, None, &[], &[event.key.clone()], &[]).await.unwrap();
+    let rows: Vec<_> = parts.into_iter().map(|(seq, part)| (event.key.clone(), seq, part)).collect();
+    b.store.ae_save_progress(origin, generation, None, &[], &[], &rows).await.unwrap();
+    event
+}
+
+#[tokio::test]
+async fn catalogue_guards_reject_forged_source_token_and_object_proofs() {
+    let net = Net::new("catalogue-proofs", None).await;
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let token = a.ctl.rotate(a.w[0].id, b"catalogue-proof").await.unwrap();
+    let cp = common::one_snapshot(a, 0, "proofs", token, None).await;
+    let id = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    let origin = &net.identities[0].deployment;
+    for attack in ["rcert", "token", "ocert"] {
+        let event = stage_catalogue(&net, id, Some(attack)).await;
+        let outcome = b.w[SYNC].ae_import_staged(origin, &event).await.unwrap();
+        assert!(matches!(outcome, paralean_store::antientropy::Outcome::Rejected(_)),
+            "forged {attack} accepted: {outcome:?}");
+        assert!(b.store.meta.get(b.store.meta.keys.xcatalog(origin, &id)).await.unwrap().is_none());
+        assert!(b.store.record(&id).await.unwrap().is_none());
+    }
+    let event = stage_catalogue(&net, id, None).await;
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &event).await.unwrap(), paralean_store::antientropy::Outcome::Present);
+    assert!(b.store.foreign_record(origin, &id).await.unwrap().is_some());
+}
+
+#[tokio::test]
+async fn catalogue_child_waits_for_parent_and_ignores_receiver_fence() {
+    let net = Net::new("catalogue-parent", None).await;
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let token = a.ctl.rotate(a.w[0].id, b"source").await.unwrap();
+    let cp = common::one_snapshot(a, 0, "parent", token, None).await;
+    let parent = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    let cp = common::one_snapshot(a, 0, "child", token, Some(parent)).await;
+    let child = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    // Source and destination fences can both have moved since the historical commit.
+    a.ctl.rotate(a.w[1].id, b"source-moved").await.unwrap();
+    b.ctl.rotate(b.w[0].id, b"receiver-1").await.unwrap();
+    b.ctl.rotate(b.w[1].id, b"receiver-2").await.unwrap();
+    let fence = b.store.meta.fence().await.unwrap();
+    let origin = &net.identities[0].deployment;
+    let child_event = stage_catalogue(&net, child, None).await;
+    let outcome = b.w[SYNC].ae_import_staged(origin, &child_event).await.unwrap();
+    assert!(matches!(outcome, paralean_store::antientropy::Outcome::Deferred(_)), "{outcome:?}");
+    assert!(b.store.foreign_record(origin, &child).await.unwrap().is_none());
+    let parent_event = stage_catalogue(&net, parent, None).await;
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &parent_event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &child_event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.store.meta.fence().await.unwrap(), fence);
+    assert!(b.store.record(&parent).await.unwrap().is_none());
+    assert!(b.store.record(&child).await.unwrap().is_none());
+    assert_eq!(b.store.foreign_catalogue_page(origin, None, 100).await.unwrap().records.len(), 2);
 }

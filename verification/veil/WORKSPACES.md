@@ -221,6 +221,15 @@ declarations; pending declarations are never discarded.
 
 ## Not established
 
+W3 adds a separate finite `verification/tla/StorePositions.tla` model for exact
+position tombstones, moves, registry preservation and per-replica certification.
+Its `TombstoneNeutral` invariant distinguishes the grow-only registry from the
+rendered file, and a registry-erasure mutation violates it. Compatible marker
+variants are retained and selected deterministically. These are TLC results;
+the existing Lean Workspaces theorems below have not been extended to prove the
+move protocol. The implementation and scope decisions are recorded in
+[`docs/w3-log.md`](../../docs/w3-log.md).
+
 - `known` is not anchor- or ancestor-closed: Groups' `receive` may deliver `d` before its anchor
   or ancestors. Rendering reads only carried record data (`render_carried`), so a group whose
   anchor or root is unknown renders at its carried position. The implementation must store the

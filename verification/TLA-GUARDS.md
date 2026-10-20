@@ -337,3 +337,33 @@ that every modeled acceptance is realized by the implementation. Raw-key matchin
 lookup operation, not a quotient of kernel literals. See
 [the W1 identity analysis](../docs/w1-identity.md) for the concrete Lean evidence
 and the limits of module-independent identity.
+
+# W3 store/registry guard additions
+
+The following finite models are part of the default positive and negative
+suites. Each mutation changes a guard or projection while retaining an
+independent oracle.
+
+| Model | Removed rule | Negative case | Oracle |
+|---|---|---|---|
+| CheckpointConflicts | known-head freshness | `checkpoint_no_current` | `CommitCurrent` |
+| CheckpointConflicts | duplicate binding rejection (with freshness disabled to expose its independent effect) | `checkpoint_no_buildable` | `CommittedBuildable` |
+| CheckpointConflicts | selected dependency closure | `checkpoint_no_dependencies` | `CommittedDeps` |
+| AgentAuthority | registered author key | `agent_no_registry` | `PublishedAuthorized` |
+| AgentAuthority | key revocation | `agent_no_revocation` | `PublishedAuthorized` |
+| AgentAuthority | controller fence | `agent_no_controller_fence` | `DeletedAuthorized` |
+| AgentAuthority | original controller source | `agent_no_controller_source` | `DeletedAuthorized` |
+| StorePositions | own-replica certificates | `position_foreign_certificate` | `LocalCertOnly` |
+| StorePositions | position-specific deletion | `position_group_wide_delete` | `ReinsertVisible` |
+| StorePositions | certified prior deletion for moves | `position_move_without_delete` | `MoveCertified` |
+| StorePositions | registry preservation on deletion | `position_registry_erasure` | `TombstoneNeutral` |
+| CatalogueExchange | original source proof | `catalogue_no_proof` | `OnlySourceCertified` |
+| CatalogueExchange | certified parent first | `catalogue_no_parent` | `ParentClosed` |
+| CatalogueExchange | receiver payload acknowledgement | `catalogue_no_ack` | `LocallyAcknowledged` |
+| CatalogueExchange | source-qualified certificate namespace | `catalogue_local_certificate` | `FenceIsolation` |
+
+`catalogue_relay` is a reachability witness for a replicated child record.
+Catalogue fairness checks eventual delivery of committed records, without
+requiring that a source creates a new commit. Cryptographic signatures and hash
+implementations are abstracted by valid proof membership; Rust tests independently
+corrupt signatures while keeping the signed object IDs unchanged.
