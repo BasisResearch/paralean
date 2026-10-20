@@ -168,7 +168,16 @@ def main() -> int:
         result["checks"]["desktop_state_removed"] = {"ok": not state_dir.exists() and not local_task.exists(),
                                                         "lost_task_file": str(local_task)}
         state_dir.mkdir(parents=True)
-        run_cmd(cmd + ["recover", task_id, "--state", str(state_dir), "--worker", args.worker,
+        discovered = run_cmd(cmd + ["list"], evidence_dir / "discovery.log", args.timeout, env)
+        catalog = json.loads(discovered.stdout)
+        tasks = catalog.get("tasks", [])
+        found_ids = [item.get("task") for item in tasks if isinstance(item, dict)]
+        discovered_id = found_ids[0] if len(found_ids) == 1 else None
+        result["checks"]["store_task_discovery"] = {"ok": discovered_id == task_id,
+                                                       "catalog": tasks, "discovered_id": discovered_id}
+        if discovered_id != task_id:
+            raise RuntimeError("store catalogue did not recover the unique lost task ID")
+        run_cmd(cmd + ["recover", discovered_id, "--state", str(state_dir), "--worker", args.worker,
                        "--no-export"], evidence_dir / "recovery.log", args.timeout, env)
         recovered = read_json(state_dir / "run.json")
         found = groups(recovered)
@@ -187,7 +196,7 @@ def main() -> int:
         result["checks"]["store_recovery"] = {"ok": all(found.get(n) == g for n, g in prior.items()),
                                                 "retained": prior, "recovered": found}
         result["checks"]["dependency_closure"] = check_dependency_closure(state_dir, targets, found)
-        export = run_cmd(cmd + ["export", task_id, "--state", str(state_dir), "--out", str(export_dir)],
+        export = run_cmd(cmd + ["export", discovered_id, "--state", str(state_dir), "--out", str(export_dir)],
                          evidence_dir / "export.log", args.timeout, env)
         export_result = read_json(state_dir / "run.json").get("export") or {}
         if not export_result:

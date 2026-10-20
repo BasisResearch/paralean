@@ -46,11 +46,39 @@ Initial fetch and the subsequent setup fetch both saw `origin/main=7df9ace`.
 `origin/m-targets`, `origin/m-p2`, and `origin/m-p4` were absent at those fetches.
 No unpushed branch is treated as tested integration.
 
+The next published dependency was `origin/m-p4=3adea8f` (collision tooling and
+history-preserving projection branches). P5 was rebased onto it. It changes
+`impl/p4/` and its log only, so the P2/P3 binary interfaces remain at `7df9ace`.
+`m-targets` and `m-p2` were still absent at this integration checkpoint.
+
 ## Gate and benchmark status
 
-Implementation and verification are in progress. No P5 gate or scaling result is
-claimed at this checkpoint. The final section will distinguish passes, failures,
-blocked requirements and measured quantities.
+Initial live trial: ten addition lemmas proved by ordinary Claude Code CLI
+workers, ten frozen statement contracts validated against signed receipts and
+current target heads, and all sixteen declared dependency edges found in the
+checked package closures. The controller was killed after partial publication,
+its local task file and working state were removed, and recovery by task ID
+retained the published group IDs and completed all ten targets.
+
+The initial export failed because P1's environment unconditionally supplied a
+nonexistent Mathlib checkout even for this core-only task. P5 now removes that
+environment variable for tasks without Mathlib imports. Retrying the same
+recovered task exported ten modules, built them with stock Lean `193c3589`, and
+re-encoded all ten groups identically; P2 committed catalogue
+`937a66a3eea816ce81273f00b73f2e5b3405d022a0a8de49d085ed43fd537340`.
+The stock build took 5.623 s. This initial trial is not the final gate report:
+the realistic list task, adversarial retry checks and scaling runs remain.
+
+Seven tests pass under the sourced P5 environment, including comparing the
+private contract compiler's type hash with actual P1 capture, rejection of an
+ill-typed contract, dependency-edge checking, simulated publication conflict
+retry, and controller recovery after deleting local state.
+
+The task journal's live put/get/list/idempotent retry checks pass. Authority keys
+are sealed with AES-GCM under a separate deployment recovery secret, rather
+than the workers' S3 credential. Workers do not inherit this recovery secret or
+Garage administration credentials. This does not claim OS isolation between
+mutually hostile processes running under the same Unix account.
 
 ## Proposed sentences for plan.md and README.md
 

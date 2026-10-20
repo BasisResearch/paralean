@@ -16,6 +16,7 @@ from p5lib.task import from_saved, load
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="paralean", description=__doc__)
     subs = parser.add_subparsers(dest="command", required=True)
+    subs.add_parser("list", help="discover recoverable tasks in the configured store")
     for command in ("run", "recover", "status", "export"):
         p = subs.add_parser(command)
         p.add_argument("task", help="frozen TASK.toml or stored task ID for recovery")
@@ -30,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--out", type=Path, required=True)
     a = parser.parse_args(argv)
     try:
+        if a.command == "list":
+            from p5lib.backend import Backend
+            print(json.dumps({"tasks": Backend.list_tasks()}, indent=2, sort_keys=True))
+            return 0
         task_path = Path(a.task)
         backend = None
         if task_path.is_file():

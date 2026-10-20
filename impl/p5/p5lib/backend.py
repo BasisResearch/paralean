@@ -61,6 +61,21 @@ class Backend:
         self.env.setdefault("PARALEAN_TRUST", str(self.state_dir / "trust.json"))
         self._require_environment()
 
+    @staticmethod
+    def list_tasks(env: dict | None = None) -> list[dict]:
+        """Enumerate durable task heads without a local task file or remembered ID."""
+        source_env = {**os.environ, **(env or {})}
+        bridge = source_env.get("PARALEAN_P5_BRIDGE", str(ROOT / "store-bridge" / "target" / "release" / "paralean-p5-store"))
+        child_env = {k: v for k, v in source_env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"}
+        proc = subprocess.run([bridge, "list"], env=child_env, capture_output=True, text=True)
+        if proc.returncode:
+            raise BackendError("task catalogue enumeration failed")
+        value = json.loads(proc.stdout)
+        tasks = value.get("tasks")
+        if not isinstance(tasks, list):
+            raise BackendError("task catalogue response is malformed")
+        return tasks
+
     @classmethod
     def recover_task(cls, task_id: str, state_dir: Path, env: dict | None = None) -> "Backend":
         """Recover a deleted task file and desktop from FDB/Garage by task ID."""
@@ -401,13 +416,15 @@ class Backend:
     def _dependency_closure(self, cache: Path, roots: list[str]) -> set[str]:
         capsules = cache / "p3" / "capsules"
         by_gid = {}
+        by_capsule = {}
         if capsules.exists():
             for file in capsules.glob("*.json"):
                 meta = json.loads(file.read_text())
                 if meta.get("gid"):
                     by_gid[meta["gid"]] = meta
+                    by_capsule[file.stem] = meta["gid"]
         closure: set[str] = set()
-        todo = list(roots)
+        todo = [by_capsule.get(root, root) for root in roots]
         while todo:
             gid = todo.pop()
             if gid in closure:
@@ -474,12 +491,19 @@ class Backend:
         cap = self._run([self.lean, "ws-capture", "--dir", str(directory), file], env=own_env)
         published = []
         check_ms = 0.0
-        for item in cap.get("packages", []):
+        current_source = _inside(directory / "work", file).read_text()
+        for item in reversed(cap.get("packages", [])):
             pkg = f'{item["group"]}:{item["capsule"]}'
             names = {".".join(map(str, n)) if isinstance(n, list) else str(n)
                      for n in item.get("names", [])}
             if name not in names:
                 # Non-target helpers use the ordinary P3 path in a separate call.
+                continue
+            capsule_path = cache / "p3" / "capsules" / (item["capsule"] + ".json")
+            capsule_text = json.loads(capsule_path.read_text())["capsule"]["text"]
+            if not capsule_text or capsule_text not in current_source:
+                # ws-capture may report earlier rejected drafts; only publish the
+                # declaration whose command is still present in this working file.
                 continue
             closure = self._dependency_closure(cache, item.get("deps", []))
             missing = [dependency for dependency, gid in required_gids.items() if gid not in closure]
