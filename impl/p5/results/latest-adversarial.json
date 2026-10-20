@@ -1,0 +1,93 @@
+{
+  "checks": {
+    "assignment_retry_idempotent": {
+      "first": {
+        "epoch": 2,
+        "name": "P5Adversarial.target",
+        "owner": "e83de08afe2b940717ee3c21056abb21"
+      },
+      "ok": true,
+      "second": {
+        "epoch": 2,
+        "name": "P5Adversarial.target",
+        "owner": "e83de08afe2b940717ee3c21056abb21"
+      }
+    },
+    "changed_statement_rejected": {
+      "ok": true,
+      "reason": "trusted validator rejected target P5Adversarial.target: check failed: the group does not declare target P5Adversarial.target with the pinned statement; a pinned target is not declared with its statement",
+      "unpublished": true
+    },
+    "checkpoint_binds_required_target": {
+      "binding": {
+        "epoch": 1,
+        "group": "350a87fa1d37ed933ce2974a4221d8af9c82344dd981a6870bd355c5f784edba",
+        "head": "4725506242c647dc43606cf37e4fe38dbddd32f0ea0776bfdd2fff4e9ab73e51",
+        "name": "P5Adversarial.target",
+        "owner": "e83de08afe2b940717ee3c21056abb21",
+        "statement_hash": "245f09f8e474d3681897df06b93bfeb99fe6c44e6ce07587ad072b0e2e42c22c"
+      },
+      "ok": true,
+      "snapshot": "b2c11a1b0f8baf860023e55e75cea0b9f036247e402700f21bc08f34bf09a7fe",
+      "snapshot_target": {
+        "assigned_by": "acfcda5529aeba4687ec88df312c5e444f38c4dfe6c45590fc40538ed88264f4",
+        "epoch": 1,
+        "name": "P5Adversarial.target",
+        "owner": "e83de08afe2b940717ee3c21056abb21",
+        "signature": "0725acb9994cc6df25a1d590c87a4346ad05e875f05223bbd6ac348640b63c032e54d3eceb1bdd57399ed627f4cb2ab1e1a8b294281bec0f9b7c8ff61f2f060f"
+      },
+      "target_check": {
+        "axioms": [],
+        "group": "350a87fa1d37ed933ce2974a4221d8af9c82344dd981a6870bd355c5f784edba",
+        "statement_matches": true,
+        "target": "0102000d5035416476657273617269616c00067461726765740120245f09f8e474d3681897df06b93bfeb99fe6c44e6ce07587ad072b0e2e42c22c"
+      }
+    },
+    "current_completion_accepted": {
+      "ok": true
+    },
+    "fresh_epoch_accepted": {
+      "ok": true,
+      "validation": {
+        "ok": true,
+        "targets": {
+          "P5Adversarial.target": {
+            "epoch": 1,
+            "group": "350a87fa1d37ed933ce2974a4221d8af9c82344dd981a6870bd355c5f784edba",
+            "head": "4725506242c647dc43606cf37e4fe38dbddd32f0ea0776bfdd2fff4e9ab73e51",
+            "name": "P5Adversarial.target",
+            "ok": true,
+            "owner": "e83de08afe2b940717ee3c21056abb21",
+            "reason": "",
+            "statement_hash": "245f09f8e474d3681897df06b93bfeb99fe6c44e6ce07587ad072b0e2e42c22c"
+          }
+        }
+      }
+    },
+    "invalid_task_dag": {
+      "ok": true,
+      "reason": "P5Adversarial.target: invalid or unknown dependency"
+    },
+    "missing_target_blocks_completion": {
+      "ok": true,
+      "reason": "required targets are incomplete"
+    },
+    "stale_completion_epoch_rejected": {
+      "ok": true,
+      "reason": "paralean-p5-store put failed (exit 2); see /data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-main-adversarial/desktop/backend.log",
+      "stored_phase": "running"
+    },
+    "stale_dispatch_epoch_rejected": {
+      "new": 1,
+      "ok": true,
+      "old": 0,
+      "reason": "paralean-p5-store validate-target failed (exit 2); see /data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-main-adversarial/desktop/backend.log"
+    },
+    "stale_journal_cas_rejected": {
+      "ok": true,
+      "reason": "paralean-p5-store put failed (exit 2); see /data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-main-adversarial/desktop/backend.log"
+    }
+  },
+  "deployment": "p5negative-1792469159-2152616",
+  "ok": true
+}

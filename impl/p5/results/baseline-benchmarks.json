@@ -1,0 +1,372 @@
+{
+  "counts": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "cpu_count": 32,
+  "git": "edfb4b14ba750a4fc844a501ffe0c1c96a6695d5",
+  "implementation_origin_main": "7df9aceeff08d673703c9579145b5fb68c476c9a",
+  "max_parallel": 4,
+  "metric_scope": {
+    "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+    "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+    "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+    "wall_s": "External monotonic time for the complete run command, including export.",
+    "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time."
+  },
+  "origin_main": "cb1ca051ea63d6a666f8a183f5772fcbb08be4b0",
+  "provenance_note": "The git field pins the frozen benchmark implementation. origin_main was sampled by the original driver at series end, after an external fetch advanced that ref; it is not the implementation baseline.",
+  "repeats": 1,
+  "results": [
+    {
+      "attestation_build_ms": 163.795,
+      "check_ms": 106716.04825699999,
+      "controller_wall_s": 400.685,
+      "deployment": "p5-list-20261020-w1-r1",
+      "export_build_ms": 3311,
+      "groups": 10,
+      "kind": "claude",
+      "load_average_end": [
+        99.45361328125,
+        86.60205078125,
+        82.16650390625
+      ],
+      "load_average_start": [
+        89.54736328125,
+        82.35791015625,
+        79.6318359375
+      ],
+      "log": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w1-r1/controller.log",
+      "metric_scope": {
+        "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+        "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+        "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+        "wall_s": "External monotonic time for the complete run command, including export.",
+        "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time."
+      },
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "ok": true,
+      "parallelism": 1,
+      "provenance": "ordinary-agent-cli",
+      "repeat": 1,
+      "returncode": 0,
+      "state": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w1-r1/state",
+      "targets_done": 10,
+      "targets_total": 10,
+      "transfer_bytes": 38050,
+      "transfer_ms": 256.124546,
+      "trial": "p5-list-20261020-w1-r1",
+      "validator_rpc_ms": 103241.25325699999,
+      "wall_s": 404.798,
+      "worker_wall_s": 200.182,
+      "workers": 1,
+      "working_copy_transfer_by_kind": {
+        "pull": {
+          "bytes": 10945,
+          "ms": 62.04689299999999,
+          "rows": 10
+        },
+        "put-capsule": {
+          "bytes": 19669,
+          "ms": 135.51756,
+          "rows": 10
+        },
+        "put-group": {
+          "bytes": 7436,
+          "ms": 0.0,
+          "rows": 10
+        },
+        "validate-target": {
+          "bytes": 0,
+          "ms": 103240.945279,
+          "rows": 10
+        }
+      },
+      "working_copy_transfer_bytes": 38050,
+      "working_copy_transfer_files": 1,
+      "working_copy_transfer_invalid_rows": 0,
+      "working_copy_transfer_ms": 197.564453,
+      "working_copy_transfer_rows": 30
+    },
+    {
+      "attestation_build_ms": 161.908,
+      "check_ms": 113985.988214,
+      "controller_wall_s": 314.156,
+      "deployment": "p5-list-20261020-w2-r1",
+      "export_build_ms": 3393,
+      "groups": 10,
+      "kind": "claude",
+      "load_average_end": [
+        104.22412109375,
+        98.39794921875,
+        88.8046875
+      ],
+      "load_average_start": [
+        99.45361328125,
+        86.60205078125,
+        82.16650390625
+      ],
+      "log": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w2-r1/controller.log",
+      "metric_scope": {
+        "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+        "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+        "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+        "wall_s": "External monotonic time for the complete run command, including export.",
+        "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time."
+      },
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "ok": true,
+      "parallelism": 2,
+      "provenance": "ordinary-agent-cli",
+      "repeat": 1,
+      "returncode": 0,
+      "state": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w2-r1/state",
+      "targets_done": 10,
+      "targets_total": 10,
+      "transfer_bytes": 66270,
+      "transfer_ms": 471.0025350000001,
+      "trial": "p5-list-20261020-w2-r1",
+      "validator_rpc_ms": 110431.080214,
+      "wall_s": 317.566,
+      "worker_wall_s": 207.14600000000002,
+      "workers": 2,
+      "working_copy_transfer_by_kind": {
+        "fetch-group": {
+          "bytes": 7436,
+          "ms": 39.821045999999996,
+          "rows": 10
+        },
+        "pull": {
+          "bytes": 49260,
+          "ms": 344.66018699999995,
+          "rows": 19
+        },
+        "put-capsule": {
+          "bytes": 19669,
+          "ms": 123.66497900000002,
+          "rows": 10
+        },
+        "put-group": {
+          "bytes": 7436,
+          "ms": 0.0,
+          "rows": 10
+        },
+        "validate-target": {
+          "bytes": 0,
+          "ms": 110430.726891,
+          "rows": 10
+        }
+      },
+      "working_copy_transfer_bytes": 83801,
+      "working_copy_transfer_files": 2,
+      "working_copy_transfer_invalid_rows": 0,
+      "working_copy_transfer_ms": 508.146212,
+      "working_copy_transfer_rows": 49
+    },
+    {
+      "attestation_build_ms": 240.779,
+      "check_ms": 113441.23053799999,
+      "controller_wall_s": 285.449,
+      "deployment": "p5-list-20261020-w4-r1",
+      "export_build_ms": 4980,
+      "groups": 10,
+      "kind": "claude",
+      "load_average_end": [
+        144.0595703125,
+        126.85205078125,
+        103.369140625
+      ],
+      "load_average_start": [
+        104.22412109375,
+        98.39794921875,
+        88.8046875
+      ],
+      "log": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w4-r1/controller.log",
+      "metric_scope": {
+        "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+        "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+        "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+        "wall_s": "External monotonic time for the complete run command, including export.",
+        "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time."
+      },
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "ok": true,
+      "parallelism": 4,
+      "provenance": "ordinary-agent-cli",
+      "repeat": 1,
+      "returncode": 0,
+      "state": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w4-r1/state",
+      "targets_done": 10,
+      "targets_total": 10,
+      "transfer_bytes": 122710,
+      "transfer_ms": 519.3189740000001,
+      "trial": "p5-list-20261020-w4-r1",
+      "validator_rpc_ms": 108220.451538,
+      "wall_s": 288.677,
+      "worker_wall_s": 203.197,
+      "workers": 4,
+      "working_copy_transfer_by_kind": {
+        "fetch-group": {
+          "bytes": 12002,
+          "ms": 73.755238,
+          "rows": 16
+        },
+        "pull": {
+          "bytes": 102140,
+          "ms": 296.059822,
+          "rows": 24
+        },
+        "put-capsule": {
+          "bytes": 19669,
+          "ms": 218.10675899999998,
+          "rows": 10
+        },
+        "put-group": {
+          "bytes": 7436,
+          "ms": 0.0,
+          "rows": 10
+        },
+        "validate-target": {
+          "bytes": 0,
+          "ms": 108220.14742699999,
+          "rows": 10
+        }
+      },
+      "working_copy_transfer_bytes": 141247,
+      "working_copy_transfer_files": 4,
+      "working_copy_transfer_invalid_rows": 0,
+      "working_copy_transfer_ms": 587.921819,
+      "working_copy_transfer_rows": 60
+    },
+    {
+      "attestation_build_ms": 158.802,
+      "check_ms": 122475.807588,
+      "controller_wall_s": 313.099,
+      "deployment": "p5-list-20261020-w8-r1",
+      "export_build_ms": 4160,
+      "groups": 10,
+      "kind": "claude",
+      "load_average_end": [
+        148.49072265625,
+        136.5146484375,
+        113.96484375
+      ],
+      "load_average_start": [
+        144.0595703125,
+        126.85205078125,
+        103.369140625
+      ],
+      "log": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w8-r1/controller.log",
+      "metric_scope": {
+        "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+        "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+        "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+        "wall_s": "External monotonic time for the complete run command, including export.",
+        "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time."
+      },
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "ok": true,
+      "parallelism": 4,
+      "provenance": "ordinary-agent-cli",
+      "repeat": 1,
+      "returncode": 0,
+      "state": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-bench-final/p5-list-20261020-w8-r1/state",
+      "targets_done": 10,
+      "targets_total": 10,
+      "transfer_bytes": 178596,
+      "transfer_ms": 535.5301670000001,
+      "trial": "p5-list-20261020-w8-r1",
+      "validator_rpc_ms": 118157.005588,
+      "wall_s": 318.154,
+      "worker_wall_s": 231.19199999999998,
+      "workers": 8,
+      "working_copy_transfer_by_kind": {
+        "fetch-group": {
+          "bytes": 16650,
+          "ms": 187.22314699999998,
+          "rows": 22
+        },
+        "pull": {
+          "bytes": 165215,
+          "ms": 438.34547999999995,
+          "rows": 27
+        },
+        "put-capsule": {
+          "bytes": 19674,
+          "ms": 157.13719300000002,
+          "rows": 10
+        },
+        "put-group": {
+          "bytes": 7362,
+          "ms": 0.0,
+          "rows": 10
+        },
+        "validate-target": {
+          "bytes": 0,
+          "ms": 118155.367889,
+          "rows": 10
+        }
+      },
+      "working_copy_transfer_bytes": 208901,
+      "working_copy_transfer_files": 8,
+      "working_copy_transfer_invalid_rows": 0,
+      "working_copy_transfer_ms": 782.70582,
+      "working_copy_transfer_rows": 69
+    }
+  ],
+  "series": "p5-list-20261020",
+  "summary": {
+    "1": {
+      "check_ms_median": 106716.04825699999,
+      "successful_trials": 1,
+      "transfer_bytes_median": 38050,
+      "transfer_ms_median": 256.124546,
+      "validator_rpc_ms_median": 103241.25325699999,
+      "wall_s_median": 404.798,
+      "working_copy_transfer_bytes_median": 38050,
+      "working_copy_transfer_ms_median": 197.564453
+    },
+    "2": {
+      "check_ms_median": 113985.988214,
+      "successful_trials": 1,
+      "transfer_bytes_median": 66270,
+      "transfer_ms_median": 471.0025350000001,
+      "validator_rpc_ms_median": 110431.080214,
+      "wall_s_median": 317.566,
+      "working_copy_transfer_bytes_median": 83801,
+      "working_copy_transfer_ms_median": 508.146212
+    },
+    "4": {
+      "check_ms_median": 113441.23053799999,
+      "successful_trials": 1,
+      "transfer_bytes_median": 122710,
+      "transfer_ms_median": 519.3189740000001,
+      "validator_rpc_ms_median": 108220.451538,
+      "wall_s_median": 288.677,
+      "working_copy_transfer_bytes_median": 141247,
+      "working_copy_transfer_ms_median": 587.921819
+    },
+    "8": {
+      "check_ms_median": 122475.807588,
+      "successful_trials": 1,
+      "transfer_bytes_median": 178596,
+      "transfer_ms_median": 535.5301670000001,
+      "validator_rpc_ms_median": 118157.005588,
+      "wall_s_median": 318.154,
+      "working_copy_transfer_bytes_median": 208901,
+      "working_copy_transfer_ms_median": 782.70582
+    }
+  },
+  "task_sha256": "222979e89ee40a17186065e0e2a4a87b433ff80a9242e3f7d5e2f55ddbac0a9e",
+  "worker": "claude"
+}

@@ -1,0 +1,29 @@
+{
+  "claude_cli": "2.1.304",
+  "claude_model_observed": "claude-opus-5-5",
+  "codex_cli": "0.156.1",
+  "codex_smoke_model": "gpt-6-astra",
+  "cpu_count": 32,
+  "cryptography": "46.0.5",
+  "final_integration_commit": "7679721726afe02761931d69a692952583901dfb",
+  "final_integration_diff_scope": [
+    "docs/m-targets-log.md",
+    "impl/p3/results/m-targets-capture-rebased.json",
+    "impl/p3/results/m-targets-cold-M08-rebased.log",
+    "impl/p3/results/m-targets-remote-gate-rebased.json"
+  ],
+  "fork_commit": "99967f1ee50a1ee82bb178359ad95b723c8196a2",
+  "gate_implementation": "31051a88435c03016a585bed70fa331562769c13",
+  "implementation": "38f8b6ae86501b3376f8deb6ef83a246baecca26",
+  "instance": "p5-m-p5",
+  "integrated_branches": {
+    "m-p2": "ffbdb6e0b4ddb7701b2cf1e67bebf7ccbe2c67fc",
+    "m-p4": "604dade882c252c108e2a552667a1fea0cb091b4",
+    "m-targets": "0f20eec7b642753d6d11f3e8beed24533fafa8a4"
+  },
+  "max_parallel_workers": 4,
+  "origin_main": "cb1ca051ea63d6a666f8a183f5772fcbb08be4b0",
+  "python": "3.14.4",
+  "runtime_sources_identical_to_measured_commit": true,
+  "stock_commit": "193c3589a4fc16c4059261ab38cfa365eb24f323"
+}

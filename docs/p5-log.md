@@ -270,3 +270,127 @@ These are proposals to update after verification, not edits to those files.
 - README.md: “The P5 autonomous entry point and reproducible task drivers live
   in `impl/p5`; [docs/p5-log.md](docs/p5-log.md) records the tested integration
   versions, recovery evidence and scaling measurements.”
+
+## Final report (2026-10-20)
+
+P5 provides one entry point, `python3 impl/p5/paralean.py run TASK.toml`,
+which provisions workspaces, dispatches ordinary configurable Claude Code or
+Codex CLI agents, validates fixed contracts, reconciles conflicts and interrupted
+publications, persists recovery state and exports a stock Lean project. Scheduling
+and task metadata remain outside the reusable declaration library. Implementation,
+backend and test work were delegated to separate `gpt-6-sol` subagents, then
+reviewed and integrated by the manager. The cove report tool was unavailable;
+this section is the final report fallback.
+
+The final integration includes `origin/main` at
+`cb1ca051ea63d6a666f8a183f5772fcbb08be4b0`, P2 at
+`ffbdb6e0b4ddb7701b2cf1e67bebf7ccbe2c67fc`, targets at
+`0f20eec7b642753d6d11f3e8beed24533fafa8a4`, and P4 at
+`604dade882c252c108e2a552667a1fea0cb091b4`. The measured benchmark implementation
+is `38f8b6ae86501b3376f8deb6ef83a246baecca26`; the final integration checkpoint
+is `7679721726afe02761931d69a692952583901dfb`. Comparing these commits shows
+identical runtime sources: the target-branch refresh adds only its documentation
+and three result files. Thus the final integration uses the exact measured P1,
+P2, P3, remote and P5 code. The fork compiler is
+`99967f1ee50a1ee82bb178359ad95b723c8196a2`; stock Lean is
+`193c3589a4fc16c4059261ab38cfa365eb24f323`.
+
+### Gate results
+
+- **Real multi-agent task: PASS.** `list_reverse_map_lengths.toml` is a
+  self-contained core-List development: one map-length helper, eight dependent
+  reverse/map length lemmas and a final theorem consuming all eight. Ordinary
+  Claude Code workers proved all ten contracts. All sixteen required dependency
+  edges occur in checked closures, and synchronized workspaces contained
+  `remote%` helpers. The gate passed all eight checks.
+- **Desktop loss: PASS.** The gate killed the controller after two published
+  targets and deleted the entire desktop, including its task file and private
+  authority keys. Discovery and recovery used the store, configured deployment
+  access and a separately retained deployment recovery secret. Both original
+  publications survived and all ten contracts completed. No local task manifest
+  or workspace was supplied to recovery.
+- **Publication/journal race: PASS.** The separate live fault fixture committed a
+  publication before its controller acknowledgement, left an obsolete fence
+  request, deleted the desktop and recovered without another proof attempt.
+  A second completed recovery also passed. An old receipt was rejected after
+  reassignment, and retrying one guarded fence request advanced its epoch once.
+- **Stock export: PASS.** The gate exported ten modules, with all ten required
+  targets in the snapshot and certified build-receipt manifest. Its stock build took
+  12.202 s, followed by a 0.174 s build attestation. A separate clean-directory
+  stock build, with no Paralean environment or copied build cache, passed in
+  3.231 s and produced ten oleans. Exported sources are committed under
+  `impl/p5/results/latest-export/`.
+- **Other verification: PASS.** All 28 local tests passed with none skipped;
+  all ten live adversarial checks passed. The federation-home fault test accepted
+  a local-home fence and rejected a foreign-home fence. The integrated P1 build
+  completed 80 jobs; P2/P3 and P5 bridge release builds passed. The real-agent
+  gate and adversarial run used checkpoint `31051a8`; the final `38f8b6a` change
+  clears obsolete fence intent and hardens worker cleanup, covered by the final
+  28-test suite, extended live recovery fixture and benchmark series.
+
+### Scaling measurements
+
+| Logical workers | Max simultaneous CLIs | Completion s | Workspace bytes | Transfer ms | Validator RPC s | Stock build s | Attestation s |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 1 | 278.028 | 37,981 | 545.572 | 10.621 | 4.580 | 0.162 |
+| 2 | 2 | 175.792 | 83,801 | 707.492 | 11.717 | 3.643 | 0.160 |
+| 4 | 4 | 129.262 | 137,411 | 713.589 | 9.278 | 2.964 | 0.157 |
+| 8 | 4 | 134.686 | 209,453 | 869.323 | 9.199 | 3.123 | 0.159 |
+
+All four trials completed ten targets in ten proof attempts, with no retries.
+Every row is one fresh deployment using actual Claude Code CLI 2.1.304 workers;
+reported model identity was `claude-opus-5-5`. Completion time is external elapsed
+time through export. Transfer is the sum of workspace payload bytes and operation
+times, including worker demand fetches; it excludes validator downloads, task
+journal IO and protocol overhead. Validator time is cumulative controller-recorded validation RPC
+latency, including queueing and checking, not pure CPU time or all validator work. Stock export and
+its final build attestation are separate measurements. Parallel operation times
+can overlap. The JSON records task hash, commit, model identity and host load;
+per-width exported sources and hashes make proof-choice differences reviewable.
+
+These single trials ran on a shared 32-CPU host, so they are reproducible drivers
+and measured costs, not a controlled speedup claim. API latency and agent proof
+choices vary. Eight logical workspaces used at most four simultaneous CLI workers
+to respect the shared-box process budget; **a true eight-simultaneous-agent scaling
+measurement remains blocked by that budget**. Earlier pre-main measurements are
+retained separately as `baseline-benchmarks.*` and are not the final results.
+
+### Reproduction and remaining scope
+
+Use `impl/p5/README.md` to build the pinned dependencies and configure an instance
+owned by the caller. The final runs used only `PARALEAN_INSTANCE=p5-m-p5` and
+checked available `/data` capacity before large runs. With that environment:
+
+```sh
+source impl/p5/scripts/env.sh
+impl/p5/scripts/cluster-up.sh
+python3 -m unittest discover -s impl/p5/tests -v
+python3 impl/p5/scripts/adversarial.py .runs/p5-adversarial-new
+python3 impl/p5/scripts/recovery_fault.py .runs/p5-recovery-new
+python3 impl/p5/scripts/federation_home_fault.py .runs/p5-home-new
+PARALEAN_DEPLOYMENT=p5-gate-new python3 impl/p5/scripts/gate.py \
+  .runs/p5-gate-new --worker claude \
+  --task impl/p5/tasks/list_reverse_map_lengths.toml
+python3 impl/p5/scripts/benchmark.py .runs/p5-bench-new \
+  --worker claude --repeats 1 --max-parallel 4 --series p5-list-new
+impl/p5/scripts/cluster-down.sh
+```
+
+Use fresh deployment names and run directories. `lake build` in a copied
+`impl/p5/results/latest-export/` uses its pinned stock toolchain independently
+of the Paralean services. Raw worker transcripts and private keys are not
+committed; the result index is `impl/p5/results/README.md`.
+
+The requested entry point, fixed-contract workflow, store recovery, export and
+bounded 1/2/4/8-workspace measurements are implemented and verified. Remaining
+scope is the true eight-way measurement above, repeated controlled trials,
+full-Mathlib/WAN workloads, automatic decomposition or AND/OR search, and contracts
+over newly introduced local types. P5 currently uses an explicit task DAG,
+base-environment contracts and one target per publication. Its signed journal
+does not claim hostile-process isolation under a shared Unix account or
+cross-store journal failover. Interactive LSP buffer publication remains P4's
+separate workflow; the general P2 catalogue conflict policy was not extended.
+
+After verification, P5 stopped only its own `p5-m-p5` FDB, Garage and S3-guard
+processes, preserving their data. The tested runtime is recorded above; the final
+code integration commit is `7679721726afe02761931d69a692952583901dfb`.
