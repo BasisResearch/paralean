@@ -123,6 +123,7 @@ Each hardening model has its own mutations in `scripts/check-tla-negative.sh`.
 | Targets | Publish updates the recorded head | `target_no_head_update` | `TargetChain` |
 | Targets | One pending proof per preparer | `target_no_single_pending` | `TargetChain` |
 | Targets | Publish fenced on the prepare epoch | `target_no_epoch_fence` | `TargetChain` |
+| Targets | Publish compares the job's controller-stamped statement with the pinned one (W2 A-4) | `target_no_statement_check`, on `TargetsStatement` | `PublishedPinned` |
 | Targets | Publication writes the publisher's certificate quorum atomically | `target_stranded_head` (`AtomicCert = FALSE`), on `TargetsLive` | `HandoverProgress` (only property) |
 | Fencing | First write conditional on the fence | `fencing_unfenced_put` | `StaleNeverStored` |
 | Fencing | Repair copies bytes read from a live source replica | `fencing_repair_disguised` | `StaleNeverStored` |

@@ -400,6 +400,14 @@ case_receipt_relay_no_deps() {
   run_expected_pass receipt_relay_no_deps Receipts 'redundant guard keeps every invariant'
 }
 
+# W2 A-4: T1 compares the job's (controller-stamped) statement with the pin.
+defcase target_no_statement_check
+case_target_no_statement_check() {
+  prepare_case target_no_statement_check
+  edit_once "$neg/target_no_statement_check/Targets.tla" 'StatementOK(p) == p \in Pinned' 'StatementOK(p) == TRUE'
+  run_expected_failure target_no_statement_check Targets 'Invariant PublishedPinned is violated' TargetsStatement
+}
+
 defcase target_no_owner_check
 case_target_no_owner_check() {
   prepare_case target_no_owner_check

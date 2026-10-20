@@ -32,10 +32,17 @@
    Liveness. `stable` is the usual eventual-stability assumption (as Registry's
    Heal): before it, crashes and reassignments are arbitrary; after it, none.
    An owner whose pending proof was fenced learns the failed conditional write
-   and drops it (Abandon). *)
+   and drops it (Abandon).
+
+   Statement (W2 A-4). `Pinned` is the set of proofs whose declaration of the
+   name has the statement the controller pinned for it; an owner may prepare
+   any proof, including `theorem T : True`. The controller stamps the pinned
+   statement into the job, the validator's receipt certifies that the group
+   declares the name with the job's statement, and the same conditional write
+   compares the job's statement with the pin (StatementOK). *)
 EXTENDS FiniteSets, Naturals
 
-CONSTANTS Workers, Proofs, InitialOwner, MaxEpoch, AtomicCert
+CONSTANTS Workers, Proofs, InitialOwner, MaxEpoch, AtomicCert, Pinned
 
 VARIABLES published, pending, known, revises, used, head,
           owner, epoch, prepEpoch, pubEpoch, recHead, certified, stable
@@ -51,6 +58,7 @@ HeadUpdate(p) == p
 Closed(R) == \A q \in R : revises[q] \subseteq R
 NoOtherPending(w) == pending[w] = {}
 EpochOK(w, p) == prepEpoch[w][p] = epoch
+StatementOK(p) == p \in Pinned
 
 TargetGuard(w, R) ==
   /\ OwnerOK(w)
@@ -93,6 +101,7 @@ Prepare(w, p, R) ==
 Publish(w, p) ==
   /\ p \in pending[w]
   /\ EpochOK(w, p)
+  /\ StatementOK(p)
   /\ published' = published \cup {p}
   /\ known' = [known EXCEPT ![w] = @ \cup {p}]
   /\ pending' = [pending EXCEPT ![w] = @ \ {p}]
@@ -112,7 +121,7 @@ Certify(w, p) ==
 (* The fenced publish of p failed; its preparer learns that and drops it. *)
 Abandon(w, p) ==
   /\ p \in pending[w]
-  /\ ~EpochOK(w, p)
+  /\ ~(EpochOK(w, p) /\ StatementOK(p))
   /\ pending' = [pending EXCEPT ![w] = @ \ {p}]
   /\ UNCHANGED <<published, known, revises, used, head, owner, epoch,
                  prepEpoch, pubEpoch, recHead, certified, stable>>
@@ -192,6 +201,9 @@ TypeOK ==
 
 (* Under the fix every published proof is certified at publication. *)
 PublishedCertified == AtomicCert => certified = published
+
+(* Every published proof, so every recorded head, has the pinned statement. *)
+PublishedPinned == published \subseteq Pinned
 
 (* No two incomparable published proofs of the target name. *)
 TargetChain ==
