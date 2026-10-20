@@ -1,29 +1,23 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 95 and seed -3832769653369286159 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 2930094] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 37 and seed -6434085669975854416 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 938838] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace/Workspace.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-20 16:15:31)
+Starting... (2026-10-20 23:26:25)
 Implied-temporal checking--satisfiability problem has 1 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 16:15:32.
-Checking temporal properties for the current state space with 849 total distinct states at (2026-10-20 16:15:35)
-Finished checking temporal properties in 00s at 2026-10-20 16:15:35
-Progress(10) at 2026-10-20 16:15:35: 3,690 states generated (3,690 s/min), 1,743 distinct states found (1,743 ds/min), 894 states left on queue.
-Checking temporal properties for the current state space with 26578 total distinct states at (2026-10-20 16:16:35)
-Finished checking temporal properties in 00s at 2026-10-20 16:16:35
-Progress(16) at 2026-10-20 16:16:35: 104,077 states generated (100,387 s/min), 35,401 distinct states found (33,658 ds/min), 8,820 states left on queue.
-Checking temporal properties for the current state space with 60063 total distinct states at (2026-10-20 16:17:35)
-Finished checking temporal properties in 00s at 2026-10-20 16:17:35
-Progress(21) at 2026-10-20 16:17:35: 195,469 states generated (91,392 s/min), 61,730 distinct states found (26,329 ds/min), 1,666 states left on queue.
-Progress(21) at 2026-10-20 16:17:38: 197,037 states generated, 62,098 distinct states found, 0 states left on queue.
-Checking temporal properties for the complete state space with 62098 total distinct states at (2026-10-20 16:17:38)
-Finished checking temporal properties in 00s at 2026-10-20 16:17:38
+Finished computing initial states: 1 distinct state generated at 2026-10-20 23:26:26.
+Checking temporal properties for the current state space with 9358 total distinct states at (2026-10-20 23:26:29)
+Finished checking temporal properties in 00s at 2026-10-20 23:26:29
+Progress(14) at 2026-10-20 23:26:29: 39,435 states generated (39,435 s/min), 14,695 distinct states found (14,695 ds/min), 5,329 states left on queue.
+Progress(21) at 2026-10-20 23:26:39: 197,037 states generated, 62,098 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 62098 total distinct states at (2026-10-20 23:26:39)
+Finished checking temporal properties in 00s at 2026-10-20 23:26:39
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -32,7 +26,7 @@ Model checking completed. No error has been found.
 197037 states generated, 62098 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
-Finished in 02min 07s at (2026-10-20 16:17:38)
+Finished in 13s at (2026-10-20 23:26:39)
 ==== Paralean TLC provenance ====
 module Workspace
 config Workspace.cfg

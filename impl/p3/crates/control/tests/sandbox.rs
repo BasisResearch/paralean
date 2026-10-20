@@ -174,9 +174,13 @@ async fn checker_memory_cgroup_hard_limit_kills_fast_burst() {
     // CHECK. The whole process lives well under a poll interval's worth of resident memory.
     let s = script(&root, "burst.py", "#!/usr/bin/env python3\nimport json, ctypes, mmap\nn = 96 << 20\nbuf = mmap.mmap(-1, n)\nctypes.memset((ctypes.c_char * n).from_buffer(buf), 1, n)\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n");
     let cfg = CheckerConfig { default_memory_mb: 64, ..CheckerConfig::sandboxed(s, "test") };
-    let (_tx, cancel) = watch::channel(false);
-    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
-    assert!(matches!(result, Err(NoVerdict::Memory { .. })), "fast burst escaped the cgroup: {result:?}");
+    // The cgroup kills every burst. The 50 ms RSS poll catches one only when a tick lands
+    // in its few milliseconds, so five in a row distinguish the two layers.
+    for attempt in 0..5 {
+        let (_tx, cancel) = watch::channel(false);
+        let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
+        assert!(matches!(result, Err(NoVerdict::Memory { .. })), "fast burst {attempt} escaped the cgroup: {result:?}");
+    }
     std::fs::remove_dir_all(&root).unwrap();
 }
 

@@ -2,12 +2,12 @@
 FAIL: test_key_restore_rejects_symlink_and_stale_local_key (test_journal_auth.JournalAuthTest.test_key_restore_rejects_symlink_and_stale_local_key)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/kirancodes/tmp/w2-p5-mutations-hz42diqn/tests/test_journal_auth.py", line 94, in test_key_restore_rejects_symlink_and_stale_local_key
+  File "/Users/kirancodes/tmp/w2-p5-mutations-8a24pexb/tests/test_journal_auth.py", line 94, in test_key_restore_rejects_symlink_and_stale_local_key
     with self.assertRaisesRegex(BackendError, "differs"):
          ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: BackendError not raised
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.074s
+Ran 6 tests in 0.076s
 
 FAILED (failures=1)

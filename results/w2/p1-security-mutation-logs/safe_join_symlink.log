@@ -1,5 +1,5 @@
 == Safety
-/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/w2-p1-mutations-ghk7u3zp/safe_join_symlink/Paralean/Safety.lean:55:10: warning: Variable name `md` is not explicitly referenced.
+/Users/kirancodes/tmp/w2-p1-mutations-_3iu7xyc/safe_join_symlink/Paralean/Safety.lean:55:10: warning: Variable name `md` is not explicitly referenced.
 
 Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
   [apply] _md

@@ -1,6 +1,6 @@
    Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.07s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-c07d0bc794d2a439)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.60s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-a6b1da31d3175d64)
 
 running 1 test
 test validator_envelope_strict_signature_vectors ... FAILED
@@ -9,9 +9,9 @@ failures:
 
 ---- validator_envelope_strict_signature_vectors stdout ----
 
-thread 'validator_envelope_strict_signature_vectors' (1126759) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:36:13:
+thread 'validator_envelope_strict_signature_vectors' (1145836) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:36:13:
 assertion `left == right` failed: small_order_A_0
-  left: "envelope names checker b41e7fd9dc8b, this validator runs cbff00afcc3d"
+  left: "envelope names checker b41e7fd9dc8b, this validator runs 3df36a335e2b"
  right: "envelope is not signed by the controller"
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
@@ -19,6 +19,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     validator_envelope_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.83s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s
 
 error: test failed, to rerun pass `-p paralean-control --test strict_signatures`

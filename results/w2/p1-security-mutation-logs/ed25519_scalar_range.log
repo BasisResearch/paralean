@@ -1,12 +1,12 @@
 uncaught exception: vector S_malleated_plus_L: Lean Ed25519 result differs
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/tmp6l_8fpl7', 'be00e09cdd221722b2c0d17d5d6d75f394c5604340ad88a5de0d7e31f2c6975c', '1db1ae065c428285158d81707d307c31dc63199dc05dcdf3ac51895b722640a2', 'a607c94ddba919aa29d62d93a9c7d7e2791e3fe2b7f327ce39cad684dddf9e68', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '20bfb3b10c1e41333a3a30d09a8c0fe50c0fae29d2c794134a0f61480964b883', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmp6vxaw771', '31d51b08a919baa0aa720701c3fe18017b7d51b693ba114ebd7e3bb476a8a3d5', '94d2b1cf4d5820a6ad697f456a1e1557b4440b0ee16262664892d14cb420372e', 'bcfb7d2d91638fa421548b9aa817591599be5bc095807a1a3af7ff4b3e09be22', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'fe0d46fdce9da8407ec7227737bdab8332b35f6d890e17cd833041bfc8906d47', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

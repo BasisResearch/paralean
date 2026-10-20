@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 114 and seed -6039470929021963097 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 1866926] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 10 and seed 4811615702133302049 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 961557] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ReceiptsWide/Receipts.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ReceiptsWide-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ReceiptsWide-java-tmp/Naturals.tla
@@ -8,21 +8,22 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Receipts
-Starting... (2026-10-20 18:34:41)
+Starting... (2026-10-20 23:26:45)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 18:34:42.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 23:26:45.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 2.0E-12
-25358 states generated, 1513 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 19.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 3).
-Finished in 01s at (2026-10-20 18:34:42)
+  calculated (optimistic):  val = 2.1E-10
+  based on the actual fingerprints:  val = 6.1E-11
+293655 states generated, 13778 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 20.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 4).
+Finished in 00s at (2026-10-20 23:26:45)
 ==== Paralean TLC provenance ====
 module Receipts
 config ReceiptsWide.cfg
 expect pass
-checked 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
-checked ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
+checked b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
+checked 9f751810990c01a5f13e0d384e8f8d2fc84a9a80541a2ca7b5325f122e529435  ReceiptsWide.cfg
 ==== end provenance ====

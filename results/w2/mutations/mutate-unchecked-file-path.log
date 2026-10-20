@@ -1,6 +1,6 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.76s
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-f047eb6d9950b498)
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.88s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-9e117aec5d858513)
 
 running 1 test
 test objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule ... FAILED
@@ -9,7 +9,7 @@ failures:
 
 ---- objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule stdout ----
 
-thread 'objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule' (2145644) panicked at crates/store/src/objects.rs:973:13:
+thread 'objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule' (1049105) panicked at crates/store/src/objects.rs:973:13:
 "" accepted
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

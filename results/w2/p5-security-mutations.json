@@ -99,6 +99,13 @@
       "exit_code": 1,
       "passed": true,
       "log": "results/w2/p5-security-mutation-logs/snapshot_file_path.log"
+    },
+    {
+      "name": "assign_statement_pin",
+      "assertion": "test_assignment_without_a_frozen_statement_fails_closed",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/assign_statement_pin.log"
     }
   ],
   "passed": true

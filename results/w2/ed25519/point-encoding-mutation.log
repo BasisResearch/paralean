@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
      Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-0401d02e5bf85404)
 
 running 1 test
@@ -8,7 +8,7 @@ failures:
 
 ---- point_encoding_is_canonical stdout ----
 
-thread 'point_encoding_is_canonical' (1041272) panicked at crates/crypto/tests/vectors.rs:27:13:
+thread 'point_encoding_is_canonical' (1065120) panicked at crates/crypto/tests/vectors.rs:27:13:
 assertion failed: !paralean_crypto::canonical_point(&p)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

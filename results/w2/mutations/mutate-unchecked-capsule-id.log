@@ -1,6 +1,6 @@
-   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p3-remote)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.47s
-     Running unittests src/main.rs (impl/p2/target/debug/deps/plr-439fa095cb53fdcd)
+   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.39s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/plr-119439b3f1ae0b2f)
 
 running 1 test
 test cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes ... FAILED
@@ -9,7 +9,7 @@ failures:
 
 ---- cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes stdout ----
 
-thread 'cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes' (2146143) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p3-remote/src/cache.rs:231:9:
+thread 'cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes' (1051458) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote/src/cache.rs:231:9:
 bytes stored under another capsule ID
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

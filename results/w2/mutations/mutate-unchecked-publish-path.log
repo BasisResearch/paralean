@@ -1,6 +1,6 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.27s
-     Running tests/file_paths.rs (impl/p2/target/debug/deps/file_paths-bbcb380af3fe1087)
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.42s
+     Running tests/file_paths.rs (impl/p2/target/debug/deps/file_paths-c52332db3caacaa4)
 
 running 1 test
 test t1_refuses_a_marker_with_an_unsafe_file_path ... FAILED
@@ -9,7 +9,7 @@ failures:
 
 ---- t1_refuses_a_marker_with_an_unsafe_file_path stdout ----
 
-thread 't1_refuses_a_marker_with_an_unsafe_file_path' (2147045) panicked at crates/store/tests/file_paths.rs:19:9:
+thread 't1_refuses_a_marker_with_an_unsafe_file_path' (1054675) panicked at crates/store/tests/file_paths.rs:19:9:
 "../../.bashrc": Ok(PublishOutcome { marker: 60e1b90ae896, fresh: true })
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

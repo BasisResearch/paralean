@@ -1,12 +1,12 @@
 uncaught exception: vector negative_zero_A: noncanonical point decoded
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/tmp3qon5_0q', 'c17cc2b718dd2a35267659257e978863d892be1c263b0df6537d62236c800100', 'c8a3a8f9da9c123a8cf9f0033a8e1856dba4701403c5f4410402fe9958094e22', 'a22abaab706b0c04178628f96d0c2409d31030e189b2781432796dff28d30b17', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '742fa07eae76066ddc39247a64732fb2d448f18edc41f0b707c52952184b433a', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmphahjr3p0', 'a29e94d9a7f7fd5b2c3ae9d0083f31a0e13c731b04a5d5220ea66130e55c997f', '0ea7d62f8e2d9e1a5482ce53e648542b9dd180b7253704e6d33b2105045ee29b', 'ad7a02bda1052394827009b7a8edf513e5168af96cc9a6ce720c207e5227d458', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'ff268c5236573d9c25ec3fd4f823b99d2fbbb856b3a20bc80b4d65d63472d4a2', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

@@ -1,0 +1,6 @@
+provenance verified: 23 positive and 99 expected-outcome TLC logs (.runs/tla, /Users/kirancodes/tmp/tmp.VnDVSL0vjU/neglogs)
+provenance verified: 4 positive and 0 expected-outcome TLC logs (.runs/tla/wide)
+provenance verified: 0 positive and 29 expected-outcome TLC logs (/Users/kirancodes/tmp/tmp.VnDVSL0vjU/hardlogs)
+provenance verified: 23 positive and 99 expected-outcome TLC logs (verification/results/tlc, verification/results/tlc/negative)
+provenance verified: 4 positive and 0 expected-outcome TLC logs (verification/results/tlc/wide)
+provenance verified: 0 positive and 29 expected-outcome TLC logs (verification/results/tlc/hardened)

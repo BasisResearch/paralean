@@ -1,14 +1,14 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 35 and seed 6171093445033431826 with 1 worker on 32 cores with 2731MB heap and 64MB offheap memory [pid: 2640116] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 83 and seed 7050865032033022508 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 875477] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Integrated.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Publication.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/TLC.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Registry.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Durability.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -18,19 +18,18 @@ Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
 Semantic processing of module CheckpointReuse
-Starting... (2026-10-20 16:01:27)
+Starting... (2026-10-20 23:24:49)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 16:01:27.
-Progress(11) at 2026-10-20 16:01:30: 188,087 states generated (188,087 s/min), 17,470 distinct states found (17,470 ds/min), 4,809 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 23:24:49.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.4E-9
-  based on the actual fingerprints:  val = 2.9E-10
+  based on the actual fingerprints:  val = 4.7E-11
 649369 states generated, 43888 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 4).
-Finished in 06s at (2026-10-20 16:01:33)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 4).
+Finished in 01s at (2026-10-20 23:24:50)
 ==== Paralean TLC provenance ====
 module CheckpointReuse
 config CheckpointReuse.cfg

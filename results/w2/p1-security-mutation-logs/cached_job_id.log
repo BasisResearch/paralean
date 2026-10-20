@@ -1,12 +1,12 @@
 uncaught exception: replaced cached job: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/tmpwozah_sd', '7269872bac60a1f7f08e5c0fd5b3a86ed0618f274c52b6f98b6e3e15abf5e5e0', '9dc68218f37ca5e934d693c6a8090d9f7bb481c495004b17f7dcfc70be66e36d', '932e324697d785678f9dfaabcf630eb547c1fb00d580942b04a09226883f4c12', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '51963168a334f6cdbdd26b8e0df30ff88231aeb8d53ed2dbf856b3193f8c0fe7', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpjezukwpy', '19a1689249a69cbd7b2addf33471dd605a3cdf0aa75cad52ac0809d082fb0f17', 'b515700721499ce07a1cb4700df8722a92ad8315e259f4e1be9866e0e15125f3', '2227adcdf843c4b8061ed200c000059e6c55802b28b2f1605280d6d236dd17ec', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'e300e7e94ab3c0c166b645ad01599d415abc4418b3f28c993074c3672e6f5c91', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

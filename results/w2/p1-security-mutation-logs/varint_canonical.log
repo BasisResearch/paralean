@@ -1,12 +1,12 @@
 uncaught exception: nonminimal varint: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/tmp2yrmda94', '50a520328904792b90c34c5abf20ef9049723ba8fabb61eb5336b665f3291b33', '340b58e7a50f301fa498dc04f6def20669c5d43a6c5c6113181a50e0fdba10e3', 'ddd55f23a72f4df42a7d35045b10ff9a7e449d6b4e37022c2d8075f3c1844150', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '4f4c5ea962d945ee856f71e8926bf2044fda57f874871a177e44b2f6219456d7', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmplocn4maj', '51aed6410c3de17c6f252c999dec9cc755f0d83fafb4ef1b1f67894d9076f38c', '3ddb2a83287d0e3f8dbf30f720d826616517e45376dc721ef38b46d6dbf4e8f6', '0cfd94b27aa32e1810324f7e7815199cb471a9847a212b2b1c3fb9c5e984a822', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '2dab70c0ba6aca8c9a0637b5b172be95fadf90090f50feddc833de135f9a42c5', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

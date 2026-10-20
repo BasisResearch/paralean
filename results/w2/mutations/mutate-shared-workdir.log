@@ -1,0 +1,24 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.96s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-8b421b0bb38933d7)
+
+running 1 test
+test validator::completed_tests::validator_workdir_must_be_private_and_ours ... FAILED
+
+failures:
+
+---- validator::completed_tests::validator_workdir_must_be_private_and_ours stdout ----
+
+thread 'validator::completed_tests::validator_workdir_must_be_private_and_ours' (998365) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/validator.rs:590:9:
+assertion `left == right` failed
+  left: 511
+ right: 448
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    validator::completed_tests::validator_workdir_must_be_private_and_ours
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

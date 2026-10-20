@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 42 and seed 9099164168667613860 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 3485945] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 12 and seed -7572386468760785159 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1142330] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_dependent_work/Receipts.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_dependent_work-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_dependent_work-java-tmp/Naturals.tla
@@ -8,69 +8,55 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Receipts
-Starting... (2026-10-20 16:40:47)
+Starting... (2026-10-20 23:31:06)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 16:40:47.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 23:31:06.
 Error: Invariant NeverDependentPublished is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
 /\ pending = [W1 |-> {}, W2 |-> {}]
+/\ cancelled = {}
+/\ remote = {}
 /\ published = {}
 /\ held = [W1 |-> {}, W2 |-> {}]
 /\ receipts = {}
 
-State 2: <Issue line 43, col 3 to line 46, col 43 of module Receipts>
+State 2: <Issue line 58, col 3 to line 61, col 62 of module Receipts>
 /\ pending = [W1 |-> {}, W2 |-> {}]
+/\ cancelled = {}
+/\ remote = {}
 /\ published = {}
 /\ held = [W1 |-> {}, W2 |-> {}]
 /\ receipts = {"a"}
 
-State 3: <Deliver line 49, col 3 to line 51, col 47 of module Receipts>
+State 3: <RelayReceive line 85, col 3 to line 89, col 61 of module Receipts>
 /\ pending = [W1 |-> {}, W2 |-> {}]
-/\ published = {}
-/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ cancelled = {}
+/\ remote = {}
+/\ published = {"a"}
+/\ held = [W1 |-> {}, W2 |-> {}]
 /\ receipts = {"a"}
 
-State 4: <Prepare line 36, col 3 to line 39, col 44 of module Receipts>
-/\ pending = [W1 |-> {"a"}, W2 |-> {}]
-/\ published = {}
-/\ held = [W1 |-> {"a"}, W2 |-> {}]
-/\ receipts = {"a"}
-
-State 5: <Publish line 54, col 3 to line 57, col 33 of module Receipts>
+State 4: <Issue line 58, col 3 to line 61, col 62 of module Receipts>
 /\ pending = [W1 |-> {}, W2 |-> {}]
+/\ cancelled = {}
+/\ remote = {}
 /\ published = {"a"}
-/\ held = [W1 |-> {"a"}, W2 |-> {}]
-/\ receipts = {"a"}
-
-State 6: <Issue line 43, col 3 to line 46, col 43 of module Receipts>
-/\ pending = [W1 |-> {}, W2 |-> {}]
-/\ published = {"a"}
-/\ held = [W1 |-> {"a"}, W2 |-> {}]
+/\ held = [W1 |-> {}, W2 |-> {}]
 /\ receipts = {"a", "b"}
 
-State 7: <Deliver line 49, col 3 to line 51, col 47 of module Receipts>
+State 5: <RelayReceive line 85, col 3 to line 89, col 61 of module Receipts>
 /\ pending = [W1 |-> {}, W2 |-> {}]
-/\ published = {"a"}
-/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
-/\ receipts = {"a", "b"}
-
-State 8: <Prepare line 36, col 3 to line 39, col 44 of module Receipts>
-/\ pending = [W1 |-> {"b"}, W2 |-> {}]
-/\ published = {"a"}
-/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
-/\ receipts = {"a", "b"}
-
-State 9: <Publish line 54, col 3 to line 57, col 33 of module Receipts>
-/\ pending = [W1 |-> {}, W2 |-> {}]
+/\ cancelled = {}
+/\ remote = {}
 /\ published = {"a", "b"}
-/\ held = [W1 |-> {"a", "b"}, W2 |-> {}]
+/\ held = [W1 |-> {}, W2 |-> {}]
 /\ receipts = {"a", "b"}
 
-307 states generated, 57 distinct states found, 20 states left on queue.
-The depth of the complete state graph search is 9.
-The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 4 and the 95th percentile is 3).
-Finished in 01s at (2026-10-20 16:40:47)
+315 states generated, 86 distinct states found, 52 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 3 (minimum is 0, the maximum 7 and the 95th percentile is 7).
+Finished in 00s at (2026-10-20 23:31:06)
 ==== Paralean TLC provenance ====
 module Receipts
 config Receipts.cfg
@@ -82,19 +68,19 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
 source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
-source cbaf08c50ac2325e565793230d333c063cb368902da0ce2f1cbc803f70972699  Ingress.tla
+source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 1f66aa9781cf7aca5847e3840dd534b829814029e97822f1f466efdd94e0aa3d  Ingress.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
-source 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
+source b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
 source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
 source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
-source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
+source b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
 source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
 source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
@@ -109,22 +95,23 @@ source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  Fencing
 source 63751397d9d553f1ec8716cdde2670247e61379fd2395ce87e87991177f860f8  FencingWide.cfg
 source ac6a6ffe4dded1f52bd723ef0b5ee990b7974c3f24c9329de2256fda73bfb01f  Hardened.cfg
 source 8134b5dc8b5dfa8316ee5f3bbf5744d940d98d451adecb75157193f7fa470733  HardenedReacquire.cfg
-source 0c576f3f4f3c1da135ae7c09d72e067d504b3726acfabad25bd39a8964051832  Ingress.cfg
+source cbff88c1804cd5a4bd479566d5a486be8de56b11d29eb511bf1e8f951a93cf17  Ingress.cfg
 source 45ed8db91761c3b542d722161b9976476c62e44546feca156de360b0cd2f7419  Integrated.cfg
 source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums.cfg
-source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
-source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
+source 8509edf912636f023c58fd31a3f0357986241b41c8d647576099f7672b6a9f4b  Receipts.cfg
+source 9f751810990c01a5f13e0d384e8f8d2fc84a9a80541a2ca7b5325f122e529435  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
 source 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg
-source d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets.cfg
-source f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg
-source 7d37881f7c64a9662c4a59fb7387cdce59d584f0717fb309994584e9af1b49fa  TargetsLive.cfg
-source fe4c3b0752a606261551319aad053ab8b817a1253defbdaa2e03dbbd0db6637a  TargetsWide.cfg
+source a25a9014846da0978e87ee2bbb325d212a3acb23973749f59c89662587fbe065  Targets.cfg
+source cccd8066a5c099129b6471e3218b7bd6fdb92527bb03deaf98fba7218d746047  TargetsLagging.cfg
+source d0b7ec293e3f5e7cd293cdaef1b030377d8ab38098a277ead498280b799943b0  TargetsLive.cfg
+source 8ae3f57572ad3e8975681f861a3b46ec4a3d4f43b11280cdd34485e0453512bd  TargetsStatement.cfg
+source 59a565148cbbdff5b511cc32b2e9fc1046079c6d5267663fc6607929d607b889  TargetsWide.cfg
 source 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
 source 654555d4c765c137034dc9b421494c14f3c5d359d16d27bdc6c5dc46d4fc674e  WorkspacePending.cfg
 source f7a76167b4e53afbda35d82f95683dfd7eb63231082d1c078d683afd9d2f9481  WorkspaceWide.cfg
-checked 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
-checked 8ec7c6a5a4a1e703287da823c3ec79e8beacaae73374eb7d9c89be6adc56f7e4  Receipts.cfg
+checked b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
+checked 7edd364a2aaf939ef021e11089f39ab514b966c342a01315c77789fdbb6df7e3  Receipts.cfg
 ==== end provenance ====

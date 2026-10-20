@@ -1,12 +1,12 @@
 uncaught exception: weak-key cached receipt: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/tmpx_r9jmyc', 'aaea3f32a0cc37b7616bb4e1af6bab53181ec989ba352f8f77c3b6996307f8c5', 'd84e0a7dac5511cd0f730b6ab0a5b068440f1772b35a1557d1794c6c0090f56e', '199184b3e70bed585ba8661679fca40f38b191288d7d1e6f6e6e851ebfe1dbf7', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'babe3f859553602c1d08ad485ce7d23d0874d22eb89387aaf8476c96ff900c61', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpqioh40jd', 'b5b25c3468ca5e7776a52ef59158b1904e3dbc382dfcc52657a2d17a5746c800', '947efcbc16ce65695c6953320f5ac5b29be476beaf0902a66126176e18b87250', '319197cb9f768b365098e15bb9e0e97eb1cf799b254fe546852398419d934a59', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '843db55ed735a47c22d5c303cd2487118d8773ef56dbf0ed2c0d06467112e51b', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

@@ -1,5 +1,6 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-47221a59665ec5f7)
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.14s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-164820fb17b9bfa8)
 
 running 1 test
 test store_strict_signature_vectors ... ok
