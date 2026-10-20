@@ -29,7 +29,8 @@ structure SourceReplay where
 
 unsafe def sourceReplay (cat : Catalog) (gids : Array String) (imports : Array Name)
     (module? : Option Name := none) (conservative := false)
-    (materialize? : Option Materializer := none) : IO SourceReplay := do
+    (materialize? : Option Materializer := none)
+    (gate? : Option (String → Syntax → IO (Except String Unit)) := none) : IO SourceReplay := do
   -- same module root as the captured groups: Lean's generated names depend on it
   let module := module?.getD <| match gids[0]? with
     | some g => (cat.get! g).capsule.module.getRoot ++ `ParaleanReplay
@@ -70,7 +71,7 @@ unsafe def sourceReplay (cat : Catalog) (gids : Array String) (imports : Array N
       continue
     let deps := relocatedDepsOf cat g conservative
     let src := renderCapsule g deps
-    let (sess', res) ← replayCapsule sess fc0 g src (capsuleTextOffset g deps)
+    let (sess', res) ← replayCapsule sess fc0 g src (capsuleTextOffset g deps) gate?
     sess := sess'
     results := results.push res
   let mut names := {}

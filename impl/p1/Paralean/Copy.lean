@@ -331,8 +331,10 @@ unsafe def sync (dir : FilePath) (log : String → IO Unit) : IO Json := do
     let sub : Known := { k with markers := k.markers.filter (applied.contains ·.id),
                                 tombs := k.tombs.filter (applied.contains ·.id) }
     let sv := Rga.View.of sub v.metas
-    let p := work / r.file
+    -- `r.file` comes from another worker's record: the path rule, and no symbolic links
+    let p ← Safety.safeJoin "sync" work r.file
     if let some d := p.parent then IO.FS.createDirAll d
+    let p ← Safety.safeJoin "sync" work r.file
     -- the committed tree is the projection; the working tree keeps drafts on top of it
     IO.FS.writeFile p (sv.workingProjection r.file)
     let _ ← git work #["add", r.file]
@@ -365,7 +367,8 @@ unsafe def sync (dir : FilePath) (log : String → IO Unit) : IO Json := do
     myRenames := myRenames.insert x new
     st := { st with renamed := st.renamed.push (x.toString, loser) }
   for f in files do
-    let path := work / f
+    -- published files are named by other workers' records; local ones by this copy's tree
+    let path ← if v.files.contains f then Safety.safeJoin "sync" work f else pure (work / f)
     let cur := texts.getD f ""
     let mut drafts := splitDrafts cur
     if let some pj := pending? then
@@ -518,6 +521,11 @@ unsafe def export_ (dir : FilePath) (out : FilePath) (log : String → IO Unit) 
   let cache : Store := { root := dir / "cache" }
   let roots := (v.known.markers.filter fun m => v.live.contains m.group).map (·.pid)
   let cat ← Catalog.ofStore cache roots
+  -- capsule modules and files come from other workers: refuse before anything is written
+  for gid in cat.order do
+    let c := (cat.get! gid).capsule
+    if let .error e := Safety.checkCapsuleShape c.file c.module then
+      return Json.mkObj [("ok", false), ("diags", toJson #[s!"capsule of {((cat.get! gid).declId.take 12).toString}: {e}"])]
   for gid in cat.order do discard <| P3.payload cache.root (cat.get! gid).declId
   let mathlib? := (← IO.getEnv "PARALEAN_MATHLIB").map FilePath.mk
   let cat' := { cat with metas := cat.metas.fold (fun m k g => m.insert k (renamedGroup v.renames g)) {} }

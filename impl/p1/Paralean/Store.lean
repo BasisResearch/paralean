@@ -2,6 +2,7 @@ module
 
 public import Lean
 public import Paralean.Model
+public import Paralean.Safety
 
 @[expose] public section
 
@@ -28,6 +29,16 @@ structure Store where
   root : FilePath
   /-- Also read the audit namespace (rejected groups); only the audit replay sets it. -/
   auditRead : Bool := false
+
+/-- P1's package ID (`Capture.packageId`), recomputed from the record's own contents:
+`H("v0/package", (declId, H("v0/capsule", (0, capsule JSON, sorted frontend deps))))`. -/
+def GroupRec.packageIdOf (g : GroupRec) : String :=
+  let deps := (g.feDeps.qsort (· < ·)).toList.eraseDups.toArray
+  let w : W := {}
+  let w := (w.uv 0).str (toJson g.capsule).compress
+  let cid := domainHash "v0/capsule" (deps.foldl W.id (w.uv deps.size)).out
+  let w : W := {}
+  domainHash "v0/package" ((w.id g.declId).id cid).out
 
 namespace Store
 
@@ -63,21 +74,30 @@ def putObject (s : Store) (bytes : ByteArray) : IO String := do
   return gid
 
 def getObject (s : Store) (gid : String) : IO ByteArray := do
+  -- IDs reach here from other workers' dependency lists: never a path component otherwise
+  unless Safety.isHexId gid do throw <| IO.userError s!"store: bad object ID {repr (gid.take 80).toString}"
   let bytes ← IO.FS.readBinFile (← s.readPath (·.objPath gid))
   let h := groupIdOf bytes
   unless h == gid do
     throw <| IO.userError s!"store: object {gid} fails hash verification (got {h})"
   return bytes
 
-def hasObject (s : Store) (gid : String) : IO Bool := (s.objPath gid).pathExists
+def hasObject (s : Store) (gid : String) : IO Bool := do
+  unless Safety.isHexId gid do throw <| IO.userError s!"store: bad object ID {repr (gid.take 80).toString}"
+  (s.objPath gid).pathExists
 
 def putMeta (s : Store) (g : GroupRec) : IO Unit :=
   IO.FS.writeFile (s.metaPath g.gid) (toJson g).pretty
 
 def getMeta (s : Store) (gid : String) : IO GroupRec := do
+  unless Safety.isHexId gid do throw <| IO.userError s!"store: bad package ID {repr (gid.take 80).toString}"
   let txt ← IO.FS.readFile (← s.readPath (·.metaPath gid))
   match Json.parse txt >>= fromJson? with
-  | .ok g => return g
+  | .ok (g : GroupRec) =>
+    -- a capsule names its own package ID; a copy under another worker's ID never shadows it
+    unless g.gid == gid && g.packageIdOf == gid do
+      throw <| IO.userError s!"store: meta {gid} is not the package its contents hash to"
+    return g
   | .error e => throw <| IO.userError s!"store: bad meta {gid}: {e}"
 
 def fileRecs (s : Store) : IO (Array (Nat × FileRec)) := do

@@ -1,6 +1,7 @@
 import Lean
 import Paralean.Materialize
 import Paralean.Rga
+import Paralean.Gate
 
 /-!
 Trusted validator (P3 stand-in until the control branch's validator lands): for each
@@ -55,6 +56,7 @@ unsafe def validatePkgs (store : Store) (roots : Array String) (log : String →
   let imports := cat.order.foldl (fun acc g => (cat.get! g).capsule.imports.foldl
     (fun acc m => if acc.contains m then acc else acc.push m) acc) #[]
   let sr ← sourceReplay cat cat.order imports (materialize? := some (materialize store))
+    (gate? := some Gate.checkCommand)
   let (kr, _) ← kernelReplay store cat cat.order sr
   let ms := (← IO.monoMsNow) - t0
   let mut bad : Std.HashMap String String := {}
@@ -124,10 +126,22 @@ unsafe def checkGroup (store : Store) (gids : Array String) (declId : String)
   let clo ← match cat.closure #[root] with
     | .ok c => pure c
     | .error e => return fail e
+  -- capsule files and modules become working-copy paths, export paths and module names
+  for gid in clo do
+    let c := (cat.get! gid).capsule
+    if let .error e := Safety.checkCapsuleShape c.file c.module then
+      return fail s!"capsule of {((cat.get! gid).declId.take 12).toString}: {e}"
   let imports := clo.foldl (fun acc g => (cat.get! g).capsule.imports.foldl
     (fun acc m => if acc.contains m then acc else acc.push m) acc) #[]
+  -- W2 A-28: published capsules run only gated commands (no `#eval`, `initialize`, `elab`,
+  -- ...). Initializer groups would run code when their materialized module is imported,
+  -- before any command gate sees them.
+  for gid in clo do
+    if hasInitEffect (cat.get! gid) then
+      return fail s!"group {((cat.get! gid).declId.take 12).toString} has initializer effects, which a published capsule may not have"
   let res ← try
       let sr ← sourceReplay cat clo imports (materialize? := some (materialize store))
+        (gate? := some Gate.checkCommand)
       let (kr, _) ← kernelReplay store cat clo sr
       pure (Except.ok (sr, kr))
     catch e => pure (Except.error s!"replay: {e}")

@@ -116,6 +116,15 @@ def planExport (cat : Catalog) (gids : Array String) (isBase : Name → Bool := 
 def modulePath (root : FilePath) (m : Name) : FilePath :=
   (m.components.foldl (fun p c => p / c.toString (escape := false)) root).withExtension "lean"
 
+/-- `modulePath` for a module name taken from capsule metadata: every component must be a
+plain identifier, so the file stays below `root` (no `..`, `/`, absolute or empty parts). -/
+@[noinline] def safeModulePath (root : FilePath) (m : Name) : Except String FilePath := do
+  Safety.checkModuleName m
+  let p := modulePath root m
+  unless p.toString.startsWith (root / "").toString do
+    throw s!"module {m} does not map below {root}"
+  return p
+
 def renderModule (cat : Catalog) (m : ExportModule)
     (ren : Std.HashMap String (Std.HashMap Name Name) := {}) (pinSync := true) : String := Id.run do
   let mut out := ""
@@ -163,20 +172,26 @@ def writeExport (cat : Catalog) (gids : Array String) (out : FilePath)
     IO (ExportPlan × Nat) := do
   let plan ← exportPlanFor cat gids
   if out.toString.length < 4 then throw <| IO.userError "refusing suspicious export dir"
+  -- Module names come from capsule metadata (other workers): every module must map to a
+  -- file below `out`, checked for all of them before anything is removed or written.
+  let mut paths : Array FilePath := #[]
+  for m in plan.modules do
+    match safeModulePath out m.name with
+    | .ok p => paths := paths.push p
+    | .error e => throw <| IO.userError s!"export: unsafe module name: {e}"
   if ← out.pathExists then IO.FS.removeDirAll out
   IO.FS.createDirAll out
   IO.FS.writeFile (out / "lean-toolchain") (toolchainPin ++ "\n")
-  let roots := plan.modules.map fun m => s!"\"{m.name}\""
+  let roots := plan.modules.map fun m => Safety.tomlString m.name.toString
   -- reuse the pinned Mathlib checkout and its already-fetched packages: no network
   let (req, pkgs) := match mathlib? with
-    | some p => (s!"\n[[require]]\nname = \"mathlib\"\npath = \"{p}\"\n",
-                 s!"packagesDir = \"{p / ".lake" / "packages"}\"\n")
+    | some p => (s!"\n[[require]]\nname = \"mathlib\"\npath = {Safety.tomlString p.toString}\n",
+                 s!"packagesDir = {Safety.tomlString (p / ".lake" / "packages").toString}\n")
     | none => ("", "")
   IO.FS.writeFile (out / "lakefile.toml")
     s!"name = \"paralean_export\"\n{pkgs}defaultTargets = [\"Export\"]\n{req}\n[[lean_lib]]\nname = \"Export\"\nroots = [{", ".intercalate roots.toList}]\n"
   let mut bytes := 0
-  for m in plan.modules do
-    let p := modulePath out m.name
+  for (m, p) in plan.modules.zip paths do
     if let some d := p.parent then IO.FS.createDirAll d
     -- experiment (OPEN-14): leave the stock asynchronous default in the export
     let pinSync := (← IO.getEnv "PARALEAN_EXPORT_ASYNC").isNone

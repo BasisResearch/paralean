@@ -94,9 +94,30 @@ unsafe def touchedExts (pExts : Array (PersistentEnvExtension EnvExtensionEntry 
       let n1 := (e.exportEntriesFn after s1).private.size
       if n0 == n1 then none else some (e.name, n1 - n0)
 
-/-- Elaborate every command of `inputCtx` from `parserState`, calling `k` after each. -/
+/-- `Frontend.processCommand`, except that `gate` sees the parsed command before it is
+elaborated (with the parser state that elaborates it). A refused command is never
+elaborated: the run stops with an error naming the reason. -/
+def processCommandGated (gate : Syntax → IO (Except String Unit)) : Frontend.FrontendM Bool := do
+  Frontend.updateCmdPos
+  let cmdState ← Frontend.getCommandState
+  let ictx ← Frontend.getInputContext
+  let pstate ← Frontend.getParserState
+  let scope := cmdState.scopes.head!
+  let pmctx := { env := cmdState.env, options := scope.opts, currNamespace := scope.currNamespace,
+                 openDecls := scope.openDecls }
+  let (cmd, ps, messages) := Parser.parseCommand ictx pmctx pstate cmdState.messages
+  modify fun s => { s with commands := s.commands.push cmd }
+  Frontend.setParserState ps
+  Frontend.setMessages messages
+  if let .error e ← gate cmd then throw <| IO.userError s!"capsule gate: {e}"
+  Frontend.elabCommandAtFrontend cmd
+  pure (Parser.isTerminalCommand cmd)
+
+/-- Elaborate every command of `inputCtx` from `parserState`, calling `k` after each.
+With `gate?`, every command is first checked by the gate (published capsules, W2 A-28). -/
 unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContext)
-    (parserState : Parser.ModuleParserState) (k : CmdResult → IO (Option Command.State)) :
+    (parserState : Parser.ModuleParserState) (k : CmdResult → IO (Option Command.State))
+    (gate? : Option (Syntax → IO (Except String Unit)) := none) :
     IO Command.State := do
   let pExts ← persistentEnvExtensionsRef.get
   -- fork hook 2: the per-command collector replaces the O(n) diff of local constants
@@ -110,7 +131,9 @@ unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContex
       let nMsgs := st0.messages.toArray.size
       let mark := Fork.declMark before
       let localBefore ← if collector then pure #[] else before.getLocalConstantInfos
-      let done ← processCommand
+      let done ← match gate? with
+        | some gate => processCommandGated gate
+        | none => processCommand
       let st1 ← getCommandState
       let after := st1.env
       let stx := (← get).commands.back!

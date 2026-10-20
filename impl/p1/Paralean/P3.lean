@@ -5,6 +5,7 @@ public import Paralean.Model
 public import Paralean.Store
 public import Paralean.Encode
 public import Paralean.Ed25519
+public import Paralean.Safety
 
 @[expose] public section
 
@@ -66,6 +67,17 @@ def jStr (j : Json) (k : String) : Except String String := j.getObjValAs? String
 def jNat (j : Json) (k : String) : Except String Nat := j.getObjValAs? Nat k
 def jStrs (j : Json) (k : String) : Except String (Array String) := j.getObjValAs? (Array String) k
 def jName (j : Json) : Except String Name := fromJson? j
+/-- A content ID field: 64 lowercase hex digits (it becomes a cache file name). -/
+def jId (j : Json) (k : String) : Except String String := do
+  let s ← jStr j k
+  Safety.checkHexId k s
+  return s
+/-- A source file field: the canonical relative-path rule (P2 `objects::check_file_path`). -/
+def jFile (j : Json) (k : String) : Except String String := do
+  let s ← jStr j k
+  match Safety.checkRelPath s with
+  | .ok () => return s
+  | .error e => throw s!"{k}: unsafe path {repr s}: {e}"
 
 def triple (j : Json) : Except String (Json × Nat × String) := do
   let a ← j.getArr?
@@ -82,13 +94,13 @@ def Marker.ofJson (j : Json) : Except String Marker := do
   let lk ← (← j.getObjValAs? (Array Json) "lineageKeys").mapM fun x => do
     let (n, l, a) ← triple x
     return ((← jName n), l, a)
-  return { id := ← jStr j "id", group := ← jStr j "group", revisions := ← jStrs j "revisions"
-           receipt := ← jStr j "receipt", file := ← jStr j "file", anchor, lamport := ← jNat j "lamport"
+  return { id := ← jId j "id", group := ← jId j "group", revisions := ← jStrs j "revisions"
+           receipt := ← jId j "receipt", file := ← jFile j "file", anchor, lamport := ← jNat j "lamport"
            author := ← jStr j "author", rootPath := rp, lineageKeys := lk
-           capsule := ← jStr j "capsule", pid := ← jStr j "pid" }
+           capsule := ← jId j "capsule", pid := ← jId j "pid" }
 
 def Tomb.ofJson (j : Json) : Except String Tomb := do
-  return { id := ← jStr j "id", file := ← jStr j "file", target := ← jStr j "target"
+  return { id := ← jId j "id", file := ← jFile j "file", target := ← jId j "target"
            lamport := ← jNat j "lamport", author := ← jStr j "author" }
 
 def Rev.ofJson (j : Json) : Except String Rev := do
@@ -394,6 +406,7 @@ def Trust.admits (t : Trust) (r : Receipt) (job : Job) (group capsule : String) 
 initialize admitted : IO.Ref (Std.HashSet (String × String × String)) ← IO.mkRef {}
 
 def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Job) := do
+  unless Safety.isHexId m.receipt do return .error "the record names a malformed receipt ID"
   let p := root / "p3" / "receipts" / s!"{m.receipt}.bin"
   unless ← p.pathExists do return .error s!"no receipt {(m.receipt.take 12).toString} in the cache"
   match Receipt.parse (← IO.FS.readBinFile p) with
@@ -422,17 +435,12 @@ publishes P1 groups. -/
 def capsuleIdOf (bytes : ByteArray) : String := domainHash "v0/capsule" bytes
 
 /-- P1's package ID (`Capture.packageId`): `H("v0/package", (declId, capsuleId))`. -/
-def packageIdOf (g : GroupRec) : String :=
-  let deps := (g.feDeps.qsort (· < ·)).toList.eraseDups.toArray
-  let w : W := {}
-  let w := (w.uv 0).str (toJson g.capsule).compress
-  let cid := domainHash "v0/capsule" (deps.foldl W.id (w.uv deps.size)).out
-  let w : W := {}
-  domainHash "v0/package" ((w.id g.declId).id cid).out
+def packageIdOf (g : GroupRec) : String := g.packageIdOf
 
 /-- A package's metadata from its stored capsule, after re-hashing the capsule against the
 ID the record names and checking that the package ID is the hash of its contents. -/
 def loadCapsule (root : FilePath) (capsule : String) : IO (Except String GroupRec) := do
+  unless Safety.isHexId capsule do return .error s!"bad capsule ID {repr (capsule.take 80).toString}"
   let p := root / "p3" / "capsules" / s!"{capsule}.json"
   unless ← p.pathExists do return .error s!"capsule {(capsule.take 12).toString} not in the cache"
   let bytes ← IO.FS.readBinFile p
@@ -443,6 +451,9 @@ def loadCapsule (root : FilePath) (capsule : String) : IO (Except String GroupRe
   | .ok (g : GroupRec) =>
     unless packageIdOf g == g.gid do
       return .error s!"capsule {(capsule.take 12).toString}: its package ID is not the hash of its contents"
+    -- the module and file become export paths and module names: both rules, and agreement
+    if let .error e := Safety.checkCapsuleShape g.capsule.file g.capsule.module then
+      return .error s!"capsule {(capsule.take 12).toString}: {e}"
     return .ok g
 
 end Paralean.P3

@@ -10,6 +10,7 @@ public meta import Paralean.Crdt
 public meta import Paralean.P3
 public meta import Paralean.Rga
 public meta import Paralean.Fork
+public meta import Paralean.Gate
 
 public meta section
 
@@ -81,6 +82,9 @@ def logEvent (s : String) : IO Unit := do
 
 /-- Depth of `remote%` loads in progress (the visibility predicate is suspended inside). -/
 initialize loadingDepth : IO.Ref Nat ← IO.mkRef 0
+/-- Packages whose capsule is being elaborated right now, innermost last. Each was
+receipt-checked immediately before; `remote_value%` skips the check only for the innermost. -/
+initialize loadingStack : IO.Ref (Array String) ← IO.mkRef #[]
 /-- Packages loaded on demand by name resolution during the current command (for capture). -/
 initialize loadLog : IO.Ref (Array String) ← IO.mkRef #[]
 /-- pid ↦ (group, capsule): from known records and from loaded capsules' dependency lists. -/
@@ -295,8 +299,11 @@ where closureOfCore (g : GroupRec) : CommandElabM (Array GroupRec) := do
     return (st.1, st.2.push r)
   return (← go g.gid {} #[]).2
 
-/-- Elaborate Lean source (several commands) at the root scope of the current file. -/
-def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := do
+/-- Elaborate Lean source (several commands) at the root scope of the current file. The
+source is package `self`'s rendered capsule: each command passes the command gate
+(`Gate.checkCommand`, W2 A-28) with the parser state that elaborates it, or nothing of it
+is elaborated past that point. -/
+def elabSourceAtRoot (self : String) (src : String) (fileName : String) : CommandElabM Unit := do
   let saved ← get
   let host ← hostBase.get
   let baseScope? ← Fork.getBaseScope
@@ -335,8 +342,12 @@ def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := d
       modify fun s => { s with messages := msgs }
       pstate := ps
       if Parser.isTerminalCommand cmd then break
+      if let .error e ← Gate.checkCommand self cmd then
+        throwError "remote%: {(self.take 8).toString}: the published capsule is refused before elaboration: {e}"
       withReader (fun ctx => { ctx with fileName, fileMap := inputCtx.fileMap }) do
-        elabCommand cmd
+        loadingStack.modify (·.push self)
+        try elabCommand cmd
+        finally loadingStack.modify (·.pop)
   finally
     let mut current := (← get).env
     if base?.isSome then
@@ -499,7 +510,8 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   let ty ← instantiateMVars ty
   let some declName ← Term.getDeclName? | throwError "remote_value%: not inside a declaration"
   let g ← getMetaIO pid
-  if (← loadingDepth.get) == 0 then checkReceipt g
+  -- only the capsule being loaded (receipt-checked just before) may skip the check (A-29)
+  unless (← loadingStack.get).back? == some g.gid do checkReceipt g
   let env ← getEnv
   let mm := env.mainModule
   let own := (← renames).getD g.gid {}
@@ -517,6 +529,12 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   let infos : Std.HashMap Name ConstantInfo := dg.members.foldl (fun m (_, _, ci) => m.insert ci.name ci) {}
   let some pubCi := infos[declName]? | throwError "remote_value%: {declName} missing from the payload"
   let some pubVal := pubCi.value? (allowOpaque := true) | throwError "remote_value%: {declName} has no published value"
+  -- the kernel evaluates `Lean.reduceBool c`/`Lean.reduceNat c` by running compiled code:
+  -- a fetched term never reaches `addDecl` with one (W2 A-28)
+  for (_, _, ci) in dg.members do
+    let uses := ci.type.getUsedConstants ++ ((ci.value? (allowOpaque := true)).map (·.getUsedConstants)).getD #[]
+    if uses.any ([`Lean.reduceBool, `Lean.reduceNat].contains ·) then
+      throwError "remote_value%: {g.short} uses kernel native evaluation in {ci.name}; it is never loaded"
   -- auxiliary members the proof uses (proof_n, match_n, private helpers), added first
   for n in auxOrder infos declName pubVal do
     if (← getEnv).contains n then continue
@@ -657,7 +675,7 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
         throwError "remote%: {d.short} ({d.publicNames}) sets {o}; it is never loaded"
     if d.members.isEmpty then
       let t0 ← IO.monoMsNow
-      elabSourceAtRoot (capsuleSource (← renames) d false closure) s!"<remote {d.short}>"
+      elabSourceAtRoot d.gid (capsuleSource (← renames) d false closure) s!"<remote {d.short}>"
       verifiedCache.modify (·.insert (mm, d.gid) #[])
       logEvent s!"load {d.declId} effect {(← IO.monoMsNow) - t0}ms"
       continue
@@ -670,7 +688,7 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
       let t0 ← IO.monoMsNow
       let fetch := proofFetched d
       let errsBefore := (← get).messages.toList.length
-      elabSourceAtRoot (capsuleSource (← renames) d fetch closure) s!"<remote {d.short}>"
+      elabSourceAtRoot d.gid (capsuleSource (← renames) d fetch closure) s!"<remote {d.short}>"
       let t1 ← IO.monoMsNow
       let errs ← ((← get).messages.toList.drop errsBefore).filterMapM fun m => do
         if m.severity == .error then return some (← m.toString) else return none

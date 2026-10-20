@@ -426,14 +426,20 @@ def byte : DecM UInt8 := do
     set { r with pos := r.pos + 1 }; return r.buf[r.pos]
   else throw "decode: unexpected end of input"
 
-/-- §1.1 `uvarint`; rejects non-minimal encodings (a trailing `0x00` group). -/
-partial def uv : DecM Nat := do
-  let b ← byte
-  if b < 128 then return b.toNat
-  else
-    let rest ← uv
-    if rest == 0 then throw "decode: non-minimal uvarint"
-    return (b &&& 0x7f).toNat + 128 * rest
+/-- §1.1 `uvarint`, as P2's `Dec::uvarint` (`pce.rs`): a `u64` in at most ten bytes (the
+tenth carries one bit), read iteratively; rejects non-minimal encodings (a trailing `0x00`
+group) and overflow. -/
+def uv : DecM Nat := do
+  let mut value := 0
+  for index in [0:10] do
+    let b ← byte
+    let low := (b &&& 0x7f).toNat
+    if index == 9 && low > 1 then throw "decode: uvarint overflows u64"
+    value := value + low * 2 ^ (7 * index)
+    if b < 128 then
+      if index > 0 && b == 0 then throw "decode: non-minimal uvarint"
+      return value
+  throw "decode: uvarint overflows u64"
 
 def bytes : DecM ByteArray := do
   let n ← uv

@@ -35,7 +35,8 @@ structure ReplayRes where
 
 /-- Elaborate a source chunk into the session, routing the command at byte offset `mainAt`
 through `analyze` (with the stored package ID) and everything else to scaffolding. -/
-unsafe def replayCapsule (sess : Session) (fc : FileCtx) (g : GroupRec) (src : String) (mainAt : Nat) :
+unsafe def replayCapsule (sess : Session) (fc : FileCtx) (g : GroupRec) (src : String) (mainAt : Nat)
+    (gate? : Option (String → Syntax → IO (Except String Unit)) := none) :
     IO (Session × ReplayRes) := do
   let inputCtx := Parser.mkInputContext src s!"<capsule {g.short}>"
   let sessRef ← IO.mkRef sess
@@ -94,7 +95,7 @@ unsafe def replayCapsule (sess : Session) (fc : FileCtx) (g : GroupRec) (src : S
             severity := "capsule", code := "replay-scaffold-error", msg := msg
             file := g.capsule.file, line := g.capsule.startLine } : Diag)
         resRef.modify fun x => { x with diags := x.diags ++ ds }
-  let st ← runCommands (← sessRef.get).cmdState inputCtx {} fun r => do
+  let st ← runCommands (← sessRef.get).cmdState inputCtx {} (gate? := gate?.map (· g.gid)) fun r => do
     replayStep r
     return none
   let sess ← sessRef.get
