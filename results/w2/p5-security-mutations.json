@@ -24,6 +24,69 @@
       "log": "results/w2/p5-security-mutation-logs/runtime_secret_filter.log"
     },
     {
+      "name": "publish_receipt_private_dir",
+      "assertion": "test_target_publication_does_not_follow_worker_symlinks",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/publish_receipt_private_dir.log"
+    },
+    {
+      "name": "publish_plan_private_dir",
+      "assertion": "test_target_publication_does_not_follow_worker_symlinks",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/publish_plan_private_dir.log"
+    },
+    {
+      "name": "worker_log_replace_links",
+      "assertion": "test_worker_logs_replace_planted_links",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/worker_log_replace_links.log"
+    },
+    {
+      "name": "recovery_secret_reuse",
+      "assertion": "test_recovery_secret_rejects_shared_credentials",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/recovery_secret_reuse.log"
+    },
+    {
+      "name": "recovery_secret_private_file",
+      "assertion": "test_recovery_secret_file_must_be_private_regular_file",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/recovery_secret_private_file.log"
+    },
+    {
+      "name": "legacy_key_bundle_refusal",
+      "assertion": "test_legacy_key_bundle_is_refused",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/legacy_key_bundle_refusal.log"
+    },
+    {
+      "name": "legacy_key_bundle_commit",
+      "assertion": "test_commit_refuses_legacy_bundle",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/legacy_key_bundle_commit.log"
+    },
+    {
+      "name": "child_env_credential_patterns",
+      "assertion": "test_tool_children_receive_no_foreign_credentials",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/child_env_credential_patterns.log"
+    },
+    {
+      "name": "worker_env_filter",
+      "assertion": "test_worker_cli_receives_no_foreign_credentials",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/worker_env_filter.log"
+    },
+    {
       "name": "export_recorded_head",
       "assertion": "test_explicit_export_rejects_replaced_valid_head",
       "exit_code": 1,

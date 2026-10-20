@@ -1,0 +1,22 @@
+======================================================================
+FAIL: test_target_publication_does_not_follow_worker_symlinks (test_worker_folder_writes.TargetPublicationPathTest.test_target_publication_does_not_follow_worker_symlinks)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_worker_folder_writes.py", line 84, in test_target_publication_does_not_follow_worker_symlinks
+    result = self.backend.publish("w0", self.directory, "A.lean", ["P5.x"], epoch=1)
+  File "/data/home/kirancodes/tmp/w2-p5-mutations-hfz8m298/p5lib/backend.py", line 754, in publish
+    raise BackendError(f"no publication plan for target {name}")
+p5lib.backend.BackendError: no publication plan for target P5.x
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_worker_folder_writes.py", line 86, in test_target_publication_does_not_follow_worker_symlinks
+    self.fail(f"publication failed because of worker-planted links: {exc!r}")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: publication failed because of worker-planted links: BackendError('no publication plan for target P5.x')
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.007s
+
+FAILED (failures=1)

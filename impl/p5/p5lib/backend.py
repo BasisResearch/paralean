@@ -25,6 +25,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from .childenv import CONTROLLER_ONLY, STORE_CREDENTIALS, filter_env
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,6 +53,28 @@ def _source_parts(relative: str) -> tuple[str, ...]:
             "\\" in relative or "\0" in relative):
         raise BackendError(f"unsafe source path: {relative}")
     return p.parts
+
+
+def _read_private_secret(path: Path) -> str:
+    """Read an owner-only regular file without following a final symlink."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        raise BackendError(f"recovery secret file is missing or not a regular file: {path}") from exc
+    info = os.fstat(fd)
+    if not stat.S_ISREG(info.st_mode):
+        os.close(fd)
+        raise BackendError(f"recovery secret file is not a regular file: {path}")
+    with os.fdopen(fd, "rb") as handle:
+        if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise BackendError(f"recovery secret file must be owned by this user with mode 0600: {path}")
+        data = handle.read(4097)
+    if len(data) > 4096:
+        raise BackendError(f"recovery secret file is too large: {path}")
+    try:
+        return data.decode().strip()
+    except UnicodeDecodeError as exc:
+        raise BackendError(f"recovery secret file is not text: {path}") from exc
 
 
 def _source_fd(work: Path, relative: str, *, create_dirs: bool = False) -> tuple[int, str]:
@@ -93,6 +117,13 @@ def _read_source(work: Path, relative: str) -> str | None:
         os.close(directory_fd)
 
 
+def _write_new_file(path: Path, text: str) -> None:
+    """Create a new owner-only file; an existing name or symlink fails closed."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(text)
+
+
 def _write_source_if_missing(work: Path, relative: str, text: str) -> None:
     directory_fd, name = _source_fd(work, relative, create_dirs=True)
     try:
@@ -111,19 +142,42 @@ def _write_source_if_missing(work: Path, relative: str, text: str) -> None:
 
 class Backend:
     _JOURNAL_DOMAIN = b"paralean/p5/journal-hmac/v1\0"
-    _CONTROLLER_ONLY_ENV = ("PARALEAN_P5_RECOVERY_SECRET", "PARALEAN_GARAGE_ADMIN_TOKEN",
-                            "PARALEAN_GARAGE_RPC_SECRET")
+    _CONTROLLER_ONLY_ENV = tuple(sorted(CONTROLLER_ONLY))
+    # Tool children (bridge, plr, ws.py, Lean, validator) reach the deployment's
+    # own store and their configured signing-key file; nothing else secret.
+    _RUNTIME_ALLOW = (*STORE_CREDENTIALS, "PARALEAN_KEYS")
+    # Credentials every worker holds or can obtain; the recovery secret must differ.
+    _SHARED_CREDENTIAL_ENV = ("PARALEAN_GARAGE_ADMIN_TOKEN", "PARALEAN_GARAGE_RPC_SECRET",
+                              "PARALEAN_S3_SECRET_KEY", "PARALEAN_S3_ACCESS_KEY")
+    _MIN_RECOVERY_SECRET = 16
 
     @classmethod
     def _runtime_env(cls, env: dict) -> dict:
-        return {key: value for key, value in env.items() if key not in cls._CONTROLLER_ONLY_ENV}
+        return filter_env(env, allow=cls._RUNTIME_ALLOW)
+
+    @classmethod
+    def _recovery_secret(cls, env: dict) -> str:
+        """Return the controller-only recovery secret, failing closed on any doubt."""
+        secret = env.get("PARALEAN_P5_RECOVERY_SECRET") or None
+        if secret is None and env.get("PARALEAN_P5_RECOVERY_SECRET_FILE"):
+            secret = _read_private_secret(Path(env["PARALEAN_P5_RECOVERY_SECRET_FILE"]))
+        if secret is None or not secret.strip():
+            raise BackendError("deployment recovery secret is required: set "
+                               "PARALEAN_P5_RECOVERY_SECRET_FILE to an owner-only file")
+        if len(secret.strip()) < cls._MIN_RECOVERY_SECRET:
+            raise BackendError("deployment recovery secret is too short")
+        reused = [name for name in cls._SHARED_CREDENTIAL_ENV
+                  if env.get(name) and hmac.compare_digest(env[name].encode(), secret.encode())]
+        if reused:
+            raise BackendError("deployment recovery secret must not reuse " + ", ".join(reused))
+        return secret
 
     @classmethod
     def _journal_key(cls, task_id: str, env: dict) -> bytes:
-        secret = env.get("PARALEAN_P5_RECOVERY_SECRET")
         deployment = env.get("PARALEAN_DEPLOYMENT")
-        if not secret or not deployment:
-            raise BackendError("deployment recovery secret is required for task journal authentication")
+        if not deployment:
+            raise BackendError("deployment name is required for task journal authentication")
+        secret = cls._recovery_secret(env)
         return HKDF(algorithm=hashes.SHA256(), length=32,
                     salt=(deployment + "\0" + task_id).encode(),
                     info=cls._JOURNAL_DOMAIN).derive(secret.encode())
@@ -258,13 +312,8 @@ class Backend:
     def _bridge(self, *args: str, env: dict | None = None) -> dict:
         return self._run([self.bridge, *args], env=env)
 
-    def _encryption_key(self, *, legacy: bool = False) -> bytes:
-        if legacy:
-            secret = self.env["PARALEAN_S3_SECRET_KEY"]
-        else:
-            secret = self.env.get("PARALEAN_P5_RECOVERY_SECRET")
-            if not secret:
-                raise BackendError("PARALEAN_P5_RECOVERY_SECRET is required for durable signing keys")
+    def _encryption_key(self) -> bytes:
+        secret = self._recovery_secret(self.env)
         salt = (self.env["PARALEAN_DEPLOYMENT"] + "/p5/" + self.task_id).encode()
         return hashlib.pbkdf2_hmac("sha256", secret.encode(), salt, 100_000, 32)
 
@@ -275,10 +324,12 @@ class Backend:
         return "v2:" + base64.b64encode(ciphertext).decode()
 
     def _open(self, value: str) -> bytes:
-        legacy = not value.startswith("v2:")
-        encoded = value if legacy else value[3:]
-        b = base64.b64decode(encoded, validate=True)
-        return AESGCM(self._encryption_key(legacy=legacy)).decrypt(
+        if not isinstance(value, str) or not value.startswith("v2:"):
+            # Pre-v2 bundles were sealed under the worker-held S3 secret; any
+            # store reader can decrypt them, so their seeds are not trusted.
+            raise BackendError("refusing a pre-v2 key bundle; rotate this task's signing seeds")
+        b = base64.b64decode(value[3:], validate=True)
+        return AESGCM(self._encryption_key()).decrypt(
             b[:12], b[12:], self.contract_hash.encode())
 
     def _key_paths(self) -> list[Path]:
@@ -311,11 +362,9 @@ class Backend:
 
     def _commit(self, data: dict) -> str:
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        if data.get("keys") and any(not encrypted.startswith("v2:") for encrypted in data["keys"].values()):
-            data = dict(data)
-            data["keys"] = {name: self._seal(self._open(encrypted))
-                            for name, encrypted in data["keys"].items()}
-            data["format"] = 2
+        if any(not isinstance(encrypted, str) or not encrypted.startswith("v2:")
+               for encrypted in (data.get("keys") or {}).values()):
+            raise BackendError("refusing to journal a pre-v2 key bundle; rotate this task's signing seeds")
         data = self._sign_journal({**data, "journal_sequence": self.sequence + 1},
                                   self.task_id, self.env)
         with tempfile.NamedTemporaryFile(mode="wb", dir=self.state_dir, delete=False) as tmp:
@@ -567,11 +616,12 @@ class Backend:
 
     @staticmethod
     def _transfer_rows(directory: Path) -> list[dict]:
-        path = directory / "cache" / "p3" / "transfer.jsonl"
-        if not path.exists():
+        # Worker-controlled metrics: read without following symlinks.
+        text = _read_source(directory, "cache/p3/transfer.jsonl")
+        if text is None:
             return []
         rows = []
-        for line in path.read_text().splitlines():
+        for line in text.splitlines():
             try:
                 rows.append(json.loads(line))
             except json.JSONDecodeError:
@@ -687,20 +737,29 @@ class Backend:
             if not v.get("accepted"):
                 reason = str(v.get("reason") or "no reason returned")[:500]
                 raise BackendError(f"trusted validator rejected target {name}: {reason}")
-            receipt = directory / "p5-target-receipt.json"
-            receipt.write_text(json.dumps(v))
-            plan = directory / "p5-target-plan.json"
-            planned = self._run([self.lean, "ws-plan", "--dir", str(directory), "--file", file,
-                                 "--receipts", str(receipt), "--out", str(plan)], env=own_env)
-            if planned.get("planned", 0) == 0:
-                raise BackendError(f"no publication plan for target {name}")
-            plan_entries = json.loads(plan.read_text())
-            selected = [entry for entry in plan_entries if entry.get("group") == item["group"]]
-            if len(selected) != 1:
-                raise BackendError(f"target {name} has no unique publication plan")
-            plan.write_text(json.dumps(selected))
-            pub = self._bridge("publish-target", "--cache", str(cache), "--ws", agent,
-                               "--plan", str(plan), "--name", name, "--epoch", str(epoch))
+            # The worker controls its own folder and may plant symlinks there, so
+            # the receipt and plan live in a fresh controller-private directory.
+            self.state_dir.mkdir(parents=True, exist_ok=True)
+            with tempfile.TemporaryDirectory(dir=self.state_dir, prefix="p5-publish-") as staging:
+                private = Path(staging)
+                receipt = private / "p5-target-receipt.json"
+                _write_new_file(receipt, json.dumps(v))
+                plan = private / "p5-target-plan.json"
+                planned = self._run([self.lean, "ws-plan", "--dir", str(directory), "--file", file,
+                                     "--receipts", str(receipt), "--out", str(plan)], env=own_env)
+                if planned.get("planned", 0) == 0:
+                    raise BackendError(f"no publication plan for target {name}")
+                plan_entries = json.loads(_read_source(private, plan.name) or "null")
+                if not isinstance(plan_entries, list):
+                    raise BackendError(f"no publication plan for target {name}")
+                selected = [entry for entry in plan_entries
+                            if isinstance(entry, dict) and entry.get("group") == item["group"]]
+                if len(selected) != 1:
+                    raise BackendError(f"target {name} has no unique publication plan")
+                selected_plan = private / "p5-target-plan-selected.json"
+                _write_new_file(selected_plan, json.dumps(selected))
+                self._bridge("publish-target", "--cache", str(cache), "--ws", agent,
+                             "--plan", str(selected_plan), "--name", name, "--epoch", str(epoch))
             self._run([self.plr, "pull", "--cache", str(cache), "--only", item["group"]], env=own_env)
             published.append(item["group"])
         if not published:
@@ -792,8 +851,8 @@ class Backend:
     @staticmethod
     def _attest_stock_build(out: Path, stock_lake: str, mathlib: str | None) -> dict:
         """Keep the real, clean stock build log named by the P2 build receipt."""
-        stock_env = {k: v for k, v in os.environ.items()
-                     if not k.startswith("PARALEAN_") and k != "LEAN_PATH"}
+        stock_env = filter_env({k: v for k, v in os.environ.items()
+                                if not k.startswith("PARALEAN_") and k != "LEAN_PATH"})
         stock_env["LEAN_NUM_THREADS"] = "1"
         log_path = out / "build.log"
         started = time.monotonic()
@@ -928,9 +987,9 @@ class Backend:
     def conflicts(self) -> list[dict]:
         issues = []
         for agent, directory in self.paths.items():
-            log = directory / "diagnostics.log"
-            if log.exists():
-                for line in log.read_text().splitlines():
+            text = _read_source(directory, "diagnostics.log")
+            if text is not None:
+                for line in text.splitlines():
                     if "collision" in line.lower() or "conflict" in line.lower():
                         issues.append({"agent": agent, "diagnostic": line[:500]})
         return issues

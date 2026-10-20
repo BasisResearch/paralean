@@ -22,8 +22,27 @@ export LEAN_NUM_THREADS="${LEAN_NUM_THREADS:-1}"
 export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 . "$p5_here/../../p3/scripts/env.sh"
 # Recovery credentials belong to the controller, separate from workers' S3
-# credentials. This existing service secret survives deletion of desktop state.
-export PARALEAN_P5_RECOVERY_SECRET="${PARALEAN_P5_RECOVERY_SECRET:-${PARALEAN_GARAGE_ADMIN_TOKEN:-}}"
+# credentials and from the Garage administration token. The controller reads a
+# random secret from an owner-only file kept with the cluster, so it survives
+# deletion of desktop state; it refuses a missing, shared or non-private secret.
+export PARALEAN_P5_RECOVERY_SECRET_FILE="${PARALEAN_P5_RECOVERY_SECRET_FILE:-$PARALEAN_P3_PREFIX/p5-recovery-secret}"
+# Create the secret once, without replacing any existing name (noclobber uses O_EXCL).
+paralean_p5_recovery_secret_init() {
+  [ -d "$(dirname "$PARALEAN_P5_RECOVERY_SECRET_FILE")" ] || return 0
+  if [ -e "$PARALEAN_P5_RECOVERY_SECRET_FILE" ] || [ -L "$PARALEAN_P5_RECOVERY_SECRET_FILE" ]; then
+    return 0
+  fi
+  ( umask 077; set -o noclobber
+    od -An -tx1 -N32 /dev/urandom | tr -d ' \n' > "$PARALEAN_P5_RECOVERY_SECRET_FILE" ) 2>/dev/null \
+    || echo "warning: could not create $PARALEAN_P5_RECOVERY_SECRET_FILE" >&2
+  return 0
+}
+paralean_p5_recovery_secret_init
+# An older shell may still carry the admin-token-derived value; the controller
+# would refuse it, so drop it unless the operator set a separate secret.
+if [ -n "${PARALEAN_P5_RECOVERY_SECRET:-}" ] && [ "${PARALEAN_P5_RECOVERY_SECRET}" = "${PARALEAN_GARAGE_ADMIN_TOKEN:-}" ]; then
+  unset PARALEAN_P5_RECOVERY_SECRET
+fi
 export PARALEAN_PLR="${PARALEAN_PLR:-$PARALEAN_P2_DIR/target/release/plr}"
 export PARALEAN_P3_BIN="${PARALEAN_P3_BIN:-$PARALEAN_P2_DIR/target/release/paralean-p3}"
 export PARALEAN_P5_BRIDGE="${PARALEAN_P5_BRIDGE:-$PARALEAN_P2_DIR/target/release/paralean-p5-store}"

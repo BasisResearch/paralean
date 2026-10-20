@@ -12,7 +12,48 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from .childenv import STORE_CREDENTIALS, filter_env
 from .task import Target, Task
+
+# Authentication a coding CLI may take from the environment instead of its own
+# login files. Everything else credential-shaped is withheld from workers.
+WORKER_CLI_CREDENTIALS = {
+    "claude": ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"),
+    "codex": ("OPENAI_API_KEY", "CODEX_API_KEY"),
+    "command": (),
+}
+
+
+def worker_env(kind: str, parent: dict | None = None) -> dict:
+    """The parent environment without any credential the worker does not need."""
+    source = os.environ if parent is None else parent
+    # Operators may name extra variables their own worker command needs.
+    extra = [name.strip() for name in source.get("PARALEAN_P5_WORKER_ENV_PASSTHROUGH", "").split(",")
+             if name.strip() and not name.strip().upper().startswith("PARALEAN_")]
+    return filter_env(source, allow=(*STORE_CREDENTIALS, *WORKER_CLI_CREDENTIALS.get(kind, ()), *extra))
+
+
+def _open_log_dir(directory: Path) -> int:
+    """Open directory/p5-logs, refusing a symlink anywhere below `directory`."""
+    fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        try:
+            os.mkdir("p5-logs", 0o700, dir_fd=fd)
+        except FileExistsError:
+            pass
+        return os.open("p5-logs", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+    finally:
+        os.close(fd)
+
+
+def _replace_file(directory_fd: int, name: str) -> int:
+    """Create `name` afresh: a planted symlink or hard link is unlinked, never followed."""
+    try:
+        os.unlink(name, dir_fd=directory_fd)
+    except FileNotFoundError:
+        pass
+    return os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
+                   dir_fd=directory_fd)
 
 
 @dataclass
@@ -51,10 +92,19 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
         feedback: str = "", stop_event=None) -> WorkerResult:
     directory.mkdir(parents=True, exist_ok=True)
     logdir = directory / "p5-logs"
-    logdir.mkdir(exist_ok=True)
     tag = f"{target.name.replace('.', '_')}-{attempt}"
+    if "/" in tag or tag.startswith("."):
+        raise ValueError(f"unsafe target log name: {tag}")
     prompt_path = logdir / f"{tag}.prompt.txt"
-    prompt_path.write_text(prompt(task, target, agent, directory, feedback))
+    prompt_text = prompt(task, target, agent, directory, feedback)
+    # The worker owns this folder; never follow a link it planted there.
+    logdir_fd = _open_log_dir(directory)
+    try:
+        with os.fdopen(_replace_file(logdir_fd, prompt_path.name), "w") as handle:
+            handle.write(prompt_text)
+        log_fd = _replace_file(logdir_fd, f"{tag}.log")
+    finally:
+        os.close(logdir_fd)
     values = {"workspace": str(directory), "work": str(directory / "work"),
               "file": target.file, "target": target.name, "statement": target.statement,
               "prompt": str(prompt_path), "agent": agent, "attempt": str(attempt)}
@@ -63,23 +113,22 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
                "--skip-git-repo-check", "-c", 'approval_policy="never"',
                "-c", "sandbox_workspace_write.network_access=true",
                "-C", str(directory / "work"), "-"]
-        stdin = prompt_path.read_text()
+        stdin = prompt_text
     elif task.worker_kind == "claude":
         cmd = ["claude", "-p", "--permission-mode", "auto", "--output-format", "json",
-               prompt_path.read_text()]
+               prompt_text]
         stdin = None
     else:
         try:
             cmd = [part.format_map(values) for part in task.worker_command]
         except (KeyError, ValueError) as exc:
+            os.close(log_fd)
             raise ValueError(f"invalid worker command template: {exc}") from exc
         stdin = None
-    env = os.environ.copy()
-    # The controller's full key file may hold authority and validator seeds. Every
-    # coding agent receives only its own workspace signing seed.
-    for secret in ("PARALEAN_KEYS", "PARALEAN_P5_RECOVERY_SECRET",
-                   "PARALEAN_GARAGE_ADMIN_TOKEN", "PARALEAN_GARAGE_RPC_SECRET"):
-        env.pop(secret, None)
+    # The controller's full key file may hold authority and validator seeds, and
+    # its environment may hold peer, Garage or recovery credentials. Every coding
+    # agent receives only its own workspace signing seed and store access.
+    env = worker_env(task.worker_kind)
     env["PARALEAN_KEYS"] = str(directory / "keys.json")
     env["PARALEAN_TRUST"] = str(directory.parent / "trust.json")
     env["PARALEAN_STORE"] = str(directory / "cache")
@@ -119,7 +168,7 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
         if not guard_exited:
             proc.wait()
 
-    with log_path.open("wb") as log:
+    with os.fdopen(log_fd, "wb") as log:
         try:
             guard = Path(__file__).with_name("worker_guard.py")
             proc = subprocess.Popen([sys.executable, str(guard), *cmd], cwd=directory / "work", stdin=subprocess.PIPE if stdin else subprocess.DEVNULL,

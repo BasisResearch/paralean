@@ -22,8 +22,48 @@ CASES = [
     ("key_plaintext_match", "p5lib/backend.py", " or handle.read() != plaintext", "",
      "test_journal_auth.py", "test_key_restore_rejects_symlink_and_stale_local_key"),
     ("runtime_secret_filter", "p5lib/backend.py",
-     "return {key: value for key, value in env.items() if key not in cls._CONTROLLER_ONLY_ENV}",
+     "return filter_env(env, allow=cls._RUNTIME_ALLOW)",
      "return dict(env)", "test_journal_auth.py", "test_runtime_child_does_not_inherit_controller_secrets"),
+    # W2 A-9: target receipts and plans stay out of the worker-controlled folder.
+    ("publish_receipt_private_dir", "p5lib/backend.py",
+     '                receipt = private / "p5-target-receipt.json"\n'
+     "                _write_new_file(receipt, json.dumps(v))\n",
+     '                receipt = directory / "p5-target-receipt.json"\n'
+     "                receipt.write_text(json.dumps(v))\n",
+     "test_worker_folder_writes.py", "test_target_publication_does_not_follow_worker_symlinks"),
+    ("publish_plan_private_dir", "p5lib/backend.py",
+     'plan = private / "p5-target-plan.json"', 'plan = directory / "p5-target-plan.json"',
+     "test_worker_folder_writes.py", "test_target_publication_does_not_follow_worker_symlinks"),
+    ("worker_log_replace_links", "p5lib/workers.py",
+     "    try:\n        os.unlink(name, dir_fd=directory_fd)\n    except FileNotFoundError:\n        pass\n"
+     "    return os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,\n",
+     "    return os.open(name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600,\n",
+     "test_worker_folder_writes.py", "test_worker_logs_replace_planted_links"),
+    # W2 A-20: the recovery secret is separate from shared credentials and private.
+    ("recovery_secret_reuse", "p5lib/backend.py", "        if reused:\n", "        if False:\n",
+     "test_recovery_secret.py", "test_recovery_secret_rejects_shared_credentials"),
+    ("recovery_secret_private_file", "p5lib/backend.py",
+     "if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) & 0o077:", "if False:",
+     "test_recovery_secret.py", "test_recovery_secret_file_must_be_private_regular_file"),
+    # W2 A-21: reinstating S3-secret decryption of pre-v2 bundles must be caught.
+    ("legacy_key_bundle_refusal", "p5lib/backend.py",
+     "            raise BackendError(\"refusing a pre-v2 key bundle; rotate this task's signing seeds\")\n",
+     "            b = base64.b64decode(value, validate=True)\n"
+     "            salt = (self.env[\"PARALEAN_DEPLOYMENT\"] + \"/p5/\" + self.task_id).encode()\n"
+     "            key = hashlib.pbkdf2_hmac(\"sha256\", self.env[\"PARALEAN_S3_SECRET_KEY\"].encode(),\n"
+     "                                      salt, 100_000, 32)\n"
+     "            return AESGCM(key).decrypt(b[:12], b[12:], self.contract_hash.encode())\n",
+     "test_key_bundles.py", "test_legacy_key_bundle_is_refused"),
+    ("legacy_key_bundle_commit", "p5lib/backend.py",
+     "            raise BackendError(\"refusing to journal a pre-v2 key bundle; rotate this task's signing seeds\")\n",
+     "            pass\n", "test_key_bundles.py", "test_commit_refuses_legacy_bundle"),
+    # W2 A-23: credential-shaped variables never reach tool or worker children.
+    ("child_env_credential_patterns", "p5lib/childenv.py",
+     " and (key in allowed or not is_sensitive(key))", "",
+     "test_child_env.py", "test_tool_children_receive_no_foreign_credentials"),
+    ("worker_env_filter", "p5lib/workers.py",
+     "    env = worker_env(task.worker_kind)\n", "    env = os.environ.copy()\n",
+     "test_child_env.py", "test_worker_cli_receives_no_foreign_credentials"),
     ("export_recorded_head", "p5lib/controller.py",
      "        verify_recorded_heads()\n        exported =", "        exported =",
      "test_controller.py", "test_explicit_export_rejects_replaced_valid_head"),

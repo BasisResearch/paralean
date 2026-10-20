@@ -1,0 +1,38 @@
+======================================================================
+FAIL: test_worker_cli_receives_no_foreign_credentials (test_child_env.ChildEnvironmentTest.test_worker_cli_receives_no_foreign_credentials)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_child_env.py", line 103, in test_worker_cli_receives_no_foreign_credentials
+    self.assert_clean(env)
+    ~~~~~~~~~~~~~~~~~^^^^^
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_child_env.py", line 54, in assert_clean
+    self.assertEqual(leaked, [], "credentials reached a child process")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['AWS_SECRET_ACCESS_KEY', 'DB_PASSWORD', '[361 chars]RET'] != []
+
+First list contains 16 additional elements.
+First extra element 0:
+'AWS_SECRET_ACCESS_KEY'
+
++ []
+- ['AWS_SECRET_ACCESS_KEY',
+-  'DB_PASSWORD',
+-  'GH_TOKEN',
+-  'GOOGLE_APPLICATION_CREDENTIALS',
+-  'PARALEAN_AUTHORITY_PRIVATE',
+-  'PARALEAN_GARAGE_ADMIN_TOKEN',
+-  'PARALEAN_GARAGE_RPC_SECRET',
+-  'PARALEAN_P5_RECOVERY_SECRET',
+-  'PARALEAN_P5_RECOVERY_SECRET_FILE',
+-  'PARALEAN_PEER_FDB_CLUSTER',
+-  'PARALEAN_PEER_KEYS',
+-  'PARALEAN_PEER_S3_ACCESS_KEY',
+-  'PARALEAN_PEER_S3_SECRET_KEY',
+-  'PARALEAN_SIGNING_SEED',
+-  'SOME_TOKEN',
+-  'X_SECRET'] : credentials reached a child process
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.008s
+
+FAILED (failures=1)

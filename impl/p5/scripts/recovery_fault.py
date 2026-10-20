@@ -32,8 +32,10 @@ def main() -> int:
 
     if not os.environ.get("PARALEAN_INSTANCE", "").startswith("p5-"):
         ap.error("source the P5 environment with a private p5-* PARALEAN_INSTANCE")
-    if not os.environ.get("PARALEAN_P5_RECOVERY_SECRET"):
-        ap.error("store-only recovery secret is required")
+    try:
+        Backend._recovery_secret(dict(os.environ))
+    except RuntimeError as exc:
+        ap.error(f"store-only recovery secret is unusable: {exc}")
     subprocess.run(["df", "-h", "/data"], check=True)
     run_dir = args.run_dir.resolve()
     run_dir.mkdir(parents=True, exist_ok=True)

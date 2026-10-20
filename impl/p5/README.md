@@ -31,10 +31,25 @@ Build P1/P3 using their README instructions before running P5. Python 3.11 or ne
 and `cryptography` are required. Workers use the box's existing CLI authentication;
 do not put API secrets in task files or command arguments.
 The deployment recovery secret must be kept separately from worker credentials.
-The provided cluster environment derives it from the existing Garage
-administration credential and excludes it from worker environments.
+The provided cluster environment creates a random secret once, in the owner-only
+file `$PARALEAN_P5_PREFIX/p5-recovery-secret` (`PARALEAN_P5_RECOVERY_SECRET_FILE`),
+and the controller refuses a secret that is missing, empty, shorter than 16
+characters, equal to the Garage administration token or RPC secret or the S3
+credentials, or held in a symlink or a file readable by group or others.
+`PARALEAN_P5_RECOVERY_SECRET`, if set, overrides the file under the same checks.
 Task journal payloads are authenticated with that secret and bind their store
 sequence; recovery rejects tampering, replay and older unsigned prototype journals.
+Signing seeds are journaled only in the `v2:` form sealed under the recovery
+secret. Older bundles, sealed under the S3 secret every worker holds, are refused:
+rerun such a task with fresh seeds.
+
+Child processes get the controller's environment without credential-shaped
+variables (names containing SECRET, TOKEN, PASSWORD, CREDENTIAL, PRIVATE, SEED,
+API_KEY or ACCESS_KEY, every `PARALEAN_PEER_*`, and `PARALEAN_*` names containing
+KEY), except the deployment's own S3 credentials and key-file path. A coding CLI
+also keeps its own login variables (for example `ANTHROPIC_API_KEY` for `claude`);
+`PARALEAN_P5_WORKER_ENV_PASSTHROUGH=NAME,...` passes further non-`PARALEAN_`
+variables a custom worker command needs.
 
 `--workers N` selects logical workspaces. `--parallelism N` bounds simultaneous
 worker CLIs and defaults to at most four. On the shared box, budget for the store,
