@@ -62,6 +62,10 @@ Requiring a counterexample for those deletions would demand a false result.
   fail. `receipt_prepare_no_deps` deletes the check and requires every
   Receipts invariant to survive. The check stays in the protocol as a cheap
   local rejection; it is not a safety guard.
+- **Receipts: RelayReceive's published-dependencies check (W2 A-2).** Redundant
+  in the model for the same reason (`receipt_relay_no_deps` requires the
+  pass). The implementation keeps it in T9 because batch receipts may name a
+  dependency that is not yet published, which is also why T1 reads it.
 - **Certificates: Commit's own-reply-quorum check, under atomic certificates.**
   With the stranded-head fix every published group has a certificate quorum
   from publication on, and a committer knows only published groups, so
@@ -108,6 +112,11 @@ Each hardening model has its own mutations in `scripts/check-tla-negative.sh`.
 | Model | Guard | Mutation | Required failure |
 |---|---|---|---|
 | Receipts | Staging needs a held receipt (the only receipt guard; publish is the base publish) | `unreceipted_staging`, `unreceipted_publication` (same deletion, two oracles) | `StagedValid`, `PublishedValid` |
+| Receipts | T1 reads the issuer's cancellation (W2 A-2) | `receipt_publish_no_cancel` | `CancelledUnpublished` |
+| Receipts | T9 at the issuer reads its cancellation (W2 A-2) | `receipt_relay_no_cancel` | `CancelledUnpublished` |
+| Receipts | T9 at another deployment reads its own dependency markers (W2 A-2) | `receipt_remote_no_deps` | `RemoteDepsClosed` |
+| Ingress | Per-event anti-entropy part cap before a part persists (W2 A-12) | `ingress_event_parts` | `EventPartsBounded` |
+| Ingress | Per-event declared object-byte cap before an ObjectRef persists, so before any fetch (W2 A-12) | `ingress_event_objects` | `EventObjectsBounded` |
 | Targets | Owner prepares | `target_no_owner_check` | `TargetChain` |
 | Targets | Prepare revises the head in the owner record | `target_no_revise_head` | `TargetChain` |
 | Targets | The head comes from the record, not a certificate scan | `target_scan_subset` (revise any `S` with `certified ⊆ S ⊆ published`), on `TargetsLagging` | `TargetChain` |

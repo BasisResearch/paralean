@@ -136,6 +136,9 @@ witness_items=(
   'export_rejection_work ExportRejected NeverPublished'
   'receipt_work Receipts NeverValidPublished'
   'receipt_dependent_work Receipts NeverDependentPublished'
+  'receipt_cancelled Receipts NeverCancelled'
+  'receipt_remote_dependent Receipts NeverRemoteDependentReceived'
+  'ingress_event_terminal Ingress NeverTerminal'
   'target_alternatives Targets NeverAlternativeCommitted'
   'target_handover Targets NeverHandover'
   'workspace_concurrent_converged Workspace NeverConcurrentConverged'
@@ -363,6 +366,38 @@ case_receipt_prepare_no_deps() {
   prepare_case receipt_prepare_no_deps
   edit_once "$neg/receipt_prepare_no_deps/Receipts.tla" $'  /\\ Deps[g] \\subseteq published\n  /\\ g \\in held[w]' '  /\ g \in held[w]'
   run_expected_pass receipt_prepare_no_deps Receipts 'redundant guard keeps every invariant'
+}
+
+# W2 A-2: T1 and T9 at the issuing deployment read its cancellation in the
+# publishing transaction; a relay may serve a cancelled request's receipt.
+defcase receipt_publish_no_cancel
+case_receipt_publish_no_cancel() {
+  prepare_case receipt_publish_no_cancel
+  edit_once "$neg/receipt_publish_no_cancel/Receipts.tla" $'  /\\ g \\in pending[w]\n  /\\ g \\notin cancelled\n' $'  /\\ g \\in pending[w]\n'
+  run_expected_failure receipt_publish_no_cancel Receipts 'Invariant CancelledUnpublished is violated'
+}
+defcase receipt_relay_no_cancel
+case_receipt_relay_no_cancel() {
+  prepare_case receipt_relay_no_cancel
+  edit_once "$neg/receipt_relay_no_cancel/Receipts.tla" $'  /\\ g \\notin cancelled\n  /\\ Deps[g] \\subseteq published\n  /\\ published\'' $'  /\\ Deps[g] \\subseteq published\n  /\\ published\''
+  run_expected_failure receipt_relay_no_cancel Receipts 'Invariant CancelledUnpublished is violated'
+}
+# A receiving deployment's dependency guard reads its own markers: the
+# receipt certified the dependency at the issuer, not here.
+defcase receipt_remote_no_deps
+case_receipt_remote_no_deps() {
+  prepare_case receipt_remote_no_deps
+  edit_once "$neg/receipt_remote_no_deps/Receipts.tla" $'  /\\ Deps[g] \\subseteq remote\n' ''
+  run_expected_failure receipt_remote_no_deps Receipts 'Invariant RemoteDepsClosed is violated'
+}
+# Redundant in this model only: Issue already requires the issuer's published
+# dependencies. The implementation's batch receipts may precede them, which is
+# why T1 and T9 both read the dependency markers (TLA-GUARDS.md).
+defcase receipt_relay_no_deps
+case_receipt_relay_no_deps() {
+  prepare_case receipt_relay_no_deps
+  edit_once "$neg/receipt_relay_no_deps/Receipts.tla" $'  /\\ g \\notin cancelled\n  /\\ Deps[g] \\subseteq published\n  /\\ published\'' $'  /\\ g \\notin cancelled\n  /\\ published\''
+  run_expected_pass receipt_relay_no_deps Receipts 'redundant guard keeps every invariant'
 }
 
 defcase target_no_owner_check
@@ -714,6 +749,19 @@ case_ingress_backend() {
   prepare_case ingress_backend
   edit_once "$neg/ingress_backend/Ingress.tla" 'BackendReachable == FALSE' 'BackendReachable == TRUE'
   run_expected_failure ingress_backend Ingress 'Invariant AppendOnly is violated'
+}
+# W2 A-12: per-event anti-entropy caps apply before parts or objects persist.
+defcase ingress_event_parts
+case_ingress_event_parts() {
+  prepare_case ingress_event_parts
+  edit_once "$neg/ingress_event_parts/Ingress.tla" 'PartRoom == staged < MaxEventParts' 'PartRoom == TRUE'
+  run_expected_failure ingress_event_parts Ingress 'Invariant EventPartsBounded is violated'
+}
+defcase ingress_event_objects
+case_ingress_event_objects() {
+  prepare_case ingress_event_objects
+  edit_once "$neg/ingress_event_objects/Ingress.tla" 'RefRoom(n) == declared + n <= MaxEventObjectBytes' 'RefRoom(n) == TRUE'
+  run_expected_failure ingress_event_objects Ingress 'Invariant EventObjectsBounded is violated'
 }
 
 # Redundant checks and the independent failure oracle for each effective guard
