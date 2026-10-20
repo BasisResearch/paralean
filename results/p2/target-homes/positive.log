@@ -1,0 +1,32 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 79 and seed -2160241970610034842 with 1 worker on 32 cores with 981MB heap and 64MB offheap memory [pid: 603941] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/TargetHomes/TargetHomes.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TargetHomes
+Starting... (2026-10-20 02:53:46)
+Implied-temporal checking--satisfiability problem has 4 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 02:53:47.
+Progress(8) at 2026-10-20 02:53:47: 179 states generated, 133 distinct states found, 0 states left on queue.
+Checking 4 branches of temporal properties for the complete state space with 532 total distinct states at (2026-10-20 02:53:47)
+Finished checking temporal properties in 00s at 2026-10-20 02:53:47
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 3.3E-16
+179 states generated, 133 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 8.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
+Finished in 01s at (2026-10-20 02:53:47)
+==== Paralean TLC provenance ====
+module TargetHomes
+config TargetHomes.cfg
+expect pass
+checked d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
+checked 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg
+==== end provenance ====

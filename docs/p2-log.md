@@ -589,3 +589,39 @@ in P1.
   and Garage replication 3. Acknowledged effects were never lost and audits stayed clean.
   Open: catalogue exchange, marker conflicts and target-name homing across deployments
   (docs/p2-log.md)."
+
+## Robustness workstream (`m-p2`, 2026-10-20, in progress)
+
+Independent work began while `integrate-p2-rest` was being tested. The merged store
+has not yet been incorporated; the results below do not claim a merged-code gate.
+
+- **Target home rule, model first.** `verification/tla/TargetHomes.tla` models one
+  target with independent per-deployment owner/epoch/head registers. A shared,
+  immutable home mapping permits prepare, publication and reassignment only at
+  the home. Foreign receive requires the original home's publication evidence
+  and leaves ownership registers unchanged. Forgetting the receive copies and
+  non-home registers gives TargetNames' single authoritative register. All target
+  names in a multi-target group must share a home; otherwise publication is
+  rejected because there is no transaction across deployments. Configuration
+  must be pinned before federation writes; home migration is outside this rule.
+- **Model results.** `TLC_WORKERS=1 TLC_HEAP=1g scripts/check-tla.sh TargetHomes`:
+  133 distinct states, safety and fair eventual delivery pass. The negative
+  suite's `target_no_home` removes the home guard and reaches two incomparable
+  published proofs, violating `TargetChain` even though both stores obey their
+  local fences. Three reachability witnesses demonstrate home publication,
+  remote receive and publication after reassignment. Logs with source hashes:
+  `results/p2/target-homes/`. This is finite model checking plus a written
+  refinement argument, not a new Lean theorem.
+- **Anti-entropy design and store delta.**
+  [p2-antientropy-design.md](p2-antientropy-design.md) specifies commit-versionstamp
+  events, bounded network pages and object fetches, durable deferred events before
+  cursor advancement, chunk references bound by group bytes, and source-qualified
+  catalogue certificates. It is a design, not an implemented network service.
+- **Garage proxy.** The independent `garage-netsplit` crate uses distinct loopback
+  source addresses and Garage's `rpc_bind_outgoing` to identify both ends of RPC
+  links. It blackholes crossing links, including existing connections, and closes
+  them on healing. Six unit/TCP tests pass. Integration into the instance scripts
+  and a live Garage partition run are still pending.
+- **Fault studies and cluster gates.** In progress on private `mp2-*` instances.
+  Measurements, permanent-loss exercises and SIGSEGV diagnosis are not yet
+  results. No existing instance is used or modified.
