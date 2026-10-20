@@ -11,3 +11,9 @@ hyper = { version = "1", features = ["http1", "server", "client"] }
 hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
 http-body-util = "0.1"
 bytes = "1"
+
+[features]
+# Guard-removal mutations for scripts/check-s3-guard-mutations.sh.
+mutate-no-gc-principal-check = []
+mutate-no-bucket-delete-check = []
+mutate-no-query-key-decode = []
