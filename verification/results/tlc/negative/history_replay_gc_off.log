@@ -1,12 +1,12 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 53 and seed -146250057742171243 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 135332] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w4-scale/.runs/tla/negative/history_replay_gc_off/W4History.tla
+Running breadth-first search Model-Checking with fp 74 and seed -1330050821517918672 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1486490] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/negative/history_replay_gc_off/W4History.tla
 Parsing file /tmp/Naturals.tla
 Semantic processing of module Naturals
 Semantic processing of module W4History
-Starting... (2026-10-20 17:18:27)
+Starting... (2026-10-20 21:32:47)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 17:18:27.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:32:48.
 Error: Invariant NeverReplayWithGcOff is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -360,43 +360,67 @@ State 9: <Poll line 151, col 3 to line 172, col 61 of module W4History>
 /\ order = {}
 /\ owner = "none"
 
-4465 states generated, 1327 distinct states found, 336 states left on queue.
+4705 states generated, 1384 distinct states found, 349 states left on queue.
 The depth of the complete state graph search is 9.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 3).
-Finished in 01s at (2026-10-20 17:18:28)
+Finished in 00s at (2026-10-20 21:32:48)
 ==== Paralean TLC provenance ====
 module W4History
 config W4History.cfg
 expect failure: Invariant NeverReplayWithGcOff is violated
+source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
+source d2baac35cfe05af752b29a0d358cbe1283a00ebaf40c2d1c32f625332f90b08d  CheckpointConflicts.tla
 source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
 source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source e701ebb084e7c14de78034035eb932dcca203554e270d21df003c8102e8ff95c  EditorWiring.tla
+source ed25f0dc16d57a7b8493fb74611dc4db92130abcfffbb681706fa7433806d9df  ExportLookupResidual.tla
+source 161982308b15b0883776a765f9054f2b97484269182e5504ce6c75b7b45c55ae  ExportLookup.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
 source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
+source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
 source 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
 source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
 source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
+source 99f392f2c5b906e544c579a8967ae62b6a9e5dd36f3dc8e5835176e70105d85f  ReplayIdentity.tla
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
+source 223b737bd5231a2f225b45d449ab2a3a6b4ee39c6fbca6b37e76082c389bb5eb  StorePositions.tla
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
 source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
 source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
 source 43c63a869d5b4ef23a2cc2f68dd96d699d46dbc33bac69819cc9c5b4679800ed  W4History.tla
-source d0494940684715de55e0311aebc501869487f9675428f72d3cccec4cd38c41d6  W4Scale.tla
+source d8c990a536d8914efa0876ff007a825e4467cc0d4aaa3db60f70f2ab78816dbf  W4Scale.tla
 source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
+source c30cbf2ac761a434ce5c8efd50522796302ca6b901f96506ccd3035ff1eb8ca1  AgentAuthority.cfg
+source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAuthorityNoFence.cfg
+source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
+source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
+source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
+source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
 source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
 source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  CertificatesLive.cfg
 source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
+source f663daaee006f952eb71dfd9be53b0bda7235d420808b76e82143036b31509c3  CheckpointConflicts.cfg
+source 2a8cfd200682b767367e2b3ca55ff2e44f0725640787e9fec469a2d661245cae  CheckpointConflictsHistorical.cfg
+source 3499d009720710308faacfb649d7729f4e763060c1367ec707b03795c05324aa  CheckpointConflictsNoCurrent.cfg
+source ae1ca0a19d58587603f6b799e1053a16bb4227dbd6458bd03d0a865b42b436d5  CheckpointConflictsNoDeps.cfg
+source ef77bfbc79d2ff5357eb02bcbc744320191b7c4cfc476a9d7ec7b7b92d4f06f1  CheckpointConflictsNoGuards.cfg
 source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
 source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source 4779d11ac145aea710bc81c5e52d4854f60b4e092e3e2739f5931b402f5af7b9  EditorPublication.cfg
+source 589e7f201f1fca0dfa69da2288f592e9e0092542eeb750a19f4291ac4eba1eaa  EditorRename.cfg
+source a15d82f70811e9ed4514f56dd81e058370c1e7a84a6e2bbb6cb12683fbf7adf8  ExportLookup.cfg
+source 77778505bdea006e83cf15e4ff54d5ccd76f77cbcf63dc19616c87b6409c1db4  ExportLookupResidual.cfg
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
@@ -408,8 +432,10 @@ source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
 source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
+source f6f5f44b8cbe8804d7013d8b907fb8f1399b881bd725f240dae50eceef6f21a1  ReplayIdentity.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
+source 49ac1c1cf6653500956934061b8a29aec4ef459beb00b27d41ba2507131e1276  StorePositions.cfg
 source 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg
 source d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets.cfg
 source f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg

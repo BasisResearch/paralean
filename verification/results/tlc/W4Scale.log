@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 34 and seed -6279187551011467516 with 1 worker on 32 cores with 10923MB heap and 64MB offheap memory [pid: 71424] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w4-scale/.runs/tla/run/W4Scale/W4Scale.tla
+Running breadth-first search Model-Checking with fp 110 and seed 458116942810650085 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 1449657] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/run/W4Scale/W4Scale.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Sequences.tla
@@ -8,23 +8,23 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module W4Scale
-Starting... (2026-10-20 17:16:49)
+Starting... (2026-10-20 21:31:18)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 17:16:49.
-Progress(12) at 2026-10-20 17:16:52: 324,924 states generated (324,924 s/min), 55,602 distinct states found (55,602 ds/min), 20,015 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:31:18.
+Progress(13) at 2026-10-20 21:31:21: 927,766 states generated (927,766 s/min), 138,706 distinct states found (138,706 ds/min), 47,004 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
-  calculated (optimistic):  val = 7.8E-8
-  based on the actual fingerprints:  val = 1.2E-8
-3804753 states generated, 428800 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 26.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 26s at (2026-10-20 17:17:14)
+  calculated (optimistic):  val = 3.5E-7
+  based on the actual fingerprints:  val = 2.1E-8
+8464465 states generated, 856832 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 27.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 15s at (2026-10-20 21:31:33)
 ==== Paralean TLC provenance ====
 module W4Scale
 config W4Scale.cfg
 expect pass
-checked d0494940684715de55e0311aebc501869487f9675428f72d3cccec4cd38c41d6  W4Scale.tla
+checked d8c990a536d8914efa0876ff007a825e4467cc0d4aaa3db60f70f2ab78816dbf  W4Scale.tla
 checked 427baa8edf8375b984ff3c8fd4cedc3eac44d2ac411fd25dc4d594eedf21d7e0  W4Scale.cfg
 ==== end provenance ====

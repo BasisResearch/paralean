@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 4 and seed -2405589739184897967 with 1 worker on 32 cores with 1899MB heap and 64MB offheap memory [pid: 3022715] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w3-store-features/.runs/tla/run/CheckpointConflicts/CheckpointConflicts.tla
+Running breadth-first search Model-Checking with fp 45 and seed -2989460224748897341 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 1437733] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/run/CheckpointConflicts/CheckpointConflicts.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
@@ -8,9 +8,9 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module CheckpointConflicts
-Starting... (2026-10-20 16:19:50)
+Starting... (2026-10-20 21:31:00)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 16:19:51.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:31:00.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -18,7 +18,7 @@ Model checking completed. No error has been found.
 91322 states generated, 6065 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 18.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 19 and the 95th percentile is 8).
-Finished in 02s at (2026-10-20 16:19:51)
+Finished in 01s at (2026-10-20 21:31:01)
 ==== Paralean TLC provenance ====
 module CheckpointConflicts
 config CheckpointConflicts.cfg

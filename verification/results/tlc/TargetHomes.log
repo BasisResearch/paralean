@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 22 and seed -6945420013712753772 with 1 worker on 32 cores with 1899MB heap and 64MB offheap memory [pid: 3447208] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w1-lean-bugs/.runs/tla/run/TargetHomes/TargetHomes.tla
+Running breadth-first search Model-Checking with fp 119 and seed 6480830364504549194 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 1430179] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/run/TargetHomes/TargetHomes.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Sequences.tla
@@ -8,13 +8,13 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TargetHomes
-Starting... (2026-10-20 16:39:06)
+Starting... (2026-10-20 21:30:52)
 Implied-temporal checking--satisfiability problem has 4 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 16:39:06.
-Progress(8) at 2026-10-20 16:39:07: 179 states generated, 133 distinct states found, 0 states left on queue.
-Checking 4 branches of temporal properties for the complete state space with 532 total distinct states at (2026-10-20 16:39:07)
-Finished checking temporal properties in 00s at 2026-10-20 16:39:07
+Finished computing initial states: 1 distinct state generated at 2026-10-20 21:30:52.
+Progress(8) at 2026-10-20 21:30:52: 179 states generated, 133 distinct states found, 0 states left on queue.
+Checking 4 branches of temporal properties for the complete state space with 532 total distinct states at (2026-10-20 21:30:52)
+Finished checking temporal properties in 00s at 2026-10-20 21:30:52
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -22,7 +22,7 @@ Model checking completed. No error has been found.
 179 states generated, 133 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 8.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
-Finished in 01s at (2026-10-20 16:39:07)
+Finished in 01s at (2026-10-20 21:30:52)
 ==== Paralean TLC provenance ====
 module TargetHomes
 config TargetHomes.cfg
