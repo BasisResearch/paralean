@@ -1,0 +1,6 @@
+{
+  "gate": "pass", "benchmark": "Init", "published_copy": true,
+  "first_ms": 1378.05, "edit_p50_ms": 369.73, "edit_p95_ms": 647.04,
+  "edit_samples_ms": [330.68, 364.4, 339.23, 392.01, 347.99, 399.87, 746.99, 524.89, 325.2, 375.06],
+  "first": {"new": 8, "reused": 0}, "edit": {"new": 2, "reused": 6}
+}

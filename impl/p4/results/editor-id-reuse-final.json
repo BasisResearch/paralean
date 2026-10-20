@@ -1,0 +1,63 @@
+{
+  "gate": "pass",
+  "benchmark": "fork Init final ID reuse",
+  "search_counts": {
+    "alpha": 56,
+    "beta": 364
+  },
+  "latencies": {
+    "edit_to_diagnostics_bad": {
+      "n": 2,
+      "p50_ms": 804.67,
+      "p95_ms": 1337.19,
+      "samples_ms": [
+        1396.36,
+        212.99
+      ]
+    },
+    "edit_to_diagnostics_good": {
+      "n": 2,
+      "p50_ms": 226.22,
+      "p95_ms": 237.4,
+      "samples_ms": [
+        238.64,
+        213.81
+      ]
+    },
+    "hover": {
+      "n": 2,
+      "p50_ms": 6.05,
+      "p95_ms": 7.1,
+      "samples_ms": [
+        7.21,
+        4.88
+      ]
+    },
+    "goals": {
+      "n": 2,
+      "p50_ms": 6.42,
+      "p95_ms": 9.65,
+      "samples_ms": [
+        10.0,
+        2.83
+      ]
+    },
+    "completion": {
+      "n": 2,
+      "p50_ms": 1570.08,
+      "p95_ms": 2678.33,
+      "samples_ms": [
+        2801.47,
+        338.69
+      ]
+    },
+    "reconnect_to_diagnostics": {
+      "n": 1,
+      "p50_ms": 361.15,
+      "p95_ms": 361.15,
+      "samples_ms": [
+        361.15
+      ]
+    }
+  }
+}

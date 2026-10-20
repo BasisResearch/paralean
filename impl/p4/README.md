@@ -61,9 +61,12 @@ pulls, advances the persisted Lamport clock, sends the signed tombstone, pulls
 again and updates the working copy. Publish a replacement under a new ordinary
 name if needed, then use the checkpoint workflow. A rendered collision name
 alone does not resolve the conflict.
-The result includes `checkpointArgs` with the exact live revision heads.
-After checking the revised drafts and export, pass those arguments to `plr`;
-recompute them with `paralean ws-live` if more records arrive or are published.
+The result includes candidate `checkpointArgs` and `checkpointFiles`, selecting
+only the resolved file's live revision heads. After checking the revised drafts
+and exporting that selection, submit those arguments to `plr` in the controller's
+authority context. The per-agent key used for the tombstone cannot issue the
+controller's checkpoint token. Recompute the selection if more records arrive;
+`paralean ws-live` exposes all live heads for a broader snapshot plan.
 
 `workspace.py project COPY` creates `paralean/projection` and
 `paralean/agents/<author>` branches using Git plumbing. Each new record adds a
@@ -81,3 +84,39 @@ idempotent; a tag already naming different source bytes is an error.
 
 Source `scripts/env.sh` only for this workstream's isolated test cluster.
 Gate results and limitations are recorded in `../../docs/p4-log.md`.
+
+## Reproducing the editor gates
+
+Build the pinned fork with `fork/build.sh` and P1 with that fork, then prepare the
+P3 services under `PARALEAN_INSTANCE=m-p4`. Source `impl/p4/scripts/env.sh` from
+the repository root. Set `PARALEAN_BIN` and `PARALEAN_LIB` to a matching built
+runtime; keep those artifacts unchanged while a gate is running.
+
+```bash
+export LEAN_PARALEAN=1
+export LEAN_PATH="$PARALEAN_LIB${LEAN_PATH:+:$LEAN_PATH}"
+python3 impl/p4/tests/editor.py --samples 10 --kill-worker --label Init
+python3 impl/p4/tests/native_restart.py
+python3 impl/p4/tests/capture_test.py --samples 10
+python3 impl/p4/tests/capture_test.py --samples 10 --label Mathlib
+```
+
+`remote_editor.py COPY --extra-checks` uses the published Bob copy from the P3
+remote gate. Add `--mathlib` for `Mathlib.Order.Basic`. The capture gate accepts
+`--published-copy COPY --file Shared.lean` for the same remote prefix.
+`projection_test.py COPY --workspace bob --catalog CATALOG_ID` checks full
+source history and an existing certified snapshot.
+
+For isolated correctness fixtures, use a new output directory for every run:
+
+```bash
+python3 impl/p4/fixtures/interactive.py instances .runs/p4-instances-new
+python3 impl/p4/tests/interactive_editor.py .runs/p4-instances-new/manifest.json
+```
+
+Repeat with `open17` and `revocation`. The revocation test intentionally revokes
+that fixture's validator key. For a fresh collision resolution, generate
+`collision` and pass its `bob` subdirectory to `tests/collision_test.py`.
+Fixture generation and collision/revocation tests write only to the configured
+isolated deployment; run fixture generators sequentially because their temporary
+validator uses port 18691.

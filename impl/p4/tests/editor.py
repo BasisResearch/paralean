@@ -140,6 +140,20 @@ def timed_request(editor, method, params, timings, key):
     return result
 
 
+def worker_processes_for(token):
+    matches = []
+    for path in Path("/proc").iterdir():
+        if not path.name.isdigit():
+            continue
+        try:
+            command = (path / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+        except OSError:
+            continue
+        if token in command and ("lean --worker" in command or "lean --server" in command):
+            matches.append((int(path.name), command))
+    return matches
+
+
 def run(args):
     timings = {}
     with tempfile.TemporaryDirectory(prefix="paralean-p4-editor-") as temp:
@@ -266,6 +280,15 @@ def run(args):
             editor.send("$/cancelRequest", {"id": cancel_id}, request=False)
             cancelled = editor.take(lambda x: x.get("id") == cancel_id)
             assert cancelled.get("error", {}).get("code") == -32800, cancelled
+            # An inactive cancellation must not poison a later request that
+            # reuses the same public JSON-RPC ID.
+            editor.send("$/cancelRequest", {"id": cancel_id}, request=False)
+            editor.next_id = cancel_id
+            reused_id = editor.send("textDocument/hover", {
+                "textDocument": {"uri": uri_a},
+                "position": {"line": line_shift + 1, "character": 8}})
+            assert reused_id == cancel_id
+            assert editor.response(reused_id) is not None
             if args.kill_worker:
                 # The proxy's P4 test hook kills exactly this workspace's Lean process.
                 editor.response(editor.send("workspace/executeCommand", {
@@ -291,6 +314,7 @@ def run(args):
                 assert env_source["environment"] != previous_environment, env_source
                 assert editor.response(editor.send("textDocument/hover", {
                     "textDocument": {"uri": uri_a}, "position": {"line": line_shift + 1, "character": 8}})) is not None
+            edit_session = editor.response(editor.send("$/lean/rpc/connect", {"uri": uri_a}))["sessionId"]
             # Two rapid UTF-16 ranged edits must both reach Lean before an
             # immediately following semantic request; this catches coalescing
             # and request/notification reordering in the proxy.
@@ -313,6 +337,12 @@ def run(args):
             stale_completion_id = editor.send("completionItem/resolve", old_completion_item)
             stale_completion = editor.take(lambda x: x.get("id") == stale_completion_id)
             assert stale_completion.get("error", {}).get("code") == -32800, stale_completion
+            stale_rpc_id = editor.send("$/lean/rpc/call", {
+                "sessionId": edit_session, "textDocument": {"uri": uri_a},
+                "position": {"line": line_shift + 1, "character": 8},
+                "method": "Lean.Widget.getInteractiveGoals", "params": {}})
+            stale_rpc = editor.take(lambda x: x.get("id") == stale_rpc_id)
+            assert stale_rpc.get("error", {}).get("code") == -32002, stale_rpc
             # No older diagnostic may be delivered after the latest version.
             latest += 2
             latest_received_at = final_diag["_received_at"]
@@ -329,6 +359,10 @@ def run(args):
             assert not stale, stale
         finally:
             editor.close()
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and worker_processes_for(base.name):
+                time.sleep(0.05)
+            assert not worker_processes_for(base.name), "orphan Lean worker survived proxy exit"
     result = {}
     for key, values in timings.items():
         item = {"n": len(values), "p50_ms": round(percentile(values, 50), 2),

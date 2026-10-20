@@ -11,10 +11,13 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "workspace.py"
+sys.path.insert(0, str(SCRIPT.parent))
+from workspace import records, render  # noqa: E402
 
 
 def command(*args, env=None):
@@ -85,6 +88,13 @@ def main(args):
         assert "uncommitted editor draft" in draft.read_text()
         projected = git(work, "show", "paralean/projection:Shared.lean")
         assert "uncommitted editor draft" not in projected
+        assert "theorem Shared.dup" in projected and "by decide" in projected
+        assert "remote%" not in projected and "remote_decl%" not in projected
+        assert "-- paralean:published" not in projected
+        ordered = records(target / "cache")
+        forward = render(target / "cache", ordered, env)
+        reverse = render(target / "cache", list(reversed(ordered)), env)
+        assert forward == reverse, "full source projection depends on delivery order"
         snapshot = None
         if args.catalog:
             snapshot = tool(target, "snapshot", "--workspace", args.workspace,
@@ -94,6 +104,15 @@ def main(args):
                          "--catalog", args.catalog, env=env)
             assert not again["created"] and again["commit"] == snapshot["commit"], again
             assert git(work, "status", "--porcelain=v1") == status
+            snapshot_files = [name for name in git(work, "ls-tree", "-r", "--name-only",
+                                                    snapshot["tag"]).splitlines()
+                              if name.endswith(".lean")]
+            assert snapshot_files, snapshot
+            certified = "\n".join(git(work, "show", f"{snapshot['tag']}:{name}")
+                                  for name in snapshot_files)
+            assert "def Cross.size" in certified and "by decide" in certified, certified
+            assert "remote%" not in certified and "remote_decl%" not in certified
+            assert "-- paralean:published" not in certified
         print(json.dumps({"gate": "pass", "records": final["records"],
                           "prefix": prefix_head, "late": second["commit"],
                           "final": final["commit"], "snapshot": snapshot}, indent=2))

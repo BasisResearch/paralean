@@ -84,7 +84,7 @@ Not covered: anonymous instances inside `mutual` blocks (stock names; impl/p1 re
 | 0005 hook 4 | Tactic/Simp | 21 / 0 | 42 |
 | 0006 hook 5 | `Lean/Paralean/InstName.lean`, `Lean.lean`, Declaration, Deriving/Basic, Deriving/Util | 451 / 3 | 107 |
 | 0007 hook 6 | FileWorker, Watchdog, Language/Lean, `Lean/Paralean/BaseEnv.lean`, `Lean.lean` | 51 / 1 | editor gate (`docs/p4-log.md`) |
-| total | 15 source files | 678 / 10 | 342 fork tests plus the P4 editor gate |
+| total | 15 source files | 678 / 10 | 342 test lines plus the P4 editor gate |
 
 `results/` holds the test-suite logs (default mode and Paralean mode) and their classification,
 and `tools/InstNameStats.lean` the instance-name statistics tool (docs/fork-log.md).

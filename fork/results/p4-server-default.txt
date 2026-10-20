@@ -1,0 +1,321 @@
+Test project /data/home/kirancodes/Documents/code/paralean-m-p4/.deps/lean4-paralean/build/release/stage1
+        Start 4238: server/diags.lean
+        Start 4239: server/init_exit.lean
+  1/158 Test #4239: server/init_exit.lean ..................................   Passed    1.31 sec
+        Start 4240: server/init_exit_with_zed.lean
+  2/158 Test #4240: server/init_exit_with_zed.lean .........................   Passed    0.93 sec
+        Start 4241: server/init_exit_worker.lean
+  3/158 Test #4238: server/diags.lean ......................................   Passed    2.28 sec
+        Start 4242: server_interactive/1018unknowMVarIssue.lean
+  4/158 Test #4241: server/init_exit_worker.lean ...........................   Passed    1.64 sec
+        Start 4243: server_interactive/1031.lean
+  5/158 Test #4242: server_interactive/1018unknowMVarIssue.lean ............   Passed    3.95 sec
+        Start 4244: server_interactive/10898.lean
+  6/158 Test #4243: server_interactive/1031.lean ...........................   Passed    3.12 sec
+        Start 4245: server_interactive/12369.lean
+  7/158 Test #4244: server_interactive/10898.lean ..........................   Passed    2.01 sec
+        Start 4246: server_interactive/1265.lean
+  8/158 Test #4245: server_interactive/12369.lean ..........................   Passed    1.86 sec
+        Start 4247: server_interactive/1403.lean
+  9/158 Test #4247: server_interactive/1403.lean ...........................   Passed    2.24 sec
+        Start 4248: server_interactive/15053.lean
+ 10/158 Test #4246: server_interactive/1265.lean ...........................   Passed    2.94 sec
+        Start 4249: server_interactive/15108.lean
+ 11/158 Test #4248: server_interactive/15053.lean ..........................   Passed    2.10 sec
+        Start 4250: server_interactive/1525.lean
+ 12/158 Test #4249: server_interactive/15108.lean ..........................   Passed    2.25 sec
+        Start 4251: server_interactive/1659.lean
+ 13/158 Test #4250: server_interactive/1525.lean ...........................   Passed    1.60 sec
+        Start 4252: server_interactive/2058.lean
+ 14/158 Test #4251: server_interactive/1659.lean ...........................   Passed    1.56 sec
+        Start 4253: server_interactive/2881.lean
+ 15/158 Test #4252: server_interactive/2058.lean ...........................   Passed    1.72 sec
+        Start 4254: server_interactive/4078.lean
+ 16/158 Test #4253: server_interactive/2881.lean ...........................   Passed    1.80 sec
+        Start 4255: server_interactive/4880.lean
+ 17/158 Test #4254: server_interactive/4078.lean ...........................   Passed    1.62 sec
+        Start 4256: server_interactive/533.lean
+ 18/158 Test #4255: server_interactive/4880.lean ...........................   Passed    1.91 sec
+        Start 4257: server_interactive/5659.lean
+ 19/158 Test #4256: server_interactive/533.lean ............................   Passed    1.87 sec
+        Start 4258: server_interactive/6594.lean
+ 20/158 Test #4257: server_interactive/5659.lean ...........................   Passed    2.12 sec
+        Start 4259: server_interactive/8108.lean
+ 21/158 Test #4258: server_interactive/6594.lean ...........................   Passed    1.90 sec
+        Start 4260: server_interactive/863.lean
+ 22/158 Test #4259: server_interactive/8108.lean ...........................   Passed    1.88 sec
+        Start 4261: server_interactive/Diff.lean
+ 23/158 Test #4260: server_interactive/863.lean ............................   Passed    2.27 sec
+        Start 4262: server_interactive/amb.lean
+ 24/158 Test #4261: server_interactive/Diff.lean ...........................   Passed    2.59 sec
+        Start 4263: server_interactive/anonHyp.lean
+ 25/158 Test #4262: server_interactive/amb.lean ............................   Passed    2.30 sec
+        Start 4264: server_interactive/autoBoundIssue.lean
+ 26/158 Test #4263: server_interactive/anonHyp.lean ........................   Passed    1.85 sec
+        Start 4265: server_interactive/builtinCodeactions.lean
+ 27/158 Test #4264: server_interactive/autoBoundIssue.lean .................   Passed    2.08 sec
+        Start 4266: server_interactive/cancellation.lean
+ 28/158 Test #4265: server_interactive/builtinCodeactions.lean .............   Passed    1.99 sec
+        Start 4267: server_interactive/cancellation_empty_by.lean
+ 29/158 Test #4267: server_interactive/cancellation_empty_by.lean ..........   Passed    3.07 sec
+        Start 4268: server_interactive/cancellation_par.lean
+ 30/158 Test #4268: server_interactive/cancellation_par.lean ...............   Passed    6.24 sec
+        Start 4269: server_interactive/cancellation_try_plain.lean
+ 31/158 Test #4269: server_interactive/cancellation_try_plain.lean .........   Passed    6.26 sec
+        Start 4270: server_interactive/catHover.lean
+ 32/158 Test #4270: server_interactive/catHover.lean .......................   Passed    1.79 sec
+        Start 4271: server_interactive/codeActions.lean
+ 33/158 Test #4266: server_interactive/cancellation.lean ...................   Passed   18.50 sec
+        Start 4272: server_interactive/codeaction.lean
+ 34/158 Test #4271: server_interactive/codeActions.lean ....................   Passed    2.37 sec
+        Start 4273: server_interactive/compHeader.lean
+ 35/158 Test #4272: server_interactive/codeaction.lean .....................   Passed    3.34 sec
+        Start 4274: server_interactive/compNamespace.lean
+ 36/158 Test #4273: server_interactive/compHeader.lean .....................   Passed    2.43 sec
+        Start 4275: server_interactive/completion.lean
+ 37/158 Test #4274: server_interactive/compNamespace.lean ..................   Passed    2.46 sec
+        Start 4276: server_interactive/completion2.lean
+ 38/158 Test #4275: server_interactive/completion.lean .....................   Passed    2.34 sec
+        Start 4277: server_interactive/completion3.lean
+ 39/158 Test #4276: server_interactive/completion2.lean ....................   Passed    2.64 sec
+        Start 4278: server_interactive/completion4.lean
+ 40/158 Test #4277: server_interactive/completion3.lean ....................   Passed    2.42 sec
+        Start 4279: server_interactive/completion5.lean
+ 41/158 Test #4278: server_interactive/completion4.lean ....................   Passed    2.94 sec
+        Start 4280: server_interactive/completion6.lean
+ 42/158 Test #4279: server_interactive/completion5.lean ....................   Passed    3.15 sec
+        Start 4281: server_interactive/completion7.lean
+ 43/158 Test #4281: server_interactive/completion7.lean ....................   Passed    1.74 sec
+        Start 4282: server_interactive/completionAtPrint.lean
+ 44/158 Test #4280: server_interactive/completion6.lean ....................   Passed    2.75 sec
+        Start 4283: server_interactive/completionBracketedDot.lean
+ 45/158 Test #4282: server_interactive/completionAtPrint.lean ..............   Passed    2.78 sec
+        Start 4284: server_interactive/completionCheck.lean
+ 46/158 Test #4283: server_interactive/completionBracketedDot.lean .........   Passed    2.72 sec
+        Start 4285: server_interactive/completionDanglingDot.lean
+ 47/158 Test #4284: server_interactive/completionCheck.lean ................   Passed    2.21 sec
+        Start 4286: server_interactive/completionDeprecation.lean
+ 48/158 Test #4285: server_interactive/completionDanglingDot.lean ..........   Passed    2.33 sec
+        Start 4287: server_interactive/completionEOF.lean
+ 49/158 Test #4287: server_interactive/completionEOF.lean ..................   Passed    1.67 sec
+        Start 4288: server_interactive/completionEmptyBy.lean
+ 50/158 Test #4286: server_interactive/completionDeprecation.lean ..........   Passed    2.79 sec
+        Start 4289: server_interactive/completionEmptyByBracketed.lean
+ 51/158 Test #4288: server_interactive/completionEmptyBy.lean ..............   Passed    1.63 sec
+        Start 4290: server_interactive/completionEndSection.lean
+ 52/158 Test #4289: server_interactive/completionEmptyByBracketed.lean .....   Passed    1.75 sec
+        Start 4291: server_interactive/completionFallback.lean
+ 53/158 Test #4290: server_interactive/completionEndSection.lean ...........   Passed    2.39 sec
+        Start 4292: server_interactive/completionFromExpectedType.lean
+ 54/158 Test #4291: server_interactive/completionFallback.lean .............   Passed    2.58 sec
+        Start 4293: server_interactive/completionIStr.lean
+ 55/158 Test #4292: server_interactive/completionFromExpectedType.lean .....   Passed    2.28 sec
+        Start 4294: server_interactive/completionOpenNamespaces.lean
+ 56/158 Test #4293: server_interactive/completionIStr.lean .................   Passed    2.60 sec
+        Start 4295: server_interactive/completionOption.lean
+ 57/158 Test #4294: server_interactive/completionOpenNamespaces.lean .......   Passed    2.45 sec
+        Start 4296: server_interactive/completionPrefixIssue.lean
+ 58/158 Test #4295: server_interactive/completionOption.lean ...............   Passed    2.14 sec
+        Start 4297: server_interactive/completionPrivateTypes.lean
+ 59/158 Test #4296: server_interactive/completionPrefixIssue.lean ..........   Passed    2.08 sec
+        Start 4298: server_interactive/completionPrv.lean
+ 60/158 Test #4297: server_interactive/completionPrivateTypes.lean .........   Passed    2.20 sec
+        Start 4299: server_interactive/completionStructureInstance.lean
+ 61/158 Test #4298: server_interactive/completionPrv.lean ..................   Passed    2.12 sec
+        Start 4300: server_interactive/completionTactics.lean
+ 62/158 Test #4300: server_interactive/completionTactics.lean ..............   Passed    1.88 sec
+        Start 4301: server_interactive/definition.lean
+ 63/158 Test #4299: server_interactive/completionStructureInstance.lean ....   Passed    2.91 sec
+        Start 4302: server_interactive/discrsIssue.lean
+ 64/158 Test #4302: server_interactive/discrsIssue.lean ....................   Passed    2.09 sec
+        Start 4303: server_interactive/docstringLinksExamples.lean
+ 65/158 Test #4303: server_interactive/docstringLinksExamples.lean .........   Passed    2.99 sec
+        Start 4304: server_interactive/documentSymbols.lean
+ 66/158 Test #4304: server_interactive/documentSymbols.lean ................   Passed    1.99 sec
+        Start 4305: server_interactive/dotIdCompletion.lean
+ 67/158 Test #4305: server_interactive/dotIdCompletion.lean ................   Passed    1.73 sec
+        Start 4306: server_interactive/dottedIdentNotation.lean
+ 68/158 Test #4301: server_interactive/definition.lean .....................   Passed    9.05 sec
+        Start 4307: server_interactive/editAfterError.lean
+ 69/158 Test #4307: server_interactive/editAfterError.lean .................   Passed    1.77 sec
+        Start 4308: server_interactive/editCompletion.lean
+ 70/158 Test #4306: server_interactive/dottedIdentNotation.lean ............   Passed    2.28 sec
+        Start 4309: server_interactive/errorExplanationInteractive.lean
+ 71/158 Test #4308: server_interactive/editCompletion.lean .................   Passed    1.87 sec
+        Start 4310: server_interactive/expectedTypeAsGoal.lean
+ 72/158 Test #4309: server_interactive/errorExplanationInteractive.lean ....   Passed    2.16 sec
+        Start 4311: server_interactive/explicitAppInstHole.lean
+ 73/158 Test #4310: server_interactive/expectedTypeAsGoal.lean .............   Passed    1.75 sec
+        Start 4312: server_interactive/findReferences.lean
+ 74/158 Test #4311: server_interactive/explicitAppInstHole.lean ............   Passed    2.15 sec
+        Start 4313: server_interactive/foldingRange.lean
+ 75/158 Test #4313: server_interactive/foldingRange.lean ...................   Passed    2.75 sec
+        Start 4314: server_interactive/fvarIdCollision.lean
+ 76/158 Test #4312: server_interactive/findReferences.lean .................   Passed    7.88 sec
+        Start 4315: server_interactive/ghostGoals.lean
+ 77/158 Test #4315: server_interactive/ghostGoals.lean .....................   Passed    2.02 sec
+        Start 4316: server_interactive/goTo.lean
+ 78/158 Test #4314: server_interactive/fvarIdCollision.lean ................   Passed    7.56 sec
+        Start 4317: server_interactive/goTo2.lean
+ 79/158 Test #4316: server_interactive/goTo.lean ...........................   Passed    7.73 sec
+        Start 4318: server_interactive/goToMutVarAfterFor.lean
+ 80/158 Test #4317: server_interactive/goTo2.lean ..........................   Passed    8.03 sec
+        Start 4319: server_interactive/goalEOF.lean
+ 81/158 Test #4319: server_interactive/goalEOF.lean ........................   Passed    1.86 sec
+        Start 4320: server_interactive/goalIssue.lean
+ 82/158 Test #4320: server_interactive/goalIssue.lean ......................   Passed    2.01 sec
+        Start 4321: server_interactive/goalsAccomplished.lean
+ 83/158 Test #4321: server_interactive/goalsAccomplished.lean ..............   Passed    2.20 sec
+        Start 4322: server_interactive/guardMsgsCodeAction.lean
+ 84/158 Test #4318: server_interactive/goToMutVarAfterFor.lean .............   Passed    7.96 sec
+        Start 4323: server_interactive/haveInfo.lean
+ 85/158 Test #4322: server_interactive/guardMsgsCodeAction.lean ............   Passed    2.11 sec
+        Start 4324: server_interactive/highlight.lean
+ 86/158 Test #4323: server_interactive/haveInfo.lean .......................   Passed    2.27 sec
+        Start 4325: server_interactive/highlightMatches.lean
+ 87/158 Test #4324: server_interactive/highlight.lean ......................   Passed    3.16 sec
+        Start 4326: server_interactive/hover.lean
+ 88/158 Test #4325: server_interactive/highlightMatches.lean ...............   Passed    3.80 sec
+        Start 4327: server_interactive/hoverAt.lean
+ 89/158 Test #4327: server_interactive/hoverAt.lean ........................   Passed    2.54 sec
+        Start 4328: server_interactive/hoverBinderUnderscore.lean
+ 90/158 Test #4328: server_interactive/hoverBinderUnderscore.lean ..........   Passed    3.73 sec
+        Start 4329: server_interactive/hoverDoForIn.lean
+ 91/158 Test #4329: server_interactive/hoverDoForIn.lean ...................   Passed    2.81 sec
+        Start 4330: server_interactive/hoverDot.lean
+ 92/158 Test #4330: server_interactive/hoverDot.lean .......................   Passed    2.02 sec
+        Start 4331: server_interactive/hoverException.lean
+ 93/158 Test #4326: server_interactive/hover.lean ..........................   Passed   12.20 sec
+        Start 4332: server_interactive/hoverMatch.lean
+ 94/158 Test #4331: server_interactive/hoverException.lean .................   Passed    2.07 sec
+ 95/158 Test #4332: server_interactive/hoverMatch.lean .....................   Passed    1.84 sec
+        Start 4333: server_interactive/hoverMutVarInDiagnostic.lean
+        Start 4334: server_interactive/hoverTacticExt.lean
+ 96/158 Test #4333: server_interactive/hoverMutVarInDiagnostic.lean ........   Passed    2.13 sec
+        Start 4335: server_interactive/hoverTacticHoleSibling.lean
+ 97/158 Test #4334: server_interactive/hoverTacticExt.lean .................   Passed    2.22 sec
+        Start 4336: server_interactive/importCompletion.lean
+ 98/158 Test #4336: server_interactive/importCompletion.lean ...............   Passed    1.63 sec
+        Start 4337: server_interactive/impossibleTactic.lean
+ 99/158 Test #4335: server_interactive/hoverTacticHoleSibling.lean .........   Passed    2.02 sec
+        Start 4338: server_interactive/inWordCompletion.lean
+100/158 Test #4338: server_interactive/inWordCompletion.lean ...............   Passed    1.63 sec
+        Start 4339: server_interactive/incomingCallHierarchy.lean
+101/158 Test #4337: server_interactive/impossibleTactic.lean ...............   Passed    2.08 sec
+        Start 4340: server_interactive/incomingCallHierarchyWhere.lean
+102/158 Test #4340: server_interactive/incomingCallHierarchyWhere.lean .....   Passed    7.44 sec
+        Start 4341: server_interactive/incrementalCombinator.lean
+103/158 Test #4339: server_interactive/incomingCallHierarchy.lean ..........   Passed    8.35 sec
+        Start 4342: server_interactive/incrementalCommand.lean
+104/158 Test #4341: server_interactive/incrementalCombinator.lean ..........   Passed   13.60 sec
+        Start 4343: server_interactive/incrementalInduction.lean
+105/158 Test #4342: server_interactive/incrementalCommand.lean .............   Passed   13.32 sec
+        Start 4344: server_interactive/incrementalMutual.lean
+106/158 Test #4343: server_interactive/incrementalInduction.lean ...........   Passed   12.01 sec
+        Start 4345: server_interactive/incrementalTactic.lean
+107/158 Test #4344: server_interactive/incrementalMutual.lean ..............   Passed   12.65 sec
+        Start 4346: server_interactive/infoIssues.lean
+108/158 Test #4346: server_interactive/infoIssues.lean .....................   Passed    2.48 sec
+        Start 4347: server_interactive/inlayHints.lean
+109/158 Test #4347: server_interactive/inlayHints.lean .....................   Passed    2.75 sec
+        Start 4348: server_interactive/interactiveDiagnostics.lean
+110/158 Test #4348: server_interactive/interactiveDiagnostics.lean .........   Passed    2.61 sec
+        Start 4349: server_interactive/interactiveGoalGoToLoc.lean
+111/158 Test #4349: server_interactive/interactiveGoalGoToLoc.lean .........   Passed    2.17 sec
+        Start 4350: server_interactive/interactiveGoalPopups.lean
+112/158 Test #4345: server_interactive/incrementalTactic.lean ..............   Passed   12.57 sec
+        Start 4351: server_interactive/interactiveTermGoals.lean
+113/158 Test #4350: server_interactive/interactiveGoalPopups.lean ..........   Passed    2.33 sec
+        Start 4352: server_interactive/interactiveTraces.lean
+114/158 Test #4351: server_interactive/interactiveTermGoals.lean ...........   Passed    2.73 sec
+        Start 4353: server_interactive/internalNamesIssue.lean
+115/158 Test #4352: server_interactive/interactiveTraces.lean ..............   Passed    3.51 sec
+        Start 4354: server_interactive/isRflParallel.lean
+116/158 Test #4353: server_interactive/internalNamesIssue.lean .............   Passed    2.80 sec
+        Start 4355: server_interactive/issue13705.lean
+117/158 Test #4354: server_interactive/isRflParallel.lean ..................   Passed    2.43 sec
+        Start 4356: server_interactive/issue13705_exact.lean
+118/158 Test #4355: server_interactive/issue13705.lean .....................   Passed    2.75 sec
+        Start 4357: server_interactive/issue14218.lean
+119/158 Test #4357: server_interactive/issue14218.lean .....................   Passed    2.95 sec
+        Start 4358: server_interactive/issue4527.lean
+120/158 Test #4356: server_interactive/issue13705_exact.lean ...............   Passed    4.75 sec
+        Start 4359: server_interactive/issue5021.lean
+121/158 Test #4358: server_interactive/issue4527.lean ......................   Passed    2.35 sec
+        Start 4360: server_interactive/issue5597.lean
+122/158 Test #4359: server_interactive/issue5021.lean ......................   Passed    2.43 sec
+        Start 4361: server_interactive/jumpMutual.lean
+123/158 Test #4360: server_interactive/issue5597.lean ......................   Passed    2.14 sec
+        Start 4362: server_interactive/keywordCompletion.lean
+124/158 Test #4362: server_interactive/keywordCompletion.lean ..............   Passed    1.94 sec
+        Start 4363: server_interactive/lean3HoverIssue.lean
+125/158 Test #4363: server_interactive/lean3HoverIssue.lean ................   Passed    2.45 sec
+        Start 4364: server_interactive/linterCodeAction.lean
+126/158 Test #4361: server_interactive/jumpMutual.lean .....................   Passed    8.60 sec
+        Start 4365: server_interactive/macroGoalIssue.lean
+127/158 Test #4364: server_interactive/linterCodeAction.lean ...............   Passed    3.11 sec
+        Start 4366: server_interactive/match.lean
+128/158 Test #4365: server_interactive/macroGoalIssue.lean .................   Passed    1.55 sec
+        Start 4367: server_interactive/matchPatternHover.lean
+129/158 Test #4366: server_interactive/match.lean ..........................   Passed    1.76 sec
+        Start 4368: server_interactive/matchStxCompletion.lean
+130/158 Test #4367: server_interactive/matchPatternHover.lean ..............   Passed    1.53 sec
+        Start 4369: server_interactive/moduleHierarchyImports.lean
+131/158 Test #4368: server_interactive/matchStxCompletion.lean .............   Passed    1.51 sec
+        Start 4370: server_interactive/outgoingCallHierarchy.lean
+132/158 Test #4369: server_interactive/moduleHierarchyImports.lean .........   Passed    5.15 sec
+        Start 4371: server_interactive/partialNamespace.lean
+133/158 Test #4370: server_interactive/outgoingCallHierarchy.lean ..........   Passed    5.30 sec
+        Start 4372: server_interactive/plainGoal.lean
+134/158 Test #4371: server_interactive/partialNamespace.lean ...............   Passed    1.20 sec
+        Start 4373: server_interactive/plainGoalEmptyBy.lean
+135/158 Test #4373: server_interactive/plainGoalEmptyBy.lean ...............   Passed    1.64 sec
+        Start 4374: server_interactive/plainGoalEmptyByNested.lean
+136/158 Test #4372: server_interactive/plainGoal.lean ......................   Passed    1.90 sec
+        Start 4375: server_interactive/plainTermGoal.lean
+137/158 Test #4374: server_interactive/plainGoalEmptyByNested.lean .........   Passed    1.13 sec
+        Start 4376: server_interactive/postprocess_traces_hover.lean
+138/158 Test #4375: server_interactive/plainTermGoal.lean ..................   Passed    1.46 sec
+        Start 4377: server_interactive/ppShowLetValues.lean
+139/158 Test #4377: server_interactive/ppShowLetValues.lean ................   Passed    1.23 sec
+        Start 4378: server_interactive/rename.lean
+140/158 Test #4378: server_interactive/rename.lean .........................   Passed    1.13 sec
+        Start 4379: server_interactive/rwElabConst.lean
+141/158 Test #4379: server_interactive/rwElabConst.lean ....................   Passed    1.99 sec
+        Start 4380: server_interactive/semanticTokens.lean
+142/158 Test #4376: server_interactive/postprocess_traces_hover.lean .......   Passed    4.86 sec
+        Start 4381: server_interactive/semanticTokensVersoDocs.lean
+143/158 Test #4380: server_interactive/semanticTokens.lean .................   Passed    1.28 sec
+        Start 4382: server_interactive/signatureHelp.lean
+144/158 Test #4381: server_interactive/semanticTokensVersoDocs.lean ........   Passed    1.25 sec
+        Start 4383: server_interactive/stdOutput.lean
+145/158 Test #4382: server_interactive/signatureHelp.lean ..................   Passed    1.82 sec
+        Start 4384: server_interactive/strInterpSynthError.lean
+146/158 Test #4383: server_interactive/stdOutput.lean ......................   Passed    2.19 sec
+        Start 4385: server_interactive/structGoTo.lean
+147/158 Test #4384: server_interactive/strInterpSynthError.lean ............   Passed    1.25 sec
+        Start 4386: server_interactive/structInstFieldHints.lean
+148/158 Test #4385: server_interactive/structGoTo.lean .....................   Passed    1.41 sec
+        Start 4387: server_interactive/structNameParentProj.lean
+149/158 Test #4387: server_interactive/structNameParentProj.lean ...........   Passed    1.25 sec
+        Start 4388: server_interactive/tacticInduction.lean
+150/158 Test #4386: server_interactive/structInstFieldHints.lean ...........   Passed    2.04 sec
+        Start 4389: server_interactive/terminationBySuggestion.lean
+151/158 Test #4388: server_interactive/tacticInduction.lean ................   Passed    1.10 sec
+        Start 4390: server_interactive/travellingCompletions.lean
+152/158 Test #4389: server_interactive/terminationBySuggestion.lean ........   Passed    1.37 sec
+        Start 4391: server_interactive/tryThisCodeAction.lean
+153/158 Test #4391: server_interactive/tryThisCodeAction.lean ..............   Passed    1.00 sec
+        Start 4392: server_interactive/unknownIdentifierCodeActions.lean
+154/158 Test #4390: server_interactive/travellingCompletions.lean ..........   Passed    3.89 sec
+        Start 4393: server_interactive/unterminatedDocComment.lean
+155/158 Test #4393: server_interactive/unterminatedDocComment.lean .........   Passed    1.16 sec
+        Start 4394: server_interactive/userWidget.lean
+156/158 Test #4394: server_interactive/userWidget.lean .....................   Passed    1.70 sec
+        Start 4395: server_interactive/workspaceSymbols.lean
+157/158 Test #4395: server_interactive/workspaceSymbols.lean ...............   Passed    5.00 sec
+158/158 Test #4392: server_interactive/unknownIdentifierCodeActions.lean ...   Passed   44.22 sec
+
+100% tests passed, 0 tests failed out of 158
+
+Total Test time (real) = 286.24 sec

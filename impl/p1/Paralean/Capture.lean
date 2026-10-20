@@ -380,14 +380,18 @@ node wins when a larger term's tree also covers a nested field token. -/
 partial def dotFieldIds (source : String) (cmdStart cmdEnd : Nat) (field : String)
     (stx : Syntax) : Array (Nat × Nat) := Id.run do
   let mut out := #[]
-  if stx.isIdent && stx.getId.getString! == field then
-    if let (some a, some z) := (stx.getPos?, stx.getTailPos?) then
-      let a := a.byteIdx
-      let z := z.byteIdx
-      let written := sliceBytes source a z
-      if cmdStart < a && z ≤ cmdEnd && sliceBytes source (a - 1) a == "." &&
-          (written == field || written == s!"«{field}»") then
-        out := out.push (a - cmdStart, z - cmdStart)
+  if stx.isIdent then
+    if let .str _ writtenField := stx.getId then
+      if writtenField == field then
+        if let (some a, some z) := (stx.getPos?, stx.getTailPos?) then
+          let a := a.byteIdx
+          let z := z.byteIdx
+          let bytes := source.toUTF8
+          if cmdStart < a && a ≤ z && z ≤ cmdEnd && z ≤ bytes.size &&
+              bytes.extract (a - 1) a == ".".toUTF8 then
+            if let some written := String.fromUTF8? (bytes.extract a z) then
+              if written == field || written == s!"«{field}»" then
+                out := out.push (a - cmdStart, z - cmdStart)
   match stx with
   | .node _ _ children =>
     for child in children do out := out ++ dotFieldIds source cmdStart cmdEnd field child

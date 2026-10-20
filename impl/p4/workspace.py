@@ -230,11 +230,15 @@ def resolve(directory, file, name):
     pull()
     synced = command_json([env["PARALEAN_BIN"], "ws-sync", "--dir", directory], env)
     heads = command_json([env["PARALEAN_BIN"], "ws-live"], env)
+    live = set(heads["groups"])
+    revisions = sorted({revision for record in records(cache)
+                        if record.get("group") in live and record["file"] == file
+                        for revision in record.get("revisions", [])})
     return {"resolution": "tombstone", "target": target["target"], **deleted,
-            "sync": synced, "revisions": heads["revisions"],
+            "sync": synced, "checkpointFiles": [file], "revisions": revisions,
             "checkpointArgs": ["checkpoint", "--cache", str(cache), "--ws", agent,
-                               "--revisions", ",".join(heads["revisions"])],
-            "next": "Revise affected drafts and check/export them. Use checkpointArgs with plr to commit these live heads. If you publish a replacement first, recompute heads with ws-live."}
+                               "--revisions", ",".join(revisions)],
+            "next": "These candidate checkpointArgs select only this file's live heads. Revise affected drafts, check/export the selection, then submit through the controller's authority context. Recompute heads after any further publication; use ws-live to plan a broader snapshot."}
 
 
 def main():

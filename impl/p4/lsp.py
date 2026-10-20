@@ -329,6 +329,24 @@ class Proxy:
             self.client_writer.write(frame(message))
             await self.client_writer.drain()
 
+    async def run_active_request(self, client_id, operation):
+        try:
+            await operation
+        finally:
+            for ws, worker_id in self.requests.pop(client_id, []):
+                item = ws.pending.pop(worker_id, None)
+                if item and not item[5].done():
+                    item[5].set_result(None)
+            self.cancelled.discard(client_id)
+
+    async def start_active_request(self, client_id, operation):
+        if client_id in self.requests:
+            operation.close()
+            await self.error(client_id, -32600, "Request ID is already active")
+            return
+        self.requests[client_id] = []
+        asyncio.create_task(self.run_active_request(client_id, operation))
+
     def resolve(self, uri):
         parsed = urllib.parse.urlparse(uri)
         if parsed.scheme == "paralean":
@@ -597,12 +615,18 @@ class Proxy:
         if method == "$/lean/fileProgress":
             params = message.get("params", {})
             doc = params.get("textDocument", {})
-            state = ws.open_documents.get(doc.get("uri"))
+            uri = doc.get("uri")
+            fatal = any(p.get("kind") == 2 for p in params.get("processing", []))
+            if fatal and uri in ws.open_documents:
+                # Lean's watchdog reports a crashed native file worker at the
+                # old document version and leaves it crashed. Recreate it from
+                # the latest editor buffer even when that fatal notification's
+                # version is older than the current edit.
+                await ws.replace_worker()
+                return
+            state = ws.open_documents.get(uri)
             if state is None or doc.get("version") != state["version"]:
                 return
-            if any(p.get("kind") == 2 for p in params.get("processing", [])):
-                self.sessions = {key: value for key, value in self.sessions.items()
-                                 if not (value[0] is ws and value[3] == doc.get("uri"))}
         if method == "textDocument/publishDiagnostics":
             params = message.get("params", {})
             uri = params.get("uri")
@@ -653,8 +677,11 @@ class Proxy:
         if method == "workspace/executeCommand" and params.get("command") == "paralean/killWorker":
             name = (params.get("arguments") or [None])[0]
             ws = self.workspaces.get(name)
-            if ws and ws.process and ws.process.returncode is None:
-                ws.stop_process()
+            if ws:
+                # A SIGKILL is asynchronous. Fence and replace the generation
+                # before acknowledging the command so the next editor edit
+                # cannot be sent into the dying worker's pipe.
+                await ws.replace_worker()
             await self.send({"jsonrpc": "2.0", "id": client_id, "result": ws is not None})
             return
         if method == "workspace/executeCommand" and params.get("command") == "paralean/setEnvironment":
@@ -683,8 +710,10 @@ class Proxy:
             return
         if method == "$/cancelRequest":
             target = params.get("id")
+            if target not in self.requests:
+                return
             self.cancelled.add(target)
-            for ws, worker_id in self.requests.pop(target, []):
+            for ws, worker_id in list(self.requests[target]):
                 item = ws.pending.pop(worker_id, None)
                 if item and not item[5].done():
                     item[5].set_result(None)
@@ -730,7 +759,7 @@ class Proxy:
         if method in ("workspace/symbol", "paralean/search"):
             if client_id is None:
                 return
-            asyncio.create_task(self.aggregate_symbols(message))
+            await self.start_active_request(client_id, self.aggregate_symbols(message))
             return
         ws, uri = self.document(params)
         if method == "completionItem/resolve":
@@ -792,27 +821,43 @@ class Proxy:
             return
         document = uri if uri in ws.open_documents else None
         expected_version = ws.open_documents[document]["version"] if document else None
-        asyncio.create_task(self.route_request(ws, wire, client_id, document, expected_version))
+        await self.start_active_request(client_id, self.route_request(ws, wire, client_id, document, expected_version))
 
     async def route_request(self, ws, message, client_id, document, expected_version):
         if client_id in self.cancelled:
             await self.error(client_id, -32800, "Request cancelled")
             self.cancelled.discard(client_id)
             return
-        try:
-            worker_id, future = await ws.request(message, client_id, document, expected_version=expected_version)
-        except EnvironmentInvalid:
-            await self.error(client_id, -32001, "Workspace environment invalid")
-            return
-        except ValueError:
-            await self.error(client_id, -32800, "Document changed before request dispatch")
-            return
-        except (OSError, ConnectionError, BrokenPipeError, asyncio.TimeoutError):
-            await self.error(client_id, -32001, "Workspace worker unavailable")
-            return
-        self.requests.setdefault(client_id, []).append((ws, worker_id))
-        result = await future
-        self.requests[client_id] = [x for x in self.requests.get(client_id, []) if x != (ws, worker_id)]
+        retryable = message.get("method") in {
+            "textDocument/waitForDiagnostics", "textDocument/hover", "$/lean/plainGoal",
+            "$/lean/plainTermGoal", "textDocument/completion", "textDocument/definition",
+            "textDocument/references", "textDocument/rename", "textDocument/documentSymbol",
+        }
+        result = None
+        for attempt in range(2 if retryable and document else 1):
+            try:
+                worker_id, future = await ws.request(message, client_id, document, expected_version=expected_version)
+            except EnvironmentInvalid:
+                await self.error(client_id, -32001, "Workspace environment invalid")
+                return
+            except ValueError:
+                reason = "Request cancelled" if client_id in self.cancelled else "Document changed before request dispatch"
+                await self.error(client_id, -32800, reason)
+                return
+            except (OSError, ConnectionError, BrokenPipeError, asyncio.TimeoutError):
+                await self.error(client_id, -32001, "Workspace worker unavailable")
+                return
+            pending = ws.pending.get(worker_id)
+            request_generation = pending[3] if pending else ws.generation
+            request_environment = pending[4] if pending else ws.environment
+            self.requests.setdefault(client_id, []).append((ws, worker_id))
+            result = await future
+            self.requests[client_id] = [x for x in self.requests.get(client_id, []) if x != (ws, worker_id)]
+            if result is not None or attempt or client_id in self.cancelled:
+                break
+            if ws.generation == request_generation or ws.environment != request_environment or ws.open_documents.get(document, {}).get("version") != expected_version:
+                break
+            self.debug("retrying read-only request after worker restart", ws.name, message.get("method"), client_id)
         if client_id in self.cancelled:
             self.cancelled.discard(client_id)
             await self.error(client_id, -32800, "Request cancelled")

@@ -1,0 +1,15 @@
+{
+  "gate": "pass",
+  "fixture": "p4-interactive-collision-ready/bob",
+  "guidedTombstone": "7ac4f1f424c767df8e4934f6dff345932e8f229c938401567057bdaea96cb979",
+  "checkpoint": "15037978e0f352722d2c20fbc182023e651b966150a962bbd4b8c392ca3e7411",
+  "snapshot": "ca8508654e1b1937779e7d39e6057106748324e11d0725c8b56b86205dd4e3bb",
+  "projectionAdded": 4,
+  "checkpointFiles": ["Shared.lean"],
+  "checkedRevisions": [
+    "3afbedbb8e63f387faff94eb5375bfc056c7acaa03d22dc79885eefe5c8efb7d",
+    "d2df21b22c7d1276311c64eda8cd1927d23e8a2c2b5e05169cce1fb03873d604"
+  ],
+  "certifiedSourceLeanCheck": "pass",
+  "loserAbsentWinnerPresent": true
+}

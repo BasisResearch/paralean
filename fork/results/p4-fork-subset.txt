@@ -1,0 +1,15 @@
+Test project /data/home/kirancodes/Documents/code/paralean-m-p4/.deps/lean4-paralean/build/release/stage1
+    Start 3039: elab/paraleanInstNames.lean
+    Start 3038: elab/paraleanCollector.lean
+1/5 Test #3039: elab/paraleanInstNames.lean ......   Passed    2.43 sec
+    Start 3041: elab/paraleanSimp.lean
+2/5 Test #3038: elab/paraleanCollector.lean ......   Passed    2.73 sec
+    Start 3040: elab/paraleanOff.lean
+3/5 Test #3041: elab/paraleanSimp.lean ...........   Passed    2.10 sec
+    Start 3042: elab/paraleanSync.lean
+4/5 Test #3040: elab/paraleanOff.lean ............   Passed    2.24 sec
+5/5 Test #3042: elab/paraleanSync.lean ...........   Passed    1.83 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   6.51 sec

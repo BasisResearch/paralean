@@ -1,0 +1,10 @@
+{
+  "gate": "pass",
+  "benchmark": "Init",
+  "first_ms": 1898.36,
+  "edit_p50_ms": 125.37,
+  "edit_p95_ms": 259.25,
+  "edit_samples_ms": [116.32, 125.23, 128.67, 261.37, 256.65, 160.25, 125.51, 116.46, 117.88, 121.43],
+  "first": {"new": 3, "reused": 0},
+  "edit": {"new": 2, "reused": 1}
+}

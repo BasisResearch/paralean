@@ -1,0 +1,40 @@
+{
+  "gate": "pass",
+  "kind": "revocation",
+  "diagnosticsBefore": [
+    {
+      "fullRange": {
+        "end": {
+          "character": 6,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
+        }
+      },
+      "message": "Revoked.use : Nat",
+      "range": {
+        "end": {
+          "character": 6,
+          "line": 1
+        },
+        "start": {
+          "character": 0,
+          "line": 1
+        }
+      },
+      "severity": 3,
+      "source": "Lean 4"
+    }
+  ],
+  "diagnosticsAfter": [
+    "remote%: receipt of f7fdb062 is no longer valid: Revoked"
+  ],
+  "replayDiagnostics": [
+    "remote%: receipt of f7fdb062 is no longer valid: Revoked",
+    "remote%: receipt of f7fdb062 is no longer valid: Revoked",
+    "Unknown identifier `Revoked.use`"
+  ],
+  "revokeOutput": "revoked 60a0aac8b141c9fd4c73fac7699ddb0bd877b3f258cb172be87f7d57b0a76503 (new)"
+}

@@ -1,0 +1,7 @@
+{
+  "gate": "pass",
+  "kind": "open17",
+  "rewrittenUse": "x.\u00abfield\u271dplaaa22b5e\u00bb + y.field",
+  "warningCount": 11,
+  "errorCount": 0
+}

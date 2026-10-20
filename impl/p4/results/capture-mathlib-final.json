@@ -1,0 +1,10 @@
+{
+  "gate": "pass",
+  "benchmark": "Mathlib",
+  "first_ms": 6092.58,
+  "edit_p50_ms": 176.76,
+  "edit_p95_ms": 286.6,
+  "edit_samples_ms": [133.82, 237.83, 163.37, 150.4, 130.93, 133.0, 326.5, 220.21, 190.16, 195.28],
+  "first": {"new": 3, "reused": 0},
+  "edit": {"new": 2, "reused": 1}
+}
