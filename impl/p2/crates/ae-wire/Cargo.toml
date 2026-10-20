@@ -10,3 +10,7 @@ tokio.workspace = true
 ed25519-dalek = "2"
 sha2 = "0.10"
 rand = "0.8"
+
+[features]
+# Test-only guard removal; never enable in deployments.
+mutate-weak-signature = []

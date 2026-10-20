@@ -194,10 +194,17 @@ def byte : M UInt8 := do
   unless i < b.size do throw "receipt: truncated"
   set (b, i + 1)
   return b[i]!
-partial def uv : M Nat := do
-  let x ← byte
-  if x < 0x80 then return x.toNat
-  return x.toNat % 0x80 + 0x80 * (← uv)
+def uv : M Nat := do
+  let mut value := 0
+  for index in [0:10] do
+    let x ← byte
+    let low := x.toNat % 128
+    if index == 9 && low > 1 then throw "receipt: varint overflow"
+    value := value + low * 2 ^ (7 * index)
+    if x < 0x80 then
+      if index > 0 && low == 0 then throw "receipt: nonminimal varint"
+      return value
+  throw "receipt: varint overflow"
 def bytes : M ByteArray := do
   let n ← uv
   let (b, i) ← get
@@ -281,6 +288,7 @@ structure Job where
   checker : ByteArray
   worker : String
   hasTargets : Bool
+  targetSlot : Option ByteArray
   sig : ByteArray
 
 def Job.parse (raw : ByteArray) : Except String Job := do
@@ -298,15 +306,19 @@ def Job.parse (raw : ByteArray) : Except String Job := do
       let policy ← PDec.id32
       let checker ← PDec.id32
       let worker ← PDec.bytes
+      let targetStart := (← get).2
       let nt ← PDec.uv
       for _ in [0:nt] do
         let _ ← PDec.name
         let _ ← PDec.uv
         let _ ← PDec.bytes
+      let targetEnd := (← get).2
+      let targetSlot := if nt > 0 then some (body.extract targetStart targetEnd) else none
       let _deadline ← PDec.uv
       let _mem ← PDec.uv
       return ({ id := Sha256.hash pre, group := toHex group, capsule := toHex capsule, deps
-                base := toHex base, policy := toHex policy, checker, worker := toHex worker, hasTargets := nt > 0, sig } : Job) : PDec.M Job).run (body, 0)
+                base := toHex base, policy := toHex policy, checker, worker := toHex worker,
+                hasTargets := nt > 0, targetSlot, sig } : Job) : PDec.M Job).run (body, 0)
   unless used == body.size do throw "job: trailing body bytes"
   return j
 
@@ -363,14 +375,15 @@ def Trust.admits (t : Trust) (r : Receipt) (job : Job) (group capsule : String) 
   -- the issuer of the envelope's worker first: a failed verification costs as much as a good one
   let own := t.jobIssuers.filter (·.1 == t.agentName job.worker) |>.map (·.2)
   let keys := own ++ #[t.authority] ++ (t.jobIssuers.map (·.2)).filter (!own.contains ·)
-  unless keys.any (fun k => Ed25519.verify (Ed25519.hexToBytes k |>.getD .empty) job.id job.sig) do
+  let permitted := if job.hasTargets then #[t.authority] else keys
+  unless permitted.any (fun k => Ed25519.verify (Ed25519.hexToBytes k |>.getD .empty) job.id job.sig) do
     throw "the job envelope is not signed by the controller or a job issuer"
   unless r.request.map toHex == some (toHex job.id) do throw "the receipt answers another job"
   unless job.group == group && job.capsule == capsule do
     throw "the job envelope is for another group or capsule"
   unless r.base == job.base && r.policy == job.policy && toHex r.checker == toHex job.checker do
     throw "the receipt does not repeat its job's base, policy and checker"
-  unless r.target.isNone == !job.hasTargets do throw "the receipt's target binding differs from its job's"
+  unless r.target == job.targetSlot do throw "the receipt's target binding differs from its job's"
   unless t.policies.contains job.policy && t.checkers.contains (toHex job.checker) do
     throw "the job's policy or checker is not pinned"
   unless job.base == t.base do throw "the job is for another base"
@@ -393,6 +406,7 @@ def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Job) := do
     match Job.parse (← IO.FS.readBinFile jp) with
     | .error e => return .error e
     | .ok job =>
+      unless toHex job.id == toHex req do return .error "the cached job is not the one the receipt names"
       if (← admitted.get).contains (m.receipt, m.group, m.capsule) then return .ok job
       match (← trust).admits r job m.group m.capsule with
       | .error e => return .error e

@@ -55,6 +55,7 @@ mutate-receive-overwrite-marker = []
 mutate-receive-no-payload-ack = []
 # Receipt binding across deployments (merge of p2-rest with p3-control).
 mutate-receive-no-receipt-check = []
+mutate-weak-signature = []
 
 [dev-dependencies]
 proptest = "1"

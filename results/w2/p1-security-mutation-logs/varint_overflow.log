@@ -1,0 +1,12 @@
+uncaught exception: varint overflow: accepted invalid input
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpa684thbv', '210a1c4410daa1dceb7ab7e37fcf8b68749b16370374d9f159871f9945cf22f6', '829525dae915b1c5ac39ec248c0f0c5ad8a86a509e609a549717de2f7727c662', '81871819d38f7ba22579e0cea2058ba64b57e05e62bbd8b52f5831b4c24f6c60', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '258b5971dd76f70fb8773cf13fac366b6a8d2b5dcfb16e1fa634363a4f361f67', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.

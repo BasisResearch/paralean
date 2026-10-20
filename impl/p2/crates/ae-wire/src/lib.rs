@@ -179,9 +179,12 @@ impl Frame {
                 "peer, target or message type mismatch",
             ));
         }
-        peer.verifying_key
-            .verify_strict(&self.signed_header, &self.signature)
-            .map_err(|_| WireError::Authentication("signature"))?;
+        let verified = if cfg!(feature = "mutate-weak-signature") {
+            ed25519_dalek::Verifier::verify(&peer.verifying_key, &self.signed_header, &self.signature)
+        } else {
+            peer.verifying_key.verify_strict(&self.signed_header, &self.signature)
+        };
+        verified.map_err(|_| WireError::Authentication("signature"))?;
         Ok(())
     }
 
@@ -482,6 +485,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn weak_pinned_peer_key_is_rejected() {
+        let source = identity("peer", 1);
+        let mut frame = Frame::new(REQUEST, &source, "local", [9; 32], [0; 32], Payload::default()).unwrap();
+        let mut public = [0; 32];
+        public[0] = 1;
+        let mut signature = [0; 64];
+        signature[0] = 1;
+        frame.signature = Signature::from_bytes(&signature);
+        let weak = Peer { deployment: "peer".into(), verifying_key: VerifyingKey::from_bytes(&public).unwrap() };
+        assert!(matches!(frame.verify_header(&weak, "local", REQUEST), Err(WireError::Authentication("signature"))));
+        let valid = Frame::new(REQUEST, &source, "local", [9; 32], [0; 32], Payload::default()).unwrap();
+        assert!(valid.verify_header(&peer(&source), "local", REQUEST).is_ok());
+    }
 
     fn identity(name: &str, seed: u8) -> Identity {
         Identity {

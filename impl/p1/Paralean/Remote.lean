@@ -220,7 +220,7 @@ def checkReceipt (g : GroupRec) : IO Unit := do
   match ← P3.checkReceipt root m with
   | .ok job =>
     -- A signature is not sufficient after publication: the validator key may have
-    -- been revoked (or the job cancelled). Ask the store's consumer guard on every
+    -- been revoked. Ask the store's consumer guard on every
     -- load, including an already cached package in a long-lived server.
     let live ← plr #["check-receipt", g.declId]
     unless (live.getObjValAs? Bool "admits").toOption == some true do

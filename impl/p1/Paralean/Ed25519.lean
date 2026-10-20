@@ -201,12 +201,15 @@ def verify (publicKey : ByteArray) (msg : ByteArray) (sig : ByteArray) : Bool :=
   if publicKey.size != 32 || sig.size != 64 then false else
   let s := leNat sig 32 32
   if s ≥ L then false else
-  match decodePoint (leNat publicKey 0 32) with
-  | none => false
-  | some A =>
+  match decodePoint (leNat publicKey 0 32), decodePoint (leNat sig 0 32) with
+  | some A, some R =>
+    -- Match the store's strict verifier: small-order keys and R points are not
+    -- accepted, even if a malformed key was placed in a trust configuration.
+    if A.double.double.double.encode == 1 || R.double.double.double.encode == 1 then false else
     let h := Sha512.hash ((sig.extract 0 32 ++ publicKey) ++ msg)
     let k := leNat h 0 64 % L
     (doubleMul s B k A.neg).encode == leNat sig 0 32
+  | _, _ => false
 
 def hexVal (c : Char) : Option Nat :=
   if '0' ≤ c && c ≤ '9' then some (c.toNat - 48)

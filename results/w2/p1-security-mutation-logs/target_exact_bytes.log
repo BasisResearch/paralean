@@ -1,0 +1,12 @@
+uncaught exception: mismatched target bytes: accepted invalid input
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmppku8u8s2', '33ec7b7e02e7d1c6df8d6a4be4482b50200a872576eae69fe5755224feeae532', '89d464ccabf91b1a9cb13b68cbf0494da13509b0820d5045fad9ec7ef952d82e', '747355de120ffff1ff56c2d1de4c855994495e65c32479eaa3e8ef5cd327c232', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'e9b99fcd24480db356fbec0631e51be8b0cbf6195fe346fec0f6ad43ac8e2255', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.

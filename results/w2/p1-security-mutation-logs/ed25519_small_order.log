@@ -1,0 +1,18 @@
+/Users/kirancodes/tmp/w2-p1-mutations-gjiam6jg/ed25519_small_order/Paralean/Ed25519.lean:205:17: warning: Variable name `R` is not explicitly referenced.
+
+Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+  [apply] _R
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+uncaught exception: weak-key signature accepted
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpo7w4e_lu', '966255f3a0c3131108d820301d24c314292c028ebd27c3564141144f77cefb54', 'cc64b24d966c5b4b739cb900fd96daaeda50355629bc057ef5557afe8ffd0e3f', '2fc89b95878a828d4ff5d9d7c46b8bffa34724184843cbbe640df33b11f4cf24', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '76c3f6d8079a1a796d673eb5eee9d63ee9936c4c9a534bd86c879c4184e6d3ec', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.

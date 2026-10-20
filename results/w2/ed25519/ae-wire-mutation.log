@@ -1,0 +1,23 @@
+   Compiling ae-wire v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/ae-wire)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.82s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/ae_wire-42c5b7f3cdaf5d1e)
+
+running 1 test
+test tests::weak_pinned_peer_key_is_rejected ... FAILED
+
+failures:
+
+---- tests::weak_pinned_peer_key_is_rejected stdout ----
+
+thread 'tests::weak_pinned_peer_key_is_rejected' (3045027) panicked at crates/ae-wire/src/lib.rs:499:9:
+assertion failed: matches!(frame.verify_header(&weak, "local", REQUEST),
+    Err(WireError::Authentication("signature")))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::weak_pinned_peer_key_is_rejected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p ae-wire --lib`

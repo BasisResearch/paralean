@@ -1,0 +1,12 @@
+uncaught exception: replaced cached job: accepted invalid input
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpmzb_dulw', '49b736040fda533599d1e871f292869fbcdd9198355ab5c65eb23376c7df4c4b', 'b4ad799331f3ec6f209e3815c0d62357064389ff8899eea420ef58f032b35b97', 'cf9a3e985b10def248f842b0605aab2b3f99f41256243d9bb7595eb5ddcaaa47', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '3650a279f4613935f8f33a6c8d8555b4b85710b1a02d27e13b20f4353a151f97', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.

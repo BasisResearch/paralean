@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use ed25519_dalek::{Signature, Signer as _, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::{Signature, Signer as _, SigningKey, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
 use crate::id::{sha256, Id, WorkspaceId};
@@ -44,7 +44,11 @@ impl Signer {
 pub fn verify(public: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
     let Ok(vk) = VerifyingKey::from_bytes(public) else { return false };
     let Ok(sig) = <[u8; 64]>::try_from(sig) else { return false };
-    vk.verify(&id.0, &Signature::from_bytes(&sig)).is_ok()
+    if cfg!(feature = "mutate-weak-signature") {
+        ed25519_dalek::Verifier::verify(&vk, &id.0, &Signature::from_bytes(&sig)).is_ok()
+    } else {
+        vk.verify_strict(&id.0, &Signature::from_bytes(&sig)).is_ok()
+    }
 }
 
 /// Public keys the store trusts. Writers unknown to the ring are ignored by discovery and
@@ -218,5 +222,23 @@ impl KeyFile {
     pub fn workspace(&self, name: &str) -> Option<(WorkspaceId, Signer)> {
         let e = self.workspaces.get(name)?;
         Some((WorkspaceId::from_hex(&e.id)?, Self::seed_of(e)?))
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn weak_public_key_identity_signature_is_rejected() {
+        // Identity R, identity A, zero S satisfies the relaxed verification
+        // equation for every message but is not an acceptable Ed25519 signature.
+        let mut public = [0; 32]; public[0] = 1;
+        let mut sig = [0; 64]; sig[0] = 1;
+        let mut order_two = [0xff; 32]; order_two[0] = 0xfe; order_two[31] = 0x7f;
+        for key in [public, [0; 32], order_two] {
+            assert!(!verify(&key, &Id([7; 32]), &sig));
+        }
+        let signer = Signer::generate();
+        assert!(verify(&signer.public(), &Id([7; 32]), &signer.sign(&Id([7; 32]))));
     }
 }

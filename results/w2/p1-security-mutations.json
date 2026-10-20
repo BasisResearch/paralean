@@ -1,0 +1,48 @@
+{
+  "baseline": "P3 security checks passed",
+  "cases": [
+    {
+      "name": "varint_canonical",
+      "assertion": "nonminimal varint: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/varint_canonical.log"
+    },
+    {
+      "name": "varint_overflow",
+      "assertion": "varint overflow: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/varint_overflow.log"
+    },
+    {
+      "name": "target_authority",
+      "assertion": "issuer target job: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/target_authority.log"
+    },
+    {
+      "name": "target_exact_bytes",
+      "assertion": "mismatched target bytes: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/target_exact_bytes.log"
+    },
+    {
+      "name": "cached_job_id",
+      "assertion": "replaced cached job: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/cached_job_id.log"
+    },
+    {
+      "name": "ed25519_small_order",
+      "assertion": "weak-key signature accepted",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/ed25519_small_order.log"
+    }
+  ],
+  "passed": true
+}
