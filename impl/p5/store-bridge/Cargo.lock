@@ -1472,6 +1472,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "paralean-crypto"
+version = "0.2.0"
+dependencies = [
+ "ed25519-dalek",
+]
+
+[[package]]
 name = "paralean-p5-store"
 version = "0.1.0"
 dependencies = [
@@ -1497,6 +1504,7 @@ dependencies = [
  "foundationdb",
  "futures",
  "hex",
+ "paralean-crypto",
  "rand 0.8.8",
  "serde",
  "serde_json",

@@ -14,7 +14,7 @@ use paralean_store::pce::Dec;
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{self, Policy, TargetBinding};
 use paralean_store::{
-    AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, FederationConfig, Id, JobEnvelope, KeyFile, Kind,
+    check_file_path, AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, FederationConfig, Id, JobEnvelope, KeyFile, Kind,
     Manifest, Marker, Name, Object, Opaque, Package, Receipt, Revision, Signed, SignedJob,
     Snapshot, Store, StoreConfig, TargetAssignment, TargetCheck, TargetRecord, Verdict, Writer,
 };
@@ -120,7 +120,9 @@ async fn checkpoint_targets(args: &[String]) -> R<Value> {
     let mut files = Vec::new();
     let mut projected = BTreeSet::new();
     for (path, ids) in files_json {
-        if path.is_empty() || path.starts_with('/') || path.split('/').any(|s| s == "..") || !path.ends_with(".lean") {
+        // Also the canonical relative-path rule (W2 A-6), which is stricter.
+        if path.is_empty() || path.starts_with('/') || path.split('/').any(|s| s == "..") || !path.ends_with(".lean")
+            || check_file_path(path).is_err() {
             return Err("invalid checkpoint source path".into());
         }
         let ids = ids.as_array().ok_or("file revisions must be an array")?
@@ -542,6 +544,8 @@ async fn publish_target(args: &[String]) -> R<Value> {
     if marker.author.0 != wid.0 {
         return Err("record author differs from target owner".into());
     }
+    // W2 A-6: the path every syncing copy writes (T1 and receivers check it as well)
+    marker.check().map_err(|e| format!("plan file: {e}"))?;
     if job.body.capsule != cap {
         return Err("job capsule differs from plan".into());
     }
