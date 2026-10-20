@@ -581,8 +581,11 @@ class Backend:
         if agent not in self.agents:
             raise BackendError(f"unregistered agent: {agent}")
         request = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+        frozen = (self.payload or {}).get("contract_hashes", {}).get(name)
+        if not frozen:
+            raise BackendError(f"no frozen contract hash for target {name}")
         result = self._bridge("assign-target", "--name", name, "--ws", agent,
-                              "--request", request)
+                              "--request", request, "--statement-hash", frozen)
         return int(result["epoch"])
 
     def observe_target(self, name: str, agent: str) -> dict:

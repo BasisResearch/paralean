@@ -18,8 +18,7 @@ async fn assign_group(c: &Cluster, names: &[Name; 2], owner: WorkspaceId) -> Vec
         .call(ControlRequest::AssignGroup {
             targets: names.iter().map(ToString::to_string).collect(),
             worker: owner.hex(),
-            request: deployment("joint-assign"),
-        })
+            request: deployment("joint-assign"), statements: vec![] })
         .await;
     let ControlResponse::AssignedGroup { epochs } = response else {
         panic!("joint target assignment: {response:?}")
@@ -146,7 +145,7 @@ async fn joint_assignment_rejects_subset_and_expires_together() {
     let names = target_names();
     let epochs = assign_group(&c, &names, old.id()).await;
     let response = c.call(ControlRequest::Assign { target: names[0].to_string(),
-        worker: c.kf.workspace("w1").unwrap().0.hex() }).await;
+        worker: c.kf.workspace("w1").unwrap().0.hex(), statement: String::new() }).await;
     assert!(matches!(response, ControlResponse::Refused { .. }), "partial handover: {response:?}");
     for (name, epoch) in names.iter().zip(&epochs) {
         let record = c.store.target(name).await.unwrap().unwrap();
@@ -175,8 +174,7 @@ async fn stale_joint_assignment_request_cannot_overwrite_handover() {
     let current = c.worker_without_heartbeat(1, 8192, &core_store()).await;
     let names = target_names();
     let request = |id: &str, owner: WorkspaceId, names: &[Name]| ControlRequest::AssignGroup {
-        targets: names.iter().map(ToString::to_string).collect(), worker: owner.hex(), request: id.into(),
-    };
+        targets: names.iter().map(ToString::to_string).collect(), worker: owner.hex(), request: id.into(), statements: vec![] };
     assert!(matches!(c.call(request("joint/r1", former, &names)).await, ControlResponse::AssignedGroup { .. }));
     let ControlResponse::AssignedGroup { epochs } = c.call(request("joint/r2", current.id(), &names)).await else {
         panic!("handover failed")
@@ -221,14 +219,12 @@ async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() 
     let work_name = Name::parse("Overlap.work");
     let assigned = c.call(ControlRequest::AssignGroup {
         targets: vec![group_name.to_string()], worker: old.id().hex(),
-        request: "overlap/singleton-group".into(),
-    }).await;
+        request: "overlap/singleton-group".into(), statements: vec![] }).await;
     assert!(matches!(assigned, ControlResponse::AssignedGroup { .. }), "{assigned:?}");
     let before_group = c.store.target(&group_name).await.unwrap().unwrap();
 
     let legacy = c.call(ControlRequest::Assign {
-        target: group_name.to_string(), worker: live.id().hex(),
-    }).await;
+        target: group_name.to_string(), worker: live.id().hex(), statement: String::new() }).await;
     assert!(matches!(legacy, ControlResponse::Refused { .. }), "singleton group crossed Assign: {legacy:?}");
     let submit = c.call(ControlRequest::SubmitWork {
         request: "overlap/submit-group".into(), target: group_name.to_string(), memory_mb: 64,
@@ -243,13 +239,11 @@ async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() 
     }).await, ControlResponse::Queued);
     let queued_group = c.call(ControlRequest::AssignGroup {
         targets: vec![work_name.to_string()], worker: old.id().hex(),
-        request: "overlap/group-while-queued".into(),
-    }).await;
+        request: "overlap/group-while-queued".into(), statements: vec![] }).await;
     assert!(matches!(queued_group, ControlResponse::Refused { .. }),
         "queued work crossed AssignGroup: {queued_group:?}");
     let queued_legacy = c.call(ControlRequest::Assign {
-        target: work_name.to_string(), worker: old.id().hex(),
-    }).await;
+        target: work_name.to_string(), worker: old.id().hex(), statement: String::new() }).await;
     assert!(matches!(queued_legacy, ControlResponse::Refused { .. }),
         "queued work crossed Assign: {queued_legacy:?}");
     assert!(c.store.target(&work_name).await.unwrap().is_none(), "queued-work rejection changed target");
@@ -258,13 +252,11 @@ async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() 
     let before_work = c.store.target(&work_name).await.unwrap().unwrap();
     let running_group = c.call(ControlRequest::AssignGroup {
         targets: vec![work_name.to_string()], worker: old.id().hex(),
-        request: "overlap/group-while-running".into(),
-    }).await;
+        request: "overlap/group-while-running".into(), statements: vec![] }).await;
     assert!(matches!(running_group, ControlResponse::Refused { .. }),
         "running work crossed AssignGroup: {running_group:?}");
     let running_legacy = c.call(ControlRequest::Assign {
-        target: work_name.to_string(), worker: old.id().hex(),
-    }).await;
+        target: work_name.to_string(), worker: old.id().hex(), statement: String::new() }).await;
     assert!(matches!(running_legacy, ControlResponse::Refused { .. }),
         "running work crossed Assign: {running_legacy:?}");
     let after_work = c.store.target(&work_name).await.unwrap().unwrap();
@@ -282,4 +274,25 @@ async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() 
     assert_eq!((work.owner, work.epoch, work.head),
         (before_work.owner, before_work.epoch, before_work.head),
         "old group owner's expiry fenced live work owner");
+}
+
+/// W2 A-4: assignment pins the target's statement, a later assignment cannot replace it,
+/// and the controller stamps the pinned statement into the job whatever the worker asks.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn assignment_pins_the_statement_the_controller_stamps() {
+    let c = Cluster::start("pinned-statement", Opts::default()).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let name = Name::parse("F01.two_eq");
+    let g = w.group_declaring(&name).unwrap().clone();
+    let pinned = g.statement(&name).unwrap();
+    let wrong = "ab".repeat(32);
+    assert_ne!(pinned, wrong);
+    let r = c.call(ControlRequest::Assign { target: name.to_string(), worker: w.id().hex(), statement: pinned.clone() }).await;
+    assert!(matches!(r, ControlResponse::Assigned { .. }), "{r:?}");
+    assert_eq!(c.store.meta.target_statement(&name).await.unwrap(), Some(hex::decode(&pinned).unwrap()));
+    let r = c.call(ControlRequest::Assign { target: name.to_string(), worker: w.id().hex(), statement: wrong.clone() }).await;
+    assert!(matches!(r, ControlResponse::Refused { .. }), "pin replaced: {r:?}");
+    w.publish_deps(&g).await.unwrap();
+    let (_, job) = w.validate(&g, "pinned-statement/1", &[(name.clone(), wrong)], 0).await.unwrap();
+    assert_eq!(job.body.targets[0].statement, hex::decode(&pinned).unwrap());
 }

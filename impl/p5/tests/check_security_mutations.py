@@ -71,6 +71,10 @@ CASES = [
      "            _source_parts(file)\n            seen_groups.add(group)",
      "            seen_groups.add(group)", "test_export_snapshot.py",
      "test_snapshot_rejects_unsafe_file_name_before_checkpoint"),
+    # W2 A-4: assignment pins the frozen statement and fails closed without one.
+    ("assign_statement_pin", "p5lib/backend.py",
+     '        if not frozen:\n            raise BackendError(f"no frozen contract hash for target {name}")\n',
+     "", "test_assign_statement.py", "test_assignment_without_a_frozen_statement_fails_closed"),
 ]
 
 

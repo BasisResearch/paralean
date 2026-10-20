@@ -249,8 +249,9 @@ async fn run(args: Vec<String>) -> R<()> {
             let w = f.get("worker").ok_or("--worker W")?;
             let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
             let request = f.get("request").cloned().unwrap_or_else(|| format!("assign/{}", rand::random::<u64>()));
+            let statements = f.get("statement").map(|s| vec![s.clone()]).unwrap_or_default();
             let r = ctl_call(&f, ControlRequest::AssignGroup {
-                targets: vec![f.get("target").ok_or("--target NAME")?.clone()], worker: id, request,
+                targets: vec![f.get("target").ok_or("--target NAME")?.clone()], worker: id, request, statements,
             }).await?;
             let r = match r { ControlResponse::AssignedGroup { epochs } => ControlResponse::Assigned { epoch: epochs[0] }, other => other };
             println!("{}", serde_json::to_string(&r).unwrap());
@@ -261,7 +262,8 @@ async fn run(args: Vec<String>) -> R<()> {
             let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
             let targets: Vec<String> = f.get("targets").ok_or("--targets NAME,NAME")?.split(',').map(str::to_owned).collect();
             let request = f.get("request").cloned().unwrap_or_else(|| format!("assign-group/{}", rand::random::<u64>()));
-            let r = ctl_call(&f, ControlRequest::AssignGroup { targets, worker: id, request }).await?;
+            let statements = f.get("statements").map(|s| s.split(',').map(str::to_owned).collect()).unwrap_or_default();
+            let r = ctl_call(&f, ControlRequest::AssignGroup { targets, worker: id, request, statements }).await?;
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["cancel", ..] => {

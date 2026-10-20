@@ -252,6 +252,11 @@ async fn assign(args: &[String]) -> R<Value> {
     if request.is_empty() {
         return Err("empty assignment request".into());
     }
+    // Pin the frozen statement before the name has an owner (W2 A-4): T1 then refuses any
+    // proof whose job binds another statement, whatever the worker asks for.
+    if let Some(hash) = opt(args, "--statement-hash") {
+        ctl.pin_statement(&n, &parse_hash(hash)?).await.map_err(|e| e.to_string())?;
+    }
     let epoch = ctl
         .reassign(&n, wid, request)
         .await

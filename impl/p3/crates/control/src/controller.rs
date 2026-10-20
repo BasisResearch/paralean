@@ -103,8 +103,11 @@ pub enum ControlRequest {
     /// Cancel `worker`'s request (hex workspace ID), or that request ID of every
     /// configured workspace when `worker` is empty.
     Cancel { request: String, #[serde(default)] worker: String },
-    Assign { target: String, worker: String },
-    AssignGroup { targets: Vec<String>, worker: String, #[serde(default)] request: String },
+    /// `statement` (hex P1 `typeHash`) pins the statement every proof of the target must
+    /// prove (W2 A-4); `statements` pins one per target. Pins are write-once.
+    Assign { target: String, worker: String, #[serde(default)] statement: String },
+    AssignGroup { targets: Vec<String>, worker: String, #[serde(default)] request: String,
+        #[serde(default)] statements: Vec<String> },
     Status,
 }
 
@@ -620,10 +623,12 @@ impl ControlPlane {
                 };
                 self.cancel(&request, worker).await
             }
-            ControlRequest::Assign { target, worker } => {
+            ControlRequest::Assign { target, worker, statement } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 let target = Name::parse(&target);
                 if target.to_string().is_empty() { return refused("empty target name") }
+                let statements = if statement.is_empty() { vec![] } else { vec![statement] };
+                if let Err(r) = self.pin_statements(std::slice::from_ref(&target), &statements).await { return r }
                 if self.state.lock().unwrap().groups.iter().any(|g| g.names.contains(&target.to_string())) {
                     return refused("target belongs to an assigned group; use assign_group");
                 }
@@ -638,7 +643,7 @@ impl ControlPlane {
                     Err(e) => ControlResponse::Inconclusive { reason: e.to_string() },
                 }
             }
-            ControlRequest::AssignGroup { targets, worker, request } => {
+            ControlRequest::AssignGroup { targets, worker, request, statements } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 if targets.is_empty() { return refused("empty target group") }
                 let names: Vec<Name> = targets.iter().map(|s| Name::parse(s)).collect();
@@ -647,6 +652,7 @@ impl ControlPlane {
                 target_set.sort();
                 target_set.dedup();
                 if target_set.len() != targets.len() { return refused("duplicate target name") }
+                if let Err(r) = self.pin_statements(&names, &statements).await { return r }
                 {
                     let st = self.state.lock().unwrap();
                     if st.groups.iter().any(|g| g.names.iter().any(|n| target_set.contains(n)) && g.names != target_set) {
@@ -693,6 +699,24 @@ impl ControlPlane {
             }
             ControlRequest::Status => self.status(),
         }
+    }
+
+    /// Pin each target's statement before it is assigned (W2 A-4), so the controller stamps
+    /// that statement into every job for the name and T1 refuses any other.
+    async fn pin_statements(&self, names: &[Name], statements: &[String]) -> Result<(), ControlResponse> {
+        if statements.is_empty() { return Ok(()) }
+        if statements.len() != names.len() { return Err(refused("give one statement per target")) }
+        let ctl = paralean_store::Controller::new(self.cfg.store.clone(), self.cfg.authority.clone());
+        for (name, hash) in names.iter().zip(statements) {
+            let Ok(bytes) = hex::decode(hash) else { return Err(refused("statement is not hex")) };
+            if let Err(e) = ctl.pin_statement(name, &bytes).await {
+                return Err(match e {
+                    paralean_store::StoreError::Invalid(reason) => refused(&reason),
+                    other => inconclusive(&other.to_string()),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn status(&self) -> ControlResponse {
@@ -1043,7 +1067,8 @@ impl ControlPlane {
             let Ok(statement) = hex::decode(&t.statement) else { return refused("bad statement hash") };
             // W2 A-4: a statement the authority pinned for the name replaces the worker's.
             let statement = match st.meta.target_statement(&name).await {
-                Ok(pinned) => pinned.unwrap_or(statement),
+                Ok(pinned) if !cfg!(feature = "mutate-no-statement-stamp") => pinned.unwrap_or(statement),
+            Ok(_) => statement,
                 Err(e) => return inconclusive(&e.to_string()),
             };
             bindings.push(TargetBinding { name, epoch: rec.epoch, statement });
