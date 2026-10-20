@@ -1,0 +1,4 @@
+export: 1 modules, 56 groups, 29599 bytes of source
+  Mathlib.ParaleanExport.SetTheory.Lists: 56 groups; imports #[Mathlib.Algebra.Order.Group.Nat, Mathlib.Algebra.Order.Monoid.NatCast, Mathlib.Algebra.Ring.Nat, Mathlib.Data.Sigma.Basic, Batteries.Tactic.Lint.TypeClass, Mathlib.Util.CompileInductive]
+stock lake build: OK (10561 ms)
+verify: 53/53 declaration groups identical in the stock-built oleans; 3 effect-only groups (build-checked)

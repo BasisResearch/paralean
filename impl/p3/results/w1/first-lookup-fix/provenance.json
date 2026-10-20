@@ -1,0 +1,37 @@
+{
+  "source_commit": "8384ff8d1e5f4585290a0d63885233686f99dc15",
+  "pending_Export_fix": true,
+  "source_sha256": {
+    "impl/p1/Paralean/Capture.lean": "3c811eab48a9e4281ded9ae846378bf9437f49a5c5d089161fc3ef6605d07207",
+    "impl/p1/Paralean/Copy.lean": "e1aec790e592f652ddffa6e91f4b4372eb78d66972831d69181d604c30ec8ead",
+    "impl/p1/Paralean/Crdt.lean": "b341f37c267c68519c214b50dd1fa182d430677da91b51bb93967ac8f6b4bd9a",
+    "impl/p1/Paralean/Driver.lean": "4ba8bffef988838c03b5f6a831f588b3054ad79cc4981e39cc680972e611b53c",
+    "impl/p1/Paralean/Ed25519.lean": "14422760bfdccb7b67a2b8cc678c0cdc8211deacfb54e8c582b9753af9cf046a",
+    "impl/p1/Paralean/Encode.lean": "01d14da5ca6b5af3ce67ff9e8a3fe093beacd0d643bf4ca9d01837a52f32cce0",
+    "impl/p1/Paralean/Export.lean": "c61a3cbb7db8eeb8d19120e8b0e817bd46bec2a902a034c14135c95bdb0ca217",
+    "impl/p1/Paralean/FAsync.lean": "5f6996f269160607438f13065a56d63472ed86beb1e7911fc767a0abd81ec378",
+    "impl/p1/Paralean/Forge.lean": "d40a29bad960d120c9d89692817a535a6d955ada7be5f82fb63d99867a346051",
+    "impl/p1/Paralean/Fork.lean": "ebc4550b7b6d06f9e464d6744adb6691219cd4aa84c842d1d524bb88c24b43b6",
+    "impl/p1/Paralean/Hooks.lean": "c14dde64c615f1c5891d425e63c9545dd23e44d39ffa9de2ed133be537b2f396",
+    "impl/p1/Paralean/InstName.lean": "c5c4dce04716741dc952ba2519d2975b0a38c87791010eda4ba7cbff7f1726d2",
+    "impl/p1/Paralean/Interactive.lean": "9e72427e43fdec768b5274026cb632c2d69844f0e5c3b539ed2bff9b3b17c641",
+    "impl/p1/Paralean/Materialize.lean": "d48923353521a96ab39cb5c25828cbf4923a35b21ae066f9e082186b830d103b",
+    "impl/p1/Paralean/Model.lean": "0c9a62e5d6b8d811b792b1ccf1e0a4340069879148f2db87d4a93e6837ad594f",
+    "impl/p1/Paralean/P3.lean": "871cf305fa434f8974ca9a798e9c9fce6500a7bac714d77e4c9c67870bb158db",
+    "impl/p1/Paralean/Remote.lean": "1ba56eeb1aff3a3e15291df40dec551b4c9d0a44775d1209c6e091a9e6b24de7",
+    "impl/p1/Paralean/Render.lean": "f90f1db69a99a7ae95b0cfed2fe9551ee16de5eb99918fd39167d50e68b68c4f",
+    "impl/p1/Paralean/Replay.lean": "cf2e0545ac4226b523b0f41bd761561f20e70f3ee98e095e755cb2e2b047d0c1",
+    "impl/p1/Paralean/Rga.lean": "40344a77518ff096ee21ce3fef70b18847b42a169a00c347980993f14ad9465d",
+    "impl/p1/Paralean/Sha256.lean": "53eb68398de988ad24eccac5c2d0bcac931c5533eb12e93512da296cced5f175",
+    "impl/p1/Paralean/Store.lean": "72a5a989ed85774524d8f679bc90e8d2a8b7d7cebe07e5549db7c694094d276d",
+    "impl/p1/Paralean/Validate.lean": "4db084468dc280f303befe42c82836576d237db19a9cc5cd264bfc9a388c38f9",
+    "impl/p1/Paralean/Visibility.lean": "31d548efc41967bc73a76fc5a2b6619dad4878080ba20c62acac79b0bc870ce7"
+  },
+  "binary_sha256": {
+    "p1_fork": "fa49c147ca352c7fbe4893b90a7781e0722ff340807aff814d6773db98ec57d4",
+    "p1_stock": "9c964e47b114c291a9e5b7a6bdc0301cc87db40c805ff869dad5171b0634c36e",
+    "warm": "e332831dfd15e05811024b9289a4b046ed83a6e8ad47378b2d1806cacd323429"
+  },
+  "mathlib_commit": "0575336843263378752eeb5f4c75a612327768a2",
+  "fork_commit": "99967f1ee50a1ee82bb178359ad95b723c8196a2"
+}

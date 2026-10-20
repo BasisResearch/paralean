@@ -1,0 +1,1 @@
+PASS: two exported declarations with one raw key are rejected

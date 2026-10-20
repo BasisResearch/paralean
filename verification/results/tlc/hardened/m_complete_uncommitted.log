@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 43 and seed 8210275957696899964 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 3600772] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/m_complete_uncommitted/Hardened.tla
+Running breadth-first search Model-Checking with fp 39 and seed -4625011242053468274 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 216277] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w1-lean-bugs/.runs/tla/hardened/m_complete_uncommitted/Hardened.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/TLC.tla
@@ -10,9 +10,9 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
-Starting... (2026-10-20 12:18:16)
+Starting... (2026-10-20 17:23:09)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:18:16.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:23:09.
 Error: Invariant CompletedRecoverable is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -302,10 +302,10 @@ State 7: <Complete line 453, col 3 to line 459, col 77 of module Hardened>
 /\ owner = "w1"
 /\ head = [w1 |-> "p1", w2 |-> "none"]
 
-594 states generated, 214 distinct states found, 100 states left on queue.
-The depth of the complete state graph search is 8.
+521 states generated, 188 distinct states found, 91 states left on queue.
+The depth of the complete state graph search is 7.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 6 and the 95th percentile is 5).
-Finished in 01s at (2026-10-20 12:18:17)
+Finished in 01s at (2026-10-20 17:23:10)
 ==== Paralean TLC provenance ====
 module Hardened
 config run.cfg
@@ -315,16 +315,19 @@ source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.t
 source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
 source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source 161982308b15b0883776a765f9054f2b97484269182e5504ce6c75b7b45c55ae  ExportLookup.tla
+source ed25f0dc16d57a7b8493fb74611dc4db92130abcfffbb681706fa7433806d9df  ExportLookupResidual.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
 source 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
 source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
 source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
+source 99f392f2c5b906e544c579a8967ae62b6a9e5dd36f3dc8e5835176e70105d85f  ReplayIdentity.tla
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
@@ -337,6 +340,8 @@ source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  Certifi
 source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
 source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
 source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source a15d82f70811e9ed4514f56dd81e058370c1e7a84a6e2bbb6cb12683fbf7adf8  ExportLookup.cfg
+source 77778505bdea006e83cf15e4ff54d5ccd76f77cbcf63dc19616c87b6409c1db4  ExportLookupResidual.cfg
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
@@ -348,6 +353,7 @@ source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
 source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
+source f6f5f44b8cbe8804d7013d8b907fb8f1399b881bd725f240dae50eceef6f21a1  ReplayIdentity.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
 source 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg

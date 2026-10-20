@@ -1,0 +1,4 @@
+export: 1 modules, 4 groups, 2884 bytes of source
+  Mathlib.ParaleanExport.Data.Set.Notation: 4 groups; imports #[Mathlib.Util.Notation3, Mathlib.Data.Set.Operations]
+stock lake build: OK (3345 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

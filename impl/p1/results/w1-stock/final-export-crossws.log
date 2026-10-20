@@ -1,0 +1,6 @@
+export: 3 modules, 3 groups, 1517 bytes of source
+  ws_b.B: 1 groups; imports #[]
+  ws_a.A: 1 groups; imports #[ws_b.B]
+  ws_b.B.Part2: 1 groups; imports #[ws_a.A, ws_b.B]
+stock lake build: OK (1188 ms)
+verify: 3/3 declaration groups identical in the stock-built oleans; 0 effect-only groups (build-checked)

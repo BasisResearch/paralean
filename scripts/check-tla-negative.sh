@@ -144,6 +144,23 @@ witness_items=(
   'target_home_publication TargetHomes NeverPublished'
   'target_home_receive TargetHomes NeverRemoteReceived'
   'target_home_handover TargetHomes NeverReassignedPublication'
+  'replay_original ReplayIdentity NeverOriginalAccepted'
+  'replay_synthetic_rejection ReplayIdentity NeverSyntheticRejected'
+  'replay_ordinary ReplayIdentity NeverOrdinarySyntheticAccepted'
+  'lookup_reordered_ref ExportLookup NeverRefAccepted'
+  'lookup_reordered_trace ExportLookup NeverTraceAccepted'
+  'lookup_reordered_option ExportLookup NeverOptionAccepted'
+  'lookup_literal_rejected ExportLookup NeverLiteralRejected'
+  'lookup_ambiguous_rejected ExportLookup NeverAmbiguousRejected'
+  'lookup_reuse_rejected ExportLookup NeverReusedRejected'
+  'residual_f10_recovered ExportLookupResidual NeverDriftAccepted'
+  'residual_exact_owner_body_rejected ExportLookupResidual NeverOwnerRejected'
+  'residual_early_rejected ExportLookupResidual NeverEarlyRejected'
+  'residual_full_ambiguous_rejected ExportLookupResidual NeverAmbiguousRejected'
+  'residual_ambiguous_owner_reserved ExportLookupResidual NeverAmbigEarlyRejected'
+  'residual_two_captures_rejected ExportLookupResidual NeverTwoRejected'
+  'residual_two_candidates_rejected ExportLookupResidual NeverMultiRejected'
+  'residual_changed_body_rejected ExportLookupResidual NeverChangedRejected'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -252,6 +269,136 @@ case_unexportable_snapshot() {
   prepare_case unexportable_snapshot
   edit_once "$neg/unexportable_snapshot/Registry.tla" '                /\ S \in Exportable' '                /\ TRUE'
   run_expected_failure unexportable_snapshot ExportRejected 'Invariant NoUnexportableCheckpoint is violated'
+}
+
+# Omitting the exact stored-content check admits a replay from the synthetic
+# module even though its generated Name literal denotes a different value.
+defcase replay_without_exact_identity
+case_replay_without_exact_identity() {
+  prepare_case replay_without_exact_identity
+  edit_once "$neg/replay_without_exact_identity/ReplayIdentity.tla" \
+    '  /\ Produced(g, c) = Stored[g]' '  /\ TRUE'
+  run_expected_failure replay_without_exact_identity ReplayIdentity \
+    'Invariant AcceptedExact is violated'
+}
+
+# Positional matching loses source provenance when exported constNames are
+# sorted differently from command capture order.
+defcase lookup_positional_queue
+case_lookup_positional_queue() {
+  prepare_case lookup_positional_queue
+  edit_once "$neg/lookup_positional_queue/ExportLookup.tla" \
+    'Match(g, c) == CandidateKey[c] = CapturedKey[g]' \
+    'Match(g, c) == c = Positional[g]'
+  run_expected_failure lookup_positional_queue ExportLookup \
+    'Invariant AttemptedKey is violated'
+}
+
+# A duplicated raw hygiene key is an ambiguous source association even when
+# both candidate kernel values happen to have equal bytes.
+defcase lookup_no_uniqueness
+case_lookup_no_uniqueness() {
+  prepare_case lookup_no_uniqueness
+  edit_once "$neg/lookup_no_uniqueness/ExportLookup.tla" \
+    '  /\ Cardinality(Matches(g)) = 1' '  /\ TRUE'
+  run_expected_failure lookup_no_uniqueness ExportLookup \
+    'Invariant AcceptedUnique is violated'
+}
+
+defcase lookup_no_exact_identity
+case_lookup_no_exact_identity() {
+  prepare_case lookup_no_exact_identity
+  edit_once "$neg/lookup_no_exact_identity/ExportLookup.tla" \
+    '  /\ Body[c] = Stored[g]' '  /\ TRUE'
+  run_expected_failure lookup_no_exact_identity ExportLookup \
+    'Invariant AcceptedExact is violated'
+}
+
+# A single exported declaration must not be assigned to two captured groups,
+# even when both store the same body and the raw hygiene key is unique.
+defcase lookup_no_reuse_guard
+case_lookup_no_reuse_guard() {
+  prepare_case lookup_no_reuse_guard
+  edit_once "$neg/lookup_no_reuse_guard/ExportLookup.tla" \
+    '  /\ Unused(c)' '  /\ TRUE'
+  run_expected_failure lookup_no_reuse_guard ExportLookup \
+    'Invariant AcceptedNotReused is violated'
+}
+
+# Full-key candidates stay reserved even when their exact owner fails body
+# comparison or several exported constants share its key.
+defcase residual_no_exact_reservation
+case_residual_no_exact_reservation() {
+  prepare_case residual_no_exact_reservation
+  edit_once "$neg/residual_no_exact_reservation/ExportLookupResidual.tla" \
+    'UnusedStem(g) == {c \in StemMatches(g) : Unused(c) /\ ~FullClaimed(c)}' \
+    'UnusedStem(g) == {c \in StemMatches(g) : Unused(c)}'
+  run_expected_failure residual_no_exact_reservation ExportLookupResidual \
+    'Invariant NoExactCandidateStolen is violated'
+}
+
+# Derived fixture only: keep the pristine model unchanged. Two exported names
+# share an ambiguous full key; a third exported name has the same stem but a
+# different key. The residual captured member may use only that third name.
+derive_residual_ambiguous_extra() {
+  local d="$1/ExportLookupResidual.tla"
+  edit_once "$d" '"cOwner", "cAmbig1", "cAmbig2",' \
+    '"cOwner", "cAmbig1", "cAmbig2", "cAmbig3",'
+  edit_once "$d" '[] c = "cAmbig2" -> "ambigKey"' \
+    $'[] c = "cAmbig2" -> "ambigKey"\n                                        [] c = "cAmbig3" -> "freeAmbigKey"'
+  edit_once "$d" '[] c \in {"cAmbig1", "cAmbig2"} -> "ambigCommand"' \
+    '[] c \in {"cAmbig1", "cAmbig2", "cAmbig3"} -> "ambigCommand"'
+  edit_once "$d" '[] c \in {"cAmbig1", "cAmbig2"} -> "A"' \
+    '[] c \in {"cAmbig1", "cAmbig2", "cAmbig3"} -> "A"'
+}
+
+defcase residual_ambiguous_extra_baseline
+case_residual_ambiguous_extra_baseline() {
+  local d="$neg/residual_ambiguous_extra_baseline"
+  prepare_case residual_ambiguous_extra_baseline
+  derive_residual_ambiguous_extra "$d"
+  run_expected_pass residual_ambiguous_extra_baseline ExportLookupResidual \
+    'derived ambiguous full key and unique residual candidate'
+}
+
+defcase residual_no_fullkey_guard
+case_residual_no_fullkey_guard() {
+  local d="$neg/residual_no_fullkey_guard"
+  prepare_case residual_no_fullkey_guard
+  derive_residual_ambiguous_extra "$d"
+  edit_once "$d/ExportLookupResidual.tla" \
+    $'ResidualSuccess(g, c) ==\n  /\\ phase = "residual"\n  /\\ <<g, c>> \\in Pairs \\ attempted\n  /\\ FullMatches(g) = {}' \
+    $'ResidualSuccess(g, c) ==\n  /\\ phase = "residual"\n  /\\ <<g, c>> \\in Pairs \\ attempted\n  /\\ TRUE'
+  run_expected_failure residual_no_fullkey_guard ExportLookupResidual \
+    'Invariant NoAmbiguousAccepted is violated'
+}
+
+defcase residual_no_capture_uniqueness
+case_residual_no_capture_uniqueness() {
+  prepare_case residual_no_capture_uniqueness
+  edit_once "$neg/residual_no_capture_uniqueness/ExportLookupResidual.tla" \
+    '  /\ Cardinality(ResidualCaptures(g)) = 1' '  /\ TRUE'
+  run_expected_failure residual_no_capture_uniqueness ExportLookupResidual \
+    'Invariant NoTwoAccepted is violated'
+}
+
+defcase residual_no_candidate_uniqueness
+case_residual_no_candidate_uniqueness() {
+  prepare_case residual_no_candidate_uniqueness
+  edit_once "$neg/residual_no_candidate_uniqueness/ExportLookupResidual.tla" \
+    '  /\ Cardinality(UnusedStem(g)) = 1' '  /\ TRUE'
+  run_expected_failure residual_no_candidate_uniqueness ExportLookupResidual \
+    'Invariant NoMultiAccepted is violated'
+}
+
+defcase residual_no_exact_body
+case_residual_no_exact_body() {
+  prepare_case residual_no_exact_body
+  edit_once "$neg/residual_no_exact_body/ExportLookupResidual.tla" \
+    $'  /\\ Cardinality(UnusedStem(g)) = 1\n  /\\ Body[c] = Stored[g]' \
+    $'  /\\ Cardinality(UnusedStem(g)) = 1\n  /\\ TRUE'
+  run_expected_failure residual_no_exact_body ExportLookupResidual \
+    'Invariant AcceptedExact is violated'
 }
 
 defcase dependent_work_blocked

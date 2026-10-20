@@ -31,9 +31,13 @@ grep -E '^M[0-9]+' "$REPO/corpus/modules.txt" | while read -r id mod _; do
   {
     echo "### $id $mod"
     timed capture "$P" capture --store "$d/store" --ws "$id" --root "$ML" "$f"
+    echo "capture-exit=$?"
     timed replay "$P" replay --store "$d/store" --isolated 1
+    echo "replay-exit=$?"
     timed export "$P" export --store "$d/store" --out "$d/export" --mathlib "$ML"
+    echo "export-exit=$?"
     "$P" stats --store "$d/store"
+    echo "stats-exit=$?"
   } > "$d/log.txt" 2>&1
   grep -E "^###|=>|^source|^kernel|^isolated|^stock|^verify|-time|^STATS" "$d/log.txt"
 done

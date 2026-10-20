@@ -1,0 +1,6 @@
+module	groups	simp_sites	native_cpu_s	dryrun_cpu_s	delta_s	ratio	package_ids_equal
+M01	213	49	4.93	5.27	0.34	1.069	yes
+M03	83	26	3.34	3.18	-0.16	0.952	yes
+M13	115	19	4.23	4.43	0.20	1.047	yes
+M16	211	25	3.87	3.85	-0.02	0.995	yes
+M18	265	55	3.64	3.80	0.16	1.044	yes

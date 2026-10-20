@@ -1,0 +1,5 @@
+no-exact-reservation: expected runtime test failure
+no-capture-uniqueness: expected runtime test failure
+no-candidate-uniqueness: expected runtime test failure
+no-fullkey-guard: expected runtime test failure
+PASS: baseline residual lookup and four source-removal mutations

@@ -27,13 +27,24 @@ structure SourceReplay where
   /-- (package id, local identity) ↦ Lean name in the replayed environment. -/
   names : Std.HashMap (String × Name) Name
 
+/-- Main module for a source-replay session. A single-module closure can preserve
+quoted name literals; mixed closures still use their synthetic replay namespace. -/
+def sourceReplayModule (cat : Catalog) (gids : Array String)
+    (module? : Option Name := none) : Name :=
+  module?.getD <| match gids[0]? with
+    | some gid =>
+      let original := (cat.get! gid).capsule.module
+      if gids.all (fun g => (cat.get! g).capsule.module == original) then original
+      else original.getRoot ++ `ParaleanReplay
+    | none => `ParaleanReplay
+
 unsafe def sourceReplay (cat : Catalog) (gids : Array String) (imports : Array Name)
     (module? : Option Name := none) (conservative := false)
     (materialize? : Option Materializer := none) : IO SourceReplay := do
-  -- same module root as the captured groups: Lean's generated names depend on it
-  let module := module?.getD <| match gids[0]? with
-    | some g => (cat.get! g).capsule.module.getRoot ++ `ParaleanReplay
-    | none => `ParaleanReplay
+  -- Quoted names in generated declarations can contain the complete main module name
+  -- (e.g. the `by_cases!` macro_rules auxiliary). Open a one-module closure under
+  -- that original name so exact declaration-ID validation sees the captured terms.
+  let module := sourceReplayModule cat gids module?
   let isModule := gids.any fun g => (cat.get! g).capsule.isModule
   -- module system: reuse the import lines as written (`meta import`, `public import`, ...)
   let specs := gids.foldl (fun acc g => (cat.get! g).capsule.importSpecs.foldl

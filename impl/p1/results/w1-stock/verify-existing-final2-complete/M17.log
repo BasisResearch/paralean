@@ -1,0 +1,21 @@
+verify: 1/21 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:25: stock-built group ed8e93077cb7 ≠ stored b7506c02a1a1
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:35: stock-built group 4d7575bf7f33 ≠ stored 7995b665c08e
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:38: stock-built group 8d2ab2f5374e ≠ stored 7ea1f57c20e0
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:41: stock-built group 051cafa50a97 ≠ stored a19e68ac079f
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:44: stock-built group 54731448db2e ≠ stored 7f053c73f320
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:48: stock-built group 80eecfffa2cd ≠ stored f913ea90d59e
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:52: stock-built group 9391b4a2516c ≠ stored bd8c512a8e61
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:56: stock-built group ef9fe35ca9dc ≠ stored 37cf54276c78
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:65: stock-built group 01ac79666a2d ≠ stored 9296ac59f0e3
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:74: stock-built group 6c083f793d5c ≠ stored 3ee8c5d7fe8b
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:88: stock-built group 3bc27d1a1ec8 ≠ stored 613f1158273b
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:91: stock-built group 984765d53164 ≠ stored 3cc2114c0424
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:94: stock-built group 9128fb5c7caf ≠ stored 440217b1e4cc
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:97: stock-built group b44695f401a8 ≠ stored f230f8d12392
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:105: stock-built group a939d41b9621 ≠ stored 0b18d33cb209
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:108: stock-built group 2ea4c59b99a5 ≠ stored d11248c805fc
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:111: stock-built group 0440d23c1106 ≠ stored b517c397c956
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:114: stock-built group 7511e46564ab ≠ stored 290818e822c5
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:117: stock-built group bd3e0421182e ≠ stored d9a872087f58
+  [reject:export-mismatch] Mathlib/Tactic/Attr/Register.lean:154: stock-built group 8d056b8dcd69 ≠ stored e847b2b79eae

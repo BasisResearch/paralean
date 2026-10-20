@@ -1,0 +1,21 @@
+F10SimpAttrDecl line 4, same-module capture and stock export
+
+Captured group e4d13538057e6aad91eb9198ec4f1a3c504d8f671535918fecdb553f4279a562
+  initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.5
+  initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.22
+  Both captured initFn bodies flagged unsupported:module-dependent-literal.
+
+Stock-built OLean module Fixtures.F10SimpAttrDecl (prepatch export source)
+  initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.5
+    : IO Lean.Meta.SimpExtension
+  initFn._@.Fixtures.F10SimpAttrDecl.2466019654._hygCtx._hyg.28
+    : IO Lean.Meta.Simp.SimprocExtension
+
+The command discriminator 2466019654 and module agree, but the second
+numeric scope differs (.22 versus .28). Raw-key lookup cannot assign that
+captured member by provenance; it must reject rather than guess that .28 is
+semantically interchangeable. This observation does not itself prove that
+the two kernel bodies are behaviorally different.
+
+Sources: .runs/w1/gate-stock/core/store/meta/e4d13538057e6aad91eb9198ec4f1a3c504d8f671535918fecdb553f4279a562.json,
+.runs/w1/identity/F10-prepatch.olean, and .runs/w1/identity/InspectF10Scratch.lean.

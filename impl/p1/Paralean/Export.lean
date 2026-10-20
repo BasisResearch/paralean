@@ -192,6 +192,23 @@ def exportKey (m : Name) (n : Name) : Option String × Name :=
     | _ => none
   (tag, normName m n)
 
+/-- Match a generated hygienic declaration to its captured command, retaining
+the command discriminator, imported scopes, and every numeric macro scope.
+Only the current module prefix of the hygiene context is rebased. In Lean's
+initializer expansion that prefix is in `imported` and `ctx` is `_hygCtx`.
+This is a
+lookup key, never a declaration-body normalization or an identity quotient. -/
+def exportHygieneKey? (m : Name) (n : Name) : Option (Name × Name × Name × List MacroScope) := do
+  guard n.hasMacroScopes
+  let view := extractMacroScopes n
+  if m.isPrefixOf view.ctx then
+    return (normName m view.name, view.imported,
+      view.ctx.replacePrefix m .anonymous, view.scopes)
+  else if m.isPrefixOf view.imported then
+    return (normName m view.name, view.imported.replacePrefix m .anonymous,
+      view.ctx, view.scopes)
+  else none
+
 /-- Explicit artifacts of the built export modules (as Lake passes them). -/
 def exportArts (plan : ExportPlan) (out : FilePath) : IO (NameMap ImportArtifacts) := do
   let libDir := out / ".lake" / "build" / "lib" / "lean"
@@ -220,16 +237,45 @@ def exportIdentity (cat : Catalog) (plan : ExportPlan) (env : Environment)
       if exportMods.contains m then
         let (tag, l) := exportKey m n
         byKey := byKey.insert (m, tag, l) n
-  let mut hygQueue : Std.HashMap (Name × Option String × Name) (Array Name) := {}
+  let mut hygByKey : Std.HashMap
+      (Name × Option String × Name × Name × Name × List MacroScope) (Array Name) := {}
+  let mut hygByStem : Std.HashMap
+      (Name × Option String × Name × Name × Name × List MacroScope) (Array Name) := {}
   for m in plan.modules do
     let some idx := env.getModuleIdx? m.name | continue
     let some md := env.header.moduleData[idx.toNat]? | continue
     for n in md.constNames do
-      let (tag, l) := exportKey m.name n
-      if l.components.getLast? == some `_hyg then
-        hygQueue := hygQueue.insert (m.name, tag, l) ((hygQueue.getD (m.name, tag, l) #[]).push n)
+      if let some (base, imported, ctx, scopes) := exportHygieneKey? m.name n then
+        let (tag, _) := exportKey m.name n
+        let key := (m.name, tag, base, imported, ctx, scopes)
+        hygByKey := hygByKey.insert key ((hygByKey.getD key #[]).push n)
+        let stem := (m.name, tag, base, imported, ctx, scopes.dropLast)
+        hygByStem := hygByStem.insert stem ((hygByStem.getD stem #[]).push n)
+  -- Reserve every candidate claimed by a full raw key before considering any
+  -- scope-ordinal drift. Thus fallback cannot steal a later exact match.
+  let mut exactClaimed : NameSet := {}
+  let mut residualCount : Std.HashMap
+      (Name × Option String × Name × Name × Name × List MacroScope) Nat := {}
+  for m in plan.modules do
+    for gid in m.groups do
+      let g := cat.get! gid
+      let tag := if g.capsule.relocate then some g.short else none
+      for mr in g.members do
+        let isHyg := match mr.local_ with
+          | .num p _ => p.components.getLast? == some `_hyg
+          | _ => false
+        if isHyg then
+          if let some (base, imported, ctx, scopes) :=
+              exportHygieneKey? g.capsule.module mr.name then
+            let q := hygByKey.getD (m.name, tag, base, imported, ctx, scopes) #[]
+            if q.isEmpty then
+              let stem := (m.name, tag, base, imported, ctx, scopes.dropLast)
+              residualCount := residualCount.insert stem (residualCount.getD stem 0 + 1)
+            else
+              for n in q do exactClaimed := exactClaimed.insert n
   let mut ident : Std.HashMap Name (String × Name) := {}
   let mut names : Std.HashMap String (Array (Name × MemberRec)) := {}
+  let mut used : NameSet := {}
   let mut diags := #[]
   for m in plan.modules do
     for gid in m.groups do
@@ -237,23 +283,39 @@ def exportIdentity (cat : Catalog) (plan : ExportPlan) (env : Environment)
       let tag := if g.capsule.relocate then some g.short else none
       let mut ns := #[]
       for mr in g.members do
-        let hyg? : Option Name := match mr.local_ with
-          | .num p _ => if p.components.getLast? == some `_hyg then some p else none
-          | _ => none
-        let found := match hyg? with
-          | some base =>
-            let q := hygQueue.getD (m.name, tag, base) #[]
-            if q.isEmpty then none else some q[0]!
-          | none => byKey[(m.name, tag, renameName (ren.getD gid {}) mr.local_)]?
-        if let some base := hyg? then
-          let q := hygQueue.getD (m.name, tag, base) #[]
-          unless q.isEmpty do hygQueue := hygQueue.insert (m.name, tag, base) (q.extract 1 q.size)
+        let isHyg := match mr.local_ with
+          | .num p _ => p.components.getLast? == some `_hyg
+          | _ => false
+        let found := if isHyg then
+            match exportHygieneKey? g.capsule.module mr.name with
+            | some (base, imported, ctx, scopes) =>
+              let q := hygByKey.getD (m.name, tag, base, imported, ctx, scopes) #[]
+              if q.size == 1 then q[0]?
+              else if q.isEmpty then
+                let stem := (m.name, tag, base, imported, ctx, scopes.dropLast)
+                if residualCount.getD stem 0 != 1 then none
+                else
+                  let unused := (hygByStem.getD stem #[]).filter
+                    (fun n => !exactClaimed.contains n)
+                  if unused.size == 1 then unused[0]? else none
+              else none
+            | none => none
+          else byKey[(m.name, tag, renameName (ren.getD gid {}) mr.local_)]?
         match found with
-        | some n => ident := ident.insert n (gid, mr.local_); ns := ns.push (n, mr)
+        | some n =>
+          if used.contains n then
+            diags := diags.push ({
+              severity := "reject", code := "export-ambiguous"
+              file := g.capsule.file, line := g.capsule.startLine
+              msg := s!"exported member {n} was already assigned to another captured member" } : Diag)
+          else
+            used := used.insert n
+            ident := ident.insert n (gid, mr.local_)
+            ns := ns.push (n, mr)
         | none => diags := diags.push ({
             severity := "reject", code := "export-missing"
             file := g.capsule.file, line := g.capsule.startLine
-            msg := s!"exported module {m.name} lacks member {mr.local_}" } : Diag)
+            msg := s!"exported module {m.name} has no unique match for member {mr.name}" } : Diag)
       names := names.insert gid ns
   return (ident, names, diags)
 

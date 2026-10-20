@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 31 and seed 5123323048863198219 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 3514197] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/hardened/Hardened.tla
+Running breadth-first search Model-Checking with fp 125 and seed -7778230826347785756 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 4056884] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w1-lean-bugs/.runs/tla/hardened/hardened/Hardened.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/TLC.tla
@@ -10,24 +10,32 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
-Starting... (2026-10-20 12:11:56)
+Starting... (2026-10-20 17:07:18)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:11:56.
-Progress(16) at 2026-10-20 12:11:59: 127,775 states generated (127,775 s/min), 29,366 distinct states found (29,366 ds/min), 11,521 states left on queue.
-Progress(24) at 2026-10-20 12:12:59: 3,757,414 states generated (3,629,639 s/min), 745,251 distinct states found (715,885 ds/min), 226,371 states left on queue.
-Progress(26) at 2026-10-20 12:13:59: 6,918,876 states generated (3,161,462 s/min), 1,345,647 distinct states found (600,396 ds/min), 355,064 states left on queue.
-Progress(27) at 2026-10-20 12:14:59: 10,177,340 states generated (3,258,464 s/min), 1,889,010 distinct states found (543,363 ds/min), 413,924 states left on queue.
-Progress(29) at 2026-10-20 12:15:59: 14,191,870 states generated (4,014,530 s/min), 2,525,320 distinct states found (636,310 ds/min), 375,109 states left on queue.
-Progress(31) at 2026-10-20 12:16:59: 18,415,495 states generated (4,223,625 s/min), 3,048,108 distinct states found (522,788 ds/min), 116,934 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:07:18.
+Progress(14) at 2026-10-20 17:07:21: 30,505 states generated (30,505 s/min), 7,819 distinct states found (7,819 ds/min), 3,347 states left on queue.
+Progress(22) at 2026-10-20 17:08:21: 1,540,860 states generated (1,510,355 s/min), 311,677 distinct states found (303,858 ds/min), 103,550 states left on queue.
+Progress(23) at 2026-10-20 17:09:21: 2,841,113 states generated (1,300,253 s/min), 570,828 distinct states found (259,151 ds/min), 180,100 states left on queue.
+Progress(24) at 2026-10-20 17:10:21: 4,214,159 states generated (1,373,046 s/min), 837,014 distinct states found (266,186 ds/min), 251,706 states left on queue.
+Progress(25) at 2026-10-20 17:11:21: 5,716,128 states generated (1,501,969 s/min), 1,114,813 distinct states found (277,799 ds/min), 310,989 states left on queue.
+Progress(26) at 2026-10-20 17:12:21: 7,160,419 states generated (1,444,291 s/min), 1,368,114 distinct states found (253,301 ds/min), 359,457 states left on queue.
+Progress(27) at 2026-10-20 17:13:22: 8,502,051 states generated (1,341,632 s/min), 1,620,386 distinct states found (252,272 ds/min), 389,643 states left on queue.
+Progress(27) at 2026-10-20 17:14:22: 10,178,716 states generated (1,676,665 s/min), 1,889,496 distinct states found (269,110 ds/min), 415,164 states left on queue.
+Progress(28) at 2026-10-20 17:15:22: 11,645,868 states generated (1,467,152 s/min), 2,129,432 distinct states found (239,936 ds/min), 413,068 states left on queue.
+Progress(28) at 2026-10-20 17:16:22: 13,259,003 states generated (1,613,135 s/min), 2,382,791 distinct states found (253,359 ds/min), 401,025 states left on queue.
+Progress(29) at 2026-10-20 17:17:22: 14,754,130 states generated (1,495,127 s/min), 2,587,859 distinct states found (205,068 ds/min), 354,379 states left on queue.
+Progress(30) at 2026-10-20 17:18:22: 16,134,289 states generated (1,380,159 s/min), 2,776,703 distinct states found (188,844 ds/min), 289,253 states left on queue.
+Progress(31) at 2026-10-20 17:19:22: 17,685,756 states generated (1,551,467 s/min), 2,967,071 distinct states found (190,368 ds/min), 184,293 states left on queue.
+Progress(33) at 2026-10-20 17:20:22: 19,008,685 states generated (1,322,929 s/min), 3,097,016 distinct states found (129,945 ds/min), 27,072 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 2.7E-6
-  based on the actual fingerprints:  val = 3.2E-7
+  based on the actual fingerprints:  val = 3.0E-7
 19124359 states generated, 3104542 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 35.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
-Finished in 05min 13s at (2026-10-20 12:17:09)
+Finished in 13min 11s at (2026-10-20 17:20:28)
 ==== Paralean TLC provenance ====
 module Hardened
 config Hardened.cfg
@@ -37,16 +45,19 @@ source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.t
 source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
 source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source 161982308b15b0883776a765f9054f2b97484269182e5504ce6c75b7b45c55ae  ExportLookup.tla
+source ed25f0dc16d57a7b8493fb74611dc4db92130abcfffbb681706fa7433806d9df  ExportLookupResidual.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
 source 0af9e38704168888d92d8282323da290765ee225528040fe8ab0d340d50eadb9  Receipts.tla
 source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
 source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
+source 99f392f2c5b906e544c579a8967ae62b6a9e5dd36f3dc8e5835176e70105d85f  ReplayIdentity.tla
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
@@ -59,6 +70,8 @@ source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  Certifi
 source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
 source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
 source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source a15d82f70811e9ed4514f56dd81e058370c1e7a84a6e2bbb6cb12683fbf7adf8  ExportLookup.cfg
+source 77778505bdea006e83cf15e4ff54d5ccd76f77cbcf63dc19616c87b6409c1db4  ExportLookupResidual.cfg
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
@@ -70,6 +83,7 @@ source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums
 source 1aa35cc2c3a59e47e1cac0ba13b96e68c7d13f1f7757d79e9806890b22efa3b4  Receipts.cfg
 source ccb10193b9cf507fe69e8de56bedd33fea0b17d6678fdff7502e86fc446a03d1  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
+source f6f5f44b8cbe8804d7013d8b907fb8f1399b881bd725f240dae50eceef6f21a1  ReplayIdentity.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
 source 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg

@@ -17,3 +17,6 @@ for f in F01Theorem F02Def F03Structure F04Inductive F05Mutual F06Structural F07
 done
 "$P" replay --store "$S" --isolated 1
 "$P" export --store "$S" --out "$work/export"
+rc=$?
+echo "export-exit=$rc"
+exit "$rc"

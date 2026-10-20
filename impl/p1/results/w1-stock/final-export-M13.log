@@ -1,0 +1,4 @@
+export: 1 modules, 115 groups, 59622 bytes of source
+  Mathlib.ParaleanExport.Order.Lattice: 115 groups; imports #[Mathlib.Data.Bool.Basic, Mathlib.Logic.Pairwise, Mathlib.Order.Defs.Lattice, Mathlib.Order.Monotone.Basic, Mathlib.Order.ULift, Mathlib.Tactic.GRewrite]
+stock lake build: OK (7960 ms)
+verify: 106/106 declaration groups identical in the stock-built oleans; 9 effect-only groups (build-checked)
