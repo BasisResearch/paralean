@@ -8,7 +8,7 @@ groups. No checked workspace environment is reused as another request's base.
 
 This provides environment isolation, not an OS sandbox for arbitrary Lean metaprograms.
 The validator's watchdog kills and replaces the process on timeout, cancellation or
-memory excess. Initializer materialization is handled by the ordinary cold checker.
+ memory excess. Initializer materialization uses a disposable process.
 -/
 open Lean Paralean System
 
@@ -18,6 +18,7 @@ structure WarmTarget where
   deriving FromJson
 
 structure WarmRequest where
+  nonce : String
   store : String
   gids : Array String
   decl : String
@@ -48,17 +49,16 @@ unsafe def main : IO UInt32 := do
   repeat
     let line ← stdin.getLine
     if line.isEmpty then break
+    let req : WarmRequest ← IO.ofExcept (Json.parse line >>= fromJson?)
     let result ← try
-      let json ← IO.ofExcept (Json.parse line)
-      let req : WarmRequest ← IO.ofExcept (fromJson? json)
       modulePrefs.set (false, #[])
       InstName.chosen.set #[]
       let targets := req.targets.map fun t =>
         ({ name := t.name.toName, typeHash := t.statement } : TargetContract)
       let r ← checkGroup { root := req.store } req.gids req.decl targets
-      pure <| Json.mkObj [("result", toJson r)]
+      pure <| Json.mkObj [("nonce", toJson req.nonce), ("result", toJson r)]
     catch e =>
-      pure <| Json.mkObj [("error", toJson (toString e))]
+      pure <| Json.mkObj [("nonce", toJson req.nonce), ("error", toJson (toString e))]
     stdout.putStrLn s!"WARM {result.compress}"
     stdout.flush
   return 0

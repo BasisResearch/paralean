@@ -28,7 +28,9 @@ async fn mathlib_throughput() {
             lease_ms: 600_000, memory_mb: 8192, deadline_ms: 120_000,
             ..Opts::default()
         }).await;
-        assert!(c.checker.warm_bin().is_some(), "warm checker must be explicitly configured");
+        let warm = c.checker.warm_bin().is_some();
+        assert!(warm || std::env::var_os("PARALEAN_P3_MEASURE_COLD").is_some(),
+            "configure a warm checker, or explicitly set PARALEAN_P3_MEASURE_COLD for a cold comparison");
         let w = WorkerNode::new(c.writer(0), &c.ctl_addr, 8192, &input).unwrap();
         let authority = c.kf.authority_signer().unwrap();
         let checker_id = c.validators[0].checker_id();
@@ -107,6 +109,7 @@ async fn mathlib_throughput() {
             "groups_per_s":order.len() as f64 / validation_s,
             "upload_s":upload_s, "publish_s":publish_s, "total_s":begin.elapsed().as_secs_f64(),
             "payload_bytes":payload_bytes, "batch_size":32,
+            "pool_mode": if warm { "warm" } else { "cold" },
             "warm_processes":c.validators[0].warm_pool.spawned.load(Ordering::SeqCst),
             "peak_checker_rss_kb":c.validators[0].warm_pool.peak_rss_kb.load(Ordering::SeqCst),
             "checker":checker_id.hex(),

@@ -1,1 +1,1 @@
-theorem Targets.pending : True := by trivial
+theorem Targets.pending : True ∨ True := Or.inl True.intro

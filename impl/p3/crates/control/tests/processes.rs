@@ -14,7 +14,7 @@ use common::*;
 use paralean_control::checker::CheckerConfig;
 use paralean_control::controller::{ControlRequest, ControlResponse};
 use paralean_store::*;
-use paralean_validator_api::rpc;
+use paralean_validator_api::{rpc, ValidatorRequest, ValidatorResponse};
 
 struct Proc(Child);
 impl Drop for Proc {
@@ -44,6 +44,89 @@ async fn call(addr: &str, req: ControlRequest, signer: &Signer) -> Option<Contro
 
 async fn worker_call(addr: &str, req: ControlRequest, signer: &Signer, authority: &Signer) -> Option<ControlResponse> {
     rpc::call_authenticated(addr, &req, signer, &authority.public(), Duration::from_secs(30)).await.ok()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
+    let tmp = scratch("validation-failover");
+    let dep = deployment("validation-failover");
+    let real = CheckerConfig::from_env().unwrap();
+    let wrapper = tmp.join("delayed-checker.sh");
+    std::fs::write(&wrapper, "#!/usr/bin/env bash\nsleep 6\nexec \"$PARALEAN_REAL_BIN\" \"$@\"\n").unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut wrapped = real.clone();
+    wrapped.bin = wrapper.clone();
+    let mut kf = KeyFile::demo(2);
+    kf.policies = vec![paralean_store::receipt::Policy::v1().id().hex()];
+    kf.checkers = vec![wrapped.version().unwrap().id().hex()];
+    let keys = tmp.join("keys.json");
+    std::fs::write(&keys, serde_json::to_string(&kf).unwrap()).unwrap();
+    let env = vec![("PARALEAN_KEYS", keys.display().to_string()), ("PARALEAN_DEPLOYMENT", dep.clone()),
+        ("TMPDIR", tmp.display().to_string()), ("PARALEAN_BIN", wrapper.display().to_string()),
+        ("PARALEAN_REAL_BIN", real.bin.display().to_string())];
+    let (a, b, v) = (format!("127.0.0.1:{}", free_port()), format!("127.0.0.1:{}", free_port()),
+        format!("127.0.0.1:{}", free_port()));
+    let _validator = spawn(&["validator", "--listen", &v, "--key", "v0", "--workdir", &tmp.join("v0").display().to_string()],
+        &env, &tmp.join("validator.log"));
+    let mut leader = spawn(&["controller", "--listen", &a, "--validators", &v, "--lease-ms", "1200"], &env, &tmp.join("leader.log"));
+    let authority = kf.authority_signer().unwrap();
+    let validator_key = kf.validator_signer("v0").unwrap().public();
+    let start = Instant::now();
+    loop {
+        if matches!(call(&a, ControlRequest::Status, &authority).await,
+            Some(ControlResponse::Status { status }) if status["leader"] == true) { break }
+        assert!(start.elapsed() < Duration::from_secs(20), "leader did not start");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let _standby = spawn(&["controller", "--listen", &b, "--validators", &v, "--lease-ms", "1200"], &env, &tmp.join("standby.log"));
+    let (wid, worker_signer) = kf.workspace("w0").unwrap();
+    assert!(matches!(worker_call(&a, ControlRequest::Register { worker: wid.hex(), capacity_mb: 4096 },
+        &worker_signer, &authority).await, Some(ControlResponse::Registered { .. })));
+    let store = Store::open(&StoreConfig::from_env(&dep).unwrap(), kf.ring(), Faults::none()).unwrap();
+    let groups = paralean_control::p1::load_store(&core_store()).unwrap();
+    let group = groups.values().find(|g| g.names().contains(&Name::parse("F01.small"))).unwrap();
+    store.s3.put_opaque(&group.group_object()).await.unwrap();
+    store.s3.put_opaque(&group.capsule_object()).await.unwrap();
+    let request_id = "validation/failover";
+    let validate = ControlRequest::Validate { worker: wid.hex(), request: request_id.into(), group: group.decl.hex(),
+        capsule: group.capsule_id().hex(), deps: vec![], targets: vec![], memory_mb: 0, deadline_ms: 30_000 };
+    let a_call = a.clone();
+    let signer = worker_signer.clone();
+    let public = authority.public();
+    let lost_reply = tokio::spawn(async move {
+        rpc::call_authenticated::<_, ControlResponse>(&a_call, &validate, &signer, &public, Duration::from_secs(35)).await
+    });
+    let j1 = store.meta.keys.job_request(request_id.as_bytes());
+    let j2 = store.meta.keys.job_receipt(request_id.as_bytes());
+    let start = Instant::now();
+    loop {
+        let running: std::io::Result<ValidatorResponse> = rpc::call_authenticated(&v, &ValidatorRequest::Status,
+            &authority, &validator_key, Duration::from_secs(2)).await;
+        if store.meta.get(j1.clone()).await.unwrap().is_some() &&
+            matches!(running, Ok(ValidatorResponse::Status { running: 1, .. })) { break }
+        assert!(start.elapsed() < Duration::from_secs(10), "J1 was not dispatched to a running validator");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(store.meta.get(j2.clone()).await.unwrap().is_none(), "J2 written before leader death");
+    leader.0.kill().unwrap();
+    leader.0.wait().unwrap();
+    assert!(lost_reply.await.unwrap().is_err(), "dead controller returned validation result");
+    let start = Instant::now();
+    loop {
+        let _ = call(&b, ControlRequest::Status, &authority).await;
+        if let Some(bytes) = store.meta.get(j2.clone()).await.unwrap() {
+            let receipt = Receipt::from_bytes(&bytes).unwrap();
+            assert_eq!(receipt.body.verdict, Verdict::Accepted);
+            assert_eq!(receipt.body.group, group.decl);
+            break;
+        }
+        assert!(start.elapsed() < Duration::from_secs(30), "standby did not complete the orphaned J1");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let status: ValidatorResponse = rpc::call_authenticated(&v, &ValidatorRequest::Status,
+        &authority, &validator_key, Duration::from_secs(3)).await.unwrap();
+    assert!(matches!(status, ValidatorResponse::Status { checks_run: 1, .. }), "validator repeated the check: {status:?}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -127,9 +210,17 @@ async fn leader_killed_after_durable_assignment_redelivers_once() {
         assert!(start.elapsed() < Duration::from_secs(20), "lost worker's target was not reassigned");
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    let work = worker_call(&b, ControlRequest::Poll { worker: replacement_id.hex() }, &replacement_signer, &authority).await;
-    assert!(matches!(&work, Some(ControlResponse::Work { request, epoch, .. })
+    let endpoints = format!("{a},{b}");
+    let poll = ControlRequest::PollRequest { worker: replacement_id.hex(), request: "failover/poll-token".into() };
+    let work = paralean_control::controller::call_controller(&endpoints, &poll, &replacement_signer,
+        &authority.public(), Duration::from_secs(15)).await.unwrap();
+    assert!(matches!(&work, ControlResponse::Work { request, epoch, .. }
         if request == "failover/one" && *epoch > assigned_epoch), "{work:?}");
+    assert_eq!(paralean_control::controller::call_controller(&endpoints, &poll, &replacement_signer,
+        &authority.public(), Duration::from_secs(15)).await.unwrap(), work, "same poll token changed its answer");
+    assert_eq!(paralean_control::controller::call_controller(&endpoints,
+        &ControlRequest::PollRequest { worker: replacement_id.hex(), request: "failover/new-token".into() },
+        &replacement_signer, &authority.public(), Duration::from_secs(15)).await.unwrap(), ControlResponse::NoWork);
     let new_epoch = store.target(&name).await.unwrap().unwrap().epoch;
     assert!(new_epoch > assigned_epoch);
     assert_eq!(worker_call(&b, ControlRequest::Finish { worker: replacement_id.hex(), request: "failover/one".into(), ok: true }, &replacement_signer, &authority).await,

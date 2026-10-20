@@ -76,7 +76,8 @@ pub async fn call_authenticated<Q: Serialize, A: DeserializeOwned + Serialize>(
     addr: &str, req: &Q, signer: &Signer, server_public: &[u8; 32], timeout: Duration,
 ) -> std::io::Result<A> {
     let fut = async {
-        let mut s = TcpStream::connect(addr).await?;
+        let mut s = tokio::time::timeout(Duration::from_secs(2), TcpStream::connect(addr)).await
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "RPC connect timed out"))??;
         s.set_nodelay(true)?;
         let c: Challenge = read_frame(&mut s).await?;
         if !verify_challenge(&c, server_public) {
@@ -99,7 +100,8 @@ pub async fn call_authenticated_any<Q: Serialize, A: DeserializeOwned + Serializ
     addr: &str, req: &Q, signer: &Signer, server_keys: &[[u8; 32]], timeout: Duration,
 ) -> std::io::Result<A> {
     let fut = async {
-        let mut s = TcpStream::connect(addr).await?;
+        let mut s = tokio::time::timeout(Duration::from_secs(2), TcpStream::connect(addr)).await
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "RPC connect timed out"))??;
         s.set_nodelay(true)?;
         let c: Challenge = read_frame(&mut s).await?;
         let Some(public) = server_keys.iter().find(|key| verify_challenge(&c, key)) else {

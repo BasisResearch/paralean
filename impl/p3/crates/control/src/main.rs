@@ -11,12 +11,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use paralean_control::checker::{base_id, CheckerConfig};
-use paralean_control::controller::{ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
+use paralean_control::controller::{call_controller, ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
 use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_control::worker::WorkerNode;
 use paralean_store::receipt::{Policy, Revocation, SignedRevocation};
 use paralean_store::*;
-use paralean_validator_api::rpc;
 
 const USAGE: &str = "usage: paralean-p3 <command> [args]
   keys init <path> [--validators N] [--workspaces N] [--demo]
@@ -80,7 +79,7 @@ async fn ctl_call(f: &BTreeMap<String, String>, req: ControlRequest) -> R<Contro
     let addr = f.get("controller").ok_or("--controller ADDR")?;
     let kf = keyfile()?;
     let signer = kf.authority_signer().ok_or("the key file holds no authority seed")?;
-    rpc::call_authenticated(addr, &req, &signer, &kf.ring().authority, Duration::from_secs(900)).await.map_err(|e| e.to_string())
+    call_controller(addr, &req, &signer, &kf.ring().authority, Duration::from_secs(900)).await.map_err(|e| e.to_string())
 }
 
 async fn run(args: Vec<String>) -> R<()> {
@@ -231,7 +230,11 @@ async fn run(args: Vec<String>) -> R<()> {
             let kf = keyfile()?;
             let w = f.get("worker").ok_or("--worker W")?;
             let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
-            let r = ctl_call(&f, ControlRequest::Assign { target: f.get("target").ok_or("--target NAME")?.clone(), worker: id }).await?;
+            let request = f.get("request").cloned().unwrap_or_else(|| format!("assign/{}", rand::random::<u64>()));
+            let r = ctl_call(&f, ControlRequest::AssignGroup {
+                targets: vec![f.get("target").ok_or("--target NAME")?.clone()], worker: id, request,
+            }).await?;
+            let r = match r { ControlResponse::AssignedGroup { epochs } => ControlResponse::Assigned { epoch: epochs[0] }, other => other };
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["assign-group", ..] => {

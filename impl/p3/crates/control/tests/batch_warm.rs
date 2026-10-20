@@ -76,6 +76,37 @@ async fn dependent_batch_requires_earlier_accepted_receipts_and_deduplicates() {
     assert!(matches!(&rejected[0], ValidatorResponse::Receipt { receipt }
         if matches!(paralean_validator_api::decode_receipt(receipt).unwrap().body.verdict, Verdict::Rejected(_))), "{rejected:?}");
     assert!(matches!(&rejected[1], ValidatorResponse::Refused { reason } if reason.contains("dependency")), "{rejected:?}");
+
+    // Byte-distinct capsules may describe the same group. An accepted alias must
+    // not replace the receipt for the exact capsule named by the dependent job.
+    let mut alias = small.clone();
+    alias.meta_json = serde_json::to_vec_pretty(&alias.meta).unwrap();
+    alias.meta_json.push(b'\n');
+    assert_ne!(alias.capsule_id(), small.capsule_id());
+    c.store.s3.put_opaque(&alias.capsule_object()).await.unwrap();
+    let mut aliases = ordered[..ordered.len() - 1].to_vec();
+    aliases.push(job(&c, w.id(), &w.groups, &alias, "batch/alias", vec![]));
+    aliases.push(job(&c, w.id(), &w.groups, root, "batch/after-alias", vec![]));
+    assert!(batch(&c, &aliases).await.iter().all(accepted));
+
+    // Batch admission only supplies temporary proof to the validator. T1 must see
+    // every prerequisite's published marker and certificate before the root commits.
+    let package_at = |index: usize| {
+        let ValidatorResponse::Receipt { receipt } = &results[index] else { unreachable!() };
+        let receipt = paralean_validator_api::decode_receipt(receipt).unwrap();
+        w.package(&w.groups[&closure[index]], receipt, ordered[index].clone(), vec![])
+    };
+    let root_package = package_at(closure.len() - 1);
+    let missing = guard(w.writer.publish(&root_package).await);
+    assert!(matches!(missing, GuardFailure::NotPublished(_) | GuardFailure::Uncertified(_)), "{missing:?}");
+    let bypass = guard(w.writer.publish_skipping_staging_check(&root_package).await);
+    assert!(matches!(bypass, GuardFailure::NotPublished(_) | GuardFailure::Uncertified(_)), "T1 bypass: {bypass:?}");
+    assert!(c.store.marker(&root.decl).await.unwrap().is_none());
+    for i in 0..closure.len() - 1 {
+        assert!(w.writer.publish(&package_at(i)).await.unwrap().fresh);
+    }
+    assert!(w.writer.publish(&root_package).await.unwrap().fresh);
+    c.audit_ok().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -108,7 +139,7 @@ async fn warm_process_rechecks_same_declaration_without_leaking_environment() {
         if matches!(paralean_validator_api::decode_receipt(receipt).unwrap().body.verdict, Verdict::Rejected(_))), "{responses:?}");
     assert!(responses[1..].iter().all(accepted), "{responses:?}");
     assert_eq!(c.validators[0].checks_run.load(Ordering::SeqCst), 3);
-    assert_eq!(c.validators[0].warm_pool.spawned.load(Ordering::SeqCst), 1, "one process should serve both jobs");
+    assert_eq!(c.validators[0].warm_pool.spawned.load(Ordering::SeqCst), 1, "one process should serve all three jobs");
 
     let dependent = w.group_declaring(&Name::parse("F01.uses_small")).unwrap();
     c.store.s3.put_opaque(&dependent.group_object()).await.unwrap();
@@ -119,6 +150,25 @@ async fn warm_process_rechecks_same_declaration_without_leaking_environment() {
         &c.kf.authority_signer().unwrap(), &c.vsigners[0].public(), Duration::from_secs(30)).await.unwrap();
     assert!(matches!(&response, ValidatorResponse::Refused { reason } if reason.contains("dependency")), "{response:?}");
     assert_eq!(c.validators[0].warm_pool.spawned.load(Ordering::SeqCst), 1);
+
+    // When the fork fixture store includes F11ScopedDecl, replay a group whose
+    // capsule needs scoped notation, then return to F01 in the same process.
+    if let Some(scoped) = w.group_declaring(&Name::parse("F11.star_def")) {
+        let closure = p1::closure(&w.groups, &scoped.gid).unwrap();
+        for gid in &closure {
+            let g = &w.groups[gid];
+            c.store.s3.put_opaque(&g.group_object()).await.unwrap();
+            c.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
+        }
+        let jobs: Vec<SignedJob> = closure.iter().enumerate().map(|(i, gid)|
+            job(&c, w.id(), &w.groups, &w.groups[gid], &format!("warm/scoped/{i}"), vec![])).collect();
+        let scoped_results = batch(&c, &jobs).await;
+        assert!(scoped_results.iter().all(accepted), "scoped notation batch: {scoped_results:?}");
+        let after_scope = job(&c, w.id(), &w.groups, group, "warm/after-scope", vec![]);
+        assert!(accepted(&batch(&c, &[after_scope]).await[0]));
+        assert_eq!(c.validators[0].warm_pool.spawned.load(Ordering::SeqCst), 1,
+            "scoped notation and F01 must share an isolated process");
+    }
 
     let (_cancel, cancel_rx) = tokio::sync::watch::channel(false);
     let timed_out = c.validators[0].warm_pool.run(&c.checker, &store, &[group.gid.clone()], &group.decl.hex(),

@@ -131,7 +131,9 @@ impl Validator {
                     if let ValidatorResponse::Receipt { receipt } = &response {
                         if let Ok(r) = paralean_validator_api::decode_receipt(receipt) {
                             if r.body.verdict == Verdict::Accepted {
-                                accepted.insert(job.body.group, (r, job));
+                                // Distinct replay capsules can encode the same group.
+                                // Dependencies name the capsule, so retain each receipt.
+                                accepted.insert(job.body.capsule, (r, job));
                             }
                         }
                     }
@@ -288,8 +290,16 @@ impl Validator {
             let s = String::from_utf8_lossy(&g.meta_json);
             s.contains("regularInitAttr") || s.contains("builtinInitAttr")
         });
-        let out = if self.cfg.checker.warm_bin().is_some() && !initializer {
-            self.warm_pool.run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
+        let out = if self.cfg.checker.warm_bin().is_some() {
+            if initializer {
+                let disposable = checker::WarmPool::default();
+                let out = disposable.run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await;
+                self.warm_pool.spawned.fetch_add(disposable.spawned.load(Ordering::Relaxed), Ordering::Relaxed);
+                self.warm_pool.peak_rss_kb.fetch_max(disposable.peak_rss_kb.load(Ordering::Relaxed), Ordering::Relaxed);
+                out
+            } else {
+                self.warm_pool.run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
+            }
         } else {
             checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
         };
@@ -378,7 +388,7 @@ impl Validator {
             };
             let g = P1Group::from_parts(meta_json, grp).map_err(|e| refused(&e))?;
             if !is_root && !cfg!(feature = "mutate-validator-skips-dep-check") {
-                if let Some((r, dep_job)) = accepted.get(&decl) {
+                if let Some((r, dep_job)) = accepted.get(cap) {
                     if dep_job.body.capsule != *cap ||
                         paralean_store::receipt::check(r, dep_job, &decl,
                             &paralean_store::receipt::prepared_of(dep_job), &st.ring).is_err() ||

@@ -37,6 +37,13 @@ struct SnapshotHead {
     len: usize,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GroupRequest {
+    pub request: String,
+    pub names: Vec<String>,
+    pub owner: String,
+}
+
 impl Durable {
     pub fn new(store: Store, lease: Duration) -> Self {
         Durable { store, holder: hex::encode(rand::random::<[u8; 16]>()), lease_ms: (lease.as_millis() as u64).max(500) }
@@ -46,6 +53,41 @@ impl Durable {
     fn state_key(&self) -> Vec<u8> { self.store.meta.keys.root.pack(&("controller", "state")) }
     fn chunk_key(&self, hash: &str, index: u32) -> Vec<u8> {
         self.store.meta.keys.root.pack(&("controller", "chunk", hash, index as u64))
+    }
+    fn group_request_key(&self, request: &str) -> Vec<u8> {
+        let hash = sha256(request.as_bytes());
+        self.store.meta.keys.root.pack(&("controller", "group-request", foundationdb::tuple::Bytes::from(&hash[..])))
+    }
+
+    pub async fn group_request(&self, request: &str) -> Result<Option<GroupRequest>, String> {
+        self.store.meta.get(self.group_request_key(request)).await.map_err(|e| e.to_string())?
+            .map(|bytes| serde_json::from_slice(&bytes).map_err(|e| e.to_string())).transpose()
+    }
+
+    /// Reserve an immutable request descriptor before the group intent. This
+    /// preserves identity even after the group's latest request changes owners.
+    pub async fn reserve_group_request(&self, descriptor: &GroupRequest, term: u64) -> Result<(), String> {
+        let key = self.group_request_key(&descriptor.request);
+        let lk = self.lease_key();
+        let bytes = serde_json::to_vec(descriptor).map_err(|e| e.to_string())?;
+        let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
+        for _ in 0..60 {
+            let Some(lease) = Self::read_lease(&trx, &lk).await? else { return Err("controller lost lease".into()) };
+            if lease.holder != self.holder || lease.term != term || lease.until_ms <= now_ms() {
+                return Err("controller lost lease".into());
+            }
+            if let Some(old) = trx.get(&key, false).await.map_err(|e| e.to_string())? {
+                let old: GroupRequest = serde_json::from_slice(&old).map_err(|e| e.to_string())?;
+                if &old == descriptor { return Ok(()) }
+                return Err("assignment request ID already used for another group or owner".into());
+            }
+            trx.set(&key, &bytes);
+            match trx.commit().await {
+                Ok(_) => return Ok(()),
+                Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
+            }
+        }
+        Err("group request reservation outcome unresolved".into())
     }
 
     async fn read_lease(trx: &Transaction, key: &[u8]) -> Result<Option<Lease>, String> {

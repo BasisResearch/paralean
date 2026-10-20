@@ -114,6 +114,21 @@ impl Writer {
     }
 
     async fn publish_checked(&self, p: &Package, g: Id) -> Result<PublishOutcome> {
+        // P3 job dependencies are capsule IDs. Resolve each through a hash-verified
+        // S3 read before T1 and use the P1 capsule's `declId` field to identify the
+        // group T1 must find published. Old opaque capsules without `declId` fail
+        // closed when named as job dependencies. P2-only fixtures have no job deps.
+        let mut dep_groups = BTreeSet::new();
+        for cap in &p.job.body.deps {
+            let pre = self.store.s3.get(Kind::Capsule, cap).await?
+                .ok_or(StoreError::Missing { kind: "dependency capsule", id: *cap })?;
+            let bytes = Kind::Capsule.domain().strip(&pre)?;
+            let meta: serde_json::Value = serde_json::from_slice(bytes)
+                .map_err(|e| StoreError::Invalid(format!("dependency capsule {}: {e}", cap.short())))?;
+            let decl = meta.get("declId").and_then(|v| v.as_str()).and_then(Id::from_hex)
+                .ok_or_else(|| GuardFailure::BadPackage(format!("dependency capsule {} has no declaration ID", cap.short())))?;
+            dep_groups.insert(decl);
+        }
         self.store.s3.put_opaque(&p.group).await?;
         for c in &p.chunks {
             self.store.s3.put_opaque(c).await?;
@@ -141,6 +156,8 @@ impl Writer {
             receipt: p.receipt.clone(),
             job: p.job.clone(),
             ring: self.store.ring.clone(),
+            dep_groups: dep_groups.into_iter().collect(),
+            replica: self.store.replica,
             targets: p.targets.clone(),
             cert_value: cert.to_bytes(),
         };

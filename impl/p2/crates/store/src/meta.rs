@@ -757,6 +757,8 @@ pub(crate) struct PublishArgs {
     pub receipt: Receipt,
     pub job: crate::receipt::SignedJob,
     pub ring: Arc<crate::sign::KeyRing>,
+    pub dep_groups: Vec<Id>,
+    pub replica: crate::id::ReplicaId,
     pub targets: Vec<PreparedTarget>,
     pub cert_value: Vec<u8>,
 }
@@ -783,6 +785,28 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     // pinned policy and checker and exactly the prepared target names and epochs.
     if !cfg!(feature = "mutate-no-receipt-check") {
         crate::receipt::check(&a.receipt, &a.job, &a.group, &a.targets, &a.ring)?;
+    }
+    // A batch may validate a dependent group using an earlier accepted batch
+    // receipt, before that dependency is published. T1 admits the dependent only
+    // after every dependency's marker and a valid publication certificate exist.
+    // This read is in the same FDB transaction as the new marker/certificate.
+    for dep in &a.dep_groups {
+        let Some(mv) = get(trx, &k.marker(dep)).await? else {
+            return Err(GuardFailure::NotPublished(*dep).into());
+        };
+        let marker = envelope_object_id(&mv)?;
+        let mut certified = false;
+        for writer in a.ring.writers.keys() {
+            let Some(bytes) = get(trx, &k.cert(dep, writer)).await? else { continue };
+            let Ok(cert) = Cert::from_bytes(&bytes) else { continue };
+            if cert.body.group == *dep && cert.body.marker == marker &&
+                cert.body.writer == *writer && cert.body.replica == a.replica &&
+                a.ring.verify_writer(writer, &cert.id(), &cert.sig) {
+                certified = true;
+                break;
+            }
+        }
+        if !certified { return Err(GuardFailure::Uncertified(*dep).into()) }
     }
     // Revocation and cancellation are read in this transaction, so a revocation or a
     // cancellation that commits first stops every later publication.
@@ -1140,4 +1164,3 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
     }
     Ok(Step::Commit(true))
 }
-

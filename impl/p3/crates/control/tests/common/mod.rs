@@ -264,6 +264,7 @@ impl Cluster {
             ControlRequest::Register { worker, .. }
             | ControlRequest::Heartbeat { worker }
             | ControlRequest::Poll { worker }
+            | ControlRequest::PollRequest { worker, .. }
             | ControlRequest::Finish { worker, .. }
             | ControlRequest::Validate { worker, .. } => Some(worker),
             _ => None,

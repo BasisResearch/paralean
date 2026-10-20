@@ -174,7 +174,11 @@ impl WarmPool {
                     output: tokio::io::BufReader::new(child.stdout.take().unwrap()), child, pgid }
             }
         };
+        // stdout also contains output from checked Lean commands. Bind the transport
+        // frame to this request instead of treating arbitrary `WARM` output as a verdict.
+        let nonce = hex::encode(rand::random::<[u8; 32]>());
         let request = serde_json::json!({
+            "nonce": nonce,
             "store": store, "gids": gids, "decl": decl,
             "targets": targets.iter().map(|t| serde_json::json!({
                 "name": t.name.to_string(), "statement": t.statement,
@@ -198,7 +202,8 @@ impl WarmPool {
                     return Err(NoVerdict::Crashed("warm checker closed or exceeded output limit".into()));
                 }
                 let Some(line) = line.strip_prefix("WARM ") else { continue };
-                let v: serde_json::Value = serde_json::from_str(line).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+                let Ok(v) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+                if v.get("nonce").and_then(|n| n.as_str()) != Some(nonce.as_str()) { continue; }
                 if let Some(error) = v.get("error") {
                     return Err(NoVerdict::Crashed(error.to_string()));
                 }
@@ -307,10 +312,13 @@ pub async fn run(
                 let st = st.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
                 let out = out_task.await.unwrap_or_default();
                 let err = err_task.await.unwrap_or_default();
-                let Some(line) = out.lines().find_map(|l| l.strip_prefix("CHECK ")) else {
+                let Some(line) = out.lines().rev().find_map(|l| l.strip_prefix("CHECK ")) else {
                     return Err(NoVerdict::Crashed(format!("{st}: {}", err.lines().last().unwrap_or(""))));
                 };
                 let raw: Raw = serde_json::from_str(line).map_err(|e| NoVerdict::Crashed(format!("bad CHECK line: {e}")))?;
+                if raw.ok && !st.success() {
+                    return Err(NoVerdict::Crashed(format!("checker reported acceptance but exited {st}")));
+                }
                 return Ok(CheckOutcome {
                     ok: raw.ok,
                     axioms: raw.axioms.iter().filter_map(name_of).collect(),

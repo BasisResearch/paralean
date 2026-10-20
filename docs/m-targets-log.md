@@ -41,35 +41,109 @@ Rust build caches were copied into this checkout before modification.
   immutable imported-base cache, while each job builds a fresh catalogue,
   frontend session, command state, kernel environment, and axiom cache. A
   validator owns a bounded pool; failed transport, cancellation, memory excess,
-  and timeout discard the process. Materialized initializer jobs use the cold
-  path. The checker version hashes both checker executables.
+  and timeout discard the process. Materialized initializer jobs use disposable
+  processes with the same nonce-bound transport. Each response must echo a fresh
+  random request nonce; unrelated or replayed stdout frames are ignored. The
+  checker version hashes both checker executables.
 - Batches contain at most 64 ordered envelopes. Every job gets its own receipt;
   an earlier accepted batch receipt can establish a later job's dependency,
   after rechecking its binding, cancellation, revocation and capsule identity.
-  Payloads are still rehashed and normal publication still uses T1.
-- Minimal P2 store change: expose the existing writer signer through a read-only
-  accessor so worker RPCs can authenticate with their existing workspace key.
-  Store internals and anti-entropy remain under m-p2 ownership.
+  Payloads are still rehashed. T1 now independently requires certified publication
+  of every dependency, including through the adversarial writer entry point.
+  Accepted batch receipts therefore cannot publish a dependent before its prerequisites.
+- Minimal P2 store changes: expose the existing writer signer through a read-only
+  accessor for authenticated worker RPCs, and enforce dependency publication in T1.
+  The writer resolves hash-verified dependency capsule JSON `declId` fields into
+  group IDs; T1 reads their markers and signed certificates in its transaction.
+  This matches the existing P3/P1 capsule contract and fails closed for opaque
+  dependency capsules without a declaration ID. No anti-entropy code is changed.
 
 The warm checker's isolation claim concerns Lean environments. It is not an OS
 sandbox for arbitrary metaprograms or their external side effects, which the
 existing cold checker also does not sandbox.
 
-## Verification and measurements
+## Verification
 
-The fork warm checker built successfully. Focused live tests passed:
-authentication/replay (2), multi-target publication/handover (2), ordered
-dependent batches (1), warm isolation/replacement (1), leader death between T4
-and the dispatch reply with a different replacement worker (1), and existing
-control tests (6). The warm test checks a rejected target contract followed by
-successful checks in the same process, refusal of an unpublished dependency
-despite prior checking, and timeout followed by process replacement.
+The parent ran the integrated Rust build and live tests against the isolated
+cluster. Results so far: control/adversarial/auth/target/durable/protocol tests
+29/29; process failure tests 3/3; P2 store tests 44/44. The batch test additionally
+checks that a byte-distinct capsule for one group does not displace the receipt
+for the original dependency capsule. Both normal publication and the adversarial
+writer entry point reject a dependent before its prerequisites publish.
 
-Fresh captures of all 18 modules produced 1,105 groups in 97.23 seconds. Full
-validator measurements and the working-copy gate are running. Final verification
-will rerun against the integrated revision, including the latest FDB chunking and
-receipt fencing changes.
+The full remote gate passed 15/15 in 220.5 seconds. After the final controller
+and T1 changes, the target-only gate passed 5/5 in 33.3 seconds. Both JSON reports
+are in `impl/p3/results/`. The full gate verifies its baseline export before
+introducing the target fixtures; target proof consumption is checked separately
+in both working copies with no errors or placeholder axioms.
+
+The process tests kill real OS processes. One kills the elected controller after
+T4 but before the reply, then recovers the durable assignment on its standby.
+Another kills it after J1 while the validator is running: the standby writes J2
+without a client retry and the validator reports one check. A third kills a
+worker and observes a replacement publish. This establishes logical request and
+publication deduplication for those crash windows; work can be re-executed after
+a worker lease expires, rather than promising exactly-once physical computation.
+
+Final warm-isolation results and Mathlib measurements follow after completion.
+
+## Operational limits and remaining work
+
+- Controller state is bounded at 8 MiB per snapshot. History and immutable snapshot
+  chunks are retained; an unbounded deployment needs sharding and garbage
+  collection. The cap fails closed. Lease timing uses wall clocks; clock skew
+  affects takeover timing, while FDB term/holder conflict reads fence stale writes.
+- Environment isolation is checked, not arbitrary native/metaprogram process
+  sandboxing. Materialized initializers run in disposable processes. There is no
+  claim that untrusted code with arbitrary process-memory access is contained.
+- The benchmark uses one validator slot, dependent batches of 32, and a shared
+  host. Its wall times include validation fetch/replay and RPC, but exclude capture,
+  initial payload upload, and T1 publication, which are recorded separately. Dollar
+  charges cannot be attributed without a machine rate and an allocation of shared
+  FDB/Garage costs; validator-hours and observed checker RSS are reported instead.
+
+## Reproduction
+
+Use `PARALEAN_LEAN=fork`, source `impl/p3/scripts/m-targets-env.sh`, start
+`impl/p3/scripts/cluster-up.sh`, and build `impl/p3/scripts/build-warm.sh`. Set
+`PARALEAN_P3_WARM_BIN` to `impl/p3/lean/.lake/build/bin/paralean-warm` **before**
+generating checker pins. Capture inputs with
+`impl/p3/scripts/capture-mathlib.py .runs/m-targets/mathlib`; it verifies the
+Mathlib commit from `versions.json` and reads the pinned Mathlib build.
+
+Set `LEAN_PATH` from `lake env printenv LEAN_PATH` in `$PARALEAN_MATHLIB`,
+`PARALEAN_P3_MATHLIB_STORES` to the capture directory, and
+`PARALEAN_P3_THROUGHPUT_REPORT` to an output JSON path. Run:
+
+```sh
+cargo test --release --manifest-path impl/p2/Cargo.toml \
+  -p paralean-control --test mathlib_throughput \
+  -- --ignored --nocapture --test-threads=1
+```
+
+`PARALEAN_P3_MEASURE_MODULES=M14` selects a paired sample. For the cold leg,
+unset `PARALEAN_P3_WARM_BIN` and set `PARALEAN_P3_MEASURE_COLD=1`. Use distinct
+report paths. Stock control fixtures require the stock P1 checker; fork tests
+use `PARALEAN_P3_FORK_BIN`, `PARALEAN_P3_FORK_PREFIX`, and
+`PARALEAN_P3_FORK_STORE`. The fork store used here contains F01Theorem,
+F04Inductive, and F11ScopedDecl captured with the pinned fork.
+
+For the working-copy gate, retain this cluster's environment and set
+`PARALEAN_PLR` and `PARALEAN_P3_BIN` to this checkout's release executables;
+set unused `PARALEAN_VALIDATOR_PORT` and `PARALEAN_CONTROLLER_PORT`. Run
+`impl/p3-remote/scripts/gate.py RUNDIR`, optionally with `--targets-only`.
+Worker/controller clients accept comma-separated controller addresses.
 
 ## Sentences for plan.md and README.md
 
-Pending final verified results; neither file is edited by this workstream.
+Proposed plan.md sentence: “M-targets adds target-aware working copies, atomic
+multi-name handovers, FDB-persisted elected controllers with crash recovery,
+Ed25519-authenticated control RPCs, and a bounded warm validator pool with
+ordered dependent batches; verification and Mathlib measurements are recorded
+in docs/m-targets-log.md.”
+
+Proposed README.md sentence: “Target-aware copies publish controller-issued jobs
+through the owner/epoch/head fences; see docs/m-targets-log.md for controller
+failover, RPC authentication, warm-batch setup, measurements, and current limits.”
+
+Neither plan.md nor README.md was edited.

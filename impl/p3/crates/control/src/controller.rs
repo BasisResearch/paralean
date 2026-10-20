@@ -29,7 +29,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use paralean_store::receipt::{check_bound, prepared_of, sort_targets, JobEnvelope, SignedJob, TargetBinding};
 use foundationdb::{KeySelector, RangeOption};
@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
-use crate::durable::{now_ms, Durable};
+use crate::durable::{now_ms, Durable, GroupRequest};
 
 /// The workspace that owns a target whose owner died and that no live worker could take.
 pub fn unowned() -> WorkspaceId {
@@ -82,6 +82,7 @@ pub enum ControlRequest {
     Heartbeat { worker: String },
     SubmitWork { request: String, target: String, memory_mb: u64 },
     Poll { worker: String },
+    PollRequest { worker: String, request: String },
     Finish { worker: String, request: String, ok: bool },
     Validate {
         worker: String,
@@ -165,6 +166,7 @@ struct State {
     next_validator: usize,
     groups: Vec<StoredGroup>,
     recovery_cursor: Vec<u8>,
+    poll_responses: BTreeMap<String, StoredPoll>,
 }
 
 pub struct ControlPlane {
@@ -191,7 +193,12 @@ struct Snapshot {
     groups: Vec<StoredGroup>,
     #[serde(default)]
     recovery_cursor: Vec<u8>,
+    #[serde(default)]
+    poll_responses: BTreeMap<String, StoredPoll>,
 }
+
+#[derive(Clone, Serialize, Deserialize)]
+struct StoredPoll { worker: String, work: Option<String> }
 
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredGroup {
@@ -245,7 +252,7 @@ impl State {
         Snapshot {
             workers: self.workers.iter().map(|(id, i)| (id.hex(), StoredWorker { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive })).collect(),
             work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts })).collect(),
-            order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(),
+            order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), poll_responses: self.poll_responses.clone(),
         }
     }
     fn restore(&mut self, s: Snapshot) {
@@ -255,11 +262,49 @@ impl State {
         self.next_validator = s.next_validator;
         self.groups = s.groups;
         self.recovery_cursor = s.recovery_cursor;
+        self.poll_responses = s.poll_responses;
     }
 }
 
 fn ws(s: &str) -> Option<WorkspaceId> {
     WorkspaceId::from_hex(s)
+}
+
+/// Call a controller replica list such as `host-a:9000,host-b:9000`.
+/// The signed request is regenerated for each connection's challenge, while its
+/// logical request ID stays unchanged across retries and leader failover.
+pub async fn call_controller(
+    addrs: &str, req: &ControlRequest, signer: &Signer, authority_public: &[u8; 32], total_timeout: Duration,
+) -> std::io::Result<ControlResponse> {
+    let endpoints: Vec<&str> = addrs.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
+    if endpoints.is_empty() {
+        return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "no controller address"));
+    }
+    let budget = if matches!(req, ControlRequest::Validate { .. }) { total_timeout } else { total_timeout.min(Duration::from_secs(15)) };
+    let deadline = Instant::now() + budget;
+    let mut last_error = None;
+    let mut follower = None;
+    loop {
+        for addr in &endpoints {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() { break }
+            let one = left.min(if matches!(req, ControlRequest::Validate { .. }) { Duration::from_secs(30) } else { Duration::from_secs(3) });
+            match rpc::call_authenticated(addr, req, signer, authority_public, one).await {
+                Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" => {
+                    follower = Some(ControlResponse::Inconclusive { reason });
+                }
+                Ok(ControlResponse::Status { status }) if status.get("leader") == Some(&serde_json::Value::Bool(false)) => {
+                    follower = Some(ControlResponse::Status { status });
+                }
+                Ok(response) => return Ok(response),
+                Err(error) => last_error = Some(error),
+            }
+        }
+        if Instant::now() >= deadline {
+            return follower.map(Ok).unwrap_or_else(|| Err(last_error.unwrap_or_else(|| std::io::Error::new(std::io::ErrorKind::TimedOut, "no controller replica available"))));
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
 impl ControlPlane {
@@ -277,6 +322,7 @@ impl ControlPlane {
                 ControlRequest::Register { worker, .. }
                 | ControlRequest::Heartbeat { worker }
                 | ControlRequest::Poll { worker }
+                | ControlRequest::PollRequest { worker, .. }
                 | ControlRequest::Finish { worker, .. }
                 | ControlRequest::Validate { worker, .. } => ws(worker).and_then(|w| ring.writer(&w).copied()).is_some_and(|key| &key == public),
                 _ => &ring.authority == public,
@@ -347,14 +393,7 @@ impl ControlPlane {
     }
 
     fn on_leadership(&self, term: u64) -> bool {
-        if self.seen_term.swap(term, Ordering::SeqCst) == term { return false }
-        let mut st = self.state.lock().unwrap();
-        for job in st.work.values_mut() {
-            if let WorkState::Running { worker, epoch, .. } = job.state {
-                job.state = WorkState::Running { worker, epoch, delivered: false };
-            }
-        }
-        true
+        self.seen_term.swap(term, Ordering::SeqCst) != term
     }
 
     async fn recover_pending(self: &Arc<Self>) {
@@ -425,7 +464,12 @@ impl ControlPlane {
             ControlRequest::SubmitWork { request, target, memory_mb } => self.submit_work(request, target, memory_mb),
             ControlRequest::Poll { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
-                self.poll(w).await
+                self.poll(w, None).await
+            }
+            ControlRequest::PollRequest { worker, request } => {
+                let Some(w) = ws(&worker) else { return refused("bad worker ID") };
+                if request.is_empty() { return refused("empty poll request ID") }
+                self.poll(w, Some(&request)).await
             }
             ControlRequest::Finish { worker, request, ok } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -437,12 +481,14 @@ impl ControlPlane {
             ControlRequest::Cancel { request } => self.cancel(&request).await,
             ControlRequest::Assign { target, worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
-                if self.state.lock().unwrap().groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&target)) {
+                let target = Name::parse(&target);
+                if target.to_string().is_empty() { return refused("empty target name") }
+                if self.state.lock().unwrap().groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&target.to_string())) {
                     return refused("target belongs to a jointly assigned group");
                 }
                 let req = format!("assign/{target}/{}/{}", w.hex(), rand::random::<u64>());
                 let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("not controller leader") };
-                match self.durable.assign_group(&[Name::parse(&target)], w, req.as_bytes(), term).await.map(|v| v[0]) {
+                match self.durable.assign_group(&[target], w, req.as_bytes(), term).await.map(|v| v[0]) {
                     Ok(epoch) => ControlResponse::Assigned { epoch },
                     Err(e) => ControlResponse::Inconclusive { reason: e.to_string() },
                 }
@@ -450,7 +496,9 @@ impl ControlPlane {
             ControlRequest::AssignGroup { targets, worker, request } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 if targets.is_empty() { return refused("empty target group") }
-                let mut target_set = targets.clone();
+                let names: Vec<Name> = targets.iter().map(|s| Name::parse(s)).collect();
+                if names.iter().any(|n| n.to_string().is_empty()) { return refused("empty target name") }
+                let mut target_set: Vec<String> = names.iter().map(ToString::to_string).collect();
                 target_set.sort();
                 target_set.dedup();
                 if target_set.len() != targets.len() { return refused("duplicate target name") }
@@ -460,12 +508,21 @@ impl ControlPlane {
                         return refused("target belongs to another jointly assigned group");
                     }
                 }
-                let names: Vec<Name> = targets.into_iter().map(|s| Name::parse(&s)).collect();
                 let req = if request.is_empty() { format!("assign-group/{worker}/{}", rand::random::<u64>()) } else { request };
-                if self.state.lock().unwrap().groups.iter().any(|g| g.request == req && (g.names != target_set || g.owner != worker)) {
-                    return refused("assignment request ID already used for another group or owner");
+                let used_before = match self.durable.group_request(&req).await {
+                    Ok(v) => v.is_some(),
+                    Err(e) => return inconclusive(&e),
+                };
+                let was_assigned = match self.cfg.store.meta.get(self.cfg.store.meta.keys.assign_request(&names[0], req.as_bytes())).await {
+                    Ok(v) => v.is_some(),
+                    Err(e) => return inconclusive(&e.to_string()),
+                };
+                if (used_before || was_assigned) && self.state.lock().unwrap().groups.iter().any(|g| g.names == target_set && g.request != req) {
+                    return refused("assignment request was superseded by a later handover");
                 }
                 let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("not controller leader") };
+                let descriptor = GroupRequest { request: req.clone(), names: target_set.clone(), owner: worker.clone() };
+                if let Err(e) = self.durable.reserve_group_request(&descriptor, term).await { return refused(&e) }
                 {
                     let mut st = self.state.lock().unwrap();
                     if let Some(g) = st.groups.iter_mut().find(|g| g.names == target_set) {
@@ -513,15 +570,17 @@ impl ControlPlane {
 
     fn submit_work(&self, request: String, target: String, memory_mb: u64) -> ControlResponse {
         let mut st = self.state.lock().unwrap();
+        let name = Name::parse(&target);
+        if name.to_string().is_empty() { return refused("empty target name") }
         if !cfg!(feature = "mutate-no-request-dedup") {
             if let Some(j) = st.work.get(&request) {
-                if j.target != Name::parse(&target) || j.memory_mb != memory_mb {
+                if j.target != name || j.memory_mb != memory_mb {
                     return refused("request ID already used for different work");
                 }
                 return ControlResponse::Duplicate { state: format!("{:?}", j.state) };
             }
         }
-        if st.groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&target)) {
+        if st.groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&name.to_string())) {
             return refused("target belongs to a jointly assigned group");
         }
         let queued = st.work.values().filter(|j| j.state == WorkState::Queued).count();
@@ -531,17 +590,34 @@ impl ControlPlane {
         if !st.work.contains_key(&request) {
             st.order.push(request.clone());
         }
-        st.work.insert(request, WorkJob { target: Name::parse(&target), memory_mb, state: WorkState::Queued, attempts: 0 });
+        st.work.insert(request, WorkJob { target: name, memory_mb, state: WorkState::Queued, attempts: 0 });
         ControlResponse::Queued
     }
 
-    async fn poll(&self, w: WorkspaceId) -> ControlResponse {
+    async fn poll(&self, w: WorkspaceId, token: Option<&str>) -> ControlResponse {
         // A job already assigned to this worker (after a reassignment) comes first.
         let pick = {
             let mut st = self.state.lock().unwrap();
             match st.workers.get(&w) {
                 Some(i) if i.alive && i.lease_until > now_ms() => {}
                 _ => return ControlResponse::Unknown,
+            }
+            if let Some(token) = token {
+                if let Some(p) = st.poll_responses.get(token) {
+                    if p.worker != w.hex() { return refused("poll request ID belongs to another worker") }
+                    if let Some(work) = &p.work {
+                        if let Some(j) = st.work.get(work) {
+                            if let WorkState::Running { worker, epoch, .. } = j.state {
+                                if worker == w && epoch != u64::MAX {
+                                    return ControlResponse::Work { request: work.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
+                                }
+                            }
+                        }
+                    }
+                    // A token is permanently bound to its first work. Once that
+                    // work finishes or moves, a delayed retry cannot take a new job.
+                    return ControlResponse::NoWork;
+                }
             }
             let free = {
                 let i = &st.workers[&w];
@@ -555,7 +631,9 @@ impl ControlPlane {
                     if worker == w {
                         if epoch != u64::MAX {
                             j.state = WorkState::Running { worker, epoch, delivered: true };
-                            return ControlResponse::Work { request: r.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
+                            let response = ControlResponse::Work { request: r.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
+                            if let Some(token) = token { st.poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(r.clone()) }); }
+                            return response;
                         }
                         pick = Some((r.clone(), j.target.clone(), j.memory_mb, j.attempts));
                         break;
@@ -577,7 +655,12 @@ impl ControlPlane {
             }
             pick
         };
-        let Some((request, target, memory_mb, attempt)) = pick else { return ControlResponse::NoWork };
+        let Some((request, target, memory_mb, attempt)) = pick else {
+            if let Some(token) = token {
+                self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: None });
+            }
+            return ControlResponse::NoWork
+        };
         let req = format!("work/{request}/{attempt}");
         let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("not controller leader") };
         if let Err(e) = self.save_state(term).await { return inconclusive(&e) }
@@ -593,6 +676,9 @@ impl ControlPlane {
                     } else { false }
                 };
                 if assigned {
+                    if let Some(token) = token {
+                        self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(request.clone()) });
+                    }
                     if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_ASSIGN_MS").unwrap_or_default().parse::<u64>() {
                         tokio::time::sleep(Duration::from_millis(ms)).await;
                     }
@@ -822,6 +908,9 @@ impl ControlPlane {
                     Ok(stored) if stored.body == job.body => job = stored,
                     Ok(_) => return refused("request ID already used for another envelope"),
                     Err(e) => return inconclusive(&e.to_string()),
+                }
+                if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_J1_MS").unwrap_or_default().parse::<u64>() {
+                    tokio::time::sleep(Duration::from_millis(ms)).await;
                 }
                 // A finished request: the recorded receipt.
                 if let Ok(Some(v)) = st.meta.get(st.meta.keys.job_receipt(&req)).await {

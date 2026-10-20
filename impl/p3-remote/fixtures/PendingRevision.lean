@@ -1,1 +1,1 @@
-theorem Targets.pending : True := by exact True.intro
+theorem Targets.pending : True ∨ True := Or.inr True.intro

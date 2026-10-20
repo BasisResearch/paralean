@@ -17,8 +17,7 @@ use paralean_store::*;
 use rand::seq::SliceRandom;
 use rand::SeedableRng;
 use paralean_store::receipt::SignedJob;
-use paralean_control::controller::{ControlRequest, ControlResponse, TargetReq};
-use paralean_validator_api::rpc;
+use paralean_control::controller::{call_controller, ControlRequest, ControlResponse, TargetReq};
 use std::time::Duration;
 use serde_json::{json, Value};
 
@@ -242,7 +241,7 @@ async fn validate(a: &[&str]) -> R<Value> {
         let call = |req: ControlRequest| {
             let signer = signer.clone();
             async move {
-                rpc::call_authenticated(controller, &req, &signer, &authority, Duration::from_secs(1800))
+                call_controller(controller, &req, &signer, &authority, Duration::from_secs(1800))
                     .await.map_err(es)
             }
         };
@@ -283,7 +282,7 @@ async fn validate(a: &[&str]) -> R<Value> {
             async move {
                 loop {
                     tokio::time::sleep(Duration::from_millis((lease / 3).max(100))).await;
-                    let _: std::io::Result<ControlResponse> = rpc::call_authenticated(
+                    let _: std::io::Result<ControlResponse> = call_controller(
                         &controller,
                         &ControlRequest::Heartbeat {
                             worker: worker.clone(),

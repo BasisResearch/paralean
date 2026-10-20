@@ -16,7 +16,6 @@ use std::time::Duration;
 use paralean_store::receipt::SignedJob;
 use paralean_store::*;
 use std::result::Result;
-use paralean_validator_api::rpc;
 use tokio::task::JoinHandle;
 
 use crate::controller::{ControlRequest, ControlResponse, TargetReq};
@@ -83,7 +82,7 @@ impl WorkerNode {
     }
 
     pub async fn call(&self, req: &ControlRequest) -> Result<ControlResponse, WorkerError> {
-        rpc::call_authenticated(&self.controller, req, self.writer.signer(), &self.writer.store.ring.authority, self.call_timeout)
+        crate::controller::call_controller(&self.controller, req, self.writer.signer(), &self.writer.store.ring.authority, self.call_timeout)
             .await.map_err(|e| WorkerError::Io(e.to_string()))
     }
 
@@ -103,7 +102,8 @@ impl WorkerNode {
     }
 
     pub async fn poll(&self) -> Result<Option<Work>, WorkerError> {
-        match self.call(&ControlRequest::Poll { worker: self.id().hex() }).await? {
+        let request = format!("poll/{}/{}", self.id().hex(), rand::random::<u64>());
+        match self.call(&ControlRequest::PollRequest { worker: self.id().hex(), request }).await? {
             ControlResponse::Work { request, target, epoch, memory_mb } => {
                 Ok(Some(Work { request, target: Name::parse(&target), epoch, memory_mb }))
             }

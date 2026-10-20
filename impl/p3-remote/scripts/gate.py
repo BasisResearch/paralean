@@ -191,7 +191,10 @@ def main():
     time.sleep(1.5)
     log("deployment", os.environ["PARALEAN_DEPLOYMENT"], "validator pid", val.pid, "controller pid", controller.pid)
     try:
-        scenario(rogue)
+        if "--targets-only" in sys.argv[2:]:
+            target_scenario(Copy("alice", "alice"), Copy("bob", "bob"))
+        else:
+            scenario(rogue)
     finally:
         val.terminate()
         controller.terminate()
@@ -376,9 +379,6 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
     # ------------------------------------------------------------ 6: forged remote%
     forgery(alice, bob, carol, rogue)
 
-    # ------------------------------------------------------------ targets: one group owns two names; handover
-    target_scenario(alice, bob)
-
     # ------------------------------------------------------------ clean export (plan's P3 gate)
     ex = sh([BIN, "ws-export", "--dir", alice.dir, "--out", os.path.join(R, "alice-export")], env=alice.env(), check=False)
     exj = json.loads(ex.stdout.strip().splitlines()[-1]) if ex.stdout.strip() else {"ok": False, "err": ex.stderr[-500:]}
@@ -404,6 +404,9 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
            axioms_of_loaded_constants=sorted({a for v in axioms.values() for a in v["axioms"]}),
            loaded_constants=sum(v["loaded"] for v in axioms.values()), theorem_loads_with_fetched_proofs=fetched,
            files_checked=len(axioms), with_errors={k: v["errors"] for k, v in axioms.items() if v["errors"]})
+
+    # ------------------------------------------------------------ targets: one group owns two names; handover
+    target_scenario(alice, bob)
 
 
 def snap_copy():
@@ -457,7 +460,7 @@ def target_scenario(alice, bob):
     rejected = old.get("publish_rejected", [])
     state = record("Targets.pending")
     stale = (pending and any("stale epoch" in r.get("reason", "").lower() or
-                             "not owner" in r.get("reason", "").lower() for r in rejected) and
+                             "not the owner" in r.get("reason", "").lower() for r in rejected) and
              state["head"] is None and state["owner"] != record(names[0])["owner"])
     result("targets: handover rejects an old owner with a pending proof", stale,
            old_owner_rejection=rejected, target_record=state, old_owner_output=err[-300:])
@@ -483,6 +486,15 @@ def target_scenario(alice, bob):
            len(published(revised)) == 1 and after["head"] in new_revisions and
            current["head"] in revision_record.get("parents", []),
            previous_head=current["head"], new_head=after["head"], revision=revision_record)
+
+    alice.sync()
+    bob.sync()
+    checks = {f"{c.name}:{file}": c.check(file) for c in (alice, bob)
+              for file in ("Targets.lean", "Pending.lean")}
+    result("targets: published proofs load in both working copies",
+           all(not v["errors"] and not v["localAxioms"] for v in checks.values()),
+           checks={k: {"errors": v["errors"], "localAxioms": v["localAxioms"],
+                       "loadedConstants": v["loadedConstants"]} for k, v in checks.items()})
 
 
 def forgery(alice, bob, carol, rogue):
