@@ -795,6 +795,32 @@ pub(crate) struct PublishArgs {
     pub chunk_index: Option<Vec<(Id, u64)>>,
 }
 
+/// Every dependency group has its marker here and a valid publication certificate on this
+/// deployment's replica (T1, and T9 for a received group). Read in the caller's transaction.
+async fn dependencies_published(
+    trx: &Transaction, k: &Keys, deps: &[Id], ring: &crate::sign::KeyRing, replica: crate::id::ReplicaId,
+) -> Result<()> {
+    for dep in deps {
+        let Some(mv) = get(trx, &k.marker(dep)).await? else {
+            return Err(GuardFailure::NotPublished(*dep).into());
+        };
+        let marker = envelope_object_id(&mv)?;
+        let mut certified = false;
+        for writer in ring.writers.keys() {
+            let Some(bytes) = get(trx, &k.cert(dep, writer)).await? else { continue };
+            let Ok(cert) = Cert::from_bytes(&bytes) else { continue };
+            if cert.body.group == *dep && cert.body.marker == marker &&
+                cert.body.writer == *writer && cert.body.replica == replica &&
+                ring.verify_writer(writer, &cert.id(), &cert.sig) {
+                certified = true;
+                break;
+            }
+        }
+        if !certified { return Err(GuardFailure::Uncertified(*dep).into()) }
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PublishOutcome {
     pub marker: Id,
@@ -839,24 +865,7 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     // receipt, before that dependency is published. T1 admits the dependent only
     // after every dependency's marker and a valid publication certificate exist.
     // This read is in the same FDB transaction as the new marker/certificate.
-    for dep in &a.dep_groups {
-        let Some(mv) = get(trx, &k.marker(dep)).await? else {
-            return Err(GuardFailure::NotPublished(*dep).into());
-        };
-        let marker = envelope_object_id(&mv)?;
-        let mut certified = false;
-        for writer in a.ring.writers.keys() {
-            let Some(bytes) = get(trx, &k.cert(dep, writer)).await? else { continue };
-            let Ok(cert) = Cert::from_bytes(&bytes) else { continue };
-            if cert.body.group == *dep && cert.body.marker == marker &&
-                cert.body.writer == *writer && cert.body.replica == a.replica &&
-                a.ring.verify_writer(writer, &cert.id(), &cert.sig) {
-                certified = true;
-                break;
-            }
-        }
-        if !certified { return Err(GuardFailure::Uncertified(*dep).into()) }
-    }
+    dependencies_published(trx, k, &a.dep_groups, &a.ring, a.replica).await?;
     // Revocation and cancellation are read in this transaction, so a revocation or a
     // cancellation that commits first stops every later publication.
     let vkey = a.receipt.body.validator_key;
@@ -1060,6 +1069,16 @@ pub(crate) struct ReceiveGroupArgs {
     /// key ring with the staging rule (written as `job/<id>`, as T1 does).
     pub job_id: Id,
     pub job_value: Vec<u8>,
+    /// The decoded envelope: its request is this deployment's to cancel if one of
+    /// `local_issuers` (or, when federated, the pinned local member's keys) signed it.
+    pub job: crate::receipt::SignedJob,
+    /// Without a pinned federation: every key that may sign envelopes T1 here accepts
+    /// (authority and job issuers), so T9 reads cancellation exactly when T1 would.
+    pub local_issuers: Vec<[u8; 32]>,
+    /// The groups the job's dependency capsules name (T1's dependency guard).
+    pub dep_groups: Vec<Id>,
+    pub ring: Arc<crate::sign::KeyRing>,
+    pub replica: crate::id::ReplicaId,
     /// This deployment's receiver certificate (key, value).
     pub cert: (Vec<u8>, Vec<u8>),
     /// The sender's verified certificates, kept as evidence (key, value).
@@ -1134,6 +1153,28 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
         }
         trx.set(&mk, &a.marker_value);
         publication_new = true;
+    }
+    // A new marker or marker variant is a publication here, so T1's cancellation and
+    // dependency reads apply in this transaction (W2 A-2): a request this deployment's
+    // controller or issuers signed and then cancelled is never published here, whoever
+    // relays its receipt, and every job dependency must already be published and
+    // certified on this replica. Evidence for a group already published here is not a
+    // new publication; a cancellation does not unpublish.
+    if publication_new {
+        let local = match &federation {
+            Some(cfg) => {
+                let own = &cfg.members[&cfg.deployment];
+                std::iter::once(&own.authority).chain(&own.job_issuers).any(|key| a.job.verify(key))
+            }
+            None => a.local_issuers.iter().any(|key| a.job.verify(key)),
+        };
+        let request = &a.job.body.request;
+        if local && !cfg!(feature = "mutate-receive-no-cancel-check") && get(trx, &k.job_cancel(request)).await?.is_some() {
+            return Err(GuardFailure::JobCancelled(request.clone()).into());
+        }
+        if !cfg!(feature = "mutate-receive-no-dep-check") {
+            dependencies_published(trx, k, &a.dep_groups, &a.ring, a.replica).await?;
+        }
     }
     // P3: a receive is a publication here, so the receiver's revocation of the receipt's
     // validator stops it, as it stops T1 (the staging rule itself was checked against this

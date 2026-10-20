@@ -71,6 +71,9 @@ mutate-relaxed-import-sig = []
 mutate-key-debug = []
 mutate-unbounded-pce = []
 mutate-unbounded-s3-read = []
+# W2 A-2: T9 omits the issuer's cancellation read / T1's dependency guard.
+mutate-receive-no-cancel-check = []
+mutate-receive-no-dep-check = []
 
 [dev-dependencies]
 proptest = "1"

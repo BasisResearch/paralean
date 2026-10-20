@@ -373,6 +373,15 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                     if bytes.len() as u64 != *length { return reject(format!("chunk {id:?} has length different from group manifest")); }
                 }
             }
+            // T1's dependency guard: the job's dependency capsules name groups T9 must
+            // find published and certified here. A capsule not yet copied here waits.
+            let dep_groups = match crate::writer::dependency_groups(st, &job).await {
+                Ok(groups) => groups,
+                Err(StoreError::Missing { kind, id }) => return Ok(Outcome::Deferred(format!("{kind} {id:?} not here"))),
+                Err(StoreError::Guard(g)) => return reject(g),
+                Err(StoreError::Invalid(why)) => return reject(why),
+                Err(e) => return Err(e),
+            };
             st.faults.point("receive:before-group")?;
             let mut rv = Vec::new();
             for r in &revs {
@@ -396,6 +405,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 validator_key: receipt.body.validator_key,
                 job_id: job.id(),
                 job_value: job.to_bytes(),
+                local_issuers: std::iter::once(st.ring.authority).chain(st.ring.job_issuers.iter().copied()).collect(),
+                job,
+                dep_groups,
+                ring: st.ring.clone(),
+                replica: st.replica,
                 cert: mine_kv,
                 evidence,
                 chunk_index: chunk_index.map(|m| m.into_iter().collect()),

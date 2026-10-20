@@ -405,6 +405,81 @@ async fn received_groups_need_a_receipt_valid_here() {
 }
 
 // ---------------------------------------------------------------------------------------
+/// W2 A-2. A's controller cancels a request after its receipt was issued. T1 refuses it,
+/// and so does T9 at A: neither an item hand-built from the worker's receipt with the
+/// worker's own certificate, nor the same group relayed by a peer that published it
+/// (`sync`), publishes the cancelled request at A.
+#[tokio::test]
+async fn cancelled_request_is_not_received_by_its_issuer() {
+    let (a, b) = pair("ae-cancel", N, Faults::none(), Faults::none());
+    let mut p = a.plain_package(0, "Sh.cancelled", "cancelled");
+    fixture::place(&mut p, F, None, None);
+    assert!(a.store.meta.cancel_job(&p.job.body.request).await.unwrap());
+    assert!(matches!(guard_of(a.w[0].publish(&p).await), GuardFailure::JobCancelled(_)));
+    // T1 put the payloads before it aborted; the worker signs its own certificate.
+    let cert = Cert::sign(CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[0].id }, a.w[0].signer());
+    let item = Item::Group {
+        marker: p.marker.preimage(),
+        revisions: p.revisions.iter().map(|r| r.preimage()).collect(),
+        receipt: p.receipt.to_bytes(),
+        job: p.job.to_bytes(),
+        certs: vec![cert.to_bytes()],
+    };
+    let o = import(&a.w[S], &item).await.unwrap();
+    assert!(matches!(&o, Outcome::Rejected(why) if why.contains("cancelled")), "{o:?}");
+    assert!(a.store.marker(&p.group.id()).await.unwrap().is_none());
+    // The relay: B trusts A's controller as a job issuer and publishes the worker's
+    // package (it cannot read A's cancellation); anti-entropy then offers it to A.
+    let relay = Writer::new(b.store.clone(), a.w[0].id, a.w[0].signer().clone());
+    relay.publish(&p).await.unwrap();
+    let (_, _, to_a) = antientropy::sync(sync_of(&a), sync_of(&b), 5).await.unwrap();
+    assert!(to_a.rejected.iter().any(|r| r.contains("cancelled")), "{to_a:?}");
+    assert!(a.store.marker(&p.group.id()).await.unwrap().is_none());
+    assert!(!published_set(&a.store).await.unwrap().groups.contains_key(&p.group.id()));
+    a.audit_ok().await;
+    // A request A did not cancel still arrives through the same relay.
+    let mut q = a.plain_package(0, "Sh.kept", "kept");
+    fixture::place(&mut q, F, None, None);
+    relay.publish(&q).await.unwrap();
+    antientropy::sync(sync_of(&a), sync_of(&b), 5).await.unwrap();
+    assert!(published_set(&a.store).await.unwrap().groups.contains_key(&q.group.id()));
+}
+
+/// W2 A-2. T1's dependency guard applies to a received group: a group whose job names a
+/// dependency capsule waits at the receiver until that dependency is published and
+/// certified there, then arrives.
+#[tokio::test]
+async fn received_group_waits_for_job_dependencies_here() {
+    let (a, b) = pair("ae-jobdeps", N, Faults::none(), Faults::none());
+    let p = insert(&a, 0, "dep", None, 1).await;
+    // A P1-style dependency capsule naming p's group (only `declId` is read).
+    let cap = Opaque::new(Kind::Capsule, format!("{{\"declId\":\"{}\"}}", p.group.id().hex()).into_bytes());
+    for e in [&a, &b] {
+        e.store.s3.put_opaque(&cap).await.unwrap();
+    }
+    let mut q = fixture::package_by(&a.authority(), "dependent", a.w[1].id, &a.validator, &Name::parse("Sh.dependent"), vec![], None, 2);
+    fixture::place(&mut q, F, Some(&p.marker), None);
+    let mut body = q.job.body.clone();
+    body.deps = vec![cap.id()];
+    q.job = SignedJob::sign(body, &a.authority());
+    q.receipt = fixture::receipt_for(&q.job, &a.validator, Verdict::Accepted);
+    q.marker.receipt = q.receipt.id();
+    a.w[1].publish(&q).await.unwrap();
+    let items = antientropy::export(&a.store).await.unwrap();
+    for i in items.iter().filter(|i| matches!(i, Item::Object { .. })) {
+        import(&b.w[S], i).await.unwrap();
+    }
+    let group_of = |m: &Marker| items.iter().find(|i| matches!(i, Item::Group { marker, .. } if *marker == m.preimage())).unwrap().clone();
+    let o = import(&b.w[S], &group_of(&q.marker)).await.unwrap();
+    assert!(matches!(&o, Outcome::Deferred(why) if why.contains(&format!("{:?}", p.group.id()))), "{o:?}");
+    assert!(b.store.marker(&q.group.id()).await.unwrap().is_none());
+    assert_eq!(import(&b.w[S], &group_of(&p.marker)).await.unwrap(), Outcome::Applied);
+    assert_eq!(import(&b.w[S], &group_of(&q.marker)).await.unwrap(), Outcome::Applied);
+    assert_eq!(published_set(&a.store).await.unwrap(), published_set(&b.store).await.unwrap());
+    audits_clean(&a, &b).await;
+}
+
+// ---------------------------------------------------------------------------------------
 // Property: any exchange order converges to the same published set.
 
 #[derive(Clone, Debug)]
