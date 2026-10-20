@@ -151,7 +151,7 @@ class ControllerTest(unittest.TestCase):
         self.assertTrue(any(x["event"] == "publication_failed" for x in result["events"]))
 
     def test_task_has_eight_independent_branches_and_frozen_final_contract(self):
-        task = load(Path(os.environ.get("P5_REPO", Path.cwd())) / "impl/p5/tasks/add_comm_eight.toml")
+        task = load(Path(__file__).resolve().parents[1] / "tasks/add_comm_eight.toml")
         by_name = {t.name: t for t in task.targets}
         self.assertEqual(len(by_name), 10)
         self.assertEqual({by_name[f"P5.add_comm_{i}"].deps for i in range(1, 9)},
@@ -161,7 +161,7 @@ class ControllerTest(unittest.TestCase):
         self.assertTrue(all(f"n + {i} = {i} + n" in final.statement for i in range(1, 9)))
 
     def test_list_api_task_has_same_parallel_shape(self):
-        task = load(Path(os.environ.get("P5_REPO", Path.cwd())) / "impl/p5/tasks/list_reverse_map_lengths.toml")
+        task = load(Path(__file__).resolve().parents[1] / "tasks/list_reverse_map_lengths.toml")
         by_name = {t.name: t for t in task.targets}
         self.assertEqual(len(by_name), 10)
         self.assertEqual(by_name["P5List.map_length"].deps, ())

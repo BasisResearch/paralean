@@ -14,7 +14,7 @@ use paralean_store::pce::Dec;
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{self, Policy, TargetBinding};
 use paralean_store::{
-    AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, Id, JobEnvelope, KeyFile, Kind,
+    AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, FederationConfig, Id, JobEnvelope, KeyFile, Kind,
     Manifest, Marker, Name, Object, Opaque, Package, Receipt, Revision, Signed, SignedJob,
     Snapshot, Store, StoreConfig, TargetAssignment, TargetCheck, TargetRecord, Verdict, Writer,
 };
@@ -296,6 +296,15 @@ async fn fence_unfinished(args: &[String]) -> R<Value> {
     let target_key = keys.target(&n);
     let mut trx = store.meta.db.create_trx().map_err(|e| e.to_string())?;
     for _ in 0..60 {
+        // Mirror P2 T4's federation-home guard in this same transaction.
+        // Reading the pinned config here also conflicts with a concurrent
+        // federation pin; a foreign home can never be fenced locally.
+        if let Some(raw) = trx.get(&keys.ae_config(), false).await.map_err(|e| e.to_string())? {
+            let cfg = FederationConfig::from_pce(&raw).map_err(|e| e.to_string())?;
+            if cfg.target_homes.get(&n).map(String::as_str) != Some(cfg.deployment.as_str()) {
+                return Err(format!("target {n} is assigned to a foreign federation home"));
+            }
+        }
         // This index is the durable outcome witness if the previous commit
         // succeeded but its reply was lost. Decode exactly P2's PCE uvarint.
         if let Some(raw) = trx.get(&request_key, false).await.map_err(|e| e.to_string())? {
