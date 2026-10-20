@@ -1,0 +1,55 @@
+[12:27:41] phase=fixtures scope=fdb fdb=6 garage=1 workers=1 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/scripts/../../../results/p2/faults-int-ft/fdb/fixtures/20261020T122741Z-3734578
+[12:27:42] writes ok and fault tolerance >= 2 after 1 s
+[12:27:47] garage nodes up: 1 of 1
+[12:27:47] FAULT kill fdbserver-1
+[12:27:47] running the test suite under chaos
+[12:27:58] writes ok and fault tolerance >= 2 after 3 s
+[12:27:58] FAULT pause fdbserver-0
+[12:28:06] writes ok and fault tolerance >= 2 after 0 s
+[12:28:06] FAULT partition fdbserver-5
+[12:28:12] fast suites: 1 rounds done
+[12:28:12] SKIP antientropy test during this fault scope; run separately with a bounded peer
+[12:28:15] writes ok and fault tolerance >= 2 after 1 s
+[12:28:15] FAULT kill fdbserver-2, partition fdbserver-5
+[12:28:24] writes ok and fault tolerance >= 2 after 1 s
+[12:28:24] FAULT pause fdbserver-1 and fdbserver-3
+[12:28:54] writes ok and fault tolerance >= 2 after 22 s
+[12:28:54] FAULT kill fdbserver-3
+[12:29:04] writes ok and fault tolerance >= 2 after 2 s
+[12:29:04] FAULT pause fdbserver-2
+[12:29:31] writes ok and fault tolerance >= 2 after 19 s
+[12:29:31] FAULT partition fdbserver-1
+[12:29:39] writes ok and fault tolerance >= 2 after 0 s
+[12:29:39] FAULT kill fdbserver-3, partition fdbserver-4
+[12:29:47] writes ok and fault tolerance >= 2 after 0 s
+[12:29:47] FAULT pause fdbserver-0 and fdbserver-1
+[12:29:56] writes ok and fault tolerance >= 2 after 0 s
+[12:29:56] FAULT kill fdbserver-3
+[12:30:04] writes ok and fault tolerance >= 2 after 0 s
+[12:30:04] FAULT pause fdbserver-5
+[12:30:12] writes ok and fault tolerance >= 2 after 0 s
+[12:30:12] FAULT partition fdbserver-5
+[12:30:33] writes ok and fault tolerance >= 2 after 12 s
+[12:30:33] FAULT kill fdbserver-2, partition fdbserver-1
+[12:30:41] writes ok and fault tolerance >= 2 after 0 s
+[12:30:41] FAULT pause fdbserver-3 and fdbserver-5
+[12:30:51] SKIP multiprocess test during this fault scope; run separately with a bounded wave
+[12:30:51] writes ok and fault tolerance >= 2 after 2 s
+      1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 40.91s
+      1 test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 116.18s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.60s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.75s
+[12:30:51] faults injected during the tests: 15
+probe: 68 probes, 47 ok (69.1%), longest failed run 4 probes; latency ok p50 82 ms, max 4775 ms
+  unavailable from 12:27:49 for about 2 s (sampled until next success)
+  unavailable from 12:28:04 for about 7 s (sampled until next success)
+  unavailable from 12:28:30 for about 24 s (sampled until next success)
+  unavailable from 12:29:09 for about 22 s (sampled until next success)
+  unavailable from 12:29:39 for about 8 s (sampled until next success)
+  unavailable from 12:29:53 for about 3 s (sampled until next success)
+  unavailable from 12:30:10 for about 2 s (sampled until next success)
+  unavailable from 12:30:18 for about 14 s (sampled until next success)
+  unavailable from 12:30:38 for about 3 s (sampled until next success)
+  unavailable from 12:30:47 for about 4 s (sampled until next success)
+[12:30:52] phase fixtures: PASS

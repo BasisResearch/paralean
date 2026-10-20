@@ -1,28 +1,28 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 39 and seed -7823876195520667862 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 4704] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/Certificates/Certificates.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Running breadth-first search Model-Checking with fp 10 and seed 6967898403555781927 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2899677] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/Certificates/Certificates.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Certificates
-Starting... (2026-10-05 21:23:04)
+Starting... (2026-10-20 11:46:24)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 21:23:04.
-Progress(14) at 2026-10-05 21:23:07: 574,867 states generated (574,867 s/min), 57,522 distinct states found (57,522 ds/min), 29,940 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 11:46:24.
+Progress(16) at 2026-10-20 11:46:27: 1,438,524 states generated (1,438,524 s/min), 126,086 distinct states found (126,086 ds/min), 57,441 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 3.0E-7
-  based on the actual fingerprints:  val = 6.0E-9
+  based on the actual fingerprints:  val = 1.7E-7
 10832390 states generated, 536937 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 25.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 34s at (2026-10-05 21:23:39)
+Finished in 19s at (2026-10-20 11:46:43)
 ==== Paralean TLC provenance ====
 module Certificates
 config Certificates.cfg

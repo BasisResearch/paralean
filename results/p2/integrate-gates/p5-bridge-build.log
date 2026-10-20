@@ -1,0 +1,161 @@
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling smallvec v1.16.3
+   Compiling errno v0.3.14
+   Compiling signal-hook-registry v1.4.8
+   Compiling parking_lot_core v0.9.12
+   Compiling parking_lot v0.12.5
+   Compiling tokio-macros v2.7.2
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.4
+   Compiling zeroize v1.9.1
+   Compiling tokio v1.54.0
+   Compiling futures-macro v0.3.34
+   Compiling futures-util v0.3.34
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing v0.1.44
+   Compiling deranged v0.5.9
+   Compiling tokio-util v0.7.20
+   Compiling either v1.19.0
+   Compiling bytes-utils v0.1.4
+   Compiling time v0.3.55
+   Compiling synstructure v0.14.0
+   Compiling jobserver v0.1.35
+   Compiling find-msvc-tools v0.1.15
+   Compiling cc v1.9.0
+   Compiling zerofrom-derive v0.1.8
+   Compiling aws-smithy-types v1.9.0
+   Compiling aws-smithy-async v1.3.1
+   Compiling aws-smithy-runtime-api-macros v1.1.0
+   Compiling zerofrom v0.1.8
+   Compiling cmake v0.1.58
+   Compiling yoke-derive v0.8.4
+   Compiling aws-smithy-runtime-api v1.19.1
+   Compiling aws-lc-sys v0.46.0
+   Compiling yoke v0.8.3
+   Compiling zerovec-derive v0.11.6
+   Compiling zerovec v0.11.8
+   Compiling displaydoc v0.2.7
+   Compiling aws-lc-rs v1.18.2
+   Compiling rustls-pki-types v1.15.1
+   Compiling equivalent v1.0.3
+   Compiling indexmap v2.14.2
+   Compiling tinystr v0.8.4
+   Compiling rustls v0.23.46
+   Compiling h2 v0.4.20
+   Compiling rustls-webpki v0.103.15
+   Compiling icu_locale_core v2.3.0
+   Compiling zerotrie v0.2.5
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling hyper v1.12.0
+   Compiling aws-smithy-eventstream v0.61.5
+   Compiling rustls-native-certs v0.8.5
+   Compiling hyper-util v0.1.21
+   Compiling itertools v0.13.0
+   Compiling aws-smithy-http v0.64.2
+   Compiling clang-sys v1.9.1
+   Compiling tokio-rustls v0.26.6
+   Compiling prettyplease v0.2.37
+   Compiling aws-smithy-schema v0.2.1
+   Compiling zerocopy v0.8.63
+   Compiling bindgen v0.72.1
+   Compiling hyper-rustls v0.27.10
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling sha2 v0.11.1
+   Compiling aws-credential-types v1.3.0
+   Compiling getrandom v0.2.17
+   Compiling uuid v1.28.0
+   Compiling rand_core v0.6.4
+   Compiling foundationdb-sys v0.11.0
+   Compiling idna_adapter v1.2.2
+   Compiling aws-smithy-http-client v1.5.1
+   Compiling aws-smithy-schema v1.0.0
+   Compiling aws-smithy-observability v0.3.0
+   Compiling serde_json v1.0.154
+   Compiling aws-sigv4 v1.6.0
+   Compiling ppv-lite86 v0.2.21
+   Compiling aws-smithy-runtime v1.16.1
+   Compiling idna v1.1.0
+   Compiling aws-types v1.6.0
+   Compiling getrandom v0.4.3
+   Compiling futures-executor v0.3.34
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling serde_derive v1.0.229
+   Compiling foundationdb-macros v0.4.0
+   Compiling aws-smithy-xml v0.62.1
+   Compiling serde v1.0.229
+   Compiling curve25519-dalek v4.1.3
+   Compiling aws-runtime v1.10.0
+   Compiling futures v0.3.34
+   Compiling aws-smithy-checksums v0.65.0
+   Compiling rand v0.10.3
+   Compiling arc-swap v1.9.3
+   Compiling url v2.5.8
+   Compiling rand_chacha v0.3.1
+   Compiling foundationdb-tuple v0.11.0
+   Compiling aws-smithy-json v0.63.1
+   Compiling thiserror-impl v2.0.21
+   Compiling async-recursion v1.2.0
+   Compiling async-trait v0.1.92
+   Compiling aws-sdk-s3 v1.152.0
+   Compiling foundationdb v0.11.0
+   Compiling thiserror v2.0.21
+   Compiling ed25519-dalek v2.2.0
+   Compiling rand v0.8.8
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/control)
+   Compiling paralean-p5-store v0.1.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p5/store-bridge)
+warning: function `name_json` is never used
+  --> src/../../../p3-remote/src/cache.rs:27:8
+   |
+27 | pub fn name_json(n: &Name) -> Value {
+   |        ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: methods `tomb_rec`, `revision`, `meta`, and `put_capsule` are never used
+   --> src/../../../p3-remote/src/cache.rs:87:12
+    |
+ 56 | impl Cache {
+    | ---------- methods in this implementation
+...
+ 87 |     pub fn tomb_rec(&self, t: &Id) -> PathBuf {
+    |            ^^^^^^^^
+...
+ 90 |     pub fn revision(&self, r: &Id) -> PathBuf {
+    |            ^^^^^^^^
+...
+ 99 |     pub fn meta(&self, pid: &str) -> PathBuf {
+    |            ^^^^
+...
+113 |     pub fn put_capsule(&self, c: &Id, bytes: &[u8]) -> Result<String, String> {
+    |            ^^^^^^^^^^^
+
+warning: function `marker_json` is never used
+   --> src/../../../p3-remote/src/cache.rs:123:8
+    |
+123 | pub fn marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str) -> Value {
+    |        ^^^^^^^^^^^
+
+warning: function `tomb_json` is never used
+   --> src/../../../p3-remote/src/cache.rs:141:8
+    |
+141 | pub fn tomb_json(tid: &Id, t: &Tombstone) -> Value {
+    |        ^^^^^^^^^
+
+warning: function `revision_json` is never used
+   --> src/../../../p3-remote/src/cache.rs:152:8
+    |
+152 | pub fn revision_json(rid: &Id, r: &Revision) -> Value {
+    |        ^^^^^^^^^^^^^
+
+warning: `paralean-p5-store` (bin "paralean-p5-store") generated 5 warnings
+    Finished `release` profile [optimized] target(s) in 1m 30s

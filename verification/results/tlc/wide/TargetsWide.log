@@ -1,34 +1,33 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 17 and seed 3729159849011269965 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 43321] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/TargetsWide/TargetsWide.tla
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/TargetsWide/Targets.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Running breadth-first search Model-Checking with fp 9 and seed -3999545965429894895 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 3374199] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/TargetsWide/TargetsWide.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/TargetsWide/Targets.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
 Semantic processing of module TLC
 Semantic processing of module TargetsWide
-Starting... (2026-10-05 21:30:00)
+Starting... (2026-10-20 12:03:45)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 21:30:00.
-Progress(14) at 2026-10-05 21:30:03: 638,432 states generated (638,432 s/min), 152,417 distinct states found (152,417 ds/min), 83,833 states left on queue.
-Progress(19) at 2026-10-05 21:31:03: 22,216,815 states generated (21,578,383 s/min), 3,554,660 distinct states found (3,402,243 ds/min), 1,214,172 states left on queue.
-Progress(21) at 2026-10-05 21:32:03: 45,728,540 states generated (23,511,725 s/min), 6,480,894 distinct states found (2,926,234 ds/min), 1,654,635 states left on queue.
-Progress(22) at 2026-10-05 21:33:03: 66,264,747 states generated (20,536,207 s/min), 8,723,145 distinct states found (2,242,251 ds/min), 1,697,354 states left on queue.
-Progress(24) at 2026-10-05 21:34:03: 90,228,778 states generated (23,964,031 s/min), 10,870,815 distinct states found (2,147,670 ds/min), 1,207,596 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 12:03:46.
+Progress(13) at 2026-10-20 12:03:49: 421,742 states generated (421,742 s/min), 102,257 distinct states found (102,257 ds/min), 57,843 states left on queue.
+Progress(19) at 2026-10-20 12:04:49: 23,336,767 states generated (22,915,025 s/min), 3,683,094 distinct states found (3,580,837 ds/min), 1,233,116 states left on queue.
+Progress(21) at 2026-10-20 12:05:49: 54,829,475 states generated (31,492,708 s/min), 7,483,353 distinct states found (3,800,259 ds/min), 1,699,087 states left on queue.
+Progress(24) at 2026-10-20 12:06:49: 90,567,485 states generated (35,738,010 s/min), 10,888,088 distinct states found (3,404,735 ds/min), 1,184,381 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.8E-5
-  based on the actual fingerprints:  val = 1.6E-6
+  based on the actual fingerprints:  val = 2.0E-5
 113659398 states generated, 12400854 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 05min 00s at (2026-10-05 21:35:00)
+Finished in 03min 46s at (2026-10-20 12:07:31)
 ==== Paralean TLC provenance ====
 module TargetsWide
 config TargetsWide.cfg

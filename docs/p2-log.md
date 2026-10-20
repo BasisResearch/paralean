@@ -960,3 +960,52 @@ The post-review baseline passed **54 store checks** (16 library, 10 fault,
 production CLI, P3 controller and remote binaries rebuilt successfully;
 their hashes are saved in `results/p2/merged-gates/binary-sha256-base-marker.txt`.
 Shell syntax and recovered/censored/empty probe-summary cases also passed.
+
+## Integration into main (branch `integrate-m-p2`, 2026-10-20)
+
+`origin/m-p2=a7c19ed` was merged into `origin/main=2b3982d` (m-targets plus m-p5).
+m-p5 had vendored m-p2's `ffbdb6e` snapshot, so every add/add conflict except
+`writer.rs` was byte-identical on main to that snapshot and resolves to m-p2's
+newer version. `writer.rs` takes m-p2's version (chunk index, 2,048-reference cap,
+`marker_base` in T2/T8) and re-applies main's P3/P5 glue: the public
+`Writer::signer()` and resolution of job dependency capsules to declaration IDs
+passed to T1 (`dep_groups`, `replica`). `meta.rs` and `Cargo.lock` merged cleanly.
+
+`TargetHomes` was already in `scripts/tla-common.sh` and the negative suite
+(three witnesses and `target_no_home`). The archive failed `--verify` only because
+the negative and hardened logs predated the new TLA sources. All four suites were
+rerun with at most four TLC workers: default **21** positive, **85** negative cases,
+**4** wide and **29** hardened cases. `archive-verification.sh --tla-only` then
+`--verify` pass. TargetHomes: 133 distinct states; `target_no_home` violates
+`TargetChain`.
+
+Gates on private instances `int-a` (peer `int-b`), `int-ft` (six FDB, triple,
+netsplit) and `p5-int`, with P1 and fork artifacts read-only from paralean-m-p4
+`604dade` (`impl/p1` identical). Logs are in `results/p2/integrate-gates/`:
+
+- `cargo test --workspace` (P2 store, ae-wire, network, proxies, multiprocess,
+  P3 control and remote crates): **135 passed, 0 failed**, run twice
+  (`workspace-run1.log`, `workspace-run2.log`). The first attempt was discarded
+  because the instances' FDB and Garage processes were killed externally at 11:48;
+  the instances were restarted with their data before the reruns.
+- Anti-entropy network suite: **15/15** (`network.log`).
+- P3 validator-api and control on `p5-int`: **38 passed**, including adversarial
+  **13/13**; Mathlib throughput and measure tests remain ignored (`p3-control-all.log`).
+- P3 remote gate through `impl/p2/scripts/remote-gate.py`: **all 15 checks pass**
+  in 142.6 s (`p3-remote-gate.log`). A first run failed only its export check because
+  the environment exported `PARALEAN_MATHLIB` for a nonexistent `.deps/mathlib-fork`;
+  this core-only gate is run without it, as before.
+- P5 unit tests **28/28**; P5 live gate with Claude workers on
+  `list_reverse_map_lengths`: **ok** (10/10 contracts, recovery after desktop loss,
+  dependency closure, stock export; 133 s wall) (`p5-gate.json`).
+- Pagination under FDB faults, one fixture round (`FAULT_SCOPE=fdb`,
+  `FIXTURE_ROUNDS=1`): **PASS**. Fixture 9 (both pagination tests), guard 13,
+  tombstone 6, fault 10, property 1, with 15 injected faults; artifacts in
+  `results/p2/faults-int-ft/fdb/fixtures/20261020T122741Z-3734578/`. The single fast
+  round lasted 25 s, so only its first faults overlapped the pagination fixtures.
+
+The m-p2 clone also held an uncommitted 20-round FDB fixture run
+(`faults-mp2-fdb-gate/fdb/fixtures/20261020T053143Z-3746438`). Its events log ends in
+`phase fixtures: PASS`, with 62 suite results and 131 faults. It is left uncommitted
+as instructed and is not counted here.
+Binary hashes: `results/p2/integrate-gates/binary-sha256.txt`.

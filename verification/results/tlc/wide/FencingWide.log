@@ -1,33 +1,32 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 104 and seed -8420860196372375922 with 4 workers on 10 cores with 5461MB heap and 64MB offheap memory [pid: 65681] (Mac OS X 26.5.1 aarch64, Homebrew 17.0.18 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /Users/kirancodes/Documents/code/paralean/.claude/worktrees/tla-archive-hardened/.runs/tla/run/FencingWide/Fencing.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/FiniteSets.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Naturals.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/TLC.tla
-Parsing file /private/var/folders/1s/lx5pfr2s0hzc3ln927t_m_jh0000gn/T/Sequences.tla
+Running breadth-first search Model-Checking with fp 120 and seed -2147927829974137770 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 3438224] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/FencingWide/Fencing.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/TLC.tla
+Parsing file /tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-05 21:35:01)
+Starting... (2026-10-20 12:07:33)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-05 21:35:01.
-Progress(13) at 2026-10-05 21:35:04: 203,691 states generated (203,691 s/min), 24,132 distinct states found (24,132 ds/min), 12,685 states left on queue.
-Progress(21) at 2026-10-05 21:36:04: 7,644,462 states generated (7,440,771 s/min), 511,760 distinct states found (487,628 ds/min), 130,593 states left on queue.
-Progress(24) at 2026-10-05 21:37:04: 15,023,167 states generated (7,378,705 s/min), 900,259 distinct states found (388,499 ds/min), 191,678 states left on queue.
-Progress(25) at 2026-10-05 21:38:04: 22,550,251 states generated (7,527,084 s/min), 1,268,585 distinct states found (368,326 ds/min), 226,516 states left on queue.
-Progress(27) at 2026-10-05 21:39:04: 30,189,273 states generated (7,639,022 s/min), 1,557,990 distinct states found (289,405 ds/min), 207,154 states left on queue.
-Progress(28) at 2026-10-05 21:40:04: 37,908,555 states generated (7,719,282 s/min), 1,785,011 distinct states found (227,021 ds/min), 108,212 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 12:07:33.
+Progress(14) at 2026-10-20 12:07:36: 321,139 states generated (321,139 s/min), 34,567 distinct states found (34,567 ds/min), 16,602 states left on queue.
+Progress(23) at 2026-10-20 12:08:36: 12,154,560 states generated (11,833,421 s/min), 756,299 distinct states found (721,732 ds/min), 174,277 states left on queue.
+Progress(25) at 2026-10-20 12:09:36: 22,334,796 states generated (10,180,236 s/min), 1,257,228 distinct states found (500,929 ds/min), 226,987 states left on queue.
+Progress(27) at 2026-10-20 12:10:36: 31,654,075 states generated (9,319,279 s/min), 1,608,423 distinct states found (351,195 ds/min), 195,087 states left on queue.
+Progress(32) at 2026-10-20 12:11:36: 42,247,470 states generated (10,593,395 s/min), 1,859,796 distinct states found (251,373 ds/min), 2,134 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.1E-6
-  based on the actual fingerprints:  val = 5.3E-8
+  based on the actual fingerprints:  val = 2.0E-7
 42295515 states generated, 1860196 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 34.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
-Finished in 05min 41s at (2026-10-05 21:40:42)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
+Finished in 04min 04s at (2026-10-20 12:11:37)
 ==== Paralean TLC provenance ====
 module Fencing
 config FencingWide.cfg
