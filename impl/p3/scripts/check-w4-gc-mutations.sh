@@ -2,7 +2,11 @@
 # Each removed controller GC guard must fail its live FoundationDB regression test.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-. "$here/w4-env.sh"
+# Run against an already configured, isolated FDB/Garage instance (for W4's own
+# runs: source impl/p3/scripts/w4-env.sh first). Never select an instance here.
+: "${PARALEAN_FDB_CLUSTER:?set PARALEAN_FDB_CLUSTER to the isolated test cluster}"
+: "${PARALEAN_S3_ENDPOINT:?set PARALEAN_S3_ENDPOINT to the isolated test cluster}"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 cd "$here/../../p2"
 cases=(
   'mutate-gc-no-head-check|gc|gc_rechecks_current_head_and_rejects_stale_leader'

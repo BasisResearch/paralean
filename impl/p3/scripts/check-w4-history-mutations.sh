@@ -2,7 +2,11 @@
 # Each removed history guard must fail its own live FDB regression assertion.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-. "$here/w4-env.sh"
+# Run against an already configured, isolated FDB/Garage instance (for W4's own
+# runs: source impl/p3/scripts/w4-env.sh first). Never select an instance here.
+: "${PARALEAN_FDB_CLUSTER:?set PARALEAN_FDB_CLUSTER to the isolated test cluster}"
+: "${PARALEAN_S3_ENDPOINT:?set PARALEAN_S3_ENDPOINT to the isolated test cluster}"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 cd "$here/../../p2"
 cases=(
   'mutate-history-no-work-replay|replay_survives_restart_with_gc_disabled_and_poll_tokens_do_not_steal_work'
