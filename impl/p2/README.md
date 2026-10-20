@@ -43,7 +43,72 @@ scripts/proc.sh fdb kill|pause|resume|start|wipe <i>; scripts/proc.sh garage ...
 process's public port (no root or iptables on the shared box): it identifies the connecting
 process from FDB's ConnectPacket and blackholes every link across the cut until `heal`.
 `up.sh` lowers FDB's operating-space reserve (`min_available_space_ratio`), because /data on
-the shared box is ~98% full and the default 5% reserve throttles all writes.
+a nearly full shared disk can otherwise throttle writes; check `df -h /data` before runs.
+
+
+## Scheduled network anti-entropy
+
+New federated deployments pin identical public membership and target homes before
+any publication with `paralean-p2 federation-init federation.json`. Each deployment
+has distinct writer IDs, replica ID and transport key. Generate the transport seed
+with `paralean-p2 ae-keygen /private/path/ae.seed`; use its printed public key with
+`paralean-p2 federation-member A PUBLIC_KEY` to produce the public member object
+from that deployment's `PARALEAN_KEYS`. Never copy the private seed to a peer.
+
+A configuration has this shape (replace the placeholder member objects with the
+command output, including every deployment's own entry):
+
+```json
+{
+  "deployment": "A",
+  "members": {"A": {"...": "public member fields"}, "B": {"...": "public member fields"}},
+  "target_homes": {"Example.target": "A"},
+  "trusted_validators": ["64 hexadecimal characters per trusted validator public key"],
+  "signing_seed_file": "/private/path/ae.seed",
+  "listen": "127.0.0.1:25001",
+  "peers": {"B": "127.0.0.1:25002"},
+  "sync_writer": "w0",
+  "interval_ms": 5000
+}
+```
+
+Run `paralean-p2 ae-service federation.json` on each deployment. It serves signed
+TCP requests and schedules incremental pulls with jitter and retry backoff. Peers
+need public keys and service addresses; they need no remote FDB or S3 credentials.
+The transport authenticates bytes but does not encrypt them. Normal local publish
+and audit commands use `PARALEAN_DEPLOYMENT=A` and
+`PARALEAN_FEDERATION_CONFIG=/path/federation.json` to load the same public trust.
+The persisted home rules apply even to handles opened before federation pinning.
+`ae-service federation.json --once` performs one bounded round per configured peer;
+it does not promise that the entire backlog is drained. `ae-status federation.json`
+prints durable progress and pending diagnostics. SIGINT/SIGTERM drain service tasks
+before the CLI shuts down its FDB network thread.
+
+The service uses atomic commit-versionstamp events, durable cursors and pending
+fragments, 1 MiB metadata frames, 64 KiB fragments, an 8 MiB metadata limit per
+event, and 64 MiB objects buffered in memory. At most two peers pull concurrently;
+missing objects/dependencies remain retryable without blocking unrelated events.
+Generation changes require a verified bootstrap; v1 provides neither migration of
+an existing deployment nor log compaction. New chunked group envelopes bind ordered
+chunk IDs and lengths into the group hash; old opaque groups retain their IDs and
+have unknown chunk coverage. Catalogue records retain source-qualified certificates
+and never advance the receiver's local fence. Receipt-only marker variants converge;
+placement or revision conflicts retain a precise terminal diagnostic.
+See [the protocol and store delta](../../docs/p2-antientropy-design.md).
+
+For Garage RPC partitions, start an instance with `PARALEAN_GARAGE_NETSPLIT=1`, then
+use `scripts/proc.sh garage-split 2` and `scripts/proc.sh garage-heal`. The proxy
+identifies Garage peers by their configured private loopback source address and
+cuts existing as well as new cross-partition connections.
+
+On a shared box, split fault runs into `FAULT_SCOPE=fdb` (six FDB processes,
+`triple`, one Garage) and `FAULT_SCOPE=garage` (one FDB, three Garage nodes,
+replication 3). Set `STRESS_WORKERS=1`, prebuild with one Cargo job, then use
+`SKIP_BUILD=1 PHASE=stress|fixtures|beyond` with `fault-redundancy.sh` for each scope.
+The destructive `PHASE=dataloss` additionally requires
+`I_KNOW_THIS_DESTROYS_THE_INSTANCE=1` and runs last on a disposable own instance.
+`PARALEAN_TEST_WORKER_LIMIT=3` runs all multiprocess worker configurations in waves.
+The default combined cluster example above needs a larger process budget.
 
 ## Layout
 
@@ -53,6 +118,9 @@ the shared box is ~98% full and the default 5% reserve throttles all writes.
 | `crates/cli` | `paralean-p2` CLI (status, assign, rotate, put/get, publish-demo, checkpoint-demo, tombstone-demo, discover, recover, audit, check-p1, import-p1, sync, stress, verify-acks) |
 | `crates/s3-guard` | S3 passthrough refusing DELETE, DeleteObjects and bucket-config changes; several upstreams with failover |
 | `crates/netsplit` | partitions between local fdbservers (proxy per process, ConnectPacket source identification) |
+| `crates/garage-netsplit` | Garage RPC partitions, source-bound private loopback addresses |
+| `crates/ae-wire` | bounded signed TCP request/response framing |
+| `crates/ae-service` | scheduled incremental pulls and durable retry handling |
 
 ## Module → transaction → guard
 
@@ -66,7 +134,7 @@ the shared box is ~98% full and the default 5% reserve throttles all writes.
 | `writer::certify_object`, `meta::t6_object` | T6: only with an `Acked` proof (own PUT echo or verified GET) | CatalogCertificates `CertStep.object`; TLA `fencing_cert_unacked` |
 | `writer::repair_cert`, `meta::t7_repair` | T7: unconditional, unfenced copy; signature verified; the certificate names this store's replica σ; certified bytes must already exist | CatalogCertificates `repairRecord`/`repairObject`; TLA `fencing_no_cert_repair` |
 | `writer::tombstone`, `meta::t8_body`, `meta::tombstone_guards` | T8: staged S3 copy acknowledged first; tombstone and the publisher's tombstone certificate (`v0/tcert`) in one transaction; target published *and certified*, same file, older, deleted by its author (OPEN-19 default), not a target-name group, named receipt present and its validator not revoked | Workspaces tombstone = revision of its target (`ancestors_closed`, `StageGuard`); AckCertificates `PublishWrite`, `guard_necessity` applied to tombstones |
-| `antientropy::import`, `meta::t9_body`, `meta::t10_body` | T9/T10: receive a group or tombstone from another deployment: hashes and signatures verified, the receipt and its job envelope pass P3's staging rule under the receiver's key ring (target-bound envelopes never do), the validator not revoked here (read in T9), payloads acknowledged here, parents/target present, then the receiver's own certificate (its replica, its key) with the sender's certificates kept as `xcert/` evidence; one marker per group (conflicts reported); names homed here as targets refused | AckCertificates `put` (`known n d`); §8.3 "receiving requires a live certificate"; Groups `receive` |
+| `antientropy::import`, `meta::t9_body`, `meta::t10_body` | T9/T10: receive a group or tombstone from another deployment: hashes and signatures verified, the receipt and job envelope pass P3 binding checks; in pinned federation mode, target groups require their home controller and original home certificate, the validator not revoked here (read in T9), payloads acknowledged here, parents/target present, then the receiver's own certificate (its replica, its key) with the sender's certificates kept as `xcert/` evidence; receipt-only variants converge while placement conflicts are diagnosed; foreign observations never advance local target records | AckCertificates `put` (`known n d`); §8.3 "receiving requires a live certificate"; Groups `receive` |
 | `recovery::discover` | paginated `cert/` and `tcert/` scans; raw markers and tombstones ignored; heads per name; rendered files | AckCertificates `scan_between`; Recovery `reconstruction_iff`; Workspaces `render`, `Live`, `PosLt`, `render_carried` |
 | `recovery::recover_catalog` | paginated `catalog/` scan; ready = rcert + snapshot/payload/manifest ocerts; admissible = ready ∧ buildable ∧ workspace ∧ predecessor admissible; unique head | CatalogCertificates `ScanEnumerate`, `selected_fenced`, `orphan_not_adopted` |
 | `audit` | published ⇒ certified, cert ⇒ marker, metadata ⇒ S3 object, one head per target, fenced rcerts, no orphan commits, ranks 1..fence; the same for tombstones; `xcert/` evidence verifies | HARDENED `hardened_safe` conjuncts |

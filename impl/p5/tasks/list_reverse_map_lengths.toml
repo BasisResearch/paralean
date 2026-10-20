@@ -1,0 +1,82 @@
+# Small List API development: generic map-length invariant, eight parallel reverse/map
+ # specializations, and one theorem collecting their checked results.
+
+[task]
+id = "list-reverse-map-lengths-v1"
+name = "Length invariants of reverse then map"
+
+[controller]
+workers = 8
+max_attempts = 3
+
+[worker]
+kind = "codex"
+
+[[targets]]
+name = "P5List.map_length"
+statement = "∀ (α β : Type) (f : α → β) (xs : List α), (xs.map f).length = xs.length"
+file = "MapLength.lean"
+deps = []
+
+[[targets]]
+name = "P5List.reverse_map_len_1"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 1)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 1) xs.reverse, then List.length_reverse."
+file = "ReverseMap1.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_2"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 2)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 2) xs.reverse, then List.length_reverse."
+file = "ReverseMap2.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_3"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 3)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 3) xs.reverse, then List.length_reverse."
+file = "ReverseMap3.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_4"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 4)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 4) xs.reverse, then List.length_reverse."
+file = "ReverseMap4.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_5"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 5)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 5) xs.reverse, then List.length_reverse."
+file = "ReverseMap5.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_6"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 6)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 6) xs.reverse, then List.length_reverse."
+file = "ReverseMap6.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_7"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 7)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 7) xs.reverse, then List.length_reverse."
+file = "ReverseMap7.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_len_8"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 8)).length = xs.length"
+instructions = "Use P5List.map_length Nat Nat (fun n => n + 8) xs.reverse, then List.length_reverse."
+file = "ReverseMap8.lean"
+deps = ["P5List.map_length"]
+
+[[targets]]
+name = "P5List.reverse_map_lengths"
+statement = "∀ xs : List Nat, ((xs.reverse).map (fun n => n + 1)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 2)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 3)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 4)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 5)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 6)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 7)).length = xs.length ∧ ((xs.reverse).map (fun n => n + 8)).length = xs.length"
+instructions = "Build the conjunction from P5List.reverse_map_len_1 through P5List.reverse_map_len_8, each at xs."
+file = "Final.lean"
+deps = ["P5List.reverse_map_len_1", "P5List.reverse_map_len_2", "P5List.reverse_map_len_3", "P5List.reverse_map_len_4", "P5List.reverse_map_len_5", "P5List.reverse_map_len_6", "P5List.reverse_map_len_7", "P5List.reverse_map_len_8"]

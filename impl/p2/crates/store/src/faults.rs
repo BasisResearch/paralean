@@ -40,6 +40,7 @@ pub enum Txn {
     T8Tombstone,
     T9ReceiveGroup,
     T10ReceiveTombstone,
+    Ae,
 }
 
 pub type Hook = Arc<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>;

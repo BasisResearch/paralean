@@ -1,0 +1,62 @@
+{
+  "contract_validation": {
+    "ok": true,
+    "targets": {
+      "P5.add_comm_1": {
+        "epoch": 0,
+        "group": "0b02cd6e38a209f4a862225f06a4141589d12c9187821cd534f20e9156774972",
+        "head": "0932df04b4eea989c86590b74182c63d0408a4b4266b10da60bda4ca96c78169",
+        "name": "P5.add_comm_1",
+        "ok": true,
+        "reason": "",
+        "statement_hash": "900cd5b50570a81365dfcf68ac69590b6e215d024dd4ba449fe4018f6b46ec97"
+      },
+      "P5.add_comm_general": {
+        "epoch": 0,
+        "group": "aaeb1daefa43a48bf3680aa6d895ab2ab1310131c7a1d6abcd2c3a9bb9aac765",
+        "head": "0a6cde8d94fcf98174411a377ccb93fbbcdb66e042ff9b80e975aea385c85592",
+        "name": "P5.add_comm_general",
+        "ok": true,
+        "reason": "",
+        "statement_hash": "2d6a089f6fa5b211af7b7c7afe6300444077cbe630c919436c090d44c179be60"
+      }
+    }
+  },
+  "export": {
+    "buildMs": 2002,
+    "bytes": 1022,
+    "checkpoint": {
+      "catalog": "0e1c04bd0fb0f8d1c057c7178bf3c49e60ba2ec3c3903f375e5491ca27ce1dae",
+      "rank": 1,
+      "snapshot": "40ac02f92787e88c0d15e85167804716150a6ba6e8c541eb35d28aa2a7024a79"
+    },
+    "diags": [],
+    "effectOnly": 0,
+    "groups": 2,
+    "identical": 2,
+    "metrics": {
+      "check_ms": 2002.0,
+      "transfer_bytes": 0,
+      "transfer_ms": 0
+    },
+    "modules": [
+      "Common",
+      "One"
+    ],
+    "ok": true,
+    "output": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-codex-smoke/export"
+  },
+  "logical_workers": 2,
+  "metrics": {
+    "check_ms": 4955.126023,
+    "started_at": 1792465702.3906133,
+    "transfer_bytes": 8172,
+    "transfer_ms": 143.784508,
+    "wall_s": 86.863,
+    "worker_wall_s": 64.30600000000001
+  },
+  "parallelism": 1,
+  "phase": "complete",
+  "task_id": "codex-adapter-smoke",
+  "worker_kind": "codex"
+}

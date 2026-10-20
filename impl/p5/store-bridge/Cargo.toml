@@ -1,0 +1,16 @@
+[package]
+name = "paralean-p5-store"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+paralean-store = { path = "../../p2/crates/store" }
+paralean-control = { path = "../../p3/crates/control" }
+paralean-validator-api = { path = "../../p3/crates/validator-api" }
+rand = "0.8"
+foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_3", "embedded-fdb-include"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+hex = "0.4"

@@ -1,0 +1,9 @@
+==== CURRENT CLUSTER LAYOUT ====
+ID                Tags  Zone  Capacity  Usable capacity
+0fe9eb7f7c7f5e2d  []    dc2   1.9 GiB   1.9 GiB (100.0%)
+3d95d885b4ad63d1  []    dc1   1.9 GiB   1.9 GiB (100.0%)
+94cded3a46ca5c0e  []    dc0   1.9 GiB   1.9 GiB (100.0%)
+
+Zone redundancy: maximum
+
+Current cluster layout version: 1

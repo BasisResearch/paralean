@@ -28,9 +28,10 @@ use foundationdb::tuple::Bytes;
 
 use crate::error::{Result, StoreError};
 use crate::id::{Id, Kind};
+use crate::group_chunks::unique_chunks;
 use crate::meta::{self, Envelope};
 use crate::objects::*;
-use crate::pce::Pce;
+use crate::pce::{Dec, Pce};
 use crate::recovery::reconstruct_heads;
 use crate::store::Store;
 
@@ -79,16 +80,27 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
     let page = store.page;
 
     // ---- markers and certificates
-    let mut markers: BTreeMap<Id, (Id, Marker)> = BTreeMap::new();
+    let mut all_markers: BTreeMap<Id, BTreeMap<Id, Marker>> = BTreeMap::new();
     for (k, v) in store.meta.scan(&keys.sub("marker"), page, |_| None).await? {
         let (_, g): (String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
         let g = id_of(&g)?;
         envelope_s3(store, &v, "marker value", &mut r).await?;
         let Some(stored) = store.open_value(&v).await? else { continue };
         let m = Marker::from_preimage(&stored)?;
-        markers.insert(g, (m.id(), m));
+        if m.group != g { r.violations.push(format!("marker key {g} holds another group")); }
+        all_markers.entry(g).or_default().insert(m.id(), m);
+    }
+    for (k, v) in store.meta.scan(&keys.sub("mvariant"), page, |_| None).await? {
+        let (_, g, marker): (String, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let (g, marker) = (id_of(&g)?, id_of(&marker)?);
+        envelope_s3(store, &v, "marker variant value", &mut r).await?;
+        let Some(stored) = store.open_value(&v).await? else { continue };
+        let m = Marker::from_preimage(&stored)?;
+        if m.id() != marker || m.group != g { r.violations.push(format!("marker variant {g}/{marker} key mismatch")); }
+        all_markers.entry(g).or_default().insert(marker, m);
     }
     let mut certified: BTreeSet<Id> = BTreeSet::new();
+    let mut certified_markers: BTreeSet<(Id, Id)> = BTreeSet::new();
     for (k, v) in store.meta.scan(&keys.sub("cert"), page, |_| None).await? {
         let (_, g, _w): (String, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
         let g = id_of(&g)?;
@@ -97,11 +109,44 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
             r.violations.push(format!("certificate for {g} does not verify"));
             continue;
         }
-        match markers.get(&g) {
-            Some((mid, _)) if *mid == c.body.marker => {
+        match all_markers.get(&g).and_then(|variants| variants.get(&c.body.marker)) {
+            Some(_) if c.body.group == g => {
                 certified.insert(g);
+                certified_markers.insert((g, c.body.marker));
             }
             _ => r.violations.push(format!("certificate for {g} names no published marker (cert_sound)")),
+        }
+    }
+    for (k, v) in store.meta.scan(&keys.sub("vcer"), page, |_| None).await? {
+        let (_, g, marker, w): (String, Bytes, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let (g, marker) = (id_of(&g)?, id_of(&marker)?);
+        let c = Cert::from_bytes(&v)?;
+        if c.body.group != g || c.body.marker != marker || c.body.writer.0[..] != w[..]
+            || !store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig)
+            || !all_markers.get(&g).is_some_and(|variants| variants.contains_key(&marker)) {
+            r.violations.push(format!("variant certificate for {g}/{marker} invalid or names no marker"));
+        } else { certified.insert(g); certified_markers.insert((g, marker)); }
+    }
+    let mut markers: BTreeMap<Id, (Id, Marker)> = BTreeMap::new();
+    for g in all_markers.keys() {
+        if let Some(selected) = store.marker(g).await? { markers.insert(*g, selected); }
+    }
+    for (g, variants) in &all_markers {
+        let mut baseline: Option<&Marker> = None;
+        for (mid, marker) in variants {
+            if marker.id() != *mid || marker.group != *g {
+                r.violations.push(format!("marker variant {g}/{mid} ID or group mismatch"));
+            }
+            if certified_markers.contains(&(*g, *mid)) {
+                s3_present(store, Kind::StagedMarker, mid, "marker variant", &mut r).await?;
+            }
+            if let Some(base) = baseline {
+                let mut comparable = (*base).clone();
+                comparable.receipt = marker.receipt;
+                if &comparable != marker {
+                    r.violations.push(format!("marker variants of {g} disagree beyond receipt"));
+                }
+            } else { baseline = Some(marker); }
         }
     }
     *r.counts.entry("markers").or_default() = markers.len();
@@ -127,7 +172,25 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
                         // Epochs were fenced by T1; here the receipt is checked against the
                         // envelope's own target set.
                         let prepared = crate::receipt::prepared_of(&job);
-                        if let Err(e) = crate::receipt::check(&rc, &job, g, &prepared, &store.ring) {
+                        let mut receipt_ring = (*store.ring).clone();
+                        if let Some(cfg) = store.ae_federation().await? {
+                            let mut home: Option<String> = None;
+                            for rid in &m.revisions {
+                                if let Some(rev) = store.revision(rid).await? {
+                                    if let Some(h) = cfg.target_homes.get(&rev.name) {
+                                        if home.as_ref().is_some_and(|x| x != h) {
+                                            r.violations.push(format!("marker of {g} mixes target homes"));
+                                        }
+                                        home = Some(h.clone());
+                                    }
+                                }
+                            }
+                            if let Some(home) = home {
+                                receipt_ring.authority = cfg.members[&home].authority;
+                                receipt_ring.job_issuers.clear();
+                            }
+                        }
+                        if let Err(e) = crate::receipt::check(&rc, &job, g, &prepared, &receipt_ring) {
                             r.violations.push(format!("receipt of {g} fails the staging rule: {e}"));
                         }
                     }
@@ -211,7 +274,7 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
             "cert" => Cert::from_bytes(&v).ok().is_some_and(|c| {
                 c.body.group == o
                     && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig)
-                    && markers.get(&o).is_some_and(|(mid, _)| *mid == c.body.marker)
+                    && all_markers.get(&o).is_some_and(|variants| variants.contains_key(&c.body.marker))
             }),
             "tcert" => TombstoneCert::from_bytes(&v).ok().is_some_and(|c| {
                 c.body.tombstone == o && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig)
@@ -222,7 +285,76 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
             r.violations.push(format!("anti-entropy evidence {kind}/{o} does not verify or names nothing stored"));
         }
     }
+    let federation = store.ae_federation().await?;
+    for (k, v) in store.meta.scan(&keys.sub("xcertv"), page, |_| None).await? {
+        nx += 1;
+        let (_, kind, object, cert_id): (String, String, Bytes, Bytes) =
+            keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let (object, cert_id) = (id_of(&object)?, id_of(&cert_id)?);
+        let allowed = |replica, writer, cert: &Id, sig: &[u8]| {
+            store.ring.verify_writer(&writer, cert, sig)
+                && federation.as_ref().is_none_or(|cfg| cfg.members.values().any(|member|
+                    member.replica == replica && member.writers.get(&writer).is_some_and(|key| crate::sign::verify(key, cert, sig))))
+        };
+        let valid = if kind == "cert" {
+            Cert::from_bytes(&v).ok().is_some_and(|c| c.id() == cert_id && c.body.group == object
+                && allowed(c.body.replica, c.body.writer, &c.id(), &c.sig)
+                && all_markers.get(&object).is_some_and(|variants| variants.contains_key(&c.body.marker)))
+        } else if kind == "tcert" {
+            TombstoneCert::from_bytes(&v).ok().is_some_and(|c| c.id() == cert_id && c.body.tombstone == object
+                && allowed(c.body.replica, c.body.writer, &c.id(), &c.sig))
+                && store.meta.get(keys.tombstone(&object)).await?.is_some()
+        } else if let Some(s3_kind) = kind.strip_prefix("ocert/").and_then(Kind::from_name) {
+            ObjectCert::from_bytes(&v).ok().is_some_and(|c| c.id() == cert_id && c.body.kind == s3_kind && c.body.id == object
+                && allowed(c.body.replica, c.body.writer, &c.id(), &c.sig))
+        } else { false };
+        if !valid { r.violations.push(format!("anti-entropy evidence {kind}/{object}/{cert_id} invalid or source-unbound")); }
+        if valid {
+            if let Some(s3_kind) = kind.strip_prefix("ocert/").and_then(Kind::from_name) {
+                s3_present(store, s3_kind, &object, "foreign object certificate", &mut r).await?;
+            }
+        }
+    }
     *r.counts.entry("received evidence").or_default() = nx;
+
+    for (k, v) in store.meta.scan(&keys.sub("gchunks"), page, |_| None).await? {
+        let (_, raw): (String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let group = id_of(&raw)?;
+        let mut dec = Dec::new(&v);
+        let rows = dec.list(|d| Ok((Id::decode(d)?, d.uvarint()?)))?;
+        if dec.remaining() != 0 { r.violations.push(format!("group {group} chunk index has trailing bytes")); }
+        let Some(group_bytes) = store.s3.get(Kind::Group, &group).await? else {
+            r.violations.push(format!("group {group} chunk index names absent group"));
+            continue;
+        };
+        let derived = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)?;
+        if derived.as_ref().is_none_or(|chunks| chunks.iter().map(|(id, len)| (*id, *len)).collect::<Vec<_>>() != rows) {
+            r.violations.push(format!("group {group} chunk index differs from authenticated manifest"));
+        }
+        for (chunk, length) in rows {
+            if store.s3.get(Kind::Chunk, &chunk).await?.is_none_or(|bytes| bytes.len() as u64 != length) {
+                r.violations.push(format!("group {group} chunk {chunk} absent, corrupt or wrong length"));
+            }
+        }
+    }
+    let mut nforeign = 0;
+    for (k, _) in store.meta.scan(&keys.sub("xcatalog"), page, |_| None).await? {
+        nforeign += 1;
+        let (_, source, raw): (String, String, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let id = id_of(&raw)?;
+        match store.foreign_record(&source, &id).await {
+            Ok(Some(record)) => {
+                let token = store.meta.get(keys.xtoken(&source, record.body.token.rank)).await?;
+                let valid_token = token.and_then(|bytes| TokenEntry::from_pce(&bytes).ok()).is_some_and(|entry|
+                    federation.as_ref().is_some_and(|cfg| cfg.members.get(&source).is_some_and(|member|
+                        entry.token.body.token == record.body.token && entry.token.verify(&member.authority))));
+                if !valid_token { r.violations.push(format!("foreign catalogue {source}/{id} lacks source token proof")); }
+            }
+            Ok(None) => r.violations.push(format!("foreign catalogue {source}/{id} lacks commit proof")),
+            Err(e) => r.violations.push(format!("foreign catalogue {source}/{id} invalid: {e}")),
+        }
+    }
+    *r.counts.entry("foreign catalogues").or_default() = nforeign;
 
     // ---- targets
     let heads = reconstruct_heads(&revisions);

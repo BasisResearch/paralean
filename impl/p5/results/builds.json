@@ -1,0 +1,18 @@
+{
+  "bridge_build_seconds": 37.95,
+  "bridge_release_ok": true,
+  "bridge_tree_equal": true,
+  "implementation": "38f8b6ae86501b3376f8deb6ef83a246baecca26",
+  "p1_build_commit": "3c127c4ff0bf087744c19a8ed00b6dc243e1e7e6",
+  "p1_jobs": 80,
+  "p1_ok": true,
+  "p1_tree_equal": true,
+  "p2_p3_build_seconds": 52.66,
+  "p2_p3_release_ok": true,
+  "p2_tree_equal": true,
+  "rust_build_commit": "31051a88435c03016a585bed70fa331562769c13",
+  "unit_ok": true,
+  "unit_seconds": 6.691,
+  "unit_skipped": 0,
+  "unit_tests": 28
+}

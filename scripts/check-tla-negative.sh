@@ -141,6 +141,9 @@ witness_items=(
   'workspace_collision_resolved Workspace NeverCollisionResolved'
   'workspace_winner_revised Workspace NeverWinnerRevised'
   'workspace_deleted Workspace NeverDeleted'
+  'target_home_publication TargetHomes NeverPublished'
+  'target_home_receive TargetHomes NeverRemoteReceived'
+  'target_home_handover TargetHomes NeverReassignedPublication'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -159,6 +162,20 @@ done
 
 # ---------------------------------------------------------------------------
 # Base protocol guards.
+defcase target_no_home
+case_target_no_home() {
+  prepare_case target_no_home
+  edit_once "$neg/target_no_home/TargetHomes.tla" 'AtHome(d) == d = Home' 'AtHome(d) == TRUE'
+  # Isolate the substantive failure: independently fenced stores can create
+  # incomparable target proofs. Do not stop at an origin/config invariant.
+  edit_once "$neg/target_no_home/TargetHomes.cfg" \
+    'INVARIANTS TypeOK TargetChain HeadUnique HomeHeadTopsChain HomeAuthority RemoteRegistersUnchanged' \
+    'INVARIANTS TypeOK TargetChain'
+  edit_once "$neg/target_no_home/TargetHomes.cfg" 'SPECIFICATION FairSpec' 'SPECIFICATION Spec'
+  edit_once "$neg/target_no_home/TargetHomes.cfg" 'PROPERTY EventualDelivery' ''
+  run_expected_failure target_no_home TargetHomes 'Invariant TargetChain is violated'
+}
+
 defcase unchecked
 case_unchecked() {
   prepare_case unchecked

@@ -1,0 +1,15 @@
+{
+  "attempts": 1,
+  "completed_recovery_ok": true,
+  "deployment": "p5recovery-1792469461-2235412",
+  "fence_outcome": "changed",
+  "fence_retry_epoch": 1,
+  "git": "38f8b6ae86501b3376f8deb6ef83a246baecca26",
+  "group": "e37534e7a79b386d4b2a2d4d294885fb141aed768fd134d081879352df9bef6b",
+  "historical_receipt_rejected": true,
+  "new_epoch": 1,
+  "original_epoch": 0,
+  "pending_fence_cleared": true,
+  "recovered_phase": "complete",
+  "stock_export_ok": true
+}

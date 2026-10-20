@@ -1,0 +1,28 @@
+    Checking paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling getrandom v0.3.4
+   Compiling rustix v1.1.5
+    Checking rand_core v0.9.5
+    Checking paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/validator-api)
+    Checking linux-raw-sys v0.12.1
+    Checking bitflags v2.13.2
+    Checking tempfile v3.27.0
+    Checking paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/control)
+    Checking wait-timeout v0.2.1
+    Checking bit-vec v0.8.0
+    Checking quick-error v1.2.3
+    Checking rusty-fork v0.3.1
+    Checking bit-set v0.8.0
+    Checking rand_chacha v0.9.0
+    Checking rand v0.9.5
+    Checking rand_xorshift v0.4.0
+    Checking regex-syntax v0.8.11
+    Checking unarray v0.1.4
+    Checking proptest v1.11.0
+    Checking ae-wire v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-wire)
+    Checking paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Checking paralean-cli v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/cli)
+    Checking paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3-remote)
+    Checking s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/s3-guard)
+    Checking netsplit v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/netsplit)
+    Checking garage-netsplit v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/garage-netsplit)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 24.54s

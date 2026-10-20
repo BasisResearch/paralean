@@ -22,6 +22,8 @@ use foundationdb::{Database, KeySelector, RangeOption, Transaction};
 use futures::future::BoxFuture;
 
 use crate::error::{GuardFailure, Result, StoreError};
+use crate::ae::{append_event, AeKind};
+use crate::ae::config_in_txn;
 use crate::faults::{CommitFault, Faults, Txn};
 use crate::id::{sha256, Id, Kind, WorkspaceId};
 use crate::objects::*;
@@ -75,6 +77,10 @@ impl Keys {
     pub fn marker(&self, g: &Id) -> Vec<u8> {
         self.root.pack(&("marker", b(&g.0)))
     }
+    pub fn marker_variant(&self, g: &Id, marker: &Id) -> Vec<u8> { self.root.pack(&("mvariant", b(&g.0), b(&marker.0))) }
+    pub fn marker_variants_of(&self, g: &Id) -> Subspace { self.root.subspace(&("mvariant", b(&g.0))) }
+    pub fn variant_cert(&self, g: &Id, marker: &Id, writer: &WorkspaceId) -> Vec<u8> { self.root.pack(&("vcer", b(&g.0), b(&marker.0), b(&writer.0))) }
+    pub fn variant_certs_of(&self, g: &Id) -> Subspace { self.root.subspace(&("vcer", b(&g.0))) }
     pub fn revision(&self, id: &Id) -> Vec<u8> {
         self.root.pack(&("revision", b(&id.0)))
     }
@@ -84,6 +90,7 @@ impl Keys {
     pub fn tombstone(&self, id: &Id) -> Vec<u8> {
         self.root.pack(&("tombstone", b(&id.0)))
     }
+    pub fn group_chunks(&self, id: &Id) -> Vec<u8> { self.root.pack(&("gchunks", b(&id.0))) }
     pub fn cert(&self, g: &Id, w: &WorkspaceId) -> Vec<u8> {
         self.root.pack(&("cert", b(&g.0), b(&w.0)))
     }
@@ -470,6 +477,8 @@ impl Meta {
                         return Err(GuardFailure::Uncertified(group).into());
                     }
                     trx.set(&ck, &cert);
+                    let cert_id = Cert::from_bytes(&cert)?.id();
+                    append_event(trx, &k, &AeKind::Evidence { kind: "cert".into(), object: group, cert: cert_id }, 0);
                     Ok(Step::Commit(true))
                 })
             }),
@@ -550,6 +559,11 @@ impl Meta {
             Box::new(move |trx| {
                 let (k, name, request) = (k.clone(), name.clone(), request.clone());
                 Box::pin(async move {
+                    if let Some(cfg) = config_in_txn(trx, &k).await? {
+                        if cfg.target_homes.get(name.as_ref()).map(String::as_str) != Some(cfg.deployment.as_str()) {
+                            return Err(GuardFailure::ForeignTarget((*name).clone()).into());
+                        }
+                    }
                     if let Some(v) = get(trx, &k.assign_request(&name, &request)).await? {
                         return Ok(Step::Done(dec_u64(&v)?));
                     }
@@ -607,11 +621,12 @@ impl Meta {
 
     pub(crate) async fn t6_object(&self, kind: Kind, id: Id, value: Vec<u8>) -> Result<bool> {
         let key = self.keys.ocert(kind, &id);
+        let keys = self.keys.clone();
         let value = Arc::new(value);
         self.run(
             Txn::T6ObjectCert,
             Box::new(move |trx| {
-                let (key, value) = (key.clone(), value.clone());
+                let (key, value, keys) = (key.clone(), value.clone(), keys.clone());
                 Box::pin(async move {
                     // Snapshot read: any writer's certificate suffices, and concurrent
                     // certifiers need not conflict.
@@ -619,6 +634,8 @@ impl Meta {
                         return Ok(Step::Done(false));
                     }
                     trx.set(&key, &value);
+                    let cert_id = ObjectCert::from_bytes(&value)?.id();
+                    append_event(trx, &keys, &AeKind::Evidence { kind: format!("ocert/{}", kind.name()), object: id, cert: cert_id }, 0);
                     Ok(Step::Commit(true))
                 })
             }),
@@ -761,6 +778,7 @@ pub(crate) struct PublishArgs {
     pub replica: crate::id::ReplicaId,
     pub targets: Vec<PreparedTarget>,
     pub cert_value: Vec<u8>,
+    pub chunk_index: Option<Vec<(Id, u64)>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -771,6 +789,23 @@ pub struct PublishOutcome {
 }
 
 async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<PublishOutcome>> {
+    if let Some(cfg) = config_in_txn(trx, k).await? {
+        let own = &cfg.members[&cfg.deployment];
+        if !a.job.verify(&own.authority) && !own.job_issuers.iter().any(|key| a.job.verify(key)) {
+            return Err(StoreError::Invalid("federated publication job issuer is not bound to this deployment".into()));
+        }
+        for (_, rev, _) in &a.revisions {
+            if let Some(home) = cfg.target_homes.get(&rev.name) {
+                if home != &cfg.deployment { return Err(GuardFailure::ForeignTarget(rev.name.clone()).into()); }
+                if !a.targets.iter().any(|t| t.name == rev.name) { return Err(GuardFailure::UndeclaredTarget(rev.name.clone()).into()); }
+            }
+        }
+        for target in &a.targets {
+            if cfg.target_homes.get(&target.name) != Some(&cfg.deployment) {
+                return Err(GuardFailure::ForeignTarget(target.name.clone()).into());
+            }
+        }
+    }
     let mk = k.marker(&a.group);
     let ck = k.cert(&a.group, &a.writer);
     if let Some(v) = get(trx, &mk).await? {
@@ -877,6 +912,8 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     if trx.get(&jk, true).await?.is_none() {
         trx.set(&jk, &a.job.to_bytes());
     }
+    let publisher_cert = Cert::from_bytes(&a.cert_value)?.id();
+    trx.set(&k.jobproof(&a.group, &a.marker_id, &publisher_cert), &a.job.to_bytes());
     for t in &a.targets {
         let tk = k.target(&t.name);
         let mut rec = TargetRecord::from_pce(&get(trx, &tk).await?.expect("read above"))?;
@@ -887,6 +924,12 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     if !cfg!(feature = "mutate-cert-outside-publish") {
         trx.set(&ck, &a.cert_value);
     }
+    if let Some(chunks) = &a.chunk_index {
+        let mut e = Enc::new();
+        e.list(chunks, |e, (id, length)| { id.encode(e); e.uvarint(*length); });
+        trx.set(&k.group_chunks(&a.group), &e.finish());
+    }
+    append_event(trx, k, &AeKind::GroupVariant { group: a.group, marker: a.marker_id, cert: publisher_cert }, 0);
     Ok(Step::Commit(PublishOutcome { marker: a.marker_id, fresh: true }))
 }
 
@@ -947,6 +990,9 @@ pub(crate) async fn tombstone_guards(
         return Err(GuardFailure::TombstoneNotAuthor.into());
     }
     for n in names {
+        if config_in_txn(trx, k).await?.as_ref().is_some_and(|cfg| cfg.target_homes.contains_key(n)) {
+            return Err(GuardFailure::TombstoneOfTarget(n.clone()).into());
+        }
         if get(trx, &k.target(n)).await?.is_some() {
             return Err(GuardFailure::TombstoneOfTarget(n.clone()).into());
         }
@@ -981,6 +1027,7 @@ async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<
     if !cfg!(feature = "mutate-tombstone-cert-outside") {
         trx.set(&ck, &a.cert_value);
     }
+    append_event(trx, k, &AeKind::Tombstone { id: a.tombstone_id, cert: TombstoneCert::from_bytes(&a.cert_value)?.id() }, 0);
     Ok(Step::Commit(true))
 }
 
@@ -1003,6 +1050,9 @@ pub(crate) struct ReceiveGroupArgs {
     pub cert: (Vec<u8>, Vec<u8>),
     /// The sender's verified certificates, kept as evidence (key, value).
     pub evidence: Vec<(Vec<u8>, Vec<u8>)>,
+    pub chunk_index: Option<Vec<(Id, u64)>>,
+    pub variant: bool,
+    pub target_home: Option<String>,
 }
 
 /// A receiver certifies only a group it knows as published: the sender's certificate is
@@ -1010,25 +1060,55 @@ pub(crate) struct ReceiveGroupArgs {
 /// certificate"; AckCertificates `put` needs `known n d`). It certifies on its own
 /// deployment's replica only; the sender's certificates are stored apart and never counted.
 async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<Step<bool>> {
+    let federation = config_in_txn(trx, k).await?;
+    if let Some(cfg) = &federation {
+        let mut found_home: Option<&String> = None;
+        for (_, rev, _) in &a.revisions {
+            if let Some(home) = cfg.target_homes.get(&rev.name) {
+                if found_home.is_some_and(|h| h != home) { return Err(StoreError::Invalid("target names have different homes".into())); }
+                found_home = Some(home);
+            }
+        }
+        if found_home.map(String::as_str) != a.target_home.as_deref() {
+            return Err(StoreError::Invalid("target home changed before receive commit".into()));
+        }
+        if let Some(home) = found_home {
+            if home == &cfg.deployment && get(trx, &k.marker(&a.group)).await?.is_none() {
+                return Err(StoreError::Invalid("target home cannot receive an unknown foreign publication".into()));
+            }
+            let member = &cfg.members[home];
+            if !a.evidence.iter().any(|(_, value)| Cert::from_bytes(value).ok().is_some_and(|c|
+                c.body.group == a.group && c.body.marker == a.marker_id && c.body.replica == member.replica && member.writers.contains_key(&c.body.writer))) {
+                return Err(StoreError::Invalid("target publication lacks home certificate".into()));
+            }
+        }
+    } else if a.target_home.is_some() {
+        return Err(StoreError::Invalid("target home supplied without pinned federation".into()));
+    }
     let mk = k.marker(&a.group);
+    let mut publication_new = false;
     if let Some(v) = get(trx, &mk).await? {
         let local = envelope_object_id(&v)?;
         if local != a.marker_id && cfg!(feature = "mutate-receive-overwrite-marker") {
             trx.set(&mk, &a.marker_value);
-        } else if local != a.marker_id {
+        } else if local != a.marker_id && !a.variant {
             // One marker per group in the store (and per group in the Workspaces model's
             // Layout); a second publication of the group elsewhere is a conflict, reported.
             return Err(GuardFailure::MarkerConflict { group: a.group, local, remote: a.marker_id }.into());
         }
-        let (b0, e0) = k.certs_of(&a.group).range();
-        if !range(trx, b0, e0, 1).await?.is_empty() {
-            return Ok(Step::Done(false));
+        if local != a.marker_id {
+            let vk = k.marker_variant(&a.group, &a.marker_id);
+            if get(trx, &vk).await?.is_none() {
+                trx.set(&vk, &a.marker_value);
+                publication_new = true;
+            }
         }
     } else {
         for (_, rev, _) in &a.revisions {
             // TargetNames keeps one record per name, in one store: a name homed here is
             // published only by its owner through T1, never received.
-            if get(trx, &k.target(&rev.name)).await?.is_some() {
+            if federation.as_ref().is_none_or(|cfg| !cfg.target_homes.contains_key(&rev.name))
+                && get(trx, &k.target(&rev.name)).await?.is_some() {
                 return Err(GuardFailure::ForeignTarget(rev.name.clone()).into());
             }
             // Admitted ancestor closure, as in T1.
@@ -1039,6 +1119,7 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
             }
         }
         trx.set(&mk, &a.marker_value);
+        publication_new = true;
     }
     // P3: a receive is a publication here, so the receiver's revocation of the receipt's
     // validator stops it, as it stops T1 (the staging rule itself was checked against this
@@ -1060,10 +1141,45 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
     if trx.get(&jk, true).await?.is_none() {
         trx.set(&jk, &a.job_value);
     }
-    trx.set(&a.cert.0, &a.cert.1);
-    for (ek, ev) in &a.evidence {
-        trx.set(ek, ev);
+    let origin_cert = a.evidence.first().map(|(_, value)| Cert::from_bytes(value).map(|cert| cert.id())).transpose()?
+        .unwrap_or(Cert::from_bytes(&a.cert.1)?.id());
+    let proof_key = k.jobproof(&a.group, &a.marker_id, &origin_cert);
+    let mut proof_new = false;
+    match get(trx, &proof_key).await? {
+        None => { trx.set(&proof_key, &a.job_value); proof_new = true; }
+        Some(old) if old == a.job_value => {}
+        Some(_) => return Err(StoreError::Invalid("source job proof collision for publication certificate".into())),
     }
+    let mut changed = publication_new || proof_new;
+    let mut local_cert_new = false;
+    match get(trx, &a.cert.0).await? {
+        None => { trx.set(&a.cert.0, &a.cert.1); changed = true; local_cert_new = true; }
+        Some(old) if old == a.cert.1 => {}
+        Some(_) => return Err(StoreError::Invalid("local certificate key holds different bytes".into())),
+    }
+    let mut new_evidence = Vec::new();
+    for (ek, ev) in &a.evidence {
+        match get(trx, ek).await? {
+            None => { trx.set(ek, ev); changed = true; new_evidence.push(Cert::from_bytes(ev)?.id()); }
+            Some(old) if old == *ev => {}
+            Some(_) => return Err(StoreError::Invalid("foreign certificate key holds different bytes".into())),
+        }
+    }
+    if let Some(chunks) = &a.chunk_index {
+        let mut e = Enc::new();
+        e.list(chunks, |e, (id, length)| { id.encode(e); e.uvarint(*length); });
+        trx.set(&k.group_chunks(&a.group), &e.finish());
+    }
+    if proof_new { append_event(trx, k, &AeKind::GroupVariant { group: a.group, marker: a.marker_id, cert: origin_cert }, 0); }
+    if new_evidence.len() > u16::MAX as usize - 2 { return Err(StoreError::Invalid("too many certificates in one receive".into())); }
+    for (i, cert) in new_evidence.into_iter().enumerate() {
+        append_event(trx, k, &AeKind::Evidence { kind: "cert".into(), object: a.group, cert }, (i + 1) as u16);
+    }
+    if local_cert_new {
+        let cert = Cert::from_bytes(&a.cert.1)?.id();
+        append_event(trx, k, &AeKind::Evidence { kind: "cert".into(), object: a.group, cert }, (a.evidence.len() + 1) as u16);
+    }
+    if !changed { return Ok(Step::Done(false)); }
     Ok(Step::Commit(true))
 }
 
@@ -1082,23 +1198,48 @@ pub(crate) struct ReceiveTombstoneArgs {
 }
 
 async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Result<Step<bool>> {
+    let _federation = config_in_txn(trx, k).await?;
     let tk = k.tombstone(&a.tombstone_id);
+    let mut publication_new = false;
     if let Some(v) = get(trx, &tk).await? {
         if envelope_object_id(&v)? != a.tombstone_id {
             return Err(StoreError::Invalid("tombstone key holds another object".into()));
         }
-        let (b0, e0) = k.tcerts_of(&a.tombstone_id).range();
-        if !range(trx, b0, e0, 1).await?.is_empty() {
-            return Ok(Step::Done(false));
-        }
     } else {
         tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.deleter).await?;
         trx.set(&tk, &a.value);
+        publication_new = true;
     }
-    trx.set(&a.cert.0, &a.cert.1);
+    let mut changed = publication_new;
+    let mut local_cert_new = false;
+    match get(trx, &a.cert.0).await? {
+        None => { trx.set(&a.cert.0, &a.cert.1); changed = true; local_cert_new = true; }
+        Some(old) if old == a.cert.1 => {}
+        Some(_) => return Err(StoreError::Invalid("local tombstone certificate key holds different bytes".into())),
+    }
+    let mut new_evidence = Vec::new();
     for (ek, ev) in &a.evidence {
-        trx.set(ek, ev);
+        match get(trx, ek).await? {
+            None => { trx.set(ek, ev); changed = true; new_evidence.push(TombstoneCert::from_bytes(ev)?.id()); }
+            Some(old) if old == *ev => {}
+            Some(_) => return Err(StoreError::Invalid("foreign tombstone certificate key holds different bytes".into())),
+        }
     }
+    if publication_new {
+        let cert = a.evidence.iter().filter_map(|(_, ev)| TombstoneCert::from_bytes(ev).ok())
+            .find(|c| c.body.writer == a.deleter).map(|c| c.id())
+            .unwrap_or(TombstoneCert::from_bytes(&a.cert.1)?.id());
+        append_event(trx, k, &AeKind::Tombstone { id: a.tombstone_id, cert }, 0);
+    }
+    if new_evidence.len() > u16::MAX as usize - 2 { return Err(StoreError::Invalid("too many tombstone certificates in one receive".into())); }
+    for (i, cert) in new_evidence.into_iter().enumerate() {
+        append_event(trx, k, &AeKind::Evidence { kind: "tcert".into(), object: a.tombstone_id, cert }, (i + 1) as u16);
+    }
+    if local_cert_new {
+        let cert = TombstoneCert::from_bytes(&a.cert.1)?.id();
+        append_event(trx, k, &AeKind::Evidence { kind: "tcert".into(), object: a.tombstone_id, cert }, (a.evidence.len() + 1) as u16);
+    }
+    if !changed { return Ok(Step::Done(false)); }
     Ok(Step::Commit(true))
 }
 
@@ -1161,6 +1302,7 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
     }
     if commit {
         trx.set(&rk, &a.rcert_value);
+        append_event(trx, k, &AeKind::Catalogue { source: String::new(), id: c, cert: CommitCert::from_bytes(&a.rcert_value)?.id() }, 0);
     }
     Ok(Step::Commit(true))
 }

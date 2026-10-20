@@ -1,0 +1,8 @@
+Cluster health:            HEALTHY
+Known nodes:               4
+Connected nodes:           3
+Storage nodes:             3
+Storage nodes up:          3
+Partitions:                256
+Partitions with quorum:    256
+Fully healthy partitions:  256

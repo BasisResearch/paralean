@@ -13,11 +13,13 @@
 //! | `faults` | client-side fault injection |
 //! | `antientropy` | exchange of published groups and tombstones between deployments |
 
+pub mod ae;
 pub mod antientropy;
 pub mod audit;
 pub mod error;
 pub mod faults;
 pub mod fixture;
+pub mod group_chunks;
 pub mod id;
 pub mod meta;
 pub mod objects;
@@ -30,6 +32,7 @@ pub mod store;
 pub mod writer;
 
 pub use error::{GuardFailure, Result, StoreError};
+pub use ae::{AeBundlePage, AeEvent, AeIdentity, AeKind, AeObjectPage, AePage, AePart, AePending, AePendingPage, AeProgress, FederationConfig, FederationMember, PendingState};
 pub use faults::{CommitFault, CrashMode, Faults, GetFault, PutFault, RandomFaults, Txn};
 pub use id::{AgentId, Domain, Id, Kind, ReplicaId, WorkspaceId};
 pub use meta::{PreparedTarget, PublishOutcome};

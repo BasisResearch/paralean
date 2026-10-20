@@ -1,0 +1,10 @@
+--- .runs/mp2-fault-source/impl/p2/crates/cli/src/main.rs.fixed	2026-10-20 03:31:58.955613844 +0000
++++ .runs/mp2-fault-source/impl/p2/crates/cli/src/main.rs	2026-10-20 03:31:58.955770923 +0000
+@@ -114,7 +114,6 @@
+ async fn main() -> ExitCode {
+     let args: Vec<String> = std::env::args().skip(1).collect();
+     let r = run(args).await;
+-    paralean_store::meta::shutdown();
+     match r {
+         Ok(code) => code,
+         Err(e) => {

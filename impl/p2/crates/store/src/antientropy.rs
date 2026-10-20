@@ -39,6 +39,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use crate::error::{GuardFailure, Result, StoreError};
+use crate::group_chunks::unique_chunks;
 use crate::id::{sha256, Id, Kind};
 use crate::meta::{ReceiveGroupArgs, ReceiveTombstoneArgs};
 use crate::objects::*;
@@ -143,7 +144,14 @@ pub async fn export(store: &Store) -> Result<Vec<Item>> {
         for rid in &p.marker.revisions {
             revs.push(store.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?);
         }
-        for (kind, id) in needs_of_group(&p.marker, &revs) {
+        let mut required = needs_of_group(&p.marker, &revs);
+        if let Some(group_bytes) = store.s3.get(Kind::Group, &p.marker.group).await? {
+            if let Some(chunks) = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)? {
+                required.extend(chunks.keys().map(|id| (Kind::Chunk, *id)));
+            }
+        }
+        required.sort(); required.dedup();
+        for (kind, id) in required {
             if seen.insert((kind, id)) {
                 if let Some(bytes) = store.s3.get(kind, &id).await? {
                     objects.push(Item::Object { kind, id, bytes });
@@ -160,7 +168,12 @@ pub async fn export(store: &Store) -> Result<Vec<Item>> {
             continue;
         }
         let certs = store.certs(&p.marker.group).await?;
-        let certs: Vec<Vec<u8>> = certs.iter().filter(|c| c.body.marker == p.marker_id).map(|c| c.to_bytes()).collect();
+        let mut certs: Vec<Vec<u8>> = certs.iter().filter(|c| c.body.marker == p.marker_id).map(|c| c.to_bytes()).collect();
+        for (_, value) in store.meta.scan(&store.meta.keys.xcertvs_of("cert", &p.marker.group), store.page, |_| None).await? {
+            if Cert::from_bytes(&value).ok().is_some_and(|c| c.body.group == p.marker.group && c.body.marker == p.marker_id) {
+                if !certs.contains(&value) { certs.push(value); }
+            }
+        }
         let depth = revs.iter().map(|r| r.parents.len()).sum::<usize>();
         groups.push((
             depth,
@@ -182,7 +195,13 @@ pub async fn export(store: &Store) -> Result<Vec<Item>> {
             out.push(Item::Object { kind: Kind::StagedTombstone, id: *tid, bytes });
         }
         let certs = store.tcerts(tid).await?;
-        out.push(Item::Tombstone { tombstone: pt.tombstone.preimage(), certs: certs.iter().map(|c| c.to_bytes()).collect() });
+        let mut certs: Vec<Vec<u8>> = certs.iter().map(|c| c.to_bytes()).collect();
+        for (_, value) in store.meta.scan(&store.meta.keys.xcertvs_of("tcert", tid), store.page, |_| None).await? {
+            if TombstoneCert::from_bytes(&value).ok().is_some_and(|c| c.body.tombstone == *tid) {
+                if !certs.contains(&value) { certs.push(value); }
+            }
+        }
+        out.push(Item::Tombstone { tombstone: pt.tombstone.preimage(), certs });
     }
     Ok(out)
 }
@@ -257,38 +276,100 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 return reject("receipt is not the marker's");
             }
             let Ok(job) = SignedJob::from_bytes(job) else { return reject("job envelope does not decode") };
-            // P3 staging rule under this deployment's key ring. The envelope's own targets
-            // stand for the prepared ones; T1 at the sender fenced their epochs there.
+            // A target is published only by its pinned home. Validate the original home
+            // controller's signed job, while retaining this receiver's validator pins and
+            // revocations. A receiver never creates or advances its own target record.
+            let federation = st.ae_federation().await?;
+            let mut target_home: Option<String> = None;
+            let mut target_names = BTreeSet::new();
+            if let Some(cfg) = &federation {
+                for r in &revs {
+                    if let Some(home) = cfg.target_homes.get(&r.name) {
+                        if target_home.as_ref().is_some_and(|h| h != home) {
+                            return reject("group declares target names at different homes");
+                        }
+                        target_home = Some(home.clone());
+                        target_names.insert(r.name.clone());
+                    }
+                }
+            }
+            if target_home.is_some() && job.body.targets.iter().map(|t| t.name.clone()).collect::<BTreeSet<_>>() != target_names {
+                return reject("home target publication has missing or extra target bindings");
+            }
+            if target_home.is_none() && !job.body.targets.is_empty() && federation.is_some() {
+                return reject("job binds names not declared in federation target homes");
+            }
+            let mut receipt_ring = (*st.ring).clone();
+            if let Some(home) = &target_home {
+                let cfg = federation.as_ref().expect("home only from config");
+                if home == &st.deployment && st.marker_base(&g).await?.is_none() {
+                    return reject("home target publication cannot be received as foreign before local publication");
+                }
+                let member = &cfg.members[home];
+                receipt_ring.authority = member.authority;
+                receipt_ring.job_issuers.clear();
+            }
             if !cfg!(feature = "mutate-receive-no-receipt-check") {
-                if !job.body.targets.is_empty() && !job.issued_by_controller(&st.ring) {
+                if !job.body.targets.is_empty() && !job.issued_by_controller(&receipt_ring) {
                     return reject("receipt is bound to another deployment's target epochs (TargetNames: one record per name, in one store)");
                 }
-                if let Err(e) = check(&receipt, &job, &g, &prepared_of(&job), &st.ring) {
+                if let Err(e) = check(&receipt, &job, &g, &prepared_of(&job), &receipt_ring) {
                     return reject(format!("receipt fails the staging rule here: {e}"));
                 }
             }
             let mut evidence = Vec::new();
             for c in certs {
                 let Ok(c) = Cert::from_bytes(c) else { continue };
-                let valid = c.body.group == g && c.body.marker == mid && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig);
+                let mut valid = c.body.group == g && c.body.marker == mid && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig);
+                if let Some(cfg) = &federation {
+                    valid &= cfg.members.values().any(|member| member.replica == c.body.replica
+                        && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key)));
+                }
+                if let Some(home) = &target_home {
+                    let member = &federation.as_ref().expect("home only from config").members[home];
+                    valid &= c.body.replica == member.replica && member.writers.contains_key(&c.body.writer);
+                }
                 if valid || cfg!(feature = "mutate-receive-unverified-certs") {
-                    evidence.push((st.meta.keys.xcert("cert", &g, &c.body.replica.0, &c.body.writer), c.to_bytes()));
+                    evidence.push((st.meta.keys.xcertv("cert", &g, &c.id()), c.to_bytes()));
                 }
             }
             if evidence.is_empty() {
                 return reject("no valid certificate from a trusted writer (a published group needs one)");
             }
-            if let Some((local, _)) = st.marker(&g).await? {
-                if local != mid && !cfg!(feature = "mutate-receive-overwrite-marker") {
-                    return Ok(Outcome::Conflict { group: g, local, remote: mid });
-                }
-                if !st.certs(&g).await?.is_empty() {
-                    return Ok(Outcome::Present);
+            if target_home.is_none() {
+                if let Some(cfg) = &federation {
+                    let origin_index = evidence.iter().position(|(_, value)| Cert::from_bytes(value).ok().is_some_and(|cert| {
+                        cfg.members.values().any(|member| member.replica == cert.body.replica
+                            && member.writers.contains_key(&cert.body.writer)
+                            && (job.verify(&member.authority) || member.job_issuers.iter().any(|key| job.verify(key))))
+                    }));
+                    let Some(origin_index) = origin_index else { return reject("job issuer has no matching origin publication certificate"); };
+                    evidence.swap(0, origin_index);
                 }
             }
-            for (kind, id) in needs_of_group(&m, &revs) {
+            let base = st.marker_base(&g).await?;
+            let variant = base.as_ref().is_some_and(|(local, _)| *local != mid);
+            if let Some((local, existing)) = st.marker(&g).await? {
+                let mut comparable = existing.clone();
+                comparable.receipt = m.receipt;
+                if comparable != m && !cfg!(feature = "mutate-receive-overwrite-marker") {
+                    return Ok(Outcome::Conflict { group: g, local, remote: mid });
+                }
+            }
+            let group_bytes = st.s3.get(Kind::Group, &g).await?;
+            let chunk_index = group_bytes.as_ref().map(|bytes| unique_chunks(Kind::Group.domain().strip(bytes)?)).transpose()?.flatten();
+            let mut required = needs_of_group(&m, &revs);
+            if let Some(chunks) = &chunk_index { required.extend(chunks.keys().map(|id| (Kind::Chunk, *id))); }
+            required.sort(); required.dedup();
+            for (kind, id) in required {
                 if st.s3.get_acked(kind, &id).await?.is_none() && !cfg!(feature = "mutate-receive-no-payload-ack") {
                     return Ok(Outcome::Deferred(format!("{} {id:?} not acknowledged here", kind.name())));
+                }
+            }
+            if let Some(chunks) = &chunk_index {
+                for (id, length) in chunks {
+                    let Some((_, bytes)) = st.s3.get_acked(Kind::Chunk, id).await? else { return Ok(Outcome::Deferred(format!("chunk {id:?} not acknowledged here"))); };
+                    if bytes.len() as u64 != *length { return reject(format!("chunk {id:?} has length different from group manifest")); }
                 }
             }
             st.faults.point("receive:before-group")?;
@@ -302,7 +383,7 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 let c = Cert::from_bytes(&evidence[0].1)?;
                 (st.meta.keys.cert(&g, &c.body.writer), c.to_bytes())
             } else {
-                (st.meta.keys.cert(&g, &w.id), mine.to_bytes())
+                (if variant { st.meta.keys.variant_cert(&g, &mid, &w.id) } else { st.meta.keys.cert(&g, &w.id) }, mine.to_bytes())
             };
             let args = ReceiveGroupArgs {
                 group: g,
@@ -316,30 +397,38 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                 job_value: job.to_bytes(),
                 cert: mine_kv,
                 evidence,
+                chunk_index: chunk_index.map(|m| m.into_iter().collect()),
+                variant,
+                target_home,
             };
             match st.meta.t9_receive_group(Arc::new(args)).await {
                 Ok(true) => Ok(Outcome::Applied),
                 Ok(false) => Ok(Outcome::Present),
+                // Both callers can observe an empty marker slot. If the other caller
+                // commits first, re-stage against its marker on the next round so a
+                // receipt-only variant can pass the ordinary compatibility check.
+                Err(StoreError::Guard(GuardFailure::MarkerConflict { .. })) if !variant =>
+                    Ok(Outcome::Deferred("marker changed during receive; retry compatibility check".into())),
                 Err(e) => guard_outcome(e),
             }
         }
         Item::Tombstone { tombstone, certs } => {
             let Ok(t) = Tombstone::from_preimage(tombstone) else { return reject("tombstone does not decode") };
             let tid = t.id();
+            let federation = st.ae_federation().await?;
             let mut evidence = Vec::new();
             let mut certifiers = Vec::new();
             for c in certs {
                 let Ok(c) = TombstoneCert::from_bytes(c) else { continue };
-                if c.body.tombstone == tid && c.body.target == t.target && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) {
+                let source_bound = federation.as_ref().is_none_or(|cfg| cfg.members.values().any(|member|
+                    member.replica == c.body.replica && member.writers.get(&c.body.writer).is_some_and(|key| c.verify(key))));
+                if c.body.tombstone == tid && c.body.target == t.target && st.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) && source_bound {
                     certifiers.push(c.body.writer);
-                    evidence.push((st.meta.keys.xcert("tcert", &tid, &c.body.replica.0, &c.body.writer), c.to_bytes()));
+                    evidence.push((st.meta.keys.xcertv("tcert", &tid, &c.id()), c.to_bytes()));
                 }
             }
             if evidence.is_empty() {
                 return reject("no valid tombstone certificate from a trusted writer");
-            }
-            if st.tombstone(&tid).await?.is_some() && !st.tcerts(&tid).await?.is_empty() {
-                return Ok(Outcome::Present);
             }
             if st.s3.get_acked(Kind::StagedTombstone, &tid).await?.is_none() {
                 return Ok(Outcome::Deferred("tombstone copy not acknowledged here".into()));

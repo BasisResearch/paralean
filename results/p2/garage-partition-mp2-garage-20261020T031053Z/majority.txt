@@ -1,0 +1,1 @@
+acknowledged by Garage majority while node 2 is isolated: faults/garage-partition/1792465853138616106

@@ -589,3 +589,230 @@ in P1.
   and Garage replication 3. Acknowledged effects were never lost and audits stayed clean.
   Open: catalogue exchange, marker conflicts and target-name homing across deployments
   (docs/p2-log.md)."
+
+## Robustness workstream (`m-p2`, 2026-10-20, in progress)
+
+Independent work began while `integrate-p2-rest` was being tested. The checkpoints
+were rebased onto its completed merge `f384e4c` on 2026-10-20 after its published
+log recorded passing tests, then onto `origin/main` at `cb1ca05` (including P4).
+The independent results below predate those rebases;
+merged-code verification is recorded separately as it completes.
+
+- **Target home rule, model first.** `verification/tla/TargetHomes.tla` models one
+  target with independent per-deployment owner/epoch/head registers. A shared,
+  immutable home mapping permits prepare, publication and reassignment only at
+  the home. Foreign receive requires the original home's publication evidence
+  and leaves ownership registers unchanged. Forgetting the receive copies and
+  non-home registers gives TargetNames' single authoritative register. All target
+  names in a multi-target group must share a home; otherwise publication is
+  rejected because there is no transaction across deployments. Configuration
+  must be pinned before federation writes; home migration is outside this rule.
+- **Model results.** `TLC_WORKERS=1 TLC_HEAP=1g scripts/check-tla.sh TargetHomes`:
+  133 distinct states, safety and fair eventual delivery pass. The negative
+  suite's `target_no_home` removes the home guard and reaches two incomparable
+  published proofs, violating `TargetChain` even though both stores obey their
+  local fences. Three reachability witnesses demonstrate home publication,
+  remote receive and publication after reassignment. Logs with source hashes:
+  `results/p2/target-homes/`. This is finite model checking plus a written
+  refinement argument, not a new Lean theorem.
+- **Anti-entropy design and store delta.**
+  [p2-antientropy-design.md](p2-antientropy-design.md) specifies commit-versionstamp
+  events, bounded network pages and object fetches, durable deferred events before
+  cursor advancement, chunk references bound by group bytes, and source-qualified
+  catalogue certificates. The store, signed transport, scheduled service and CLI
+  are implemented; merged-code verification is in progress.
+- **Garage proxy.** The independent `garage-netsplit` crate uses distinct loopback
+  source addresses and Garage's `rpc_bind_outgoing` to identify both ends of RPC
+  links. It blackholes crossing links, including existing connections, and closes
+  them on healing. Six unit/TCP tests pass. The live partition test passed using
+  staged instance scripts; the proxy is now integrated into the merged instance
+  scripts and workspace.
+- **Fault studies and cluster gates.** The gray-failure study and permanent
+  coordinator-loss, Garage and bounded SIGSEGV results are below. Merged-code
+  gates remain in progress on private `mp2-*` instances. No other agent's instance
+  is used or modified.
+
+### Independent fault-study results
+
+FDB 7.3.79, private `mp2-gray`, five processes with distinct zones, `triple`,
+five coordinators, through netsplit; no Garage or stress workers. Three trials
+per setting pause process 2 for 15 seconds, then partition process 3 for 15
+seconds, waiting for a committed probe and tolerance 2 between faults. Each
+serial read/write probe has an eight-second timeout and a one-second gap.
+Numbers below bracket observed unavailability between adjacent successful
+completions; they are not exact outage durations. No failed probe does not
+mean no stall.
+
+| Setting | SIGSTOP failed samples per trial | Partition failed samples per trial | Median partition success bracket |
+|---|---|---|---|
+| Pinned default failure delay 4.0 s | 0, 1, 1 | 2, 2, 2 | 17.470 s |
+| Failure delay 1.0 s | 0, 1, 1 | 2, 2, 2 | 17.631 s |
+| Delay 1.0 s, connection timeout 0.5 s, monitor interval 0.25 s | 0, 0, 0 | 4, 4, 4 | 43.709 s |
+
+The first candidate provides no demonstrated improvement. The aggressive
+candidate reduces sampled pause failures but substantially worsens partition
+recovery, so neither becomes the default. In the aggressive candidate's first
+partition, traces show 41.856 seconds in `recruiting_transaction_servers`,
+33 `RecruitStorageNotAvailable` events and 23 `RkSSListFetchTimeout` events.
+The dominant long recovery is recruitment, not just the initial failure delay.
+This experiment does not establish an optimal production tuning.
+
+Raw timing rows, fault timestamps, summaries and a trace excerpt are in
+`results/p2/robustness-mp2-gray/`; the method and reproduction commands are in
+`results/p2/robustness-study.md`. The timing analyzer was reviewed and its totals
+checked independently against the raw rows.
+
+**Permanent coordinator loss: pass.** Private `mp2-coord` used six FDB processes,
+five initial coordinators, distinct loopback IPs and zones, and `triple`.
+Coordinator `127.0.0.2:24200` was killed and never restarted. `coordinators auto`
+reported `Coordination state changed` and replaced the dead endpoint with
+`127.0.0.7:24205`. The pre-loss acknowledged value remained readable, and a new
+write/read succeeded. Artifacts: `results/p2/robustness-mp2-coord/coordinator/`.
+Distinct IPs let the single-host test exercise the automatic coordinator
+selection rule. Both FDB-only study instances were stopped afterward.
+
+**Garage RPC partition: pass with a measured stall.** Private `mp2-garage`
+used three Garage 2.4.1 nodes behind the new proxy. After isolating node 2, its
+PUT timed out without acknowledgement. Nodes 0 and 1 eventually acknowledged
+and served a new object. The combined majority PUT/read stage lasted about
+59 seconds (03:11:21–03:12:20 UTC); the original harness overwrote retry errors,
+so that run cannot establish the retry count or a more precise outage duration.
+Its raw final line saying “remained available” must be read with this qualification.
+The harness now preserves every attempt's duration, exit and error. After healing,
+all nodes returned both pre-partition and majority-acknowledged bytes. Root
+independently compared the saved payloads. Artifacts:
+`results/p2/garage-partition-mp2-garage-20261020T031053Z/`.
+
+**Garage permanent loss and layout replacement: pass.** On the same private
+instance, node 2 was killed permanently and its role replaced by a new node 3.
+The first harness command used an invalid `--replace` argument order; the
+corrected remaining steps were executed manually without restarting node 2.
+Layout version 2 moved 256 partition copies. Because the dead node could not
+acknowledge the new layout, `layout skip-dead-nodes --version 2` was required;
+`--allow-missing-data` was not used. Final health was `HEALTHY`, with all three
+storage nodes up and all 256 partitions fully healthy. Pre-loss acknowledged
+bytes were read through the surviving and replacement nodes, and a post-change
+write was read through the replacement. Root independently checked the saved
+payloads. The harness records the corrected assignment and dead-node skip.
+Artifacts, including the manual continuation and before/after health:
+`results/p2/robustness-mp2-garage/garage-layout/`.
+
+### Stress-worker SIGSEGV follow-up (private `mp2-segv`)
+
+The prior run-1 log records worker 3, seed 3045, exiting 139. It records the
+fdbserver-3 plus fdbserver-5 double disk loss, but worker errors were collected
+only at the end, so the original crash time and stack are unknown. Commit
+`667dcf6` added an explicit `meta::shutdown()` that joins the FDB network thread
+before CLI process exit; that is a plausible teardown fix, not a proven cause of
+run 1's crash.
+
+We repeated the 3+5 kill, disk wipe, five-second delay and restart in private
+`mp2-segv` using the exact staged `origin/p2-rest` source `b2056d2` and FDB 7.3.79.
+Ten GDB-managed 25-operation workers used the CLI with explicit shutdown. Another
+ten used a binary built from identical source with only the shutdown call removed
+(the exact patch and binary hashes are saved in
+`results/p2/robustness-mp2-segv/`). Every worker was alive at its fault
+injection. The harness enabled unlimited core size; GDB was set to capture a
+SIGSEGV, all-thread backtrace and core before the host's apport handler. None
+occurred: both arms had ten normal inferior exits, 250 acknowledged effects,
+10/10 `verify-acks` checks with zero lost effects, and 10/10 clean audits. The
+cluster regained write availability and FDB fault tolerance 2 between attempts,
+then was fully stopped.
+
+**Not reproduced or explained conclusively.** The original run had six concurrent
+workers, three Garage nodes and preceding faults. This bounded A/B used one worker,
+one Garage node and only the repeated double-loss schedule; GDB also perturbs
+timing. A six-worker replay with the original six FDB plus three Garage nodes
+would exceed the shared box's eight-heavy-process limit. No core was produced
+because no crash occurred. The explicit network-thread shutdown remains a
+source-supported candidate fix, without direct reproduction evidence.
+
+### P2 anti-entropy `store.md` delta and plan/README wording
+
+The following is the precise delta for a later `docs/store.md` revision; it is
+recorded here because this workstream does not alter that specification in place.
+The implementation design and wire/store API contract are in
+`docs/p2-antientropy-design.md`.
+
+- **Layout:** add `federation/config` and `aegeneration`; append-only
+  `aelog/<commit-versionstamp>/<operation>`; receiver state
+  `aecursor/<source>`, `aepending/<source>/<event>`,
+  `aepart/<source>/<event>/<sequence>` and `aecount/<source>`; authenticated
+  `gchunks/<group>`; compatible marker copies
+  `mvariant/<group>/<marker>` and `vcer/<group>/<marker>/<writer>`;
+  exact signed-job evidence `jobproof/<group>/<marker>/<publisher-cert>`;
+  certificate-ID-keyed `xcertv/<kind>/<object>/<cert>`; and source-qualified
+  `xcatalog/<source>/<id>`, `xrcert/<source>/<id>`,
+  `xtoken/<source>/<rank>`, `xrevision/<source>/<id>` and
+  `xocert/<source>/<kind>/<id>`. Existing `xcert/` remains readable as legacy
+  foreign evidence. Foreign proof never satisfies a local `cert/`, `tcert/`,
+  `rcert/` or `ocert/` guard.
+- **Transactions:** pin a shared, immutable member/key/target-home roster only
+  on a new empty deployment; a preexisting local deployment requires an
+  explicit migration with a write barrier and event backfill. T1, T4, T8, T9
+  and T10 read that persisted roster inside their write transaction. A target
+  name may be prepared, published or reassigned only at its configured home;
+  all target names in one group have the same home. A foreign copy requires
+  the original home controller's signed target job and a home writer's source
+  certificate, and cannot update the receiver's target record. T8/T10 cannot
+  delete a configured target proof even if the receiver has no local
+  `target/<name>` key. T1/T8/T9/T10 and ready T5 append a versionstamped event
+  atomically with their first publication. T2/T6 and newly imported evidence
+  append a separate exact-certificate event only when transferable state grows.
+  T1/T9 retain the exact signed job paired with a publication certificate even
+  when another signed job has the same content ID, so relays cannot substitute
+  a different deployment's signature.
+  Cursor movement and pending-fragment insertion are one transaction; import
+  of a verified foreign catalogue is one source-qualified transaction that
+  never advances a local fence.
+- **Content-addressed writes and refinement:** a new group wrapper begins with
+  raw `paralean-group-chunked-v1`, then a PCE version, opaque core and ordered
+  `(chunk ID, stored-preimage length)` references. Its full bytes remain under
+  `v0/group`; the refs are authenticated by that group ID and checked against
+  `gchunks`. T1/T9 require local acknowledgements for each referenced chunk.
+  Legacy opaque P1 groups have unknown chunk coverage, rather than an asserted
+  empty chunk set. Commit-versionstamp pagination prevents inserts behind a
+  cursor; `more()` is followed even after a short FDB batch. A deferred event
+  is durably queued before the cursor passes it, then replayed idempotently.
+  Receipt-only marker variants preserve immutable placement, revisions, root
+  and lineage; the lowest locally certified, non-revoked variant is selected.
+  Other marker differences produce a field-level diagnostic. Source-signed
+  catalogue records, tokens and certificates remain source-qualified and do
+  not become local fenced commits. The target-home rule is checked by the new
+  TargetNames TLA module and its mutation case.
+
+The P2 plan/README sentence is: “P2 anti-entropy is a scheduled, authenticated
+TCP service with commit-ordered bounded pages, durable replay cursors, chunk and
+source-qualified catalogue transfer, and a pinned target-home rule; legacy
+in-process export remains for compatibility and opaque P1 groups do not expose
+complete chunk references.”
+
+### Network implementation checkpoint (merged main `cb1ca05`)
+
+The new `ae-wire`, `ae-service`, store event/cursor APIs and CLI are implemented.
+The root agent reviewed and integrated the delegated store, transport, fault
+harness and test changes. The first workspace all-targets check passed; the
+network integration suite now passes **13/13** on private `mp2-net` (distinct
+logical deployment roots, writers, replicas, validators and transport keys).
+Transport and Garage proxy tests passed **9/9** and **6/6** respectively. Raw logs:
+`results/p2/network-service/`. The baseline P2/P3 and scoped fault reruns are still
+pending at this checkpoint.
+
+The network tests cover three-hop group/tombstone, home-target and catalogue
+relay; exact original certificates; bounded descriptors and durable restart
+replay; new publications after startup; missing/corrupt payload repair; chunk
+metadata; configuration and generation rejection; receipt-only marker convergence
+and revocation; and precise incompatible-layout diagnostics. The stronger marker
+test also requires that valid variants leave no terminal pending events. A simultaneous
+first-receive test covers compatible variants racing to fill the marker slot.
+
+Two real failures found during review/testing were fixed rather than weakening
+the cases. A mutable S3 HEAD length could persist corrupt-object length metadata
+and prevent later repair: materialization now derives lengths from hash-verified
+GETs and checks derived chunk indexes against the group bytes. This costs a GET
+for each referenced object when materializing an event, including continuation
+pages; it still avoids full-store export each round. Also, signed jobs with equal
+body IDs can have different issuer signatures: `jobproof` retains the exact
+signed envelope paired with the publisher certificate, so relay events cannot
+substitute another deployment's signature. A concurrent first-receive race now
+defers for restaging when another marker wins the slot before T9 commits.

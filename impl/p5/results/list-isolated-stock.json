@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "wall_s": 5.753,
+  "returncode": 0,
+  "stock_version": "Lean (version 4.36.0-nightly-2026-10-03, x86_64-unknown-linux-gnu, commit 193c3589a4fc16c4059261ab38cfa365eb24f323, Release)",
+  "source": "impl/p5/results/list-export",
+  "no_paralean_environment": true,
+  "no_copied_build_cache": true,
+  "olean_count": 10
+}

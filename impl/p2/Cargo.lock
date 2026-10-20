@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "ae-wire"
+version = "0.2.0"
+dependencies = [
+ "ed25519-dalek",
+ "rand 0.8.8",
+ "sha2 0.10.9",
+ "tokio",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -986,6 +996,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "garage-netsplit"
+version = "0.2.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1496,10 +1513,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
 
 [[package]]
+name = "paralean-ae-service"
+version = "0.2.0"
+dependencies = [
+ "ae-wire",
+ "ed25519-dalek",
+ "paralean-store",
+ "rand 0.8.8",
+ "tokio",
+]
+
+[[package]]
 name = "paralean-cli"
 version = "0.2.0"
 dependencies = [
+ "ae-wire",
+ "ed25519-dalek",
  "hex",
+ "paralean-ae-service",
  "paralean-store",
  "rand 0.8.8",
  "serde_json",
