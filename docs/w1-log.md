@@ -276,3 +276,48 @@ cover all 1,105 groups. Exact relocated export identity is a separate claim:
 1,121/1,142 corpus groups verify, including all 85 core declaration groups;
 the remaining 21 exports contain changed module-name literals and are
 rejected.”
+
+## Final summary
+
+Verified implementation and evidence checkpoint:
+**`19c85193caff2b4ceef4ee5c76f228000ee8546e`** on `w1-lean-bugs`.
+This closing entry and the certification commit pointer are documentation-only
+updates after that checkpoint.
+
+1. **M08 complete.** Replay preserves the original module context for a
+   single-module closure. All three M08 groups reproduce their canonical
+   bytes on stock and fork; restoring the synthetic context or changing the
+   macro body fails the unchanged exact-ID validator. Final certification
+   accepts and publishes **1105/1105** groups across all 18 Mathlib modules,
+   with zero failures and 18 successful store audits.
+2. **Identity bugs repaired and claim narrowed.** All four core initializer
+   association errors are fixed: **85/85**. One Mathlib label-attribute
+   association also recovers, raising exact export identity from
+   **1116/1142 to 1121/1142** on both toolchains. The remaining 21 relocated
+   exports contain changed literal data and remain rejected. Concrete
+   byte-level comparisons, executable name witnesses, and Lean lemmas
+   support the narrower claim in the interface notes.
+3. **G1–G6 remeasured without regression.** Stock and fork each pass
+   **1225/1225 source, kernel, and isolated replays**, plus the separate
+   8/8 diagnostic probe. G2, G3, G5, and G6 counts are unchanged; G4 improves
+   by five exact identities with unchanged build, axiom, and mapping counts.
+
+Verification evidence: five fork hook fixtures pass, including mode off;
+all six executable export-guard removals fail their intended assertions.
+The three W1 models pass at 16, 160, and 1,040 states; the derived residual
+fixture passes at 1,296 states. Ten W1 model guard removals expose named
+invariant violations, and 17 reachability witnesses exercise useful paths.
+The complete archive verifies **24 positive, 113 default expected-outcome,
+4 wide, and 29 hardened TLC checks**. The Lean/Veil audit passes for **7,292
+project declarations**, including seven identity lemmas, using only permitted
+stock axioms. The full archive, `--tla-only`, `--verify`, and archived source
+hash checks all pass.
+
+Not implemented: a universal quotient of module-name literals, because it
+would identify distinct observable values while claiming exact identity.
+No completeness claim is made for arbitrary mixed-module replay closures;
+their existing fallback remains explicit. A semantics-specific
+normalization would require a separate proof. No fork hook or rebuild was
+needed for this fix. There are no outstanding W1 implementation or
+verification blockers. Private Mathlib build outputs are unchanged and the
+W1 cluster is stopped. Proposed plan/README wording is recorded above.
