@@ -1,0 +1,8 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.53s
+     Running tests/gc.rs (target/debug/deps/gc-92e059b5ebcc1cd7)
+
+running 1 test
+test controller_monitor_collects_only_when_enabled_and_preserves_queued_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 1.60s

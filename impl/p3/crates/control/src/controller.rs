@@ -9,7 +9,8 @@
 //! renewed by `Heartbeat`. When a lease expires, every target the worker owned is
 //! reassigned at once (T4): to another live worker with room, or to a sentinel workspace
 //! no worker holds, so the epoch moves and the stale owner's publication fails T1's epoch
-//! fence even if it is still running. Its job goes back to the queue.
+//! fence even if it is still running. Its job remains available for a later
+//! registered worker to claim.
 //!
 //! **Validation.** `Validate` from a worker becomes an immutable envelope: the controller
 //! reads each target record and refuses unless the worker is its owner, then stamps the
@@ -40,7 +41,8 @@ use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
-use crate::durable::{now_ms, Durable, GroupRequest};
+use crate::durable::{Durable, GroupRequest, PollReplay, TerminalState, WorkReplay};
+use crate::gc::GcConfig;
 
 /// The workspace that owns a target whose owner died and that no live worker could take.
 pub fn unowned() -> WorkspaceId {
@@ -140,6 +142,7 @@ struct WorkJob {
     memory_mb: u64,
     state: WorkState,
     attempts: u64,
+    settled_tick: Option<u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -167,6 +170,11 @@ struct State {
     groups: Vec<StoredGroup>,
     recovery_cursor: Vec<u8>,
     poll_responses: BTreeMap<String, StoredPoll>,
+    history_work_cursor: usize,
+    history_poll_cursor: Option<String>,
+    history_next_poll: bool,
+    history_compacted_work: u64,
+    history_compacted_polls: u64,
 }
 
 pub struct ControlPlane {
@@ -175,9 +183,47 @@ pub struct ControlPlane {
     durable: Durable,
     operation: tokio::sync::Mutex<()>,
     seen_term: AtomicU64,
+    gc: GcConfig,
+    gc_cursor: Mutex<Option<String>>,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct HistoryReport {
+    pub stamped_work: usize,
+    pub stamped_polls: usize,
+    pub compacted_work: usize,
+    pub compacted_polls: usize,
 }
 
 struct AbortOnDrop(JoinHandle<()>);
+
+fn gc_sweep_due(now: u64, next_eligible: u64) -> bool {
+    if cfg!(feature = "mutate-gc-modulo-schedule") {
+        now % 8 == 0
+    } else {
+        now >= next_eligible
+    }
+}
+
+#[cfg(test)]
+mod gc_schedule_tests {
+    use super::gc_sweep_due;
+
+    #[test]
+    fn gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight() {
+        let mut next_eligible = 0;
+        let mut sweeps = Vec::new();
+        // A second replica receives every even tick. This leader sees no
+        // multiple of eight, but must still make repeated GC progress.
+        for now in (1..=33).step_by(2) {
+            if gc_sweep_due(now, next_eligible) {
+                sweeps.push(now);
+                next_eligible = now + 8;
+            }
+        }
+        assert_eq!(sweeps, vec![1, 9, 17, 25, 33]);
+    }
+}
 
 impl Drop for AbortOnDrop {
     fn drop(&mut self) { self.0.abort(); }
@@ -195,10 +241,20 @@ struct Snapshot {
     recovery_cursor: Vec<u8>,
     #[serde(default)]
     poll_responses: BTreeMap<String, StoredPoll>,
+    #[serde(default)]
+    history_work_cursor: usize,
+    #[serde(default)]
+    history_poll_cursor: Option<String>,
+    #[serde(default)]
+    history_next_poll: bool,
+    #[serde(default)]
+    history_compacted_work: u64,
+    #[serde(default)]
+    history_compacted_polls: u64,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-struct StoredPoll { worker: String, work: Option<String> }
+struct StoredPoll { worker: String, work: Option<String>, #[serde(default)] epoch: Option<u64>, #[serde(default)] created_tick: Option<u64> }
 
 #[derive(Clone, Serialize, Deserialize)]
 struct StoredGroup {
@@ -212,7 +268,8 @@ struct StoredGroup {
 struct StoredWorker { capacity_mb: u64, used_mb: u64, lease_until: u64, alive: bool }
 
 #[derive(Serialize, Deserialize)]
-struct StoredWork { target: String, memory_mb: u64, state: StoredWorkState, attempts: u64 }
+struct StoredWork { target: String, memory_mb: u64, state: StoredWorkState, attempts: u64,
+    #[serde(default)] settled_tick: Option<u64> }
 
 #[derive(Serialize, Deserialize)]
 enum StoredWorkState {
@@ -251,18 +308,26 @@ impl State {
     fn snapshot(&self) -> Snapshot {
         Snapshot {
             workers: self.workers.iter().map(|(id, i)| (id.hex(), StoredWorker { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive })).collect(),
-            work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts })).collect(),
+            work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts, settled_tick: j.settled_tick })).collect(),
             order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), poll_responses: self.poll_responses.clone(),
+            history_work_cursor: self.history_work_cursor, history_poll_cursor: self.history_poll_cursor.clone(),
+            history_next_poll: self.history_next_poll,
+            history_compacted_work: self.history_compacted_work, history_compacted_polls: self.history_compacted_polls,
         }
     }
     fn restore(&mut self, s: Snapshot) {
         self.workers = s.workers.into_iter().filter_map(|(id, i)| ws(&id).map(|id| (id, WorkerInfo { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive }))).collect();
-        self.work = s.work.into_iter().filter_map(|(r, j)| Some((r, WorkJob { target: Name::parse(&j.target), memory_mb: j.memory_mb, state: j.state.restore()?, attempts: j.attempts }))).collect();
+        self.work = s.work.into_iter().filter_map(|(r, j)| Some((r, WorkJob { target: Name::parse(&j.target), memory_mb: j.memory_mb, state: j.state.restore()?, attempts: j.attempts, settled_tick: j.settled_tick }))).collect();
         self.order = s.order;
         self.next_validator = s.next_validator;
         self.groups = s.groups;
         self.recovery_cursor = s.recovery_cursor;
         self.poll_responses = s.poll_responses;
+        self.history_work_cursor = s.history_work_cursor;
+        self.history_poll_cursor = s.history_poll_cursor;
+        self.history_next_poll = s.history_next_poll;
+        self.history_compacted_work = s.history_compacted_work;
+        self.history_compacted_polls = s.history_compacted_polls;
     }
 }
 
@@ -290,7 +355,7 @@ pub async fn call_controller(
             if left.is_zero() { break }
             let one = left.min(if matches!(req, ControlRequest::Validate { .. }) { Duration::from_secs(30) } else { Duration::from_secs(3) });
             match rpc::call_authenticated(addr, req, signer, authority_public, one).await {
-                Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" => {
+                Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" || reason == "not controller shard" => {
                     follower = Some(ControlResponse::Inconclusive { reason });
                 }
                 Ok(ControlResponse::Status { status }) if status.get("leader") == Some(&serde_json::Value::Bool(false)) => {
@@ -309,8 +374,161 @@ pub async fn call_controller(
 
 impl ControlPlane {
     pub fn new(cfg: ControllerConfig) -> Arc<ControlPlane> {
-        let durable = Durable::new(cfg.store.clone(), cfg.lease);
-        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0) })
+        Self::new_shard(cfg, 0, 1)
+    }
+
+    pub fn new_shard(cfg: ControllerConfig, shard: u32, shards: u32) -> Arc<ControlPlane> {
+        Self::new_shard_with_gc(cfg, shard, shards, GcConfig::default())
+    }
+
+    pub fn new_shard_with_gc(cfg: ControllerConfig, shard: u32, shards: u32, gc: GcConfig) -> Arc<ControlPlane> {
+        let durable = Durable::new_shard(cfg.store.clone(), cfg.lease, shard, shards);
+        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None) })
+    }
+
+    /// Validate and initialize the deployment's fixed shard topology before listening.
+    pub async fn verify_topology(&self) -> Result<(), String> {
+        self.durable.acquire_or_renew().await.map(|_| ())
+    }
+
+    /// Pin a current or retired controller snapshot under this replica's lease.
+    pub async fn retain_snapshot(&self, hash: &str) -> Result<(), String> {
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.durable.retain_snapshot(hash, lease.term).await
+    }
+
+    pub async fn release_snapshot(&self, hash: &str) -> Result<(), String> {
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.durable.release_snapshot(hash, lease.term).await
+    }
+
+    /// Move a bounded page of settled history to immutable replay rows. Replay
+    /// reads remain active even if GC is disabled after this pass.
+    pub async fn compact_history_once(self: &Arc<Self>) -> Result<HistoryReport, String> {
+        if !self.gc.enabled && !cfg!(feature = "mutate-history-no-opt-in") { return Err("controller history GC is disabled".into()) }
+        if self.gc.grace_ticks == 0 || self.gc.scan_limit == 0 || self.gc.scan_limit > 1024 {
+            return Err("controller history GC requires positive grace and a scan limit of 1..=1024".into());
+        }
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.load_state().await?;
+        self.on_leadership(lease.term);
+        let now = self.durable.clock().await?;
+        let mut report = HistoryReport::default();
+        let mut work_rows = Vec::new();
+        let mut poll_rows = Vec::new();
+        let mut write_bytes = 0usize;
+        let snapshot = {
+            let mut st = self.state.lock().unwrap();
+            let poll_keys: Vec<String> = st.poll_responses.keys().cloned().collect();
+            let order = st.order.clone();
+            let (poll_budget, work_budget) = if cfg!(feature = "mutate-history-no-fair-scan") {
+                let p = poll_keys.len().min(self.gc.scan_limit);
+                (p, self.gc.scan_limit - p)
+            } else if poll_keys.is_empty() {
+                (0, self.gc.scan_limit)
+            } else if order.is_empty() {
+                (self.gc.scan_limit, 0)
+            } else if self.gc.scan_limit == 1 {
+                let poll_turn = st.history_next_poll;
+                st.history_next_poll = !poll_turn;
+                (usize::from(poll_turn), usize::from(!poll_turn))
+            } else {
+                let p = (self.gc.scan_limit / 2).min(poll_keys.len());
+                let w = (self.gc.scan_limit - p).min(order.len());
+                let p = (self.gc.scan_limit - w).min(poll_keys.len());
+                (p, w)
+            };
+            if !poll_keys.is_empty() {
+                let start = st.history_poll_cursor.as_ref()
+                    .and_then(|cursor| poll_keys.iter().position(|key| key > cursor)).unwrap_or(0);
+                for offset in 0..poll_keys.len().min(poll_budget) {
+                    let token = &poll_keys[(start + offset) % poll_keys.len()];
+                    st.history_poll_cursor = Some(token.clone());
+                    let (worker, work, epoch, created_tick) = {
+                        let p = st.poll_responses.get_mut(token).unwrap();
+                        if p.created_tick.is_none() { p.created_tick = Some(now); report.stamped_polls += 1; }
+                        (p.worker.clone(), p.work.clone(), p.epoch, p.created_tick.unwrap())
+                    };
+                    if !cfg!(feature = "mutate-history-no-grace") &&
+                        (now < created_tick || now - created_tick < self.gc.grace_ticks) { continue }
+                    if let Some(r) = &work {
+                        let Some(j) = st.work.get_mut(r) else { continue };
+                        if !matches!(j.state, WorkState::Done | WorkState::Failed | WorkState::Cancelled) { continue }
+                        if j.settled_tick.is_none() { j.settled_tick = Some(now); report.stamped_work += 1; }
+                        let settled = j.settled_tick.unwrap();
+                        if !cfg!(feature = "mutate-history-no-grace") && !cfg!(feature = "mutate-history-no-terminal-grace") &&
+                            (now < settled || now - settled < self.gc.grace_ticks) { continue }
+                    }
+                    let row = PollReplay { token: token.clone(), worker, work, epoch };
+                    let size = serde_json::to_vec(&row).map_err(|e| e.to_string())?.len();
+                    if size > 90 * 1024 || write_bytes + size > 200 * 1024 { continue }
+                    write_bytes += size;
+                    poll_rows.push(row);
+                }
+                for row in &poll_rows { st.poll_responses.remove(&row.token); }
+            }
+            if !order.is_empty() && work_budget > 0 {
+                let start = st.history_work_cursor % order.len();
+                let count = order.len().min(work_budget);
+                for offset in 0..count {
+                    let request = &order[(start + offset) % order.len()];
+                    let (target, memory_mb, state, settled_tick) = {
+                        let j = st.work.get_mut(request).ok_or("controller work order is corrupt")?;
+                        let terminal = match j.state {
+                            WorkState::Done => Some(TerminalState::Done),
+                            WorkState::Failed => Some(TerminalState::Failed),
+                            WorkState::Cancelled => Some(TerminalState::Cancelled),
+                            _ if cfg!(feature = "mutate-history-prune-active") => {
+                                j.settled_tick = Some(now.saturating_sub(self.gc.grace_ticks));
+                                Some(TerminalState::Done)
+                            }
+                            _ => None,
+                        };
+                        if terminal.is_some() && j.settled_tick.is_none() {
+                            j.settled_tick = Some(now);
+                            report.stamped_work += 1;
+                        }
+                        (j.target.to_string(), j.memory_mb, terminal, j.settled_tick)
+                    };
+                    let (Some(state), Some(settled_tick)) = (state, settled_tick) else { continue };
+                    if !cfg!(feature = "mutate-history-no-grace") &&
+                        (now < settled_tick || now - settled_tick < self.gc.grace_ticks) { continue }
+                    // All poll tokens for this job must move first. This keeps
+                    // every first selection recoverable across an unknown commit.
+                    if st.poll_responses.values().any(|p| p.work.as_deref() == Some(request)) { continue }
+                    let row = WorkReplay { request: request.clone(), target, memory_mb, state };
+                    let size = serde_json::to_vec(&row).map_err(|e| e.to_string())?.len();
+                    if size > 90 * 1024 || write_bytes + size > 200 * 1024 { continue }
+                    write_bytes += size;
+                    work_rows.push(row);
+                }
+                if work_rows.is_empty() { st.history_work_cursor = (start + count) % order.len(); }
+            }
+            if !work_rows.is_empty() {
+                let removed: std::collections::HashSet<&str> = work_rows.iter().map(|r| r.request.as_str()).collect();
+                st.order.retain(|r| !removed.contains(r.as_str()));
+                for row in &work_rows { st.work.remove(&row.request); }
+                st.history_work_cursor = 0;
+            }
+            report.compacted_work = work_rows.len();
+            report.compacted_polls = poll_rows.len();
+            st.history_compacted_work = st.history_compacted_work.saturating_add(report.compacted_work as u64);
+            st.history_compacted_polls = st.history_compacted_polls.saturating_add(report.compacted_polls as u64);
+            serde_json::to_vec(&st.snapshot()).map_err(|e| e.to_string())?
+        };
+        if let Err(e) = self.durable.save_with_history(&snapshot, lease.term, &work_rows, &poll_rows).await {
+            let _ = self.load_state().await;
+            return Err(e);
+        }
+        if !work_rows.is_empty() || !poll_rows.is_empty() {
+            if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_HISTORY_COMMIT_MS").unwrap_or_default().parse::<u64>() {
+                tokio::time::sleep(Duration::from_millis(ms)).await;
+            }
+        }
+        Ok(report)
     }
 
     /// Serve on `listener` and run the lease monitor.
@@ -334,10 +552,22 @@ impl ControlPlane {
         let server = AbortOnDrop(server);
         let me = self.clone();
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval((me.cfg.lease / 4).max(Duration::from_millis(20)));
+            let mut tick = tokio::time::interval((me.cfg.lease / 8).max(Duration::from_millis(20)));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            let mut next_gc_tick = 0;
             loop {
                 tick.tick().await;
+                let now = me.durable.tick().await.ok();
                 me.expire_leases().await;
+                if let Some(now) = now.filter(|n| me.gc.enabled && gc_sweep_due(*n, next_gc_tick)) {
+                    if let Ok(Some(lease)) = me.durable.current().await {
+                        let cursor = me.gc_cursor.lock().unwrap().clone();
+                        if let Ok(report) = me.durable.collect_retired_snapshots(lease.term, &me.gc, cursor.as_deref()).await {
+                            *me.gc_cursor.lock().unwrap() = report.next_after;
+                            next_gc_tick = now.saturating_add(8);
+                        }
+                    }
+                }
                 if server.0.is_finished() {
                     return;
                 }
@@ -346,25 +576,31 @@ impl ControlPlane {
     }
 
     pub async fn handle(self: &Arc<Self>, req: ControlRequest) -> ControlResponse {
+        match self.request_shard(&req).await {
+            Ok(Some(shard)) if shard != self.durable.shard => return inconclusive("not controller shard"),
+            Err(e) => return inconclusive(&e),
+            _ => {}
+        }
         // A long validation may outlive a worker heartbeat. J1/J2 persist its
         // envelope and receipt independently; the controller snapshot is only read.
         if matches!(req, ControlRequest::Validate { .. }) {
-            {
+            let term = {
                 let _guard = self.operation.lock().await;
                 let Ok(Some(lease)) = self.durable.acquire_or_renew().await else { return inconclusive("not controller leader") };
                 if let Err(e) = self.load_state().await { return inconclusive(&e) }
                 let takeover = self.on_leadership(lease.term);
-                if takeover { self.recover_pending().await }
+                if takeover { self.recover_pending(lease.term).await }
                 if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
-            }
-            return self.handle_inner(req).await;
+                lease.term
+            };
+            return self.handle_inner(req, term).await;
         }
         let _guard = self.operation.lock().await;
         let lease = match self.durable.acquire_or_renew().await {
             Ok(Some(l)) => l,
             Ok(None) => {
                 if matches!(req, ControlRequest::Status) {
-                    return ControlResponse::Status { status: serde_json::json!({"leader": false}) };
+                    return ControlResponse::Status { status: serde_json::json!({"leader": false, "shard": self.durable.shard, "shards": self.durable.shards}) };
                 }
                 return inconclusive("not controller leader");
             }
@@ -373,11 +609,57 @@ impl ControlPlane {
         if let Err(e) = self.load_state().await { return inconclusive(&e) }
         let takeover = self.on_leadership(lease.term);
         if takeover {
-            self.recover_pending().await;
+            self.recover_pending(lease.term).await;
         }
-        let resp = self.handle_inner(req).await;
+        if let ControlRequest::SubmitWork { request, target, .. } = &req {
+            if let Err(e) = self.durable.reserve_work_shard(request, &Name::parse(target), lease.term).await { return refused(&e) }
+        }
+        let resp = self.handle_inner(req, lease.term).await;
         if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
         resp
+    }
+
+    async fn request_shard(&self, req: &ControlRequest) -> Result<Option<u32>, String> {
+        let target = match req {
+            ControlRequest::SubmitWork { target, .. } | ControlRequest::Assign { target, .. } => Some(Name::parse(target)),
+            ControlRequest::AssignGroup { targets, .. } => {
+                let mut sorted = targets.clone();
+                sorted.sort();
+                let mut mapped = None;
+                for name in &sorted {
+                    if let Some(shard) = self.durable.mapped_shard(&Name::parse(name)).await? {
+                        if mapped.is_some_and(|n| n != shard) { return Err("group spans existing controller shards".into()) }
+                        mapped = Some(shard);
+                    }
+                }
+                if let Some(shard) = mapped { return Ok(Some(shard)) }
+                sorted.first().map(|s| Name::parse(s))
+            }
+            ControlRequest::Validate { targets, .. } => {
+                let mut sorted: Vec<_> = targets.iter().map(|t| t.name.clone()).collect();
+                sorted.sort();
+                let mut mapped = None;
+                for name in &sorted {
+                    if let Some(shard) = self.durable.mapped_shard(&Name::parse(name)).await? {
+                        if mapped.is_some_and(|n| n != shard) { return Err("validation spans controller shards".into()) }
+                        mapped = Some(shard);
+                    }
+                }
+                if let Some(shard) = mapped { return Ok(Some(shard)) }
+                sorted.first().map(|s| Name::parse(s))
+            }
+            _ => None,
+        };
+        if let Some(target) = target { return self.durable.shard_for_target(&target).await.map(Some) }
+        match req {
+            ControlRequest::Finish { request, .. } => self.durable.shard_for_work(request).await,
+            ControlRequest::Validate { request, .. } => self.durable.shard_for_validation(request).await,
+            ControlRequest::Cancel { request } => {
+                if let Some(shard) = self.durable.shard_for_work(request).await? { Ok(Some(shard)) }
+                else { self.durable.shard_for_validation(request).await }
+            }
+            _ => Ok(None),
+        }
     }
 
     async fn load_state(&self) -> Result<(), String> {
@@ -396,8 +678,8 @@ impl ControlPlane {
         self.seen_term.swap(term, Ordering::SeqCst) != term
     }
 
-    async fn recover_pending(self: &Arc<Self>) {
-        let sub = self.cfg.store.meta.keys.sub("jobreq");
+    async fn recover_pending(self: &Arc<Self>, term: u64) {
+        let sub = self.durable.validation_jobs_subspace();
         let cursor = self.state.lock().unwrap().recovery_cursor.clone();
         let (begin, end) = sub.range();
         let start = if cursor.is_empty() { KeySelector::first_greater_or_equal(begin) } else { KeySelector::first_greater_than(cursor) };
@@ -416,6 +698,11 @@ impl ControlPlane {
             let Ok(job) = SignedJob::from_bytes(&bytes) else { continue };
             if !job.verify(&self.cfg.authority.public()) { continue }
             let req = job.body.request.clone();
+            // The index is shard local, while J1 remains global for T1 deduplication.
+            // Verify the authoritative route before starting any recovered dispatch.
+            if !matches!(self.durable.shard_for_validation_bytes(&req).await, Ok(Some(s)) if s == self.durable.shard) {
+                continue;
+            }
             if self.cfg.store.meta.get(self.cfg.store.meta.keys.job_receipt(&req)).await.ok().flatten().is_some() { continue }
             if self.cfg.store.meta.is_cancelled(&req).await.unwrap_or(true) { continue }
             let (tx, rx) = watch::channel(None);
@@ -428,17 +715,18 @@ impl ControlPlane {
             }
             let me = self.clone();
             tokio::spawn(async move {
-                let result = me.dispatch(&job, crx).await;
+                let result = me.dispatch(&job, crx, term).await;
                 let _ = tx.send(Some(result));
                 me.state.lock().unwrap().inflight.remove(&req);
             });
         }
     }
 
-    async fn handle_inner(self: &Arc<Self>, req: ControlRequest) -> ControlResponse {
+    async fn handle_inner(self: &Arc<Self>, req: ControlRequest, term: u64) -> ControlResponse {
         match req {
             ControlRequest::Register { worker, capacity_mb } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
+                let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
                 let mut st = self.state.lock().unwrap();
                 let used_mb = st.work.values().filter_map(|j| match j.state {
                     WorkState::Running { worker, .. } if worker == w => Some(j.memory_mb),
@@ -446,22 +734,43 @@ impl ControlPlane {
                 }).sum();
                 st.workers.insert(
                     w,
-                    WorkerInfo { capacity_mb, used_mb, lease_until: now_ms() + self.cfg.lease.as_millis() as u64, alive: true },
+                    WorkerInfo { capacity_mb, used_mb, lease_until: now.saturating_add(8), alive: true },
                 );
                 ControlResponse::Registered { lease_ms: self.cfg.lease.as_millis() as u64 }
             }
             ControlRequest::Heartbeat { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
+                let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
                 let mut st = self.state.lock().unwrap();
                 match st.workers.get_mut(&w) {
                     Some(i) if i.alive => {
-                        i.lease_until = now_ms() + self.cfg.lease.as_millis() as u64;
+                        i.lease_until = now.saturating_add(8);
                         ControlResponse::Ok
                     }
                     _ => ControlResponse::Unknown,
                 }
             }
-            ControlRequest::SubmitWork { request, target, memory_mb } => self.submit_work(request, target, memory_mb),
+            ControlRequest::SubmitWork { request, target, memory_mb } => {
+                if !self.state.lock().unwrap().work.contains_key(&request) && !cfg!(feature = "mutate-history-no-work-replay") {
+                    match self.durable.work_replay(&request).await {
+                        Ok(Some(replay)) => {
+                            if !cfg!(feature = "mutate-history-no-work-identity") &&
+                                (replay.target != Name::parse(&target).to_string() || replay.memory_mb != memory_mb) {
+                                return refused("request ID already used for different work");
+                            }
+                            let cancelled = if cfg!(feature = "mutate-history-no-cancel-overlay") { false }
+                                else { match self.cfg.store.meta.is_cancelled(request.as_bytes()).await {
+                                    Ok(v) => v, Err(e) => return inconclusive(&e.to_string()),
+                                } };
+                            let state = if cancelled { "Cancelled".into() } else { format!("{:?}", replay.state) };
+                            return ControlResponse::Duplicate { state };
+                        }
+                        Ok(None) => {}
+                        Err(e) => return inconclusive(&e),
+                    }
+                }
+                self.submit_work(request, target, memory_mb)
+            }
             ControlRequest::Poll { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 self.poll(w, None).await
@@ -473,10 +782,18 @@ impl ControlPlane {
             }
             ControlRequest::Finish { worker, request, ok } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
-                self.finish(w, &request, ok)
+                let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
+                if !self.state.lock().unwrap().work.contains_key(&request) {
+                    match self.durable.work_replay(&request).await {
+                        Ok(Some(_)) => return refused("the job is not running on this worker"),
+                        Ok(None) => {}
+                        Err(e) => return inconclusive(&e),
+                    }
+                }
+                self.finish(w, &request, ok, now)
             }
             ControlRequest::Validate { worker, request, group, capsule, deps, targets, memory_mb, deadline_ms } => {
-                self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms).await
+                self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms, term).await
             }
             ControlRequest::Cancel { request } => self.cancel(&request).await,
             ControlRequest::Assign { target, worker } => {
@@ -570,7 +887,8 @@ impl ControlPlane {
             })
             .collect();
         ControlResponse::Status {
-            status: serde_json::json!({"leader": true, "term": self.seen_term.load(Ordering::SeqCst), "workers": workers, "work": work, "validations_in_flight": st.inflight.len()}),
+            status: serde_json::json!({"leader": true, "shard": self.durable.shard, "shards": self.durable.shards, "term": self.seen_term.load(Ordering::SeqCst), "workers": workers, "work": work, "validations_in_flight": st.inflight.len(),
+                "history_compacted_work": st.history_compacted_work, "history_compacted_polls": st.history_compacted_polls}),
         }
     }
 
@@ -591,24 +909,44 @@ impl ControlPlane {
         if st.groups.iter().any(|g| g.names.contains(&name.to_string())) {
             return refused("target belongs to an assigned group; use the group workflow");
         }
-        let queued = st.work.values().filter(|j| j.state == WorkState::Queued).count();
+        let queued = st.work.values().filter(|j| j.state == WorkState::Queued
+            || matches!(j.state, WorkState::Running { worker, .. } if worker == unowned())).count();
         if queued >= self.cfg.max_work_queue {
             return ControlResponse::Busy;
         }
         if !st.work.contains_key(&request) {
             st.order.push(request.clone());
         }
-        st.work.insert(request, WorkJob { target: name, memory_mb, state: WorkState::Queued, attempts: 0 });
+        st.work.insert(request, WorkJob { target: name, memory_mb, state: WorkState::Queued, attempts: 0, settled_tick: None });
         ControlResponse::Queued
     }
 
     async fn poll(&self, w: WorkspaceId, token: Option<&str>) -> ControlResponse {
+        let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
+        let archived = if let Some(token) = token.filter(|_| !cfg!(feature = "mutate-history-no-poll-replay")) {
+            match self.durable.poll_replay(token).await { Ok(v) => v, Err(e) => return inconclusive(&e) }
+        } else { None };
         // A job already assigned to this worker (after a reassignment) comes first.
         let pick = {
             let mut st = self.state.lock().unwrap();
             match st.workers.get(&w) {
-                Some(i) if i.alive && i.lease_until > now_ms() => {}
+                Some(i) if i.alive && i.lease_until > now => {}
                 _ => return ControlResponse::Unknown,
+            }
+            if let Some(p) = &archived {
+                if !cfg!(feature = "mutate-history-no-poll-worker") && p.worker != w.hex() {
+                    return refused("poll request ID belongs to another worker");
+                }
+                if let Some(work) = &p.work {
+                    if let Some(j) = st.work.get(work) {
+                        if let WorkState::Running { worker, epoch, .. } = j.state {
+                            if worker == w && p.epoch == Some(epoch) {
+                                return ControlResponse::Work { request: work.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
+                            }
+                        }
+                    }
+                }
+                return ControlResponse::NoWork;
             }
             if let Some(token) = token {
                 if let Some(p) = st.poll_responses.get(token) {
@@ -616,7 +954,8 @@ impl ControlPlane {
                     if let Some(work) = &p.work {
                         if let Some(j) = st.work.get(work) {
                             if let WorkState::Running { worker, epoch, .. } = j.state {
-                                if worker == w && epoch != u64::MAX {
+                                if worker == w && epoch != u64::MAX &&
+                                    (cfg!(feature = "mutate-history-no-poll-epoch") || p.epoch.is_none_or(|first| first == epoch)) {
                                     return ControlResponse::Work { request: work.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
                                 }
                             }
@@ -640,7 +979,7 @@ impl ControlPlane {
                         if epoch != u64::MAX {
                             j.state = WorkState::Running { worker, epoch, delivered: true };
                             let response = ControlResponse::Work { request: r.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
-                            if let Some(token) = token { st.poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(r.clone()) }); }
+                            if let Some(token) = token { st.poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(r.clone()), epoch: Some(epoch), created_tick: Some(now) }); }
                             return response;
                         }
                         pick = Some((r.clone(), j.target.clone(), j.memory_mb, j.attempts));
@@ -651,7 +990,11 @@ impl ControlPlane {
             for r in &order {
                 if pick.is_some() { break }
                 let j = st.work.get_mut(r).unwrap();
-                if j.state == WorkState::Queued && j.memory_mb <= free {
+                if (j.state == WorkState::Queued
+                    || matches!(j.state, WorkState::Running { worker, epoch, .. }
+                        if worker == unowned() && epoch != u64::MAX
+                            && !cfg!(feature = "mutate-no-unowned-reassign")))
+                    && j.memory_mb <= free {
                     j.attempts += 1;
                     // Durable intent binds the chosen worker and attempt before T4.
                     j.state = WorkState::Running { worker: w, epoch: u64::MAX, delivered: false };
@@ -665,7 +1008,7 @@ impl ControlPlane {
         };
         let Some((request, target, memory_mb, attempt)) = pick else {
             if let Some(token) = token {
-                self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: None });
+                self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: None, epoch: None, created_tick: Some(now) });
             }
             return ControlResponse::NoWork
         };
@@ -685,7 +1028,7 @@ impl ControlPlane {
                 };
                 if assigned {
                     if let Some(token) = token {
-                        self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(request.clone()) });
+                        self.state.lock().unwrap().poll_responses.insert(token.into(), StoredPoll { worker: w.hex(), work: Some(request.clone()), epoch: Some(epoch), created_tick: Some(now) });
                     }
                     if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_ASSIGN_MS").unwrap_or_default().parse::<u64>() {
                         tokio::time::sleep(Duration::from_millis(ms)).await;
@@ -707,7 +1050,7 @@ impl ControlPlane {
         }
     }
 
-    fn finish(&self, w: WorkspaceId, request: &str, ok: bool) -> ControlResponse {
+    fn finish(&self, w: WorkspaceId, request: &str, ok: bool, now: u64) -> ControlResponse {
         let mut st = self.state.lock().unwrap();
         let Some(j) = st.work.get_mut(request) else { return refused("unknown work request") };
         match j.state {
@@ -720,6 +1063,7 @@ impl ControlPlane {
                 } else {
                     WorkState::Failed
                 };
+                j.settled_tick = if matches!(j.state, WorkState::Done | WorkState::Failed) { Some(now) } else { None };
                 if let Some(i) = st.workers.get_mut(&w) {
                     i.used_mb = i.used_mb.saturating_sub(mem);
                 }
@@ -736,17 +1080,19 @@ impl ControlPlane {
         let lease = match self.durable.acquire_or_renew().await { Ok(Some(l)) => l, _ => return };
         if self.load_state().await.is_err() { return }
         self.on_leadership(lease.term);
-        self.recover_pending().await;
+        self.recover_pending(lease.term).await;
         if self.expire_leases_inner(lease.term).await {
             let _ = self.save_state(lease.term).await;
         }
+        drop(_guard);
+        if self.gc.enabled { let _ = self.compact_history_once().await; }
     }
 
     async fn expire_leases_inner(&self, term: u64) -> bool {
         if cfg!(feature = "mutate-no-lease-reassign") {
             return true;
         }
-        let now = now_ms();
+        let now = match self.durable.clock().await { Ok(v) => v, Err(_) => return false };
         let mut moves: Vec<(String, Name, WorkspaceId, u64)> = Vec::new();
         let mut group_moves: Vec<(Vec<Name>, WorkspaceId, String)> = Vec::new();
         {
@@ -758,10 +1104,11 @@ impl ControlPlane {
             }
             let order = st.order.clone();
             for r in order {
-                let (target, mem, attempts) = {
+                let (target, mem, attempts, already_unowned) = {
                     let j = &st.work[&r];
                     match j.state {
-                        WorkState::Running { worker, .. } if dead.contains(&worker) => (j.target.clone(), j.memory_mb, j.attempts),
+                        WorkState::Running { worker, .. } if dead.contains(&worker) || worker == unowned() =>
+                            (j.target.clone(), j.memory_mb, j.attempts, worker == unowned()),
                         _ => continue,
                     }
                 };
@@ -771,6 +1118,7 @@ impl ControlPlane {
                     .iter()
                     .find(|(w, i)| i.alive && i.lease_until > now && i.capacity_mb.saturating_sub(i.used_mb) >= mem && !dead.contains(w))
                     .map(|(w, _)| *w);
+                if next.is_none() && already_unowned { continue }
                 let j = st.work.get_mut(&r).unwrap();
                 j.attempts = attempts + 1;
                 match next {
@@ -819,10 +1167,7 @@ impl ControlPlane {
         }
         for (r, target, to, attempt) in moves {
             let req = format!("work/{r}/{attempt}");
-            let res = match self.durable.current().await {
-                Ok(Some(lease)) => self.durable.assign_group(&[target.clone()], to, req.as_bytes(), lease.term).await.map(|v| v[0]),
-                _ => Err("controller lost lease".into()),
-            };
+            let res = self.durable.assign_group(&[target.clone()], to, req.as_bytes(), term).await.map(|v| v[0]);
             if res.is_err() { return false }
             {
                 let mut st = self.state.lock().unwrap();
@@ -830,7 +1175,10 @@ impl ControlPlane {
                     if let (Ok(epoch), WorkState::Running { worker, delivered, .. }) = (&res, j.state.clone()) {
                         if worker == to {
                             j.state = if to == unowned() {
-                                WorkState::Queued
+                                // Keep the unowned fence visible in durable state.
+                                // A worker registering later can be assigned on the
+                                // next monitor tick without waiting for a poll.
+                                WorkState::Running { worker: unowned(), epoch: *epoch, delivered: false }
                             } else {
                                 WorkState::Running { worker, epoch: *epoch, delivered }
                             };
@@ -843,10 +1191,7 @@ impl ControlPlane {
             }
         }
         for (names, owner, req) in group_moves {
-            let res = match self.durable.current().await {
-                Ok(Some(lease)) => self.durable.assign_group(&names, owner, req.as_bytes(), lease.term).await,
-                _ => Err("controller lost lease".into()),
-            };
+            let res = self.durable.assign_group(&names, owner, req.as_bytes(), term).await;
             if res.is_err() { return false }
             if let Some(group) = self.state.lock().unwrap().groups.iter_mut().find(|g| g.request == req) {
                 group.pending = false;
@@ -868,13 +1213,15 @@ impl ControlPlane {
         targets: Vec<TargetReq>,
         memory_mb: u64,
         deadline_ms: u64,
+        term: u64,
     ) -> ControlResponse {
         let st = &self.cfg.store;
         let Some(w) = ws(&worker) else { return refused("bad worker ID") };
+        let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
         {
             let s = self.state.lock().unwrap();
             match s.workers.get(&w) {
-                Some(i) if i.alive && i.lease_until > now_ms() => {}
+                Some(i) if i.alive && i.lease_until > now => {}
                 _ => return refused("worker is not registered or its lease expired"),
             }
         }
@@ -940,7 +1287,7 @@ impl ControlPlane {
             }
             // J1: the envelope recorded for this request, or this one.
             if !cfg!(feature = "mutate-no-request-dedup") {
-                match st.meta.issue_job(&job).await {
+                match self.durable.issue_job(&job, term).await {
                     Ok(stored) if stored.body == job.body => job = stored,
                     Ok(_) => return refused("request ID already used for another envelope"),
                     Err(e) => return inconclusive(&e.to_string()),
@@ -969,7 +1316,7 @@ impl ControlPlane {
                     let job = job.clone();
                     let req = req.clone();
                     tokio::spawn(async move {
-                        let r = me.dispatch(&job, crx).await;
+                        let r = me.dispatch(&job, crx, term).await;
                         let _ = tx.send(Some(r));
                         me.state.lock().unwrap().inflight.remove(&req);
                     });
@@ -988,7 +1335,7 @@ impl ControlPlane {
     }
 
     /// Send the envelope to validators until one gives a valid receipt or refuses.
-    async fn dispatch(&self, job: &SignedJob, mut cancel: watch::Receiver<bool>) -> ControlResponse {
+    async fn dispatch(&self, job: &SignedJob, mut cancel: watch::Receiver<bool>, term: u64) -> ControlResponse {
         let st = &self.cfg.store;
         let n = self.cfg.validators.len();
         if n == 0 {
@@ -1030,7 +1377,6 @@ impl ControlPlane {
                         last = format!("{addr}: receipt does not verify or is not bound to the envelope");
                         continue;
                     }
-                    let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("controller lost lease") };
                     let stored = match self.durable.record_receipt(&job.body.request, &r, term).await {
                         Ok(s) => s,
                         Err(e) => return inconclusive(&e.to_string()),
@@ -1071,9 +1417,9 @@ impl ControlPlane {
     async fn cancel(&self, request: &str) -> ControlResponse {
         let req = request.as_bytes().to_vec();
         // J3 first: from here on no T1 accepts a receipt bound to this request.
-        if let Err(e) = self.cfg.store.meta.cancel_job(&req).await {
-            return inconclusive(&e.to_string());
-        }
+        let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("controller lost lease") };
+        if let Err(e) = self.durable.cancel_job(&req, term).await { return inconclusive(&e) }
+        let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
         {
             let mut s = self.state.lock().unwrap();
             if let Some(f) = s.inflight.get(&req) {
@@ -1088,6 +1434,7 @@ impl ControlPlane {
                 }
                 if let Some(j) = s.work.get_mut(request) {
                     j.state = WorkState::Cancelled;
+                    j.settled_tick = Some(now);
                 }
             }
         }

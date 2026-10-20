@@ -20,6 +20,7 @@ use tokio::task::JoinHandle;
 
 use crate::controller::{ControlRequest, ControlResponse, TargetReq};
 use crate::p1::{self, P1Group};
+use paralean_validator_api::rpc;
 
 #[derive(Debug)]
 pub enum WorkerError {
@@ -87,29 +88,91 @@ impl WorkerNode {
     }
 
     pub async fn register(&self) -> Result<ControlResponse, WorkerError> {
-        self.call(&ControlRequest::Register { worker: self.id().hex(), capacity_mb: self.capacity_mb }).await
+        // Return after the first live shard accepts us. Per-endpoint heartbeat
+        // tasks register other shards on Unknown, and Poll does so immediately
+        // for the exact shard it contacted. A blackholed endpoint cannot hold
+        // up this worker's first heartbeat.
+        let mut calls = tokio::task::JoinSet::new();
+        for addr in self.controller.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            let addr = addr.to_owned();
+            let request = ControlRequest::Register { worker: self.id().hex(), capacity_mb: self.capacity_mb };
+            let signer = self.writer.signer().clone();
+            let authority = self.writer.store.ring.authority;
+            calls.spawn(async move {
+                rpc::call_authenticated::<_, ControlResponse>(&addr, &request, &signer, &authority, Duration::from_secs(3)).await
+            });
+        }
+        while let Some(result) = calls.join_next().await {
+            if let Ok(Ok(r @ ControlResponse::Registered { .. })) = result { return Ok(r) }
+        }
+        Err(WorkerError::Io("no controller shard accepted registration".into()))
     }
 
     /// Renew the lease every `every` until the task is aborted (a crash, for the tests).
     pub fn spawn_heartbeats(self: &Arc<Self>, every: Duration) -> JoinHandle<()> {
         let me = self.clone();
         tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(every).await;
-                let _ = me.call(&ControlRequest::Heartbeat { worker: me.id().hex() }).await;
+            let mut tasks = tokio::task::JoinSet::new();
+            for addr in me.controller.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                let addr = addr.to_owned();
+                let worker = me.id().hex();
+                let capacity_mb = me.capacity_mb;
+                let signer = me.writer.signer().clone();
+                let authority = me.writer.store.ring.authority;
+                tasks.spawn(async move {
+                    loop {
+                        tokio::time::sleep(every).await;
+                        let response = rpc::call_authenticated::<_, ControlResponse>(&addr,
+                            &ControlRequest::Heartbeat { worker: worker.clone() }, &signer, &authority, Duration::from_secs(3)).await;
+                        if matches!(response, Ok(ControlResponse::Unknown)) {
+                            let _ = rpc::call_authenticated::<_, ControlResponse>(&addr,
+                                &ControlRequest::Register { worker: worker.clone(), capacity_mb },
+                                &signer, &authority, Duration::from_secs(3)).await;
+                        }
+                    }
+                });
             }
+            while tasks.join_next().await.is_some() {}
         })
     }
 
     pub async fn poll(&self) -> Result<Option<Work>, WorkerError> {
         let request = format!("poll/{}/{}", self.id().hex(), rand::random::<u64>());
-        match self.call(&ControlRequest::PollRequest { worker: self.id().hex(), request }).await? {
+        let mut saw_no_work = false;
+        for addr in self.controller.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            let response = rpc::call_authenticated(addr,
+                &ControlRequest::PollRequest { worker: self.id().hex(), request: request.clone() },
+                self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await;
+            match response {
+                Ok(ControlResponse::NoWork) => { saw_no_work = true; continue }
+                Ok(ControlResponse::Inconclusive { .. }) => continue,
+                Ok(ControlResponse::Unknown) => {
+                    let registration = rpc::call_authenticated::<_, ControlResponse>(addr,
+                        &ControlRequest::Register { worker: self.id().hex(), capacity_mb: self.capacity_mb },
+                        self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await;
+                    if matches!(registration, Ok(ControlResponse::Registered { .. })) {
+                        match rpc::call_authenticated::<_, ControlResponse>(addr,
+                            &ControlRequest::PollRequest { worker: self.id().hex(), request: request.clone() },
+                            self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await {
+                            Ok(ControlResponse::Work { request, target, epoch, memory_mb }) => {
+                                return Ok(Some(Work { request, target: Name::parse(&target), epoch, memory_mb }));
+                            }
+                            Ok(ControlResponse::NoWork) => saw_no_work = true,
+                            _ => {}
+                        }
+                    }
+                    continue;
+                }
+                Err(_) => continue,
+                Ok(response) => return match response {
             ControlResponse::Work { request, target, epoch, memory_mb } => {
                 Ok(Some(Work { request, target: Name::parse(&target), epoch, memory_mb }))
             }
-            ControlResponse::NoWork => Ok(None),
             other => Err(WorkerError::NoReceipt(other)),
+                },
+            }
         }
+        if saw_no_work { Ok(None) } else { Err(WorkerError::Io("no controller shard available to poll".into())) }
     }
 
     /// The group of the P1 store that declares `name`.

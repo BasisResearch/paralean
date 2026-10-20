@@ -29,3 +29,4 @@ import Paralean.Hardened
 import Paralean.HardenedExecution
 import Paralean.Workspaces
 import Paralean.CheckpointConflicts
+import Paralean.ControllerGc

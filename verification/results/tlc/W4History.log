@@ -1,0 +1,24 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 52 and seed 6912323358063497992 with 1 worker on 32 cores with 10923MB heap and 64MB offheap memory [pid: 88831] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4-scale/.runs/tla/run/W4History/W4History.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module W4History
+Starting... (2026-10-20 17:17:16)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:17:16.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 2.6E-12
+16315 states generated, 3780 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 15.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 3).
+Finished in 01s at (2026-10-20 17:17:17)
+==== Paralean TLC provenance ====
+module W4History
+config W4History.cfg
+expect pass
+checked 43c63a869d5b4ef23a2cc2f68dd96d699d46dbc33bac69819cc9c5b4679800ed  W4History.tla
+checked 7e3a522342995121a5aac40951a9813be879c24f21dba82f06d27c59e34573a1  W4History.cfg
+==== end provenance ====

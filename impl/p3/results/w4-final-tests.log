@@ -1,0 +1,134 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 25.67s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-6b1c6b0447df475e)
+
+running 2 tests
+test controller::gc_schedule_tests::gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight ... ok
+test gc::tests::stale_scanned_candidate_cannot_collect_new_retirement ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/adversarial.rs (impl/p2/target/debug/deps/adversarial-6096c03e75788a27)
+
+running 13 tests
+test changed_target_statement_is_rejected ... ok
+test dependency_must_be_published_with_a_receipt ... ok
+test end_to_end_target_work_publishes_with_bound_receipts ... ok
+test forged_receipts_fail_closed ... ok
+test job_issuer_keys_sign_target_free_envelopes_only ... ok
+test receipt_for_another_epoch_fails_closed ... ok
+test receipt_for_another_group_policy_checker_base_or_target_fails_closed ... ok
+test receipt_for_another_or_cancelled_request_fails_closed ... ok
+test receipt_under_an_unpinned_policy_fails_closed ... ok
+test revoked_or_retired_validator_key_fails_closed ... ok
+test stale_owner_after_lease_expiry_cannot_publish ... ok
+test validator_enforces_the_envelope_policy ... ok
+test worker_that_skips_validation_cannot_publish ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 279.23s
+
+     Running tests/auth.rs (impl/p2/target/debug/deps/auth-8d9d18fbcbf88fbf)
+
+running 2 tests
+test controller_rejects_unsigned_unknown_and_replayed_rpc ... ok
+test validator_rejects_unsigned_unknown_and_replayed_rpc ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.84s
+
+     Running tests/control.rs (impl/p2/target/debug/deps/control-95fdf065a3ba2a0f)
+
+running 6 tests
+test cancellation_stops_checks_and_publication ... ok
+test checker_memory_limit_gives_no_receipt ... ok
+test duplicate_and_retried_jobs_are_deduplicated ... ok
+test queues_apply_backpressure ... ok
+test validator_timeouts_give_no_receipt ... ok
+test work_is_admitted_within_each_workers_memory ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.49s
+
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-bb6ba5e71b4a032c)
+
+running 11 tests
+test different_topology_is_rejected_before_a_leader_can_write ... ok
+test elapsed_wall_time_alone_cannot_expire_a_lease ... ok
+test expired_same_holder_cannot_reuse_old_term_or_write_during_gap ... ok
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced ... ok
+test legacy_controller_state_requires_offline_migration ... ok
+test queued_target_claim_blocks_another_shards_assignment ... ok
+test replay_of_external_assignment_commits_the_controller_shard_claim ... ok
+test shard_terms_and_target_catalog_are_independent ... ok
+test submitted_work_routes_before_another_shard_can_claim_target ... ok
+test target_free_job_routes_its_cancellation_to_issuing_shard ... ok
+test unowned_fence_can_be_taken_by_later_registered_worker ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/gc.rs (impl/p2/target/debug/deps/gc-92e059b5ebcc1cd7)
+
+running 4 tests
+test controller_monitor_collects_only_when_enabled_and_preserves_queued_work ... ok
+test gc_rechecks_current_head_and_rejects_stale_leader ... ok
+test gc_requires_opt_in_grace_and_unpinned_superseded_root ... ok
+test load_during_collection_and_new_incarnation_of_same_hash ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s
+
+     Running tests/processes.rs (impl/p2/target/debug/deps/processes-2801ecd9e941a68a)
+
+running 4 tests
+test expired_owner_reassignment_survives_crash_before_snapshot ... ok
+test killed_owner_is_replaced_and_the_target_published ... ok
+test leader_killed_after_durable_assignment_redelivers_once ... ok
+test leader_killed_during_validation_recovers_j1_without_client_retry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.60s
+
+     Running tests/targets.rs (impl/p2/target/debug/deps/targets-4486674a5781b551)
+
+running 5 tests
+test joint_assignment_rejects_subset_and_expires_together ... ok
+test pending_two_name_proof_is_fenced_on_handover ... ok
+test singleton_group_and_work_apis_reject_overlaps_before_target_mutation ... ok
+test stale_joint_assignment_request_cannot_overwrite_handover ... ok
+test two_names_in_one_group_publish_with_one_bound_receipt ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.93s
+
+     Running tests/w4_dependencies.rs (impl/p2/target/debug/deps/w4_dependencies-adc945d5eebebe58)
+
+running 1 test
+test dependency_across_shards_remains_required_after_handover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/w4_history.rs (impl/p2/target/debug/deps/w4_history-28641f1025c1b0d3)
+
+running 11 tests
+test active_poll_tokens_cannot_starve_terminal_work ... ok
+test compacted_work_keeps_its_cross_shard_route ... ok
+test default_disabled_preserves_history_after_logical_grace ... ok
+test durable_history_write_limits_leave_head_and_markers_unchanged ... ok
+test history_batch_commit_survives_crash_before_memory_update ... ok
+test history_replay_rows_reject_conflicting_rewrites ... ok
+test old_poll_token_waits_for_its_work_to_settle_and_age ... ok
+test oversized_poll_token_does_not_block_small_history_replay ... ok
+test replay_survives_restart_with_gc_disabled_and_poll_tokens_do_not_steal_work ... ok
+test stale_history_compactor_cannot_prune ... ok
+test terminal_history_obeys_grace_and_preserves_active_and_retained_snapshot ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.46s
+
+     Running tests/w4_processes.rs (impl/p2/target/debug/deps/w4_processes-745afe0404e50c03)
+
+running 1 test
+test opposing_wall_clock_skew_and_paused_leader_preserve_handover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.98s
+
+     Running tests/w4_workers.rs (impl/p2/target/debug/deps/w4_workers-d5b4de7574c75a50)
+
+running 1 test
+test unresponsive_endpoint_does_not_starve_live_shard_heartbeats ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s

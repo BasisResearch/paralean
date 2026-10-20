@@ -162,6 +162,19 @@ witness_items=(
   'residual_two_candidates_rejected ExportLookupResidual NeverMultiRejected'
   'residual_changed_body_rejected ExportLookupResidual NeverChangedRejected'
   'catalogue_relay CatalogueExchange NeverRelayedChild'
+  'w4_handover W4Scale NeverHandover'
+  'w4_handover_publish W4Scale NeverHandoverPublished'
+  'w4_cross_shard W4Scale NeverDependentPublished'
+  'w4_collect W4Scale NeverCollected'
+  'w4_desktop_recovery W4Scale NeverRecovered'
+  'w4_retained W4Scale NeverRetained'
+  'history_compacted W4History NeverCompacted'
+  'history_poll_compacted W4History NeverPollCompacted'
+  'history_late_work W4History NeverReplayedAfterCompact'
+  'history_late_poll W4History NeverLatePoll'
+  'history_replay_gc_off W4History NeverReplayWithGcOff'
+  'history_handover W4History NeverHandover'
+  'history_cancelled_replay W4History NeverCancelledReplay'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -177,6 +190,195 @@ for item in "${witness_items[@]}"; do
   eval "case_$label() { witness_case $item; }"
   defcase "$label"
 done
+
+# W4 leases and controller-metadata collection. The observers remain intact
+# when the corresponding action guard is removed.
+defcase w4_no_term_fence
+case_w4_no_term_fence() {
+  prepare_case w4_no_term_fence
+  edit_once "$neg/w4_no_term_fence/W4Scale.tla" \
+    '  /\ TermOK(Home[o], w, o)' '  /\ TRUE'
+  run_expected_failure w4_no_term_fence W4Scale 'Invariant NoStalePublish is violated'
+}
+
+defcase w4_no_expiry
+case_w4_no_expiry() {
+  prepare_case w4_no_expiry
+  edit_once "$neg/w4_no_expiry/W4Scale.tla" \
+    'LeaseOK(s, w) == holder[s] = w /\ version[s] < expiry[s]' \
+    'LeaseOK(s, w) == holder[s] = w'
+  run_expected_failure w4_no_expiry W4Scale 'Invariant NoStalePublish is violated'
+}
+
+defcase w4_no_cross_shard_closure
+case_w4_no_cross_shard_closure() {
+  prepare_case w4_no_cross_shard_closure
+  edit_once "$neg/w4_no_cross_shard_closure/W4Scale.tla" \
+    'Protected == Closure(Closure(Closure(RootSet)))' 'Protected == RootSet'
+  run_expected_failure w4_no_cross_shard_closure W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_pending_root
+case_w4_no_pending_root() {
+  prepare_case w4_no_pending_root
+  edit_once "$neg/w4_no_pending_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup checkpoint \cup catalog'
+  run_expected_failure w4_no_pending_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_demand_root
+case_w4_no_demand_root() {
+  prepare_case w4_no_demand_root
+  edit_once "$neg/w4_no_demand_root/W4Scale.tla" \
+    '           \cup retained \cup UNION {demand[w] : w \in Workers}' \
+    '           \cup retained'
+  edit_once "$neg/w4_no_demand_root/W4Scale.cfg" \
+    'INVARIANTS RootsLive NoResurrection NoStalePublish NoUnrequestedFetch GraceKept NoDemandDeleted' \
+    'INVARIANTS NoDemandDeleted'
+  run_expected_failure w4_no_demand_root W4Scale 'Invariant NoDemandDeleted is violated'
+}
+
+defcase w4_no_grace
+case_w4_no_grace() {
+  prepare_case w4_no_grace
+  edit_once "$neg/w4_no_grace/W4Scale.tla" \
+    'OldEnough(o) == retired[o] > 0 /\ version[Home[o]] >= retired[o] + Grace' \
+    'OldEnough(o) == retired[o] > 0'
+  run_expected_failure w4_no_grace W4Scale 'Invariant GraceKept is violated'
+}
+
+defcase w4_no_checkpoint_root
+case_w4_no_checkpoint_root() {
+  prepare_case w4_no_checkpoint_root
+  edit_once "$neg/w4_no_checkpoint_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup catalog'
+  run_expected_failure w4_no_checkpoint_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_catalog_root
+case_w4_no_catalog_root() {
+  prepare_case w4_no_catalog_root
+  edit_once "$neg/w4_no_catalog_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint'
+  run_expected_failure w4_no_catalog_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_retained_root
+case_w4_no_retained_root() {
+  prepare_case w4_no_retained_root
+  edit_once "$neg/w4_no_retained_root/W4Scale.tla" \
+    '           \cup retained \cup UNION {demand[w] : w \in Workers}' \
+    '           \cup UNION {demand[w] : w \in Workers}'
+  run_expected_failure w4_no_retained_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_unsolicited_fetch
+case_w4_unsolicited_fetch() {
+  prepare_case w4_unsolicited_fetch
+  edit_once "$neg/w4_unsolicited_fetch/W4Scale.tla" \
+    '  /\ o \in demand[w]' \
+    '  /\ TRUE'
+  run_expected_failure w4_unsolicited_fetch W4Scale 'Invariant NoUnrequestedFetch is violated'
+}
+
+# W4 history compaction: one atomic metadata transaction moves terminal work
+# and stable poll bindings to immutable replay rows before pruning the head.
+defcase history_no_fence
+case_history_no_fence() {
+  prepare_case history_no_fence
+  edit_once "$neg/history_no_fence/W4History.tla" \
+    'FenceOK(w) == LeaseOK(w) /\ begun[w] = term' \
+    'FenceOK(w) == TRUE'
+  run_expected_failure history_no_fence W4History 'Invariant FencedCompact is violated'
+}
+
+defcase history_no_terminal_check
+case_history_no_terminal_check() {
+  prepare_case history_no_terminal_check
+  edit_once "$neg/history_no_terminal_check/W4History.tla" \
+    'TerminalOK == status = "done"' 'TerminalOK == TRUE'
+  run_expected_failure history_no_terminal_check W4History 'Invariant PendingKept is violated'
+}
+
+defcase history_no_work_marker
+case_history_no_work_marker() {
+  prepare_case history_no_work_marker
+  edit_once "$neg/history_no_work_marker/W4History.tla" \
+    "  /\\ workReplay' = TRUE" "  /\\ workReplay' = FALSE"
+  run_expected_failure history_no_work_marker W4History 'Invariant ReplayCovered is violated'
+}
+
+defcase history_no_poll_marker
+case_history_no_poll_marker() {
+  prepare_case history_no_poll_marker
+  edit_once "$neg/history_no_poll_marker/W4History.tla" \
+    "  /\\ pollReplay' = (pollReplay \\/ pollSnapshot)" \
+    "  /\\ pollReplay' = pollReplay"
+  run_expected_failure history_no_poll_marker W4History 'Invariant PollCovered is violated'
+}
+
+defcase history_no_work_replay_lookup
+case_history_no_work_replay_lookup() {
+  prepare_case history_no_work_replay_lookup
+  edit_once "$neg/history_no_work_replay_lookup/W4History.tla" \
+    'WorkKnown == status # "absent" \/ workReplay' \
+    'WorkKnown == status # "absent"'
+  run_expected_failure history_no_work_replay_lookup W4History 'Invariant NoDuplicateWork is violated'
+}
+
+defcase history_no_poll_replay_lookup
+case_history_no_poll_replay_lookup() {
+  prepare_case history_no_poll_replay_lookup
+  edit_once "$neg/history_no_poll_replay_lookup/W4History.tla" \
+    'PollKnown == pollSnapshot \/ pollReplay' \
+    'PollKnown == pollSnapshot'
+  run_expected_failure history_no_poll_replay_lookup W4History 'Invariant NoDuplicatePoll is violated'
+}
+
+defcase history_no_identity_check
+case_history_no_identity_check() {
+  prepare_case history_no_identity_check
+  edit_once "$neg/history_no_identity_check/W4History.tla" \
+    '  /\ (~WorkKnown \/ p = StoredPayload)' '  /\ TRUE'
+  run_expected_failure history_no_identity_check W4History 'Invariant ExactIdentity is violated'
+}
+
+defcase history_no_poll_worker_check
+case_history_no_poll_worker_check() {
+  prepare_case history_no_poll_worker_check
+  edit_once "$neg/history_no_poll_worker_check/W4History.tla" \
+    '  /\ (~PollKnown \/ pollWorker = w)' '  /\ TRUE'
+  run_expected_failure history_no_poll_worker_check W4History 'Invariant NoWrongWorker is violated'
+}
+
+defcase history_no_work_grace
+case_history_no_work_grace() {
+  prepare_case history_no_work_grace
+  edit_once "$neg/history_no_work_grace/W4History.tla" \
+    '  /\ tick >= workFinishedTick + Grace' '  /\ TRUE'
+  run_expected_failure history_no_work_grace W4History 'Invariant LogicalGrace is violated'
+}
+
+defcase history_no_poll_grace
+case_history_no_poll_grace() {
+  prepare_case history_no_poll_grace
+  edit_once "$neg/history_no_poll_grace/W4History.tla" \
+    '  /\ tick >= pollStableTick + Grace' \
+    '  /\ TRUE'
+  run_expected_failure history_no_poll_grace W4History 'Invariant LogicalGrace is violated'
+}
+
+defcase history_no_cancel_overlay
+case_history_no_cancel_overlay() {
+  prepare_case history_no_cancel_overlay
+  edit_once "$neg/history_no_cancel_overlay/W4History.tla" \
+    'DuplicateResult == IF cancelled THEN "cancelled" ELSE "done"' \
+    'DuplicateResult == "done"'
+  run_expected_failure history_no_cancel_overlay W4History 'Invariant CancelOverlay is violated'
+}
 
 # ---------------------------------------------------------------------------
 # Source-qualified catalogue exchange guards.

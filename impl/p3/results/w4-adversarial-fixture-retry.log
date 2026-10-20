@@ -1,0 +1,8 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.93s
+     Running tests/adversarial.rs (impl/p2/target/debug/deps/adversarial-6096c03e75788a27)
+
+running 1 test
+test worker_that_skips_validation_cannot_publish ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 18.32s

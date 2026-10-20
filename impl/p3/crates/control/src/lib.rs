@@ -15,6 +15,7 @@
 pub mod checker;
 pub mod controller;
 pub mod durable;
+pub mod gc;
 pub mod p1;
 pub mod server;
 pub mod validator;
