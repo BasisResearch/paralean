@@ -6,9 +6,13 @@ source impl/p2/scripts/env.sh
 root="$PWD"
 out="$root/results/w2/mutations"
 mkdir -p "$out"
-cargo test --manifest-path impl/p2/Cargo.toml -j 1 -p paralean-store -p paralean-control -p paralean-validator-api --lib > "$out/baseline.log" 2>&1
-cargo test --manifest-path impl/p2/Cargo.toml -j 1 -p s3-guard >> "$out/baseline.log" 2>&1
+cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-store -p paralean-control -p paralean-validator-api --lib > "$out/baseline.log" 2>&1
+cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p s3-guard >> "$out/baseline.log" 2>&1
 python3 impl/p2/scripts/test-storage-boundary.py >> "$out/baseline.log" 2>&1
+# FoundationDB's connection string is its only client credential: never commit one.
+if git grep -nE 'paralean:[a-z0-9]+@[0-9]' -- results docs impl scripts; then
+  echo "an FDB connection string is committed (redact it and treat that cluster as exposed)"; exit 1
+fi
 cases=(
  "paralean-store|mutate-public-key-file|sign::security_tests::private_key_file_replaces_public_inode_and_symlink|--lib"
  "paralean-store|mutate-weak-signature|sign::security_tests::weak_public_key_identity_signature_is_rejected|--lib"
@@ -20,11 +24,12 @@ cases=(
  "paralean-validator-api|mutate-oversized-frame|rpc::tests::oversized_frame_is_rejected_without_waiting_for_body|--lib"
  "s3-guard|mutate-allow-delete|tests::encoded_and_unknown_mutations_are_denied|"
  "s3-guard|mutate-unbounded-body|tests::streamed_body_limit_is_enforced|"
+ "s3-guard|mutate-allow-overwrite|tests::overwrites_copies_and_unaddressed_keys_are_denied|"
 )
 for entry in "${cases[@]}"; do
   IFS='|' read -r package feature test target <<< "$entry"
   # Each verdict must name the test; a compiler or infrastructure failure is not a kill.
-  if cargo test --manifest-path impl/p2/Cargo.toml -j 1 -p "$package" --features "$feature" $target "$test" -- --exact > "$out/$feature.log" 2>&1; then
+  if cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p "$package" --features "$feature" $target "$test" -- --exact > "$out/$feature.log" 2>&1; then
     echo "SURVIVED $feature"; exit 1
   fi
   if ! grep -Fq "test $test ... FAILED" "$out/$feature.log"; then
@@ -39,6 +44,7 @@ source = Path("impl/p2/scripts")
 text = (source / "check-storage-boundary.py").read_text()
 mutations = {
     "private_backend_mode": ('if parent.st_uid != os.getuid() or stat.S_IMODE(parent.st_mode) & 0o077:', 'if False:'),
+    "private_secret_files": ('if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) & 0o077:', 'if False:'),
     "private_backend_tcp": ('raise ValueError("direct Garage TCP port is reachable; restart this instance")', 'return'),
 }
 for name, (old, new) in mutations.items():
@@ -52,4 +58,4 @@ for name, (old, new) in mutations.items():
         assert result.returncode != 0 and "AssertionError: ValueError not raised" in result.stderr, result.stderr
         print("detected", name)
 PY
-echo "W2 security mutations: 12/12 detected"
+echo "W2 security mutations: all detected"

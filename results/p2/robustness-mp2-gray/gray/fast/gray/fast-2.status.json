@@ -233,7 +233,7 @@
             "tenant_mode" : "disabled",
             "usable_regions" : 1
         },
-        "connection_string" : "paralean:mp2gray00000000578a@127.0.0.1:24100,127.0.0.1:24101,127.0.0.1:24102,127.0.0.1:24103,127.0.0.1:24104",
+        "connection_string" : "paralean:<redacted>@127.0.0.1:24100,127.0.0.1:24101,127.0.0.1:24102,127.0.0.1:24103,127.0.0.1:24104",
         "data" : {
             "least_operating_space_bytes_log_server" : 266854106009,
             "least_operating_space_bytes_storage_server" : 266854121349,

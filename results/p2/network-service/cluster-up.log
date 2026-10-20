@@ -44,4 +44,4 @@ garage: 1 node(s), replication 1, bucket paralean
    Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/s3-guard)
     Finished `release` profile [optimized] target(s) in 9.01s
 s3: http://127.0.0.1:24550 (guard) -> 127.0.0.1:24520 (garage)
-fdb: /data/home/kirancodes/paralean-p2/inst/mp2-net/fdb/fdb.cluster (paralean:p2mp2netbb952f55db70@127.0.0.1:24500)
+fdb: /data/home/kirancodes/paralean-p2/inst/mp2-net/fdb/fdb.cluster (paralean:<redacted>@127.0.0.1:24500)

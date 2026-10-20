@@ -1,6 +1,6 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.40s
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-e97bb67eebc4a3c2)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.97s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-182baa58796542cd)
 
 running 1 test
 test sign::security_tests::debug_does_not_disclose_role_seeds ... FAILED
@@ -9,7 +9,7 @@ failures:
 
 ---- sign::security_tests::debug_does_not_disclose_role_seeds stdout ----
 
-thread 'sign::security_tests::debug_does_not_disclose_role_seeds' (2776158) panicked at crates/store/src/sign.rs:276:9:
+thread 'sign::security_tests::debug_does_not_disclose_role_seeds' (1598837) panicked at crates/store/src/sign.rs:280:9:
 assertion failed: !text.contains(k.authority.as_ref().unwrap())
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

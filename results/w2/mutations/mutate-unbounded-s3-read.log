@@ -1,6 +1,6 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.56s
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-47f4aac52b1014ab)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.93s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-1a4be9de9e298c10)
 
 running 1 test
 test s3::security_tests::oversized_s3_body_is_rejected_before_hashing ... FAILED
@@ -9,7 +9,7 @@ failures:
 
 ---- s3::security_tests::oversized_s3_body_is_rejected_before_hashing stdout ----
 
-thread 's3::security_tests::oversized_s3_body_is_rejected_before_hashing' (2784590) panicked at crates/store/src/s3.rs:332:9:
+thread 's3::security_tests::oversized_s3_body_is_rejected_before_hashing' (1613140) panicked at crates/store/src/s3.rs:414:9:
 assertion failed: read_bounded(ByteStream::from(vec![0; 4097]), 4096).await.is_err()
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

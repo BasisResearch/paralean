@@ -1,65 +1,64 @@
-    Blocking waiting for file lock on package cache
-    Blocking waiting for file lock on package cache
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
    Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
    Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.63s
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-544331a87705af98)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.92s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-7f3a0cbb4512630c)
 
-running 2 tests
+running 3 tests
+test validator::completed_tests::completed_receipt_cache_is_bounded ... ok
 test server::tests::connection_admission_is_bounded_before_authentication ... ok
 test server::tests::incomplete_frames_expire_and_release_admission ... ok
 
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
 
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-a15152ecf87f04e7)
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-119366066a7a6efd)
 
 running 22 tests
-test group_chunks::tests::valid_wrapper_preserves_order_and_deduplicates_transfer_refs ... ok
 test group_chunks::tests::conflicting_lengths_and_unbounded_refs_are_rejected ... ok
-test pce::tests::rejects_non_minimal_and_trailing ... ok
-test id::tests::sha256_vectors ... ok
-test pce::tests::uvarint_matches_leb128_and_p1 ... ok
-test pce::tests::hostile_counts_are_bounded_before_container_allocation ... ok
-test group_chunks::tests::reserved_prefix_is_fail_closed ... ok
+test group_chunks::tests::valid_wrapper_preserves_order_and_deduplicates_transfer_refs ... ok
 test id::tests::preimage_shape_and_hash ... ok
-test s3::security_tests::oversized_s3_body_is_rejected_before_hashing ... ok
 test id::tests::matches_p1_lean_sha256 ... ok
 test objects::tests::roundtrips_and_strictness ... ok
-test sign::security_tests::debug_does_not_disclose_role_seeds ... ok
 test pce::tests::nat_and_sets ... ok
-test id::tests::p1_group_id_matches ... ok
-test objects::tests::names ... ok
-test group_chunks::tests::maximum_distinct_refs_fit_one_fdb_index_value ... ok
-test s3::security_tests::config_debug_redacts_credentials ... ok
+test id::tests::sha256_vectors ... ok
+test pce::tests::hostile_counts_are_bounded_before_container_allocation ... ok
 test group_chunks::tests::legacy_opaque_group_has_unknown_chunk_coverage ... ok
+test id::tests::p1_group_id_matches ... ok
+test pce::tests::rejects_non_minimal_and_trailing ... ok
+test s3::security_tests::config_debug_redacts_credentials ... ok
+test s3::security_tests::oversized_s3_body_is_rejected_before_hashing ... ok
+test sign::security_tests::debug_does_not_disclose_role_seeds ... ok
+test objects::tests::names ... ok
+test group_chunks::tests::reserved_prefix_is_fail_closed ... ok
+test pce::tests::uvarint_matches_leb128_and_p1 ... ok
+test group_chunks::tests::maximum_distinct_refs_fit_one_fdb_index_value ... ok
 test sign::security_tests::weak_public_key_identity_signature_is_rejected ... ok
+test objects::tests::signed_roundtrip ... ok
 test sign::security_tests::private_key_file_replaces_public_inode_and_symlink ... ok
 test receipt::tests::envelope_roundtrip_and_strictness ... ok
-test objects::tests::signed_roundtrip ... ok
 
-test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
 
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-655e979269c3f81a)
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-1549f82478f1a3e1)
 
 running 1 test
 test rpc::tests::oversized_frame_is_rejected_without_waiting_for_body ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/s3-guard)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
-     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-cd4e38f26b0e7e09)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-31f287b10e3cc8a8)
 
-running 3 tests
-test tests::refuses_deletes_and_config ... ok
+running 4 tests
 test tests::encoded_and_unknown_mutations_are_denied ... ok
+test tests::refuses_deletes_and_config ... ok
+test tests::overwrites_copies_and_unaddressed_keys_are_denied ... ok
 test tests::streamed_body_limit_is_enforced ... ok
 
-test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
-.
+..
 ----------------------------------------------------------------------
-Ran 1 test in 0.014s
+Ran 2 tests in 0.004s
 
 OK

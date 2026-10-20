@@ -18,6 +18,7 @@ set -euo pipefail
 umask 077
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
+. "$here/private.sh"
 P="$PARALEAN_P2_PREFIX"
 H="$PARALEAN_HOME"
 engine="${PARALEAN_FDB_ENGINE:-ssd}"
@@ -196,14 +197,16 @@ if garage status 2>/dev/null | grep -q "NO ROLE ASSIGNED"; then
   garage layout apply --version $(( ${v:-0} + 1 )) >/dev/null
 fi
 garage bucket info "$PARALEAN_S3_BUCKET" >/dev/null 2>&1 || garage bucket create "$PARALEAN_S3_BUCKET" >/dev/null
-garage key info "$PARALEAN_S3_ACCESS_KEY" >/dev/null 2>&1 || \
-  garage key import --yes -n paralean-app "$PARALEAN_S3_ACCESS_KEY" "$PARALEAN_S3_SECRET_KEY" >/dev/null
+garage key info "$PARALEAN_S3_ACCESS_KEY" >/dev/null 2>&1 || import_app_key "$PARALEAN_GARAGE_ADMIN_PORT"
 garage bucket allow --read --write "$PARALEAN_S3_BUCKET" --key "$PARALEAN_S3_ACCESS_KEY" >/dev/null
 if [ -z "$PARALEAN_INSTANCE" ]; then
-  python3 "$here/check-storage-boundary.py" "$P/garage/garage.toml" "$PARALEAN_GARAGE_S3_PORT"
+  make_private "$P/garage" "$P/fdb" "$P/run"
+  python3 "$here/check-storage-boundary.py" "$P/garage/garage.toml" "$PARALEAN_GARAGE_S3_PORT" "$PARALEAN_FDB_CLUSTER"
 else
+  make_private "$H" "$H/fdb" "$H/garage" "$H/run"
   for j in $(seq 0 $((PARALEAN_GARAGE_NODES - 1))); do
-    python3 "$here/check-storage-boundary.py" "$H/garage/n$j/garage.toml" "$((PARALEAN_GARAGE_S3_PORT + j))"
+    make_private "$H/garage/n$j"
+    python3 "$here/check-storage-boundary.py" "$H/garage/n$j/garage.toml" "$((PARALEAN_GARAGE_S3_PORT + j))" "$PARALEAN_FDB_CLUSTER"
   done
 fi
 echo "garage: $PARALEAN_GARAGE_NODES node(s), replication $PARALEAN_GARAGE_REPLICATION, bucket $PARALEAN_S3_BUCKET"
@@ -220,4 +223,4 @@ if ! alive s3-guard; then
 fi
 for i in $(seq 1 20); do curl -s -o /dev/null "$PARALEAN_S3_ENDPOINT" && break; sleep 0.5; done
 echo "s3: $PARALEAN_S3_ENDPOINT (guard) -> $upstreams (garage)"
-echo "fdb: $PARALEAN_FDB_CLUSTER ($(cat "$PARALEAN_FDB_CLUSTER"))"
+echo "fdb: $PARALEAN_FDB_CLUSTER"
