@@ -1,0 +1,36 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-6244ea4e96296e0e)
+
+running 14 tests
+test bounded_pages_and_restart_replay_deferred_missing_object ... anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-2464833-826427999-0: retryable event failure: t-net-cursor-0-2464833-826427999-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+ok
+test catalogue_relay_retains_the_original_source_and_commit_proof ... ok
+test chunked_group_fetches_deduplicated_chunk_and_retries_missing_source ... ok
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... anti-entropy t-net-marker-layout-1-2464833-46931987-10 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d312d323436343833332d34363933313938372d3130000261656c6f670033000000007ae2f1da00000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 remote=b73b01f0c805b110ad4f2a978e3f69c725f0630fff9eaa8c8e8c318288411700 differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+anti-entropy t-net-marker-layout-0-2464833-46926670-9 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d302d323436343833332d34363932363637302d39000261656c6f670033000000007ae1c1e100000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=b73b01f0c805b110ad4f2a978e3f69c725f0630fff9eaa8c8e8c318288411700 remote=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+ok
+test malformed_source_receipt_cannot_be_imported_and_repair_allows_retry ... anti-entropy t-net-invalid-receipt-0-2464833-179203794-12: retryable event failure: t-net-invalid-receipt-0-2464833-179203794-12: decode: unexpected end of input
+ok
+test pinned_federation_rejects_changed_roster_and_wrong_peer_key ... ok
+test pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle ... ok
+test receipt_only_marker_variants_converge_and_keep_both_certificates ... ok
+test restarted_puller_resumes_a_persisted_metadata_fragment_cursor ... ok
+test scheduled_pull_observes_publication_after_service_start_and_stops_cleanly ... anti-entropy t-net-scheduled-0-2464833-69820341-27: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy t-net-scheduled-0-2464833-69820341-27: RoundStats { received_events: 1, received_parts: 8, fetched_objects: 3, applied: 1, present: 0, deferred: 0, terminal: 0 }
+ok
+test server_rejects_a_stale_generation_before_serving_changes ... ok
+test simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge ... ok
+test target_home_publication_reaches_third_deployment_without_local_target_key ... ok
+test three_deployment_group_and_tombstone_relay_preserves_origin_evidence ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.02s
+

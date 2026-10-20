@@ -15,6 +15,17 @@ pub fn deployment(name: &str) -> String {
     format!("t-{name}-{}-{}-{}", std::process::id(), nanos % 1_000_000_000, COUNTER.fetch_add(1, Ordering::Relaxed))
 }
 
+/// A first write can report already-present after FDB loses a successful commit reply.
+/// Tests still require its durable effect and reject a false result without this event.
+pub fn real_commit_unknowns(faults: &Faults) -> u64 {
+    faults.stats().get("real-commit-unknown-result").copied().unwrap_or(0)
+}
+
+pub fn assert_fresh_or_real_unknown(fresh: bool, before: u64, faults: &Faults) {
+    assert!(fresh || real_commit_unknowns(faults) > before,
+        "first operation reported an existing effect without a real ambiguous commit");
+}
+
 pub struct Env {
     pub store: Store,
     pub kf: KeyFile,

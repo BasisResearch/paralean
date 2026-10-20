@@ -1,0 +1,8 @@
+[2026-10-20T04:20:41Z] generate distinct random local authority, validator, writer and transport keys
+[2026-10-20T04:20:41Z] pin identical public federation roster before publication
+[2026-10-20T04:20:43Z] publish a free group, checkpoint, and home-target group at A
+[2026-10-20T04:20:49Z] B discovered free and home-target groups; cursor drained and audit passed
+[2026-10-20T04:20:49Z] SIGTERM B service, await clean exit, and restart with the same durable cursor
+[2026-10-20T04:20:51Z] publish a second group after B restart and verify incremental arrival
+[2026-10-20T04:20:53Z] PASS: two-process authenticated CLI anti-entropy, restart cursor, graceful SIGTERM
+[2026-10-20T04:20:53Z] public evidence: /data/home/kirancodes/Documents/code/paralean-m-p2/results/p2/ae-cli-smoke-20261020T042041Z-2398435 (private local files: /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/ae-cli-smoke-20261020T042041Z-2398435)

@@ -51,6 +51,7 @@ pub struct RoundStats {
     pub applied: usize,
     pub present: usize,
     pub deferred: usize,
+    /// Conflicts archived this turn, or at least one when an older diagnostic exists.
     pub terminal: usize,
 }
 
@@ -311,6 +312,10 @@ impl Puller {
         stats: &mut RoundStats,
     ) -> Result<()> {
         if matches!(p.state, PendingState::Terminal(_)) {
+            // Migrate terminal rows left by older deployments out of the active
+            // queue so they cannot consume the receiver's pending quota.
+            self.save_pending(p.generation, cursor, &p, &[]).await?;
+            stats.terminal += 1;
             return Ok(());
         }
         let source = &self.remote.peer.deployment;
@@ -573,6 +578,19 @@ impl Puller {
             }
         }
         queued?;
+        // A single bounded read preserves --once's nonzero conflict exit status
+        // without replaying the (potentially large) diagnostic archive.
+        if !self
+            .writer
+            .store
+            .ae_terminal_page(source, None, 1)
+            .await
+            .map_err(|e| e.to_string())?
+            .entries
+            .is_empty()
+        {
+            stats.terminal = stats.terminal.max(1);
+        }
         Ok(stats)
     }
 }

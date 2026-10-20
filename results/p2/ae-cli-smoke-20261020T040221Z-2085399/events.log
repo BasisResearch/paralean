@@ -1,0 +1,4 @@
+[2026-10-20T04:02:21Z] generate distinct random local authority, validator, writer and transport keys
+[2026-10-20T04:02:21Z] pin identical public federation roster before publication
+[2026-10-20T04:02:24Z] publish a free group, checkpoint, and home-target group at A
+[2026-10-20T04:03:35Z] FAIL: B did not discover group 13f38a88186d87d6090a96be1b96888cfde9d5c3a5bedf7e9cdd02a4a1dba369 (first)

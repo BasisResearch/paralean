@@ -1,0 +1,12 @@
+started fdbserver-0 (127.0.0.1:24800)
+started fdbserver-1 (127.0.0.1:24801)
+started fdbserver-2 (127.0.0.1:24802)
+started fdbserver-3 (127.0.0.1:24803)
+started fdbserver-4 (127.0.0.1:24804)
+started fdbserver-5 (127.0.0.1:24805)
+Database created
+The database is available, but has issues (type 'status' for more information).
+started garage-0
+garage: 1 node(s), replication 1, bucket paralean
+s3: http://127.0.0.1:24850 (guard) -> 127.0.0.1:24820 (garage)
+fdb: /data/home/kirancodes/paralean-p2/inst/mp2-fdb-gate/fdb/fdb.cluster (paralean:p2mp2fdbgate567d738d01d5@127.0.0.1:24800,127.0.0.1:24801,127.0.0.1:24802,127.0.0.1:24803,127.0.0.1:24804)

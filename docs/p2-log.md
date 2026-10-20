@@ -544,6 +544,10 @@ in P1.
 
 ## Not done
 
+This is the historical `p2-rest` backlog. The `m-p2` workstream below records
+which anti-entropy and fault items have since been implemented and verified,
+with remaining limitations kept explicit.
+
 - Buildability beyond the build-receipt verdict (unchanged from `p2`). Receipt binding is
   P3's (merged; see below).
 - **Tombstones.**
@@ -737,7 +741,8 @@ The implementation design and wire/store API contract are in
 - **Layout:** add `federation/config` and `aegeneration`; append-only
   `aelog/<commit-versionstamp>/<operation>`; receiver state
   `aecursor/<source>`, `aepending/<source>/<event>`,
-  `aepart/<source>/<event>/<sequence>` and `aecount/<source>`; authenticated
+  `aeterminal/<source>/<event>`, `aepart/<source>/<event>/<sequence>` and
+  `aecount/<source>` (active pending rows only); authenticated
   `gchunks/<group>`; compatible marker copies
   `mvariant/<group>/<marker>` and `vcer/<group>/<marker>/<writer>`;
   exact signed-job evidence `jobproof/<group>/<marker>/<publisher-cert>`;
@@ -764,22 +769,36 @@ The implementation design and wire/store API contract are in
   a different deployment's signature.
   Cursor movement and pending-fragment insertion are one transaction; import
   of a verified foreign catalogue is one source-qualified transaction that
-  never advances a local fence.
+  never advances a local fence. A terminal outcome atomically archives its
+  event and reason, deletes active pending/fragments and frees its quota slot;
+  terminal diagnostics remain pageable and cannot starve later valid events.
 - **Content-addressed writes and refinement:** a new group wrapper begins with
   raw `paralean-group-chunked-v1`, then a PCE version, opaque core and ordered
   `(chunk ID, stored-preimage length)` references. Its full bytes remain under
   `v0/group`; the refs are authenticated by that group ID and checked against
-  `gchunks`. T1/T9 require local acknowledgements for each referenced chunk.
+  `gchunks`. New wrappers admit at most 2,048 ordered references, bounding the
+  one-value derived index to 75,778 bytes at maximum distinct IDs and lengths,
+  below FoundationDB's 100,000-byte value limit. T1/T9 require local
+  acknowledgements for each referenced chunk.
   Legacy opaque P1 groups have unknown chunk coverage, rather than an asserted
   empty chunk set. Commit-versionstamp pagination prevents inserts behind a
   cursor; `more()` is followed even after a short FDB batch. A deferred event
   is durably queued before the cursor passes it, then replayed idempotently.
   Receipt-only marker variants preserve immutable placement, revisions, root
-  and lineage; the lowest locally certified, non-revoked variant is selected.
+  and lineage; the lowest locally certified, non-revoked variant is preferred.
+  If none qualifies, lookup selects a certified suspect variant, then the
+  legacy base for inspection; discovery still requires a valid local
+  certificate, and the fallback does not admit a new revoked receipt.
   Other marker differences produce a field-level diagnostic. Source-signed
   catalogue records, tokens and certificates remain source-qualified and do
   not become local fenced commits. The target-home rule is checked by the new
-  TargetNames TLA module and its mutation case.
+  `TargetHomes.tla` model refining TargetNames and its mutation case.
+- **Trust boundary:** signed TCP frames authenticate configured deployments but
+  carry plaintext. An authenticated federation member can `Fetch` any known
+  content-addressed object, including staged/unpublished bytes. This does not
+  satisfy the receipt, publication or source-certificate guards. Deployments
+  must trust their peers as content readers and protect the network path if
+  confidentiality is required; P2 does not claim certificate-gated read access.
 
 The P2 plan/README sentence is: “P2 anti-entropy is a scheduled, authenticated
 TCP service with commit-ordered bounded pages, durable replay cursors, chunk and
@@ -810,9 +829,134 @@ Two real failures found during review/testing were fixed rather than weakening
 the cases. A mutable S3 HEAD length could persist corrupt-object length metadata
 and prevent later repair: materialization now derives lengths from hash-verified
 GETs and checks derived chunk indexes against the group bytes. This costs a GET
-for each referenced object when materializing an event, including continuation
-pages; it still avoids full-store export each round. Also, signed jobs with equal
+for referenced non-chunk objects when materializing an event, including continuation
+pages; chunk lengths come from the authenticated group manifest. It still avoids
+full-store export each round. Also, signed jobs with equal
 body IDs can have different issuer signatures: `jobproof` retains the exact
 signed envelope paired with the publisher certificate, so relay events cannot
 substitute another deployment's signature. A concurrent first-receive race now
 defers for restaging when another marker wins the slot before T9 commits.
+
+### Merged baseline verification and final review
+
+On main `cb1ca05`, the final marker fast path passed the store baseline
+**53/53**, the property suite with **150 cases**, and legacy anti-entropy
+**9/9 with 48 randomized cases**. P3's adversarial suite passed **13/13**.
+The guard-removal matrix detected **26/26** listed mutation/test pairs.
+Evidence is in `results/p2/merged-gates/`; `context.json` identifies the pinned
+fork and the read-only P1 artifacts, whose sources match merged main. The
+fast path only avoids certificate/receipt reads when no marker variants exist;
+the return value remains the legacy base marker. The anti-entropy run took
+332.48 s after this change versus 404.61 s immediately before it on the shared
+host; this is not a controlled benchmark or a claim about the historical runs.
+
+The expanded network suite passed **14/14**, including durable continuation
+from an 80 KiB marker split across metadata pages. Two actual CLI service
+processes on independent `mp2-net` and `mp2-peer` instances passed publication,
+target receipt, catalogue, incremental restart and graceful SIGTERM checks.
+The final smoke evidence is
+`results/p2/ae-cli-smoke-20261020T042041Z-2398435/`; private authority and
+transport keys remain under ignored `.runs/`.
+Two earlier smoke attempts are retained: the first incorrectly searched the
+abbreviated `discover` output for a full ID, and the second signalled a shell
+wrapper instead of the service process. The corrected script checks an exact-ID
+GET and uses `exec` so SIGTERM and `wait` address the actual daemon.
+
+Final review found that retained terminal conflicts could exhaust the 10,000
+active-event quota and prevent newer valid events from arriving. Terminal
+diagnostics now move atomically to `aeterminal`, freeing the active count and
+staged fragments. Stale retries cannot resurrect an archived event. The
+network suite passed **14/14 again** after this fix; the conflict regression
+checks the exact durable diagnostic, zero active count, cleared fragments,
+repeated conflict status, and arrival of a later unrelated group.
+`ae-status` pages archived diagnostics separately. `--once` retains a nonzero
+conflict result, using one archive entry as an indicator rather than scanning
+or counting the entire archive.
+
+The first plain remote gate run exposed its fixed 1.5-second validator startup
+race: Bob's initial validation got `Connection refused`, causing gate items
+1 and 7 to fail while later validations and the other checks passed. That
+failure is retained in `p3-remote-final.log`. The P2-owned
+`scripts/remote-gate.py` runner loads the unchanged P3 scenario and replaces
+only its startup sleep with a bounded readiness wait. The rerun passed **10/10**
+gate checks in **200.4 s**, including clean export and identical re-encoding of
+**11/11 groups**. Both result JSON files and console logs are retained under
+`results/p2/merged-gates/`. No P3 scenario assertion was changed.
+
+The multiprocess suite also passed all twelve worker configurations in waves of
+three: seven completed, three aborted at injected crash points, and two were
+deliberately killed. Its audit checked 117 certified groups, 27 committed
+records, 368 object certificates, three targets and 29 tombstones. Normal
+production binaries and all workspace tests were rebuilt after the archive fix;
+their hashes are in `binary-sha256-archive.txt`. Implementation checkpoint
+`5179bcd` is pushed; the scoped fault phases remain in progress.
+
+### Merged fault-run findings
+
+The FDB stress phase passed all eight kill/pause/partition and single/double
+disk-loss stages on six FDB processes (`triple`, five coordinators) plus one
+Garage node and one worker. All **1,339 acknowledged effects** were present;
+the audit passed with 494 certified groups, 306 committed records and
+89 tombstones. There were no worker errors. After the double disk loss,
+reported tolerance for two zone failures returned 100 seconds after restart.
+The serial probe succeeded 188/203 times; these are samples, not a continuous
+availability measurement. Exact commands and evidence:
+`results/p2/merged-fault-summary.md`.
+
+The first fixture-under-chaos attempt is **failed/aborted**, not a pass.
+In round 9, `paginated_scan_follows_partial_batches` unwrapped a raw setup
+commit that returned `Transaction may or may not have committed`; no scan
+assertion had run yet. Its setup now uses FDB's `on_error()` retry path for
+each fixed-key/fixed-value batch, with a 60-attempt bound. Retrying these
+writes is idempotent even when the first commit landed. All 2,000 keys,
+400-byte values and page-size assertions remain unchanged. The failed logs
+and safe interruption are retained under
+`results/p2/faults-mp2-fdb-gate/fdb/fixtures/20261020T043454Z-2668337/`.
+A fresh full 20-round fixture run follows the focused verification of this
+test-only fix; production binaries are unchanged.
+
+The second attempt completed all 20 rounds plus the fault and eight-case
+property suites under 152 injected faults. It remains **FAIL**: 61/62 suite
+results passed, but round 19's first valid tombstone call returned `false`
+instead of the test's expected `true`. T8 returns that value only after reading
+the exact tombstone and this writer's certificate, as happens when a committed
+transaction loses its reply and resolves by idempotent retry. The test had
+confused freshness with successful publication. The corrected tests retain
+strict first-fresh expectations unless that operation records a real ambiguous
+commit, and always check the exact durable effect and certificates. Repeat-false
+and invalid-guard assertions remain strict. Real FDB errors interrupting a
+simulated committed outcome now have a separate diagnostic counter; the
+fence-order fixture retries a fresh scenario only for that recorded interruption,
+with a ten-attempt bound and durable-state checks on interrupted attempts.
+Its original ordering assertions must all pass on an uninterrupted attempt.
+A fresh full chaos gate is required after these changes.
+
+### Review corrections after the first merged fault phases
+
+The chunk wrapper now admits at most 2,048 ordered references. The earlier
+4,096 limit could produce a 151,554-byte `gchunks` value, exceeding FDB's
+100,000-byte value limit. The new maximum is 75,778 bytes; a regression constructs
+distinct IDs with maximum lengths and measures the actual index encoding.
+
+A new network regression reproduced a marker-variant liveness bug:
+after a lower receipt-only variant became canonical, certification failed with
+`certificate names another marker`. T2, T8 and T10 deliberately bind the
+immutable base marker, so their three caller paths now use `marker_base`.
+The new regression checks certification, author deletion and tombstone relay
+when both source and receiver select a lower variant. It failed before the
+fix, and the complete network suite passed **15/15** afterward
+(`results/p2/network-service/base-marker-before.log` and
+`base-marker-full.log`). Transaction guards and canonical discovery selection
+are unchanged.
+
+The next Garage run also uses strengthened harness checks: read pre-loss bytes
+through the replacement node, heal an issued RPC partition on harness exit,
+and report a final failed-probe window as a censored sampled span without
+inventing a recovery time. The SIGSEGV harness can now select the original
+worker 3 and seed 3045 for a further bounded replay.
+
+The post-review baseline passed **54 store checks** (16 library, 10 fault,
+9 fixture, 13 guard and 6 tombstone checks), plus **9 wire checks**. The
+production CLI, P3 controller and remote binaries rebuilt successfully;
+their hashes are saved in `results/p2/merged-gates/binary-sha256-base-marker.txt`.
+Shell syntax and recovered/censored/empty probe-summary cases also passed.

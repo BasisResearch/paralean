@@ -115,12 +115,18 @@ impl Store {
     /// Deterministic representative of all locally certified receipt-only variants.
     pub async fn marker(&self, group: &Id) -> Result<Option<(Id, Marker)>> {
         let base = self.marker_base(group).await?;
+        let variants = self.meta.scan(&self.meta.keys.marker_variants_of(group), self.page, |_| None).await?;
+        // With no physical variants, every certified/suspect choice below is the
+        // base marker, and the legacy fallback is also the base marker. Avoid
+        // certificate signature checks and receipt/revocation reads on this
+        // common path; they cannot change the returned value.
+        if variants.is_empty() { return Ok(base); }
         let certified: std::collections::BTreeSet<_> = self.certs(group).await?.into_iter().map(|c| c.body.marker).collect();
         let mut good: Option<(Id, Marker)> = None;
         let mut suspect: Option<(Id, Marker)> = None;
         let mut consider = Vec::new();
         if let Some(entry) = &base { consider.push(entry.clone()); }
-        for (key, value) in self.meta.scan(&self.meta.keys.marker_variants_of(group), self.page, |_| None).await? {
+        for (key, value) in variants {
             let (_, _, raw): (String, foundationdb::tuple::Bytes, foundationdb::tuple::Bytes) = self.meta.keys.root.unpack(&key)
                 .map_err(|e| StoreError::Invalid(format!("bad marker variant key: {e}")))?;
             let mid = Id(raw[..].try_into().map_err(|_| StoreError::Invalid("bad marker variant ID".into()))?);

@@ -300,6 +300,14 @@ impl Meta {
                     match trx.commit().await {
                         Ok(_) => {}
                         Err(e) => {
+                            // The injected rule was consumed, but a real FDB error won
+                            // before its simulated committed outcome could be resolved.
+                            self.faults.count("injected-commit-real-error");
+                            if e.is_maybe_committed() {
+                                self.faults.count("real-commit-unknown-result");
+                            } else {
+                                self.faults.count("fdb-retry");
+                            }
                             last = e.to_string();
                             trx = e.on_error().await?;
                             continue;
@@ -316,6 +324,12 @@ impl Meta {
                         match trx.commit().await {
                             Ok(_) => {}
                             Err(e) => {
+                                self.faults.count("injected-commit-real-error");
+                                if e.is_maybe_committed() {
+                                    self.faults.count("real-commit-unknown-result");
+                                } else {
+                                    self.faults.count("fdb-retry");
+                                }
                                 last = e.to_string();
                                 trx = e.on_error().await?;
                                 continue;

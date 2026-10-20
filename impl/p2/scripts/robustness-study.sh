@@ -301,6 +301,12 @@ PY
     sleep 2
   done
   cmp "$payload" "$out/post-replacement.txt" || { log 'FAILED: acknowledged object not readable after layout change'; exit 1; }
+  for _ in $(seq 1 90); do
+    if s3 3 get-object --bucket "$PARALEAN_S3_BUCKET" --key "$key" "$out/post-replacement-n3.txt" > "$out/post-replacement-n3.json" 2> "$out/post-replacement-n3.err" \
+      && cmp -s "$payload" "$out/post-replacement-n3.txt"; then break; fi
+    sleep 2
+  done
+  cmp "$payload" "$out/post-replacement-n3.txt" || { log 'FAILED: replacement node cannot read pre-loss acknowledgement'; exit 1; }
   post_key="robustness/layout/post-$(date +%s%N)"
   s3 0 put-object --bucket "$PARALEAN_S3_BUCKET" --key "$post_key" --body "$payload" > "$out/put-after.json"
   s3 3 get-object --bucket "$PARALEAN_S3_BUCKET" --key "$post_key" "$out/post-write.txt" > "$out/post-write.json"
@@ -311,6 +317,12 @@ segv)
   assert_shape 6
   need gdb
   need pgrep
+  segv_worker="${SEGV_WORKER:-0}"
+  segv_seed_base="${SEGV_SEED_BASE:-1}"
+  [[ "$segv_worker" =~ ^[0-9]{1,9}$ && "$segv_seed_base" =~ ^[0-9]{1,9}$ ]] || {
+    echo 'SEGV_WORKER and SEGV_SEED_BASE must be nonnegative decimal integers with at most nine digits' >&2
+    exit 2
+  }
   ulimit -c unlimited
   bin="$here/../target/debug/paralean-p2"
   [ -x "$bin" ] || { echo "build $bin first" >&2; exit 2; }
@@ -326,13 +338,14 @@ segv)
   for attempt in $(seq 1 "${SEGV_MAX_STARTS:-30}"); do
     [ "$completed" -lt "${SEGV_ATTEMPTS:-10}" ] || break
     before_acks=$(wc -l < "$out/acks.log" 2>/dev/null || echo 0)
-    log "double disk-loss attempt $attempt: GDB stress worker starts"
+    seed=$((10#$segv_seed_base + attempt - 1))
+    log "double disk-loss attempt $attempt: GDB stress worker=$segv_worker seed=$seed starts"
     gdb --batch -q -ex 'set pagination off' -ex 'set disable-randomization off' \
       -ex 'set startup-with-shell off' \
       -ex 'handle SIGSEGV stop print nopass' -ex run \
       -ex 'thread apply all bt full' \
       -ex "generate-core-file $out/core-attempt-$attempt" \
-      --args "$bin" stress --worker 0 --ops 25 --seed "$attempt" --fault-p 0.02 \
+      --args "$bin" stress --worker "$segv_worker" --ops 25 --seed "$seed" --fault-p 0.02 \
       --ack-log "$out/acks.log" > "$out/gdb-$attempt.log" 2>&1 &
     gdb_pid=$!
     worker_pid=''

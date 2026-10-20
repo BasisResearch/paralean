@@ -1,0 +1,4 @@
+1 published groups, 0 ignored markers, 0 dangling certificates
+0 tombstones, 0 ignored tombstones
+  Demo.cliSmoke: 1 head(s) [51780ce61b83]
+  file Test/File.lean: [13f38a88186d]

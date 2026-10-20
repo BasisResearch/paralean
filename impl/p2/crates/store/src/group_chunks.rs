@@ -9,7 +9,9 @@ use crate::objects::Opaque;
 use crate::pce::{Dec, Enc, Pce};
 
 pub const MAGIC: &str = "paralean-group-chunked-v1";
-pub const MAX_REFS: usize = 4096;
+// The derived gchunks index is one FDB value. At most 2048 distinct refs at
+// 37 bytes each (PCE ID plus max four-byte length) fit below its 100,000-byte cap.
+pub const MAX_REFS: usize = 2048;
 pub const MAX_CHUNK_BYTES: u64 = 64 * 1024 * 1024;
 
 /// Logical order is retained in the group ID; a repeated ID must declare the same length.
@@ -99,5 +101,23 @@ mod tests {
         assert!(chunked_group(b"core", &[ChunkRef { id, length: MAX_CHUNK_BYTES + 1 }]).is_err());
         let refs = vec![ChunkRef { id, length: 1 }; MAX_REFS + 1];
         assert!(chunked_group(b"core", &refs).is_err());
+    }
+
+    #[test]
+    fn maximum_distinct_refs_fit_one_fdb_index_value() {
+        let refs: Vec<_> = (0..MAX_REFS).map(|n| {
+            let mut raw = [0; 32];
+            raw[..8].copy_from_slice(&(n as u64).to_be_bytes());
+            ChunkRef { id: Id(raw), length: MAX_CHUNK_BYTES }
+        }).collect();
+        let group = chunked_group(b"core", &refs).unwrap();
+        let index = unique_chunks(&group.pce).unwrap().unwrap();
+        assert_eq!(index.len(), MAX_REFS);
+        let mut encoded = Enc::new();
+        encoded.list(&index.into_iter().collect::<Vec<_>>(), |e, (id, length)| {
+            id.encode(e); e.uvarint(*length);
+        });
+        assert_eq!(encoded.out.len(), 2 + MAX_REFS * 37);
+        assert!(encoded.out.len() < 100_000, "gchunks must fit the FDB value limit");
     }
 }

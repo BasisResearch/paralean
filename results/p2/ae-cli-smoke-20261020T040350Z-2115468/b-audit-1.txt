@@ -1,0 +1,11 @@
+certified groups   3
+committed records  0
+foreign catalogues 1
+markers            3
+object certs       0
+received evidence  14
+records            0
+targets            0
+tombstones         0
+uncertified markers 0
+audit ok

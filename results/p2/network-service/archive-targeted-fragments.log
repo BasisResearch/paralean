@@ -1,0 +1,11 @@
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.47s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-6244ea4e96296e0e)
+
+running 1 test
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... anti-entropy t-net-marker-layout-1-2484527-867674930-1 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d312d323438343532372d3836373637343933302d31000261656c6f670033000000007d1560ee00000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 remote=b73b01f0c805b110ad4f2a978e3f69c725f0630fff9eaa8c8e8c318288411700 differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+anti-entropy t-net-marker-layout-0-2484527-867658602-0 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d302d323438343532372d3836373635383630322d30000261656c6f670033000000007d14611300000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=b73b01f0c805b110ad4f2a978e3f69c725f0630fff9eaa8c8e8c318288411700 remote=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 3.91s
+

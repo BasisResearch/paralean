@@ -25,6 +25,13 @@ fn g(p: &Package) -> Id {
     p.group.id()
 }
 
+async fn assert_certified_tombstone(e: &Env, t: &Tombstone, wi: usize) {
+    assert_eq!(e.store.tombstone(&t.id()).await.unwrap(), Some(t.clone()));
+    assert!(e.store.tcerts(&t.id()).await.unwrap().iter().any(|c|
+        c.body.tombstone == t.id() && c.body.target == t.target && c.body.writer == e.w[wi].id),
+        "the exact tombstone must have this writer's certificate");
+}
+
 // ---------------------------------------------------------------------------------------
 /// Workspaces `tombstone_not_rendered`, `superseded_not_rendered`, `revision_in_place`; §11.4
 /// "a tombstone never removes the group from the registry, from snapshots, or as a
@@ -34,7 +41,8 @@ fn g(p: &Package) -> Id {
 #[tokio::test]
 async fn fixture_tombstoned_and_superseded_leave_the_rendered_file() {
     let cfg = StoreConfig::from_env(&common::deployment("tomb-render")).unwrap();
-    let e = Env::open(cfg.clone(), 2, Faults::none());
+    let faults = Faults::none();
+    let e = Env::open(cfg.clone(), 2, faults.clone());
     let a = insert(&e, 0, "a", None, 1).await;
     let b = insert(&e, 0, "b", Some(&a.marker), 2).await;
     let c = insert(&e, 1, "c", Some(&b.marker), 3).await;
@@ -45,7 +53,10 @@ async fn fixture_tombstoned_and_superseded_leave_the_rendered_file() {
 
     // The author deletes b.
     let t = fixture::tombstone_of(&b.marker, 5);
-    assert!(e.w[0].tombstone(&t).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].tombstone(&t).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
+    assert_certified_tombstone(&e, &t, 0).await;
     // a is revised by a' (a revision takes its lineage root's place).
     let mut a2 = fixture::package("a2", e.w[0].id, &e.validator, &Name::parse("Del.a"), vec![rev_id(&a)], None, 6);
     fixture::place(&mut a2, F, None, Some(&a.marker));
@@ -108,7 +119,8 @@ async fn fixture_uncertified_tombstone_is_ignored() {
 /// a target-name group, and a named receipt exists. A failed T8 writes nothing.
 #[tokio::test]
 async fn t8_tombstone_guards() {
-    let e = Env::new("tomb-guards", 2);
+    let faults = Faults::none();
+    let e = Env::with_faults("tomb-guards", 2, faults.clone());
     let a = insert(&e, 0, "a", None, 5).await;
     let keys0 = key_count(&e).await;
     // Not newer than the target.
@@ -144,7 +156,10 @@ async fn t8_tombstone_guards() {
     assert_eq!(guard_of(e.w[0].tombstone(&fixture::tombstone_of(&tp.marker, 9)).await), GuardFailure::TombstoneOfTarget(x));
     // The valid deletion, then an idempotent repeat.
     let t = fixture::tombstone_of(&a.marker, 6);
-    assert!(e.w[0].tombstone(&t).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].tombstone(&t).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
+    assert_certified_tombstone(&e, &t, 0).await;
     assert!(!e.w[0].tombstone(&t).await.unwrap(), "repeat finds the effect");
     let ra = audit::audit(&e.store).await.unwrap();
     assert!(ra.ok(), "{:?}", ra.violations);
@@ -156,19 +171,27 @@ async fn t8_tombstone_guards() {
 /// validator without naming a receipt stays possible (a suspect group may be deleted).
 #[tokio::test]
 async fn t8_named_receipt_respects_revocation() {
-    let e = Env::new("tomb-revoked", 2);
+    let faults = Faults::none();
+    let e = Env::with_faults("tomb-revoked", 2, faults.clone());
     let a = insert(&e, 0, "a", None, 1).await;
     let b = insert(&e, 0, "b", Some(&a.marker), 2).await;
     let mut ta = fixture::tombstone_of(&a.marker, 3);
     ta.receipt = Some(a.receipt.id());
-    assert!(e.w[0].tombstone(&ta).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].tombstone(&ta).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
+    assert_certified_tombstone(&e, &ta, 0).await;
     e.revoke(e.validator.public()).await;
     let keys0 = key_count(&e).await;
     let mut tb = fixture::tombstone_of(&b.marker, 4);
     tb.receipt = Some(b.receipt.id());
     assert_eq!(guard_of(e.w[0].tombstone(&tb).await), GuardFailure::ValidatorRevoked(e.validator.public()));
     assert_eq!(key_count(&e).await, keys0, "a refused T8 writes nothing");
-    assert!(e.w[0].tombstone(&fixture::tombstone_of(&b.marker, 4)).await.unwrap());
+    let unbound = fixture::tombstone_of(&b.marker, 4);
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].tombstone(&unbound).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
+    assert_certified_tombstone(&e, &unbound, 0).await;
     let r = e.audit_ok().await;
     assert_eq!(r.suspect_receipts.len(), 2);
     assert_eq!(discover(&e.store).await.unwrap().tombstones.len(), 2);
@@ -197,9 +220,34 @@ async fn tombstone_faults_resolve() {
     }
     for (i, f) in [CommitFault::UnknownCommitted, CommitFault::UnknownNotCommitted].into_iter().enumerate() {
         faults.on_commit(Some(Txn::T8Tombstone), 0, f);
-        e.w[0].tombstone(&fixture::tombstone_of(&ps[i].marker, 10)).await.unwrap();
+        let t = fixture::tombstone_of(&ps[i].marker, 10);
+        let before = faults.stats();
+        let resolved_before = before.get("unknown-result-resolved").copied().unwrap_or(0);
+        let interrupted_before = before.get("injected-commit-real-error").copied().unwrap_or(0);
+        let real_before = real_commit_unknowns(&faults);
+        let fresh = e.w[0].tombstone(&t).await.unwrap();
+        let after = faults.stats();
+        let resolved = after.get("unknown-result-resolved").copied().unwrap_or(0);
+        let interrupted = after.get("injected-commit-real-error").copied().unwrap_or(0);
+        if i == 0 {
+            if resolved > resolved_before {
+                assert!(!fresh, "landed injected commit must resolve by finding its effect: {after:?}");
+            } else {
+                assert!(interrupted > interrupted_before,
+                    "injected commit was neither resolved nor interrupted by FDB: {after:?}");
+            }
+        } else {
+            assert_fresh_or_real_unknown(fresh, real_before, &faults);
+        }
+        assert_certified_tombstone(&e, &t, 0).await;
+        assert!(!e.w[0].tombstone(&t).await.unwrap(), "the retry is idempotent");
     }
-    assert_eq!(faults.stats().get("unknown-result-resolved").copied(), Some(2));
+    let st = faults.stats();
+    let resolved = st.get("unknown-result-resolved").copied().unwrap_or(0);
+    let interrupted = st.get("injected-commit-real-error").copied().unwrap_or(0);
+    assert_eq!(resolved + interrupted, 2, "both armed T8 faults must be accounted for: {st:?}");
+    let armed: u64 = st.iter().filter(|(k, _)| k.starts_with("commit:T8Tombstone:Unknown")).map(|(_, v)| *v).sum();
+    assert_eq!(armed, 2, "both T8 injections must be armed: {st:?}");
     // Crash after the staged copy, before T8: nothing to discover; the retry deletes.
     faults.crash_at("tombstone:after-staged", 0);
     let t2 = fixture::tombstone_of(&ps[2].marker, 10);

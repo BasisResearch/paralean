@@ -20,9 +20,12 @@ async fn assigned(name: &str, n: usize) -> Env {
 
 #[tokio::test]
 async fn t1_publish_writes_marker_cert_head_atomically() {
-    let e = assigned("t1ok", 1).await;
+    let faults = Faults::none();
+    let e = Env::with_faults("t1ok", 1, faults.clone());
+    e.ctl.reassign(&x(), e.w[0].id, b"assign-0").await.unwrap();
+    let before = real_commit_unknowns(&faults);
     let (p, o) = e.publish_target(0, &x(), "p1").await.unwrap();
-    assert!(o.fresh);
+    assert_fresh_or_real_unknown(o.fresh, before, &faults);
     let g = p.group.id();
     let (mid, _) = e.store.marker(&g).await.unwrap().unwrap();
     assert_eq!(mid, o.marker);
@@ -107,14 +110,19 @@ async fn t1_rejects_unadmitted_parent_bad_receipt_and_duplicates() {
 
 #[tokio::test]
 async fn t2_certify_requires_published_and_certified() {
-    let e = Env::new("t2", 2);
+    let faults = Faults::none();
+    let e = Env::with_faults("t2", 2, faults.clone());
     let p = e.plain_package(0, "N", "g");
     let g = p.group.id();
     assert_eq!(guard_of(e.w[1].certify(&g).await), GuardFailure::NotPublished(g));
     e.w[0].publish(&p).await.unwrap();
-    assert!(e.w[1].certify(&g).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[1].certify(&g).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
     assert!(!e.w[1].certify(&g).await.unwrap(), "idempotent");
-    assert_eq!(e.store.certs(&g).await.unwrap().len(), 2);
+    let certs = e.store.certs(&g).await.unwrap();
+    assert_eq!(certs.len(), 2);
+    assert!(certs.iter().any(|c| c.body.writer == e.w[1].id && c.body.marker == p.marker.id()));
     // A raw marker key with no certificate is not evidence of publication.
     let q = e.plain_package(0, "N2", "raw");
     let qg = q.group.id();
@@ -165,7 +173,8 @@ async fn t4_reassign_bumps_epoch_keeps_head() {
 
 #[tokio::test]
 async fn t5_fenced_commit_and_its_guards() {
-    let e = Env::new("t5", 2);
+    let faults = Faults::none();
+    let e = Env::with_faults("t5", 2, faults.clone());
     let tok = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
     let cp = one_snapshot(&e, 0, "a", tok, None).await;
     let c = e.w[0].commit_checkpoint(&cp).await.unwrap();
@@ -194,7 +203,10 @@ async fn t5_fenced_commit_and_its_guards() {
     let a = st.s3.put_object(Kind::Snapshot, &snap2).await.unwrap();
     e.w[0].certify_object(a).await.unwrap();
     let staged = e.w[0].sign_record(a.id(), Some(c), tok);
-    assert!(e.w[0].stage_record(&staged).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].stage_record(&staged).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
+    assert_eq!(e.store.record(&staged.id()).await.unwrap(), Some(staged.clone()));
     let child = e.w[0].sign_record(a.id(), Some(staged.id()), tok);
     assert_eq!(guard_of(e.w[0].commit_record(&child).await), GuardFailure::ParentUncommitted(staged.id()));
 
@@ -210,7 +222,8 @@ async fn t5_fenced_commit_and_its_guards() {
 
 #[tokio::test]
 async fn t6_object_certificate_follows_acknowledgement() {
-    let e = Env::new("t6", 1);
+    let faults = Faults::none();
+    let e = Env::with_faults("t6", 1, faults.clone());
     let o = Opaque::new(Kind::Capsule, b"cap".to_vec());
     // Without an acknowledgement there is no Acked value: certify_existing fails.
     assert!(matches!(
@@ -218,7 +231,9 @@ async fn t6_object_certificate_follows_acknowledgement() {
         GuardFailure::NotAcknowledged { .. }
     ));
     let a = e.store.s3.put_opaque(&o).await.unwrap();
-    assert!(e.w[0].certify_object(a).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = e.w[0].certify_object(a).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
     assert!(!e.w[0].certify_object(a).await.unwrap(), "idempotent");
     assert!(e.store.valid_ocert(Kind::Capsule, &o.id()).await.unwrap().is_some());
 }
@@ -232,7 +247,8 @@ async fn t7_repair_is_unfenced_signed_and_needs_existing_bytes() {
     let src = Env::new("t7src", 1);
     let mut cfg = src.cfg.clone();
     cfg.deployment = common::deployment("t7dst");
-    let dst = Env::open(cfg, 1, Faults::none());
+    let faults = Faults::none();
+    let dst = Env::open(cfg, 1, faults.clone());
     let p = src.plain_package(0, "N", "g");
     let g = p.group.id();
     src.w[0].publish(&p).await.unwrap();
@@ -243,7 +259,9 @@ async fn t7_repair_is_unfenced_signed_and_needs_existing_bytes() {
     let mv = src.store.meta.get(src.store.meta.keys.marker(&g)).await.unwrap().unwrap();
     dst.store.meta.raw_set(dst.store.meta.keys.marker(&g), mv).await.unwrap();
     dst.ctl.rotate(dst.w[0].id, b"rot").await.unwrap();
-    assert!(dst.w[0].repair_cert(&src.store, key.clone()).await.unwrap());
+    let before = real_commit_unknowns(&faults);
+    let fresh = dst.w[0].repair_cert(&src.store, key.clone()).await.unwrap();
+    assert_fresh_or_real_unknown(fresh, before, &faults);
     assert!(!dst.w[0].repair_cert(&src.store, key).await.unwrap(), "idempotent");
     assert_eq!(dst.store.certs(&g).await.unwrap().len(), 1);
     // Another deployment (another abstract replica σ') holding the same bytes is not a
@@ -308,11 +326,20 @@ async fn paginated_scan_follows_partial_batches() {
     let e = Env::new("scan", 1);
     let sub = e.store.meta.keys.sub("scantest");
     for chunk in 0..10u64 {
-        let trx = e.store.meta.db.create_trx().unwrap();
-        for i in 0..200u64 {
-            trx.set(&sub.pack(&(chunk * 200 + i)), &[0xab; 400]);
+        let mut trx = e.store.meta.db.create_trx().unwrap();
+        let mut committed = false;
+        for _ in 0..60 {
+            // A commit_unknown_result can mean these writes already landed. Replaying
+            // the same fixed keys and values after on_error is therefore idempotent.
+            for i in 0..200u64 {
+                trx.set(&sub.pack(&(chunk * 200 + i)), &[0xab; 400]);
+            }
+            match trx.commit().await {
+                Ok(_) => { committed = true; break; }
+                Err(error) => trx = error.on_error().await.unwrap(),
+            }
         }
-        trx.commit().await.unwrap();
+        assert!(committed, "scan setup chunk {chunk} did not commit after retries");
     }
     for page in [3usize, 500, 10_000] {
         let kvs = e.store.meta.scan(&sub, page, |_| None).await.unwrap();

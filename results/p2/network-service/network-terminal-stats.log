@@ -1,0 +1,9 @@
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.16s
+     Running tests/network.rs (target/debug/deps/network-6244ea4e96296e0e)
+
+running 1 test
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.58s
+
