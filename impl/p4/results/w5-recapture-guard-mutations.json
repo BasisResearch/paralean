@@ -1,0 +1,172 @@
+{
+  "fixture": {
+    "group": "0b948b114fea871a3cd54bfdb285836377f99bbb1ce2ab6ecdabae3f6af94718",
+    "capsule": "070be18f96f6263aee5aff704adec6070112e217334b8e5bc4b799291b013b24",
+    "capsuleSha256": "de3f8ac022895c332903677a90add6b191bc46bfdf162dd86c7b09d284f5d1c8",
+    "receipt": "af50bd38220a53fa4f49eb86563178f8be76c31e8f1abfd8790df3daa907a9b8"
+  },
+  "productionSha256": {
+    "bin": "fd8c38dfc377a8178570bb5057f9b3be0da4fa6e3e1874f7ded61c11377de350",
+    "Main.lean": "228b06af473fa7c49fbb48fe6bb9e5272f7551657f38767155e286c5fcaf1e20",
+    "Remote.lean": "de4ed5c372e0dff91526365014a1b7347f9b30b14255609550e87b93c7330506",
+    "Capture.lean": "3c811eab48a9e4281ded9ae846378bf9437f49a5c5d089161fc3ef6605d07207"
+  },
+  "sourceMutations": {
+    "receipt": {
+      "removed": "Remote.checkReceipt g"
+    },
+    "replay": {
+      "injected": "if r.gid == pid then { r with ok := false } else r",
+      "removed": "replay.results.all (\u00b7.ok)"
+    },
+    "identity": {
+      "injected": "fresh.declId ++ \"-injected-mismatch\"",
+      "removed": "fresh.declId == original.declId && fresh.capsule.text == original.capsule.text"
+    },
+    "span": {
+      "injected": "{ ref with start := 0 }",
+      "removed": "field span validation loop"
+    },
+    "text": {
+      "injected": "fresh.capsule.text ++ \" \"",
+      "removed": "fresh.capsule.text == original.capsule.text"
+    },
+    "order": {
+      "injected": "refs.reverse",
+      "removed": "stop \u2264 ref.start"
+    },
+    "bounds": {
+      "injected": "ref.stop := bytes.size + 1",
+      "removed": "ref.stop \u2264 bytes.size"
+    },
+    "token": {
+      "injected": "target := .str `Foo \"wrong\"",
+      "removed": "written == field || written == s!\"\u00ab{field}\u00bb\""
+    },
+    "shape": {
+      "injected": "target := .anonymous",
+      "removed": "let .str _ field := ref.target"
+    },
+    "utf8": {
+      "injected": "signed text mirrored as .\u00e9; span selects only UTF-8 lead byte",
+      "removed": "String.fromUTF8? byte-slice decoding"
+    },
+    "size": {
+      "injected": "filter replay.results to root gid only",
+      "removed": "replay.results.size == order.size"
+    }
+  },
+  "extraMutantMainSha256": "8398a37be450b87aa369273c30f9689f96847b90e9d7a11ed295b5f5e28330e5",
+  "observations": {
+    "receipt-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: remote%: receipt of 79768b76 (#[Foo.use]): the receipt is signed by an untrusted key"
+    },
+    "no-receipt": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "replay-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: original capsule closure did not reproduce signed content: #[(79768b76eae76d2a2b1237bd05be83169cc68cdbcbb1aac0571e3747be59a0ae, #[])]"
+    },
+    "replay-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "identity-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: replay changed declaration identity or capsule source"
+    },
+    "identity-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "span-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: field span is not preceded by a dot"
+    },
+    "span-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":0,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":0,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "size-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: original capsule closure did not reproduce signed content: #[]"
+    },
+    "size-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "text-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: replay changed declaration identity or capsule source"
+    },
+    "text-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]},{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]}]",
+      "stderr": ""
+    },
+    "order-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: invalid or overlapping field span"
+    },
+    "order-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":55,\"stop\":60,\"target\":[\"Other\",\"field\"]},{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"field\"]}]",
+      "stderr": ""
+    },
+    "bounds-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: invalid or overlapping field span"
+    },
+    "bounds-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":61,\"target\":[\"Foo\",\"field + y.field\"]}]",
+      "stderr": ""
+    },
+    "token-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: field token disagrees with resolved target"
+    },
+    "token-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[\"Foo\",\"wrong\"]},{\"start\":55,\"stop\":60,\"target\":[\"Foo\",\"wrong\"]}]",
+      "stderr": ""
+    },
+    "shape-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: field target has no final identifier"
+    },
+    "shape-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":45,\"stop\":50,\"target\":[]},{\"start\":55,\"stop\":60,\"target\":[]}]",
+      "stderr": ""
+    },
+    "utf8-kept": {
+      "exit": 1,
+      "stdout": "",
+      "stderr": "uncaught exception: recapture: invalid field UTF-8"
+    },
+    "utf8-removed": {
+      "exit": 0,
+      "stdout": "[{\"start\":61,\"stop\":62,\"target\":[\"Foo\",\"\u00e9\"]}]",
+      "stderr": ""
+    }
+  }
+}

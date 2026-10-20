@@ -1,0 +1,67 @@
+{
+  "recapture": "PASS",
+  "identity": {
+    "group": "0b948b114fea871a3cd54bfdb285836377f99bbb1ce2ab6ecdabae3f6af94718",
+    "capsule": "070be18f96f6263aee5aff704adec6070112e217334b8e5bc4b799291b013b24",
+    "capsuleSha256": "de3f8ac022895c332903677a90add6b191bc46bfdf162dd86c7b09d284f5d1c8",
+    "receipt": "af50bd38220a53fa4f49eb86563178f8be76c31e8f1abfd8790df3daa907a9b8"
+  },
+  "check": {
+    "auditMs": 10,
+    "axioms": [
+      [
+        "propext",
+        2
+      ]
+    ],
+    "constants": 37,
+    "disallowedAxioms": [],
+    "elabMs": 4222,
+    "errors": [],
+    "file": "Fields.lean",
+    "loadedAxioms": [
+      [
+        "propext"
+      ]
+    ],
+    "loadedConstants": 37,
+    "localAxioms": []
+  },
+  "probe": {
+    "auditMs": 3,
+    "axioms": [
+      [
+        "propext",
+        2
+      ]
+    ],
+    "constants": 35,
+    "disallowedAxioms": [],
+    "elabMs": 1827,
+    "errors": [],
+    "file": "Probe.lean",
+    "loadedAxioms": [
+      [
+        "propext"
+      ]
+    ],
+    "loadedConstants": 35,
+    "localAxioms": []
+  },
+  "failedReplay": {
+    "auditMs": 1,
+    "axioms": [],
+    "constants": 0,
+    "disallowedAxioms": [],
+    "elabMs": 1181,
+    "errors": [
+      "Probe.lean:1: remote%: 79768b76 needs recapture: renamed dependency is used in field notation without resolved-field metadata",
+      "Probe.lean:2: Unknown identifier `Foo.use`"
+    ],
+    "file": "Probe.lean",
+    "loadedAxioms": [],
+    "loadedConstants": 34,
+    "localAxioms": []
+  },
+  "forkGithash": "bd12276840543d83766ce66c82cf260d818b8d83"
+}

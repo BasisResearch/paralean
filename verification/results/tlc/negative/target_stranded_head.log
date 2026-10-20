@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 62 and seed -3633887680543013514 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 3067004] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/negative/target_stranded_head/Targets.tla
+Running breadth-first search Model-Checking with fp 25 and seed 7264288598673206048 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 2368989] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/tla/negative/target_stranded_head/Targets.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
@@ -8,11 +8,11 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-20 11:49:07)
+Starting... (2026-10-20 15:49:33)
 Implied-temporal checking--satisfiability problem has 3 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 11:49:07.
-Checking 3 branches of temporal properties for the current state space with 58779 total distinct states at (2026-10-20 11:49:10)
+Finished computing initial states: 1 distinct state generated at 2026-10-20 15:49:33.
+Checking 3 branches of temporal properties for the current state space with 52374 total distinct states at (2026-10-20 15:49:36)
 Error: Temporal properties were violated.
 
 Error: The following behavior constitutes a counter-example:
@@ -47,115 +47,115 @@ State 2: <Prepare line 80, col 3 to line 88, col 93 of module Targets>
 /\ head = [w1 |-> "none", w2 |-> "none"]
 /\ recHead = "none"
 
-State 3: <Reassign line 122, col 3 to line 127, col 36 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {}]
+State 3: <Publish line 94, col 3 to line 102, col 71 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
 /\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
 /\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
+/\ epoch = 0
+/\ owner = "w1"
 /\ used = {"p3"}
 /\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
-/\ published = {}
+/\ published = {"p3"}
 /\ stable = FALSE
-/\ known = [w1 |-> {}, w2 |-> {}]
+/\ known = [w1 |-> {"p3"}, w2 |-> {}]
 /\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
 /\ head = [w1 |-> "none", w2 |-> "none"]
-/\ recHead = "none"
+/\ recHead = "p3"
 
 State 4: <Prepare line 80, col 3 to line 88, col 93 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {"p1"}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
+/\ pending = [w1 |-> {"p1"}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
 /\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
+/\ epoch = 0
+/\ owner = "w1"
 /\ used = {"p1", "p3"}
 /\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
-/\ published = {}
+/\ published = {"p3"}
 /\ stable = FALSE
-/\ known = [w1 |-> {}, w2 |-> {}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ known = [w1 |-> {"p3"}, w2 |-> {}]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
 /\ head = [w1 |-> "none", w2 |-> "none"]
-/\ recHead = "none"
+/\ recHead = "p3"
 
 State 5: <Publish line 94, col 3 to line 102, col 71 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
 /\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
+/\ epoch = 0
+/\ owner = "w1"
 /\ used = {"p1", "p3"}
-/\ pubEpoch = [p1 |-> 1, p2 |-> 0, p3 |-> 0]
-/\ published = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p3"}
 /\ stable = FALSE
-/\ known = [w1 |-> {}, w2 |-> {"p1"}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
+/\ known = [w1 |-> {"p1", "p3"}, w2 |-> {}]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
 /\ head = [w1 |-> "none", w2 |-> "none"]
 /\ recHead = "p1"
 
 State 6: <Commit line 138, col 3 to line 142, col 36 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
-/\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
-/\ used = {"p1", "p3"}
-/\ pubEpoch = [p1 |-> 1, p2 |-> 0, p3 |-> 0]
-/\ published = {"p1"}
-/\ stable = FALSE
-/\ known = [w1 |-> {}, w2 |-> {"p1"}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
-/\ head = [w1 |-> "none", w2 |-> "p1"]
-/\ recHead = "p1"
-
-State 7: <Crash line 145, col 3 to line 149, col 36 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
-/\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
-/\ used = {"p1", "p3"}
-/\ pubEpoch = [p1 |-> 1, p2 |-> 0, p3 |-> 0]
-/\ published = {"p1"}
-/\ stable = FALSE
-/\ known = [w1 |-> {}, w2 |-> {}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
-/\ head = [w1 |-> "none", w2 |-> "p1"]
-/\ recHead = "p1"
-
-State 8: <Stabilize line 154, col 3 to line 157, col 58 of module Targets>
-/\ pending = [w1 |-> {"p3"}, w2 |-> {}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
-/\ certified = {}
-/\ epoch = 1
-/\ owner = "w2"
-/\ used = {"p1", "p3"}
-/\ pubEpoch = [p1 |-> 1, p2 |-> 0, p3 |-> 0]
-/\ published = {"p1"}
-/\ stable = TRUE
-/\ known = [w1 |-> {}, w2 |-> {}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
-/\ head = [w1 |-> "none", w2 |-> "p1"]
-/\ recHead = "p1"
-
-State 9: <Abandon line 114, col 3 to line 118, col 66 of module Targets>
 /\ pending = [w1 |-> {}, w2 |-> {}]
-/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 1, p2 |-> 0, p3 |-> 0]]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ certified = {}
+/\ epoch = 0
+/\ owner = "w1"
+/\ used = {"p1", "p3"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p3"}
+/\ stable = FALSE
+/\ known = [w1 |-> {"p1", "p3"}, w2 |-> {}]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "p1", w2 |-> "none"]
+/\ recHead = "p1"
+
+State 7: <Reassign line 122, col 3 to line 127, col 36 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
 /\ certified = {}
 /\ epoch = 1
-/\ owner = "w2"
+/\ owner = "w1"
 /\ used = {"p1", "p3"}
-/\ pubEpoch = [p1 |-> 1, p2 |-> 0, p3 |-> 0]
-/\ published = {"p1"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p3"}
+/\ stable = FALSE
+/\ known = [w1 |-> {"p1", "p3"}, w2 |-> {}]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "p1", w2 |-> "none"]
+/\ recHead = "p1"
+
+State 8: <Crash line 145, col 3 to line 149, col 36 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ certified = {}
+/\ epoch = 1
+/\ owner = "w1"
+/\ used = {"p1", "p3"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p3"}
+/\ stable = FALSE
+/\ known = [w1 |-> {}, w2 |-> {}]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "p1", w2 |-> "none"]
+/\ recHead = "p1"
+
+State 9: <Stabilize line 154, col 3 to line 157, col 58 of module Targets>
+/\ pending = [w1 |-> {}, w2 |-> {}]
+/\ prepEpoch = [w1 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0], w2 |-> [p1 |-> 0, p2 |-> 0, p3 |-> 0]]
+/\ certified = {}
+/\ epoch = 1
+/\ owner = "w1"
+/\ used = {"p1", "p3"}
+/\ pubEpoch = [p1 |-> 0, p2 |-> 0, p3 |-> 0]
+/\ published = {"p1", "p3"}
 /\ stable = TRUE
 /\ known = [w1 |-> {}, w2 |-> {}]
-/\ revises = [p1 |-> {}, p2 |-> {}, p3 |-> {}]
-/\ head = [w1 |-> "none", w2 |-> "p1"]
+/\ revises = [p1 |-> {"p3"}, p2 |-> {}, p3 |-> {}]
+/\ head = [w1 |-> "p1", w2 |-> "none"]
 /\ recHead = "p1"
 
 State 10: Stuttering
-Finished checking temporal properties in 00s at 2026-10-20 11:49:10
-52669 states generated, 19593 distinct states found, 9130 states left on queue.
-Finished in 03s at (2026-10-20 11:49:10)
+Finished checking temporal properties in 00s at 2026-10-20 15:49:36
+45835 states generated, 17458 distinct states found, 8267 states left on queue.
+Finished in 03s at (2026-10-20 15:49:36)
 ==== Paralean TLC provenance ====
 module Targets
 config TargetsLive.cfg
@@ -165,10 +165,11 @@ source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.t
 source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
 source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source e701ebb084e7c14de78034035eb932dcca203554e270d21df003c8102e8ff95c  EditorWiring.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -181,12 +182,15 @@ source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetH
 source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
 source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
 source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
+source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
 source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
 source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  CertificatesLive.cfg
 source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
 source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
 source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source 4779d11ac145aea710bc81c5e52d4854f60b4e092e3e2739f5931b402f5af7b9  EditorPublication.cfg
+source 589e7f201f1fca0dfa69da2288f592e9e0092542eeb750a19f4291ac4eba1eaa  EditorRename.cfg
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg

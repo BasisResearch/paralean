@@ -1,5 +1,36 @@
 # Admission and freshness guard coverage
 
+## Editor/controller boundary (W5)
+
+`EditorWiring` has separate publication, rename and capsule-replay scenarios.
+It abstracts receipt verification, dependency discovery and Lean source replay
+as verdicts supplied by those subsystems. The model checks that the boundary
+requires these verdicts; it does not prove their implementations or arbitrary
+editor-client behavior. Rename's atomic state is the controller's buffer map.
+The authorization verdict includes the frozen target, owning workspace and
+current dispatch epoch; an explicit request by a different registered workspace
+does not satisfy it. Runtime source mutations test these concrete checks.
+
+| Check | Mutation | Required invariant failure |
+|---|---|---|
+| Receipt before publishing | `editor_no_receipt` | `PublicationSafe` |
+| Explicit user/agent action or policy | `editor_no_action` | `PublicationSafe` |
+| Exact document, environment and generation stamp | `editor_stale_publish` | `PublicationSafe` |
+| Policy advancement fences old sessions | `editor_no_policy_fence` | `SessionFenced` |
+| Every rename participant prepared | `rename_missing_participant` | `RenameSafe` |
+| Complete dependency inventory | `rename_incomplete_inventory` | `RenameSafe` |
+| Valid semantic edit plans | `rename_invalid_plan` | `RenameSafe` |
+| Rename plan stamps still current | `rename_stale_plan` | `RenameSafe` |
+| All affected buffers change together | `rename_partial_commit` | `RenameAtomic` |
+| Legacy metadata replay verified | `recapture_unverified` | `OverlaySafe` |
+| Exact original capsule identity | `recapture_wrong_identity` | `OverlaySafe` |
+
+`editor_publish_work`, `editor_rename_work`, and `editor_recapture_work` require
+counterexamples to their `Never*` invariants in the unmutated model. Thus the
+positive checks cannot pass solely by disabling publication, rename or replay.
+
+## Store protocol guards
+
 `scripts/check-tla-negative.sh` removes each effective admission or freshness
 check below. It requires the named invariant or temporal error. A parser failure,
 unrelated error, or arbitrary nonzero exit does not satisfy a check. Every

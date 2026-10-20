@@ -400,6 +400,7 @@ class Backend:
         if not (directory / "agent").exists():
             directory.mkdir(parents=True, exist_ok=True)
             self._run(["python3", self.ws, "init", str(directory), agent])
+        self.refresh_public_trust(agent, directory)
         saved = self.payload.get("sources", {}).get(agent, {})
         for rel in self.task.get("files", []):
             text = saved.get(rel, self.task.get("sources", {}).get(rel, ""))
@@ -407,6 +408,25 @@ class Backend:
             destination.parent.mkdir(parents=True, exist_ok=True)
             if not destination.exists():
                 destination.write_text(text)
+
+    def refresh_public_trust(self, agent: str, directory: Path) -> bool:
+        """Refresh only the worker's public trust ring, without touching sources."""
+        if agent not in self.agents:
+            raise BackendError(f"unregistered agent: {agent}")
+        directory = Path(directory).resolve()
+        trust_source = Path(self.env["PARALEAN_TRUST"])
+        if not trust_source.is_file():
+            raise BackendError("controller public trust ring is unavailable")
+        trusted = trust_source.read_bytes()
+        trust_dest = directory / "trust.json"
+        if trust_dest.is_file() and trust_dest.read_bytes() == trusted:
+            return False
+        with tempfile.NamedTemporaryFile(dir=directory, delete=False) as tmp:
+            tmp.write(trusted)
+            staged = Path(tmp.name)
+        staged.chmod(0o600)
+        staged.replace(trust_dest)
+        return True
 
     def _ws(self, action: str, agent: str, directory: Path, *args: str) -> dict:
         env = {"PARALEAN_AGENT": agent}
@@ -536,7 +556,8 @@ class Backend:
             raise BackendError("published predecessor capsule is missing from the synced cache")
         return found
 
-    def publish(self, agent: str, directory: Path, file: str, targets: list[str] = (), epoch: int | None = None) -> dict:
+    def publish(self, agent: str, directory: Path, file: str, targets: list[str] = (), epoch: int | None = None,
+                *, precommit_guard=None) -> dict:
         if file not in self.task.get("files", []):
             raise BackendError(f"file outside frozen task: {file}")
         directory = Path(directory).resolve()
@@ -610,6 +631,10 @@ class Backend:
             if len(selected) != 1:
                 raise BackendError(f"target {name} has no unique publication plan")
             plan.write_text(json.dumps(selected))
+            # The editor controller rechecks the exact live buffer and environment
+            # after receipt validation, immediately before the P2 transaction.
+            if precommit_guard is not None:
+                precommit_guard()
             pub = self._bridge("publish-target", "--cache", str(cache), "--ws", agent,
                                "--plan", str(plan), "--name", name, "--epoch", str(epoch))
             self._run([self.plr, "pull", "--cache", str(cache), "--only", item["group"]], env=own_env)
