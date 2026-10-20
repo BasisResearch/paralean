@@ -147,7 +147,7 @@ fn keys_init(a: &[&str]) -> R<Value> {
     let checker = receipt::checker()?;
     kf.policies = vec![paralean_store::receipt::Policy::v1().id().hex()];
     kf.checkers = vec![checker.id().hex()];
-    std::fs::write(kpath, serde_json::to_string_pretty(&kf).unwrap()).map_err(es)?;
+    kf.write_private(kpath).map_err(es)?;
     // Each working copy's own key file: its workspace and job-issuer seeds only; every other
     // entry public (no authority, validator or other agents' seeds).
     let dir = std::path::Path::new(kpath).parent().unwrap_or(std::path::Path::new("."));
@@ -162,7 +162,7 @@ fn keys_init(a: &[&str]) -> R<Value> {
                 e.seed = None;
             }
         }
-        std::fs::write(dir.join(format!("keys-{n}.json")), serde_json::to_string_pretty(&own).unwrap()).map_err(es)?;
+        own.write_private(dir.join(format!("keys-{n}.json"))).map_err(es)?;
     }
     // An untrusted validator and controller, for the forgery tests: same agents, other keys.
     let mut rogue = kf.clone();

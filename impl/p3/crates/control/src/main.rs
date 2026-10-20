@@ -72,7 +72,7 @@ fn open_store(kf: &KeyFile) -> R<Store> {
 }
 
 fn write_keys(path: &str, kf: &KeyFile) -> R<()> {
-    std::fs::write(path, serde_json::to_string_pretty(kf).unwrap()).map_err(|e| format!("{path}: {e}"))
+    kf.write_private(path).map_err(|e| format!("{path}: {e}"))
 }
 
 async fn ctl_call(f: &BTreeMap<String, String>, req: ControlRequest) -> R<ControlResponse> {

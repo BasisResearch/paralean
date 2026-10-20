@@ -103,7 +103,7 @@ impl KeyRing {
 
 /// A key file: seeds for the fence authority, validators and workspaces. The CLI reads it
 /// from `$PARALEAN_KEYS`. Holding a seed is holding that role.
-#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct KeyFile {
     pub authority: Option<String>,
     pub authority_public: String,
@@ -121,7 +121,7 @@ pub struct KeyFile {
     pub job_issuers: BTreeMap<String, KeyEntry>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct KeyEntry {
     /// Workspace ID (hex, 16 bytes); empty for validators.
     #[serde(default)]
@@ -132,6 +132,29 @@ pub struct KeyEntry {
 }
 
 impl KeyFile {
+    /// Atomically replace a key file without following a destination symlink.
+    /// The new inode is private from creation, independent of the caller's umask.
+    /// The containing directory must be controlled by the operator.
+    #[cfg(unix)]
+    pub fn write_private(&self, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let path = path.as_ref();
+        let parent = path.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(std::path::Path::new("."));
+        let tmp = parent.join(format!(".paralean-keys-{:032x}", rand::random::<u128>()));
+        let mode = if cfg!(feature = "mutate-public-key-file") { 0o666 } else { 0o600 };
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(&tmp)?;
+        let result = (|| {
+            let bytes = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
+            file.write_all(&bytes)?;
+            file.sync_all()?;
+            std::fs::rename(&tmp, path)?;
+            std::fs::File::open(parent)?.sync_all()
+        })();
+        if result.is_err() { let _ = std::fs::remove_file(&tmp); }
+        result
+    }
+
     /// A deterministic key set with `n` workspaces named `w0..w{n-1}` and one validator.
     pub fn demo(n: usize) -> KeyFile {
         KeyFile::demo_prefixed("", n)
@@ -225,9 +248,57 @@ impl KeyFile {
     }
 }
 
+impl std::fmt::Debug for KeyEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if cfg!(feature = "mutate-key-debug") { return write!(f, "{:?}", self.seed); }
+        f.debug_struct("KeyEntry").field("id", &self.id).field("public", &self.public)
+            .field("seed", &self.seed.as_ref().map(|_| "[REDACTED]")).finish()
+    }
+}
+
+impl std::fmt::Debug for KeyFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if cfg!(feature = "mutate-key-debug") { return write!(f, "{:?}", self.authority); }
+        f.debug_struct("KeyFile").field("authority_public", &self.authority_public)
+            .field("authority", &self.authority.as_ref().map(|_| "[REDACTED]"))
+            .field("validators", &self.validators).field("workspaces", &self.workspaces)
+            .field("job_issuers", &self.job_issuers).finish_non_exhaustive()
+    }
+}
+
 #[cfg(test)]
 mod security_tests {
     use super::*;
+    #[test]
+    fn debug_does_not_disclose_role_seeds() {
+        let k = KeyFile::demo(1);
+        let text = format!("{k:?}");
+        assert!(!text.contains(k.authority.as_ref().unwrap()));
+        assert!(!text.contains(k.validators["v0"].seed.as_ref().unwrap()));
+        assert!(!text.contains(k.workspaces["w0"].seed.as_ref().unwrap()));
+    }
+
+    #[test]
+    fn private_key_file_replaces_public_inode_and_symlink() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+        let dir = std::env::temp_dir().join(format!("paralean-key-test-{:032x}", rand::random::<u128>()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("keys");
+        let other = dir.join("other");
+        std::fs::write(&other, "untouched").unwrap();
+        symlink(&other, &path).unwrap();
+        let k = KeyFile::demo(1);
+        k.write_private(&path).unwrap();
+        assert_eq!(std::fs::read_to_string(&other).unwrap(), "untouched");
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        k.write_private(&path).unwrap();
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        let read: KeyFile = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(read.authority, k.authority);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn weak_public_key_identity_signature_is_rejected() {
         // Identity R, identity A, zero S satisfies the relaxed verification

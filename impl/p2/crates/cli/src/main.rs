@@ -151,7 +151,7 @@ async fn run(args: Vec<String>) -> R<ExitCode> {
         ["keys", "init", path, rest @ ..] => {
             let n = rest.iter().position(|x| *x == "--workspaces").and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(4);
             let kf = if rest.contains(&"--demo") { KeyFile::demo(n) } else { random_keys(n) };
-            std::fs::write(path, serde_json::to_string_pretty(&kf).unwrap()).map_err(|e| e.to_string())?;
+            kf.write_private(path).map_err(|e| e.to_string())?;
             println!("wrote {path} ({n} workspaces)");
         }
         ["status"] => {
