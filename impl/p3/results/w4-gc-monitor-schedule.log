@@ -1,0 +1,8 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.52s
+     Running unittests src/lib.rs (target/debug/deps/paralean_control-6b1c6b0447df475e)
+
+running 1 test
+test controller::gc_schedule_tests::gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s

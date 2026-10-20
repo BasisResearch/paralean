@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 root="$PWD"
 export PATH="$HOME/.elan/bin:$PATH"
+bash "$root/scripts/check-w4-lean.sh"
 mkdir -p .runs/veil/Paralean
 expected=d05518f22076b8cc84fb2d2b74d196aa979bfe8f
 [[ "$(git -C .deps/veil rev-parse HEAD)" == "$expected" ]]

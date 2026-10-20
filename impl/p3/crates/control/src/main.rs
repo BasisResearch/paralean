@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_control::controller::{call_controller, ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
+use paralean_control::gc::GcConfig;
 use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_control::worker::WorkerNode;
 use paralean_store::receipt::{Policy, Revocation, SignedRevocation};
@@ -28,7 +29,8 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
                                    R1: revoke a validator key in the store (needs the authority seed)
   checker-version                  this machine's checker version and its ID
   validator --listen ADDR --key NAME [--max-running N] [--max-queued N] [--workdir DIR]
-  controller --listen ADDR --validators A,B [--lease-ms N] [--max-work-queue N]
+  controller --listen ADDR --validators A,B [--shard N --shards K] [--lease-ms N] [--max-work-queue N]
+             [--gc --gc-grace-ticks N --gc-scan-limit N]
              [--max-validations N] [--deadline-ms N] [--memory-mb N] [--attempts N]
   worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
   submit --controller ADDR --request R --target NAME [--memory-mb N]
@@ -178,7 +180,10 @@ async fn run(args: Vec<String>) -> R<()> {
         ["controller", ..] => {
             let kf = keyfile()?;
             let checker = CheckerConfig::from_env()?;
-            let cp = ControlPlane::new(ControllerConfig {
+            let shard = u32::try_from(num(&f, "shard", 0)?).map_err(|_| "--shard exceeds u32")?;
+            let shards = u32::try_from(num(&f, "shards", 1)?).map_err(|_| "--shards exceeds u32")?;
+            if shards == 0 || shard >= shards { return Err("--shard must be less than positive --shards".into()) }
+            let cp = ControlPlane::new_shard_with_gc(ControllerConfig {
                 store: open_store(&kf)?,
                 authority: kf.authority_signer().ok_or("the key file holds no authority seed")?,
                 validators: f.get("validators").ok_or("--validators A,B")?.split(',').map(String::from).collect(),
@@ -191,9 +196,14 @@ async fn run(args: Vec<String>) -> R<()> {
                 validation_deadline: Duration::from_millis(num(&f, "deadline-ms", 600_000)?),
                 validation_memory_mb: num(&f, "memory-mb", 4096)?,
                 validator_attempts: num(&f, "attempts", 4)? as usize,
+            }, shard, shards, GcConfig {
+                enabled: f.contains_key("gc"),
+                grace_ticks: num(&f, "gc-grace-ticks", 8)?,
+                scan_limit: num(&f, "gc-scan-limit", 128)? as usize,
             });
+            cp.verify_topology().await?;
             let l = tokio::net::TcpListener::bind(f.get("listen").ok_or("--listen ADDR")?).await.map_err(|e| e.to_string())?;
-            println!("controller on {}", l.local_addr().unwrap());
+            println!("controller shard {shard}/{shards} on {}", l.local_addr().unwrap());
             cp.serve(l).await.map_err(|e| e.to_string())?;
         }
         ["worker", ..] => {

@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 54 and seed 6720636299699349059 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 2829842] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/run/TargetsLive/Targets.tla
+Running breadth-first search Model-Checking with fp 40 and seed 3411414788496551804 with 1 worker on 32 cores with 10923MB heap and 64MB offheap memory [pid: 3921469] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4-scale/.runs/tla/run/TargetsLive/Targets.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/Sequences.tla
@@ -8,25 +8,28 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-20 11:45:16)
+Starting... (2026-10-20 17:01:25)
 Implied-temporal checking--satisfiability problem has 3 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 11:45:16.
-Checking 3 branches of temporal properties for the current state space with 128517 total distinct states at (2026-10-20 11:45:19)
-Finished checking temporal properties in 00s at 2026-10-20 11:45:19
-Progress(12) at 2026-10-20 11:45:19: 142,711 states generated (142,711 s/min), 42,839 distinct states found (42,839 ds/min), 17,898 states left on queue.
-Progress(20) at 2026-10-20 11:45:31: 1,082,018 states generated, 185,674 distinct states found, 0 states left on queue.
-Checking 3 branches of temporal properties for the complete state space with 557022 total distinct states at (2026-10-20 11:45:31)
-Finished checking temporal properties in 00s at 2026-10-20 11:45:32
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:01:25.
+Checking 3 branches of temporal properties for the current state space with 23847 total distinct states at (2026-10-20 17:01:28)
+Finished checking temporal properties in 00s at 2026-10-20 17:01:28
+Progress(9) at 2026-10-20 17:01:28: 19,951 states generated (19,951 s/min), 7,949 distinct states found (7,949 ds/min), 4,329 states left on queue.
+Checking 3 branches of temporal properties for the current state space with 460062 total distinct states at (2026-10-20 17:02:28)
+Finished checking temporal properties in 03s at 2026-10-20 17:02:31
+Progress(16) at 2026-10-20 17:02:31: 736,775 states generated (716,824 s/min), 153,357 distinct states found (145,408 ds/min), 28,312 states left on queue.
+Progress(20) at 2026-10-20 17:02:58: 1,082,018 states generated, 185,674 distinct states found, 0 states left on queue.
+Checking 3 branches of temporal properties for the complete state space with 557022 total distinct states at (2026-10-20 17:02:58)
+Finished checking temporal properties in 03s at 2026-10-20 17:03:02
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 9.0E-9
-  based on the actual fingerprints:  val = 2.1E-8
+  based on the actual fingerprints:  val = 7.4E-10
 1082018 states generated, 185674 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 20.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
-Finished in 16s at (2026-10-20 11:45:32)
+Finished in 01min 38s at (2026-10-20 17:03:02)
 ==== Paralean TLC provenance ====
 module Targets
 config TargetsLive.cfg

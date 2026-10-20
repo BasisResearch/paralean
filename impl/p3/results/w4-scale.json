@@ -1,0 +1,62 @@
+{
+  "controller": [
+    {
+      "failover_and_recovery_seconds": 0.043427565,
+      "failover_trigger": "8 committed logical ticks per shard; holders paused",
+      "jobs": 512,
+      "jobs_per_second": 61.28756853077158,
+      "jobs_per_shard": [
+        512
+      ],
+      "recovered_jobs": 512,
+      "shards": 1,
+      "submit_seconds": 8.354059596
+    },
+    {
+      "failover_and_recovery_seconds": 0.109457784,
+      "failover_trigger": "8 committed logical ticks per shard; holders paused",
+      "jobs": 512,
+      "jobs_per_second": 99.5703580860359,
+      "jobs_per_shard": [
+        255,
+        257
+      ],
+      "recovered_jobs": 512,
+      "shards": 2,
+      "submit_seconds": 5.142092585
+    },
+    {
+      "failover_and_recovery_seconds": 0.331106967,
+      "failover_trigger": "8 committed logical ticks per shard; holders paused",
+      "jobs": 512,
+      "jobs_per_second": 169.9671394263367,
+      "jobs_per_shard": [
+        130,
+        130,
+        125,
+        127
+      ],
+      "recovered_jobs": 512,
+      "shards": 4,
+      "submit_seconds": 3.012346985
+    }
+  ],
+  "gc": {
+    "current_snapshot_bytes_total": 12582912,
+    "deleted_snapshots": 12,
+    "fresh_reader_recovery_verified": true,
+    "reclaimed_bytes": 37748736,
+    "shards": 4,
+    "write_collect_recover_seconds": 2.551302664
+  },
+  "history": {
+    "compact_seconds": 0.199356251,
+    "compacted_polls": 128,
+    "compacted_work": 256,
+    "replay_after_restart_with_gc_disabled_verified": true,
+    "replay_records_retained": true,
+    "snapshot_bytes_after": 349,
+    "snapshot_bytes_before": 47121
+  },
+  "method": "one shared-host sample; live private FDB; direct controller API; no validation RPC"
+}

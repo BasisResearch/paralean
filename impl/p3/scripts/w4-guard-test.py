@@ -102,8 +102,9 @@ def main():
                 connection.request("POST", f"/{bucket}?%64elete", body=payload,
                                    headers=dict(signed.headers.items()))
                 encoded_response = connection.getresponse()
-                encoded_response.read()
+                encoded_body = encoded_response.read()
                 assert encoded_response.status == 403, encoded_response.status
+                assert b"DeleteObjects is denied" in encoded_body, encoded_body
                 results["gc_encoded_bulk_delete_denied"] = True
             finally:
                 connection.close()

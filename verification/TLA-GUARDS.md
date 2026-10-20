@@ -220,6 +220,82 @@ live replica at checkpoint commit, before any record for that snapshot can be pu
 so the conjunct never decides readiness. That reflects the modelled write order
 and certificate granularity, not that object certificates are unnecessary.
 
+## W4 controller verification
+
+### W4 history replay after compaction
+
+`W4History.tla` models one request and one poll token as a local induction step
+for controller-history compaction. A terminal work entry and its order entry
+leave the current snapshot in the same fenced FDB transaction that writes its
+immutable work replay row. A stable poll token moves to an immutable marker for
+its original worker and first selection in that transaction; a first `NoWork`
+token may move separately after logical grace. Pending work cannot move. The
+marker preserves the first selection, while a late poll returns `Work` only if
+that job remains pending with the same worker and assignment epoch. A duplicate
+request checks the replay row's exact descriptor. Global J3 cancellation overlays
+the immutable original terminal result, so a duplicate after cancellation
+returns `Cancelled`. Turning off GC prevents new compaction but leaves replay
+reads active. Crash clears a process's preparation; it cannot expose a partial
+marker/head transaction. Retained old snapshot chunks remain roots under the
+separate W4 snapshot GC model; this history model does not roll them back.
+
+The bounded positive instance passes 3,780 distinct states with two workers,
+two payload choices and two logical ticks. Seven reachability witnesses require
+work and poll compaction, late work and poll retries, a retry after GC is turned
+off, term handover and a duplicate after post-compaction cancellation. Eleven
+guard mutations independently violate named properties: stale compactor fence,
+terminal-state admission, missing work/poll replay marker, omitted work/poll
+replay lookup, descriptor mismatch, wrong poll worker, work/poll grace and
+missing J3 cancellation overlay. The model's one-request step lifts to a batch
+only if every replay row and the shared pruned head commit in **one FDB
+transaction**; disjoint marker keys alone are insufficient. Two-request crash
+and unknown-commit integration tests are required to check that implementation
+boundary. The model does not prove FDB atomicity, a total storage bound or
+safe retirement of replay rows.
+
+### W4 leases and snapshot collection
+
+`W4Scale.tla` is a bounded, two-shard model for controller metadata. Each shard
+has a monotone FoundationDB counter, lease holder, term and expiry counter.
+Acquisition after expiry increments the term, including when the same process
+reacquires. Stage records the term; publish transactionally checks holder,
+unexpired counter and staged term. A stale pending save can be abandoned and
+staged under a new term. No action reads wall time, so clock skew can only
+change when monitors advance counters and when takeover happens; it cannot make
+a stale term valid. The model does not prove a bound on how quickly a monitor
+ticks or a standby takes over.
+
+The GC domain is **controller snapshot incarnations**, not P2 protocol objects,
+catalogue certificates or S3 keys. A snapshot incarnation may be reclaimed only
+after a shard-local logical grace and a transactionally fresh root check. The
+roots modeled are current shard heads, in-flight saves, retained references,
+checkpoints, catalogue references and outstanding demands. Their dependency
+closure crosses shard boundaries. A later authorized save may reuse the same
+content hash as a collected incarnation; `NoResurrection` concerns the deleted
+incarnation, not byte-level hash uniqueness. Recovery fetches require an explicit
+demand and a live incarnation. Desktop index loss and subsequent requested
+recovery are reachable. The recovery witness explicitly fetches a live root,
+loses the desktop's local index, then requests and fetches that root again;
+the witness flag is set only by the post-loss fetch. Physical protocol-object deletion remains deferred by
+the grow-only contract in [store.md](../docs/store.md#p2-obligations-from-this-choice)
+and [plan.md](../docs/plan.md).
+
+The positive `W4Scale.cfg` instance checks root closure, incarnation
+non-resurrection, the independent stale-publication observer, demanded fetches,
+logical grace and absence of deleted outstanding demands. On one TLC worker it
+explored 428,800 distinct states. The negative suite requires witnesses for
+handover, publication after handover, cross-shard dependent publication,
+collection, retained roots and desktop recovery. Removing either the term or
+expiry check violates `NoStalePublish`; removing dependency closure or any one
+of pending, checkpoint, catalogue or retained roots violates `RootsLive`;
+removing demand protection violates `NoDemandDeleted`; removing grace violates
+`GraceKept`; allowing unsolicited fetch violates `NoUnrequestedFetch`.
+
+This finite instance proves safety for its bounded identities and schedules.
+The handover publication is a reachability witness, not a temporal liveness
+proof. It does not establish a real-time takeover bound, arbitrary dependency
+depth, safe deletion of P2 objects, or a global production GC root inventory.
+
 ## Liveness
 
 | Scenario | Property | Fairness | Model |

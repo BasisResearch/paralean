@@ -1,6 +1,6 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 5 and seed -5420994143024562312 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 3699025] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-m-p2/.runs/tla/hardened/r_commit_without_own_quorum/Hardened.tla
+Running breadth-first search Model-Checking with fp 95 and seed 8984931487171400741 with 4 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 34752] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4-scale/.runs/tla/hardened/r_commit_without_own_quorum/Hardened.tla
 Parsing file /tmp/FiniteSets.tla
 Parsing file /tmp/Naturals.tla
 Parsing file /tmp/TLC.tla
@@ -10,30 +10,33 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
-Starting... (2026-10-20 12:24:49)
+Starting... (2026-10-20 17:15:34)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 12:24:49.
-Progress(16) at 2026-10-20 12:24:52: 110,956 states generated (110,956 s/min), 28,320 distinct states found (28,320 ds/min), 12,267 states left on queue.
-Progress(22) at 2026-10-20 12:25:52: 3,424,855 states generated (3,313,899 s/min), 804,105 distinct states found (775,785 ds/min), 304,054 states left on queue.
-Progress(24) at 2026-10-20 12:26:52: 6,563,103 states generated (3,138,248 s/min), 1,487,822 distinct states found (683,717 ds/min), 527,688 states left on queue.
-Progress(25) at 2026-10-20 12:27:52: 9,956,592 states generated (3,393,489 s/min), 2,217,642 distinct states found (729,820 ds/min), 724,591 states left on queue.
-Progress(26) at 2026-10-20 12:28:52: 12,897,062 states generated (2,940,470 s/min), 2,883,944 distinct states found (666,302 ds/min), 865,670 states left on queue.
-Progress(26) at 2026-10-20 12:29:52: 16,508,638 states generated (3,611,576 s/min), 3,600,584 distinct states found (716,640 ds/min), 996,704 states left on queue.
-Progress(27) at 2026-10-20 12:30:52: 19,987,806 states generated (3,479,168 s/min), 4,269,638 distinct states found (669,054 ds/min), 1,072,801 states left on queue.
-Progress(28) at 2026-10-20 12:31:52: 24,182,851 states generated (4,195,045 s/min), 5,118,539 distinct states found (848,901 ds/min), 1,086,213 states left on queue.
-Progress(28) at 2026-10-20 12:32:52: 28,468,977 states generated (4,286,126 s/min), 5,921,073 distinct states found (802,534 ds/min), 1,023,217 states left on queue.
-Progress(29) at 2026-10-20 12:33:52: 32,518,752 states generated (4,049,775 s/min), 6,616,649 distinct states found (695,576 ds/min), 865,632 states left on queue.
-Progress(30) at 2026-10-20 12:34:52: 36,189,902 states generated (3,671,150 s/min), 7,215,236 distinct states found (598,587 ds/min), 562,779 states left on queue.
-Progress(32) at 2026-10-20 12:35:52: 38,838,813 states generated (2,648,911 s/min), 7,576,542 distinct states found (361,306 ds/min), 136,607 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-20 17:15:34.
+Progress(15) at 2026-10-20 17:15:38: 71,182 states generated (71,182 s/min), 18,812 distinct states found (18,812 ds/min), 8,225 states left on queue.
+Progress(22) at 2026-10-20 17:16:38: 3,208,703 states generated (3,137,521 s/min), 746,882 distinct states found (728,070 ds/min), 284,067 states left on queue.
+Progress(23) at 2026-10-20 17:17:38: 5,850,478 states generated (2,641,775 s/min), 1,352,804 distinct states found (605,922 ds/min), 481,838 states left on queue.
+Progress(24) at 2026-10-20 17:18:38: 8,472,266 states generated (2,621,788 s/min), 1,930,684 distinct states found (577,880 ds/min), 646,816 states left on queue.
+Progress(25) at 2026-10-20 17:19:38: 11,352,090 states generated (2,879,824 s/min), 2,520,313 distinct states found (589,629 ds/min), 797,755 states left on queue.
+Progress(26) at 2026-10-20 17:20:38: 13,351,228 states generated (1,999,138 s/min), 2,978,397 distinct states found (458,084 ds/min), 884,704 states left on queue.
+Progress(26) at 2026-10-20 17:21:38: 16,020,370 states generated (2,669,142 s/min), 3,484,337 distinct states found (505,940 ds/min), 976,701 states left on queue.
+Progress(27) at 2026-10-20 17:22:38: 18,361,810 states generated (2,341,440 s/min), 4,003,771 distinct states found (519,434 ds/min), 1,031,321 states left on queue.
+Progress(27) at 2026-10-20 17:23:38: 21,535,900 states generated (3,174,090 s/min), 4,578,245 distinct states found (574,474 ds/min), 1,079,075 states left on queue.
+Progress(28) at 2026-10-20 17:24:38: 24,355,428 states generated (2,819,528 s/min), 5,156,071 distinct states found (577,826 ds/min), 1,070,307 states left on queue.
+Progress(28) at 2026-10-20 17:25:38: 27,841,197 states generated (3,485,769 s/min), 5,785,739 distinct states found (629,668 ds/min), 1,041,328 states left on queue.
+Progress(29) at 2026-10-20 17:26:38: 30,866,920 states generated (3,025,723 s/min), 6,297,307 distinct states found (511,568 ds/min), 903,007 states left on queue.
+Progress(30) at 2026-10-20 17:27:38: 33,633,195 states generated (2,766,275 s/min), 6,812,314 distinct states found (515,007 ds/min), 741,692 states left on queue.
+Progress(30) at 2026-10-20 17:28:38: 36,463,690 states generated (2,830,495 s/min), 7,258,933 distinct states found (446,619 ds/min), 499,978 states left on queue.
+Progress(33) at 2026-10-20 17:29:38: 39,059,337 states generated (2,595,647 s/min), 7,605,807 distinct states found (346,874 ds/min), 80,350 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.3E-5
-  based on the actual fingerprints:  val = 8.3E-6
+  based on the actual fingerprints:  val = 2.0E-6
 39286492 states generated, 7628232 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 35.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
-Finished in 11min 20s at (2026-10-20 12:36:09)
+Finished in 14min 13s at (2026-10-20 17:29:47)
 ==== Paralean TLC provenance ====
 module Hardened
 config run.cfg
@@ -45,8 +48,8 @@ source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collisi
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
-source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source c6a1080fc529e8e26ccaa41ed00f698c403f8bb9159bf177fb78ff9d3eff5783  Hardened.tla
+source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
 source 212f8e6db6add3ff5c26f2e76a86f1efc222a760a82f542578cd5801d5af166b  Integrated.tla
 source ff754dc663852879d127571d67978c16549dc336ca1d3eb9e101c8f3e444199a  Publication.tla
 source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums.tla
@@ -58,6 +61,8 @@ source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revisio
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
 source 413a7d753f8e224040c49dd6d32398b7a629ead62a47d8df3871dc867c76cc80  Targets.tla
 source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+source 43c63a869d5b4ef23a2cc2f68dd96d699d46dbc33bac69819cc9c5b4679800ed  W4History.tla
+source d0494940684715de55e0311aebc501869487f9675428f72d3cccec4cd38c41d6  W4Scale.tla
 source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
 source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
@@ -83,6 +88,8 @@ source d006f579a0b7089f2be1e4219a6557fe316e157e6b0e689ce8db80b84c94400d  Targets
 source f9e1a5e3155d79b69ae9402128e8b6787ad657b35051682e397692892c513ada  TargetsLagging.cfg
 source 7d37881f7c64a9662c4a59fb7387cdce59d584f0717fb309994584e9af1b49fa  TargetsLive.cfg
 source fe4c3b0752a606261551319aad053ab8b817a1253defbdaa2e03dbbd0db6637a  TargetsWide.cfg
+source 7e3a522342995121a5aac40951a9813be879c24f21dba82f06d27c59e34573a1  W4History.cfg
+source 427baa8edf8375b984ff3c8fd4cedc3eac44d2ac411fd25dc4d594eedf21d7e0  W4Scale.cfg
 source 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
 source 654555d4c765c137034dc9b421494c14f3c5d359d16d27bdc6c5dc46d4fc674e  WorkspacePending.cfg
 source f7a76167b4e53afbda35d82f95683dfd7eb63231082d1c078d683afd9d2f9481  WorkspaceWide.cfg
