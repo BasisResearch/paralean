@@ -3,8 +3,10 @@
 This delivery covers design, TLA+ checks, Veil/Lean verification and a P1
 prototype. The prototype (`impl/p1`, [gate report](p1-gate.md)) runs as a library
 and CLI; it passes G1 to G6 on 21 fixture files and an 18-module Mathlib sample, on stock
-Lean and on the minimal Paralean fork (`fork/`). P2 storage runs in `impl/p2`. The
-distributed service (P3 onwards) is subsequent implementation work.
+Lean and on the minimal Paralean fork (`fork/`). P2 storage runs in `impl/p2`;
+P3–P5 run in `impl/p3`, `impl/p3-remote`, `impl/p4` and `impl/p5`, with their verified
+scope in the phase logs. The W1, W3, W4 and W5 workstreams are integrated as recorded
+in the [integration log](integrate-w-log.md).
 
 The abstract protocol gates now include atomic multi-name groups, receipt/session
 binding, every required target at durable commit, and checkpoint catalog recovery
@@ -105,18 +107,26 @@ Record cases requiring larger source capsules. Keep source/line mappings usable.
 Gate: replay and clean export agree with reference behavior. This is the critical
 engineering feasibility gate.
 
-The Paralean Lean fork (`fork/`, Lean `193c3589` + 6 patches, commit `dfc13cc6`) implements
+The Paralean Lean fork (`fork/`, Lean `193c3589` + 8 patches, commit `bd122768`) implements
 the P1 hooks natively: `Elab.async` pinned off, a per-command declaration collector, no axiom
 fallback after kernel failures, a `simp` used-lemma record and canonical instance names for
-anonymous and derived instances. On the fork the P1 gate gives the same G1–G6 results as on
-stock, with 12 more instances named canonically ([fork-log](fork-log.md)).
+anonymous and derived instances. Later patches add interactive-server imports and (W5)
+realization of published generalized methods. On the fork the P1 gate gives the same G1–G6
+results as on stock, with 12 more instances named canonically ([fork-log](fork-log.md)).
+
+W1 restores M08's original elaboration module for exact source replay and replaces
+order-dependent hygienic export association with unique raw-key matching plus a guarded
+singleton residual match; full encoded identity remains mandatory ([w1-log](w1-log.md)).
 
 ## P2 — Storage and eventual registry
 
 Implemented in `impl/p2` (Rust): self-hosted FoundationDB 7.3 + Garage, T1–T7,
 certificate-based discovery and catalogue recovery, fault injection; gate tests pass
-against the live services ([p2-log](p2-log.md)). Not yet: FDB faults within a redundancy
-mode, tombstones (§11.4), anti-entropy between deployments.
+against the live services ([p2-log](p2-log.md)), as do tombstones (§11.4) and the network
+anti-entropy service. Not yet: FDB faults within a redundancy mode. W3 adds transactional
+checkpoint collision rejection, controller-authorized deletion (OPEN-19), agent-key
+registration, same-file position moves (OPEN-20) and rendered names; its models and
+guard-removal tests are recorded in [w3-log](w3-log.md).
 
 Implement immutable writes, hash verification, durable acknowledgements, anti-entropy,
 recovery, causal revisions and conflict diagnostics on FoundationDB and S3, using the
@@ -128,7 +138,8 @@ uploads, corrupt bytes, validator timeouts and allowed disk loss. Add the store
 faults of [store.md](store.md#p2-obligations-from-this-choice): unknown commit
 outcomes, rotation or reassignment between a read and a commit, S3 PUT timeouts and
 killed FoundationDB processes. Convert model counterexamples into protocol
-regression fixtures. Keep GC disabled; the bucket denies deletes.
+regression fixtures. Keep protocol-object GC disabled; the bucket denies deletes. W4's opt-in
+GC principal may delete only allowlisted non-content prefixes, never `obj/` keys.
 
 Gate: no unvalidated/under-replicated publication; convergence; checkpoint recovery,
 including loss of the desktop's last manifest hash. Exercise storage enumeration
@@ -175,6 +186,13 @@ publish afterwards. Parallel attempts at one target stay private until the owner
 adopts one. Pin commands; complete kernel checks before publication.
 Add retry deduplication, cancellation, memory limits and queue backpressure.
 
+W4 replaces controller authority deadlines with per-shard store counters and term
+fences, and adds fixed controller shards, opt-in history compaction with durable replay
+records, and collection of superseded controller snapshot generations. The collector's
+roots include W3 tombstone lineage, and P5 tasks and controller shards share one
+per-target claim. Per-shard snapshot limits, online resharding, retirement of replay IDs
+and protocol-object GC remain separate work ([w4-log](w4-log.md)).
+
 Run ordinary agents across machines/worktrees. B must use A's completed helper while
 A continues its file. Change an upstream definition and verify invalidation, stale
 response rejection and retained old snapshots.
@@ -213,6 +231,11 @@ version/environment/generation checks. Preserve completion, diagnostics, hover,
 goals, rename and cancellation. Keep RPC references session-affine.
 
 Gate: editor tests across death/reconnect; no stale states; measured p50/p95 latency.
+
+W5 connects stamped private editor capture to controller-owned, receipt-validated
+publication and adds policy invalidation, including W3 agent-key revocation, and
+transactional buffer refactoring. General published cross-workspace rename remains
+blocked on a multi-group publication protocol ([w5-log](w5-log.md)).
 
 ## P5 — Autonomous controller
 
@@ -272,7 +295,7 @@ Lean names:
 ## Deferred changes
 
 Kernel-level lazy body loading needs profiling and a separate correctness argument.
-GC, changing membership, shared-writer failover and Byzantine storage change the
+Protocol-object GC, changing membership, shared-writer failover and Byzantine storage change the
 protocol assumptions and require new models/proofs. Collaborative text editing is
 independent of proof-term representation.
 

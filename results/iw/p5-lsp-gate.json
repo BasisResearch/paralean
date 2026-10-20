@@ -1,0 +1,47 @@
+{
+  "gate": "p5-lsp-worker",
+  "worker": "scripted JSON-RPC editor",
+  "transport": "ssh",
+  "checks": {
+    "invalid_buffer_private": {
+      "ok": true,
+      "capture_rejection": "capture contains rejected declarations"
+    },
+    "did_change_ms": 236.34,
+    "explicit_receipt_publication": {
+      "ok": true,
+      "group": "41d74105617e0e3d52a3c97a971c6fcf0e3102c34be6c543eeb619652d4906ff",
+      "epoch": 0
+    },
+    "remote_percent_dependent": {
+      "ok": true,
+      "group": "b761faa6cc9494f6337f8c8f9330c8b7a3b63719813f776f7e341c6b09a99ee2",
+      "dependency_group": "41d74105617e0e3d52a3c97a971c6fcf0e3102c34be6c543eeb619652d4906ff",
+      "policy_generation": 4
+    },
+    "current_target_and_stock_export": {
+      "ok": true,
+      "catalog": "b733604f6466d4c2c3ad49e993ebdb588224ba974b0f35368c493875bd8f8281"
+    },
+    "idle_controller_trust_push": {
+      "ok": true,
+      "generation": 10
+    },
+    "worker_cannot_revoke_policy": {
+      "ok": true
+    },
+    "idle_store_policy_push": {
+      "ok": true,
+      "generation": 12,
+      "old_session_rejected": "RPC session expired"
+    },
+    "agent_key_revocation": {
+      "ok": true,
+      "generation": 14,
+      "worker_refused": true,
+      "publish_refused": "workspace agent key is revoked or unregistered"
+    }
+  },
+  "ssh_root": "/data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/iw/ssh-root-3",
+  "ok": true
+}

@@ -1,0 +1,4 @@
+host: Linux 7.0.0-1012-aws x86_64
+lean: bd12276840543d83766ce66c82cf260d818b8d83 (PARALEAN_LEAN=fork; /data/home/kirancodes/Documents/code/paralean-integrate-w/.deps/fork-stage1)
+fork hooks: all available
+date: 2026-10-20T23:00:16Z
