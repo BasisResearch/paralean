@@ -1,0 +1,120 @@
+{
+  "groups": 1105,
+  "accepted": 1104,
+  "published": 1104,
+  "duplicate": 0,
+  "validation_s": 1617.839948476,
+  "upload_s": 80.36494915200001,
+  "publish_s": 606.641311735,
+  "total_s": 2360.1545272509998,
+  "payload_bytes": 7114753,
+  "warm_processes": 40,
+  "implementation_commit": "656558ba0043440a29a9b5c8ea29811a9e79847f",
+  "modules": 18,
+  "failures": [
+    {
+      "module": "M08",
+      "gid": "4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4",
+      "reason": "Rejected(\"check failed: source replay of f5a1a2428cd2 failed | [capsule:replay-mismatch] Mathlib/Tactic/ByCases.lean:37: replayed declaration b20f7eca3d55 \u2260 stored f5a1a2428cd2; differing members: #[Mathlib.Tactic.ByCases.\u00ab_aux_$M___macroRules_Mathlib_Tactic_ByCases_byCases!_1\u00bb]\")"
+    }
+  ],
+  "attempted_groups_per_validation_rpc_s": 0.6830094664437644,
+  "validation_rpc_s_per_attempted_group": 1.4641085506570135,
+  "validation_rpc_hours_per_1000_attempted_groups": 0.4066968196269482,
+  "module_wall_hours_per_1000_attempted_groups": 0.593301791666918,
+  "max_observed_checker_rss_kb": 1622576,
+  "two_shard_wall_s": 1229,
+  "sum_module_wall_s": 2360.1545272509998,
+  "timing_scope": "validation_s measures elapsed ValidateBatch RPCs, not CPU or billed instance time. total_s includes upload, issue, validate, publish and audit but excludes cluster construction. Two modules ran concurrently.",
+  "baseline_s_per_group": [
+    1.2,
+    2.9
+  ],
+  "baseline_validation_rpc_time_ratios": [
+    1.2200904588808446,
+    0.5048650174679357
+  ],
+  "audits": "Every completed module passed c.audit_ok() before its report row was written.",
+  "dollar_cost": "Not attributable: host billing rate and allocation of shared services are unavailable.",
+  "paired_m14": {
+    "groups_per_mode": 50,
+    "warm_validation_rpc_s": 18.546969527999998,
+    "cold_validation_rpc_s": 38.36616943,
+    "warm_throughput_ratio": 2.0685950538754776,
+    "rpc_time_reduction_percent": 51.65801068089586,
+    "warm_module_wall_s": 27.573725213,
+    "cold_module_wall_s": 49.258927776,
+    "cold_rss_instrumented": false
+  },
+  "baseline_proxy_hours_per_1000_groups": [
+    0.3333333333333333,
+    0.8055555555555555
+  ],
+  "historical_matching_sample": {
+    "source": "impl/p3-remote/results/costs.json",
+    "groups": 993,
+    "rows": [
+      {
+        "module": "M14",
+        "groups": 50,
+        "historical_validation_s_per_group": 1.39,
+        "final_validation_rpc_s_per_group": 0.30528351598000003,
+        "historical_t1_ms_per_group": 109,
+        "final_t1_ms_per_group": 124.67126478000004
+      },
+      {
+        "module": "M03",
+        "groups": 83,
+        "historical_validation_s_per_group": 1.39,
+        "final_validation_rpc_s_per_group": 0.8651665935301205,
+        "historical_t1_ms_per_group": 132,
+        "final_t1_ms_per_group": 254.18652628915655
+      },
+      {
+        "module": "M15",
+        "groups": 56,
+        "historical_validation_s_per_group": 2.34,
+        "final_validation_rpc_s_per_group": 2.1653494210535715,
+        "historical_t1_ms_per_group": 156,
+        "final_t1_ms_per_group": 391.0934834821429
+      },
+      {
+        "module": "M13",
+        "groups": 115,
+        "historical_validation_s_per_group": 1.21,
+        "final_validation_rpc_s_per_group": 0.6379272645913043,
+        "historical_t1_ms_per_group": 87,
+        "final_t1_ms_per_group": 267.4997384608695
+      },
+      {
+        "module": "M16",
+        "groups": 211,
+        "historical_validation_s_per_group": 2.91,
+        "final_validation_rpc_s_per_group": 2.480044124127962,
+        "historical_t1_ms_per_group": 117,
+        "final_t1_ms_per_group": 1031.5895296540286
+      },
+      {
+        "module": "M01",
+        "groups": 213,
+        "historical_validation_s_per_group": 1.76,
+        "final_validation_rpc_s_per_group": 1.1713493341173709,
+        "historical_t1_ms_per_group": 120,
+        "final_t1_ms_per_group": 529.710450286385
+      },
+      {
+        "module": "M18",
+        "groups": 265,
+        "historical_validation_s_per_group": 1.98,
+        "final_validation_rpc_s_per_group": 1.529803199962264,
+        "historical_t1_ms_per_group": 103,
+        "final_t1_ms_per_group": 704.0769908830188
+      }
+    ],
+    "historical_weighted_validation_s_per_group": 1.9825276938569991,
+    "final_weighted_validation_rpc_s_per_group": 1.4701699621520643,
+    "historical_weighted_t1_ms_per_group": 113.4833836858006,
+    "final_weighted_t1_ms_per_group": 601.2778138680765,
+    "caveat": "Historical means are rounded. Toolchain, host load, RPC batching, publication guards and concurrency differ; this is not a controlled speedup measurement."
+  }
+}

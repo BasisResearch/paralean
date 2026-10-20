@@ -1,0 +1,109 @@
+{
+  "control": {
+    "passed": 30,
+    "failed": 0,
+    "ignored": 0
+  },
+  "processes": {
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  "store": {
+    "passed": 59,
+    "failed": 0,
+    "ignored": 0
+  },
+  "batch_alias": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "fork": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  "warm": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "fork_githash": "99967f1ee50a1ee82bb178359ad95b723c8196a2"
+  },
+  "implementation_commit": "656558ba0043440a29a9b5c8ea29811a9e79847f",
+  "full_gate": {
+    "passed": 15,
+    "failed": 0,
+    "wall_s": 220.5
+  },
+  "integrated_target_gate": {
+    "passed": 5,
+    "failed": 0,
+    "wall_s": 33.3
+  },
+  "batch_race": {
+    "passed": 1,
+    "failed": 0,
+    "regression_failed_before_fix": true
+  },
+  "expiry_crash": {
+    "included_in": "processes",
+    "regression_failed_before_fix": true
+  },
+  "rebased_full_gate": {
+    "passed": 15,
+    "failed": 0,
+    "wall_s": 224.8
+  },
+  "control_total_distinct": 38,
+  "store_test_details": {
+    "unit": 11,
+    "antientropy": 9,
+    "faults": 10,
+    "fixtures": 9,
+    "guards": 13,
+    "property": 1,
+    "tombstones": 6
+  },
+  "overlap_regression": {
+    "passed": 1,
+    "failed": 0,
+    "included_in": "control",
+    "scope": "Singleton group / legacy Assign / queued and running work; refusal before mutation and later expiry."
+  },
+  "final_affected_suite": {
+    "passed": 16,
+    "failed": 0,
+    "details": {
+      "control": 6,
+      "durable": 1,
+      "processes": 4,
+      "targets": 5
+    },
+    "checkpoint": "656558ba0043440a29a9b5c8ea29811a9e79847f"
+  },
+  "final_target_gate": {
+    "passed": 5,
+    "failed": 0,
+    "wall_s": 21.3
+  },
+  "full_suite_checkpoint": "0f20eec7b642753d6d11f3e8beed24533fafa8a4",
+  "total_distinct_rust_tests": 97,
+  "scope_note": "Full control/store/fork/warm suites passed at rebased checkpoint; final ownership guard change reran all affected controller, target, durability and process suites plus target gate.",
+  "full_mathlib": {
+    "modules": 18,
+    "attempted": 1105,
+    "accepted": 1104,
+    "published": 1104,
+    "duplicate": 0,
+    "audits_passed": 18,
+    "known_p1_replay_rejections": 1
+  },
+  "final_paired_m14": {
+    "warm_accepted_published": 50,
+    "cold_accepted_published": 50,
+    "failures": 0
+  },
+  "private_base_unchanged_through_all_final_runs": true,
+  "isolated_cluster_stopped": true
+}

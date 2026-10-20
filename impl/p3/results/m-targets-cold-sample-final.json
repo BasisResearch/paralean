@@ -1,0 +1,23 @@
+[
+  {
+    "accepted": 50,
+    "batch_size": 32,
+    "checker": "99b5e0639ca2662a00ab05b40c62d8eb30dc0673e69350d5722897322ec1fe4e",
+    "duplicate": 0,
+    "failures": [],
+    "groups": 50,
+    "groups_per_s": 1.3032314860420509,
+    "lean_githash": "99967f1ee50a1ee82bb178359ad95b723c8196a2",
+    "module": "M14",
+    "payload_bytes": 243749,
+    "peak_checker_rss_kb": 0,
+    "pool_mode": "cold",
+    "publish_s": 8.176862015999998,
+    "published": 50,
+    "total_s": 49.258927776,
+    "upload_s": 1.163962457,
+    "validation_s": 38.36616943,
+    "validation_s_per_group": 0.7673233885999999,
+    "warm_processes": 0
+  }
+]

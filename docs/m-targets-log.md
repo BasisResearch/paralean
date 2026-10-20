@@ -81,7 +81,9 @@ existing cold checker also does not sandbox.
 The parent ran the integrated Rust build and live tests against the isolated
 cluster. Results: control/adversarial/auth/target/durable/protocol tests 30/30;
 process failure tests 4/4; batch and warm isolation tests 3/3; fork-validator
-test 1/1; P2 store tests 59/59. These are 38 distinct control tests and 59 store tests after rebasing onto cb1ca05.
+test 1/1; P2 store tests 59/59. These are 38 distinct control tests and 59 store tests (97 total). The full
+suites passed at rebased checkpoint `0f20eec`; the final ownership guard at
+`656558b` reran the 16 affected tests and the target gate, as detailed below.
 The warm test was run separately with its required fork fixtures; a stock-only
 batch test invocation reports it as passed after an early configuration return,
 which is not counted as isolation evidence. The batch test additionally
@@ -114,7 +116,7 @@ constructs fresh command state/options from an immutable imported environment;
 `kernelReplay` starts from that base with a fresh kernel environment and axiom
 cache. Only imported-base environments are intentionally cached between jobs.
 
-The paired M14 sample on implementation commit `bd081a4` accepted and published
+The earlier paired M14 sample on implementation commit `bd081a4` accepted and published
 all 50 groups in each mode. Warm validation took **17.082 s (0.342 s/group)**;
 cold validation took **44.659 s (0.893 s/group)**: **2.61×** the validation
 throughput, or **61.75% fewer validation RPC seconds** for this sample. Measured
@@ -128,8 +130,61 @@ The initial full run attempted all 1,105 groups from the 18-module sample: 1,104
 were accepted and published, one was rejected. It used 1,745.646 validation
 seconds (1.580 s/group), before the final nonce, initializer-process and T1
 dependency-publication changes. Its raw report is retained as
-`m-targets-mathlib-18-initial.json`. A rerun is pending on the rebased implementation and the updated fork pin;
-it uses two disjoint shards, each with one validator slot.
+`m-targets-mathlib-18-initial.json`.
+
+The final run on `656558b` used the private fixed base and
+fork `99967f1`. All 18 modules were attempted: **1,104 of 1,105 groups accepted
+and published**, **zero duplicate publications**, with only the independently
+reproduced M08 replay mismatch. Every module passed its store audit before its
+report row was written. Validation RPCs took **1617.840 seconds**,
+or **1.464 s per attempted group**
+(**0.683 attempted groups/s**). This is
+22.0% more validation time than the 1.2 s/group endpoint and 49.5% less
+than the 2.9 s/group endpoint;
+the historical range is not a controlled comparison on this shared host.
+The two-shard wall time was 1229 seconds. Summed module wall time
+was 2360.155 seconds, including 80.365 seconds
+upload and 606.641 seconds T1 publication. Peak observed checker
+process-group RSS was 1,622,576 KiB. The resource-time
+proxies are 0.407 validation-RPC
+hours and 0.593 module-wall hours
+per 1,000 attempted groups. The supplied 1.2–2.9 s/group range corresponds
+to 0.333–0.806 such hours per 1,000 groups; these proxies are not billed
+instance time. Raw module rows and
+aggregate definitions are in `m-targets-mathlib-18.json` and
+`m-targets-mathlib-summary.json`.
+
+The historical 1.2–2.9 s/group range covered seven modules (993 groups).
+For those same seven modules, the recorded validation means are:
+
+| Module | Historical s/group | Final RPC s/group | Historical T1 ms/group | Final T1 ms/group |
+|---|---:|---:|---:|---:|
+| M14 | 1.39 | 0.305 | 109 | 125 |
+| M03 | 1.39 | 0.865 | 132 | 254 |
+| M15 | 2.34 | 2.165 | 156 | 391 |
+| M13 | 1.21 | 0.638 | 87 | 267 |
+| M16 | 2.91 | 2.480 | 117 | 1032 |
+| M01 | 1.76 | 1.171 | 120 | 530 |
+| M18 | 1.98 | 1.530 | 103 | 704 |
+
+The group-weighted validation mean is 1.983 s historically and 1.470 RPC s
+in the final run. T1 averaged 113 ms historically and 601 ms in this run.
+Publication is materially more expensive here; the final T1 path includes
+certified-dependency checks. The fork, host load, batching and concurrency also
+differ, so this comparison does not isolate causes or establish a controlled
+speedup. Historical inputs are `impl/p3-remote/results/costs.json`; the derived
+comparison is recorded in `m-targets-mathlib-summary.json`.
+
+A new sequential M14 warm/cold pair on the same final commit, private base and
+fork accepted and published all 50 groups in both modes. Warm validation took
+**18.547 s (0.371 s/group)** versus
+**38.366 s (0.767 s/group)** cold:
+**2.07× validation RPC throughput**, or **51.66% fewer RPC seconds**.
+Total measured module work was 27.574 s warm and 49.259 s
+cold. The warm leg reused 1 checker process; observed peak
+RSS was 622,712 KiB. Cold RSS remains uninstrumented. This
+one shared-host pair does not establish a performance distribution. See
+`m-targets-warm-sample-final.json` and `m-targets-cold-sample-final.json`.
 
 ## Additional crash and concurrency review
 
@@ -160,7 +215,9 @@ queued/running work blocks both legacy and group assignment. The regression
 checks every overlap direction before target mutation and checks that expiry
 of a separate group owner leaves a live work target unchanged. The final affected
 suite passed 16/16 (six scheduling, one durability, four process, five target);
-the final target-only working-copy gate passed 5/5 in 21.3 seconds.
+the final target-only working-copy gate passed 5/5 in 21.3 seconds
+(`m-targets-remote-gate-final.json`). The older
+`m-targets-target-gate-final.json` retains the pre-rebase 5/5, 21.6-second run.
 
 ## Operational limits and remaining work
 
@@ -172,7 +229,8 @@ the final target-only working-copy gate passed 5/5 in 21.3 seconds.
   sandboxing. Materialized initializers run in disposable processes. There is no
   claim that untrusted code with arbitrary process-memory access is contained.
 - Each benchmark module uses one validator slot and dependent batches of 32 on a
-  shared host. The final full run uses two such modules concurrently. Its wall times include validation fetch/replay and RPC, but exclude capture,
+  shared host. The final full run uses two such modules concurrently. Its validation intervals
+  include fetch/replay and RPC, but exclude capture,
   initial payload upload, and T1 publication, which are recorded separately. Preparing
   the private Mathlib base is a separate one-time setup cost. Dollar
   charges cannot be attributed without a machine rate and an allocation of shared
@@ -185,8 +243,9 @@ the final target-only working-copy gate passed 5/5 in 21.3 seconds.
   `4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4`
   on the rebased fork. Its generated macro name replays to declaration
   `b20f7eca3d55…` instead of stored `f5a1a2428cd2…`. A separate cold P1
-  `check-group` reproduces the rejection (exit 1, 1.977 s); see
-  `m-targets-cold-M08-rebased.log`. The older fork's reproduction is retained
+  `check-group` reproduces the rejection against the final private base
+  (exit 1, 0.803 s); see `m-targets-cold-M08-private.log`. The first rebased
+  reproduction is retained in `m-targets-cold-M08-rebased.log`. The older fork's reproduction is retained
   as `m-targets-cold-M08.log`. This work does not
   modify P1 source replay or bypass the rejection.
 
@@ -280,3 +339,40 @@ through the owner/epoch/head fences; see docs/m-targets-log.md for controller
 failover, RPC authentication, warm-batch setup, measurements, and current limits.”
 
 Neither plan.md nor README.md was edited.
+
+## Final report
+
+Cove's report tool could not be discovered in this session (`tool_search` returned
+an unsupported-call error), so the requested report is recorded here.
+
+Verified implementation commit: **`656558ba0043440a29a9b5c8ea29811a9e79847f`**, on branch
+`m-targets`, rebased onto `origin/main` at `cb1ca05`. The branch was pushed at
+implementation checkpoints; the final documentation/results commit is reported
+in the handoff message. No push was made to main.
+
+1. **Targets complete:** working copies request controller-issued target jobs and
+   publish through owner/epoch/head fences. Two-name, pending-handover and stale
+   owner fixtures pass. Full remote gate 15/15; final target-only gate 5/5.
+2. **Persistence/failover complete:** authoritative controller state is in FDB,
+   replicas elect a lease-fenced leader, and four real process-failure tests pass,
+   including leader death after T4 and during J1 validation. Logical requests and
+   publications are deduplicated; expired-worker computation may be retried.
+3. **Authentication complete:** Ed25519 authenticates worker, controller and
+   validator RPCs; unsigned, impersonated and replayed requests are rejected.
+4. **Validator work complete with one corpus blocker:** warm process reuse,
+   environment isolation and dependent batches are implemented and tested.
+   The final 18-module run published 1,104/1,105 groups at
+   1.464 validation RPC s/attempted group;
+   the final M14 pair measured 2.07× warm validation RPC throughput.
+   Certification of the remaining M08 group is blocked by the P1 macro-name
+   replay mismatch documented above. Absolute dollar costs are not attributed:
+   the machine billing rate and shared-service allocation are unavailable.
+5. **Documentation complete:** this log contains verification, reproduction,
+   measurements, operational limits, the shared-cache incident and proposed
+   plan.md/README.md sentences. Neither of those files was edited.
+
+Verification totals: **38 distinct control tests + 59 store tests = 97 Rust tests**,
+plus the remote gate. The final affected controller suite passed 16/16. The
+private Mathlib base artifact manifest remained unchanged through capture,
+full measurement and the final warm/cold pair. Only this workstream's isolated
+cluster was used; it was stopped after verification, retaining its data.

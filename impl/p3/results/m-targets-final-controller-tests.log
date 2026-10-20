@@ -1,0 +1,40 @@
+    Finished `release` profile [optimized] target(s) in 0.17s
+     Running tests/control.rs (impl/p2/target/release/deps/control-209368d12abd92bb)
+
+running 6 tests
+test cancellation_stops_checks_and_publication ... ok
+test checker_memory_limit_gives_no_receipt ... ok
+test duplicate_and_retried_jobs_are_deduplicated ... ok
+test queues_apply_backpressure ... ok
+test validator_timeouts_give_no_receipt ... ok
+test work_is_admitted_within_each_workers_memory ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.73s
+
+     Running tests/durable.rs (impl/p2/target/release/deps/durable-3496ac8341c92de9)
+
+running 1 test
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.69s
+
+     Running tests/processes.rs (impl/p2/target/release/deps/processes-3c01a525020fd933)
+
+running 4 tests
+test expired_owner_reassignment_survives_crash_before_snapshot ... ok
+test killed_owner_is_replaced_and_the_target_published ... ok
+test leader_killed_after_durable_assignment_redelivers_once ... ok
+test leader_killed_during_validation_recovers_j1_without_client_retry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.11s
+
+     Running tests/targets.rs (impl/p2/target/release/deps/targets-62f59ac209b33687)
+
+running 5 tests
+test joint_assignment_rejects_subset_and_expires_together ... ok
+test pending_two_name_proof_is_fenced_on_handover ... ok
+test singleton_group_and_work_apis_reject_overlaps_before_target_mutation ... ok
+test stale_joint_assignment_request_cannot_overwrite_handover ... ok
+test two_names_in_one_group_publish_with_one_bound_receipt ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.17s

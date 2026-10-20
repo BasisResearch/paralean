@@ -4,7 +4,7 @@ BEFORE FIX (expected regression failure)
      Running tests/processes.rs (impl/p2/target/release/deps/processes-3c01a525020fd933)
 
 running 1 test
-test expired_owner_reassignment_survives_crash_before_snapshot ... 
+test expired_owner_reassignment_survives_crash_before_snapshot ...
 thread 'expired_owner_reassignment_survives_crash_before_snapshot' (1750791) panicked at /data/home/kirancodes/Documents/code/paralean-m-targets/impl/p3/crates/control/tests/processes.rs:314:9:
 expired successor remained owner after takeover
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

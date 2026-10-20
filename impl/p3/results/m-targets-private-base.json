@@ -1,0 +1,101 @@
+{
+  "before_capture": {
+    "root": "/data/home/kirancodes/Documents/code/paralean-m-targets/.runs/m-targets/mathlib-private",
+    "files": 18720,
+    "bytes": 1269868112,
+    "sha256": "201f9d3f86e886df42acace5291c4a2eacd88668268a8c55eee2e85ca17ead5b"
+  },
+  "after_capture": {
+    "root": "/data/home/kirancodes/Documents/code/paralean-m-targets/.runs/m-targets/mathlib-private",
+    "files": 18720,
+    "bytes": 1269868112,
+    "sha256": "201f9d3f86e886df42acace5291c4a2eacd88668268a8c55eee2e85ca17ead5b"
+  },
+  "after_initializers": {
+    "root": "/data/home/kirancodes/Documents/code/paralean-m-targets/.runs/m-targets/mathlib-private",
+    "files": 18720,
+    "bytes": 1269868112,
+    "sha256": "201f9d3f86e886df42acace5291c4a2eacd88668268a8c55eee2e85ca17ead5b"
+  },
+  "before_capture_equals_after_initializers": true,
+  "freshness_under_lean_paralean_1": "All targets up-to-date (2354 jobs).",
+  "prebuild_runs": [
+    {
+      "start_unix_s": 1792469057.58,
+      "end_unix_s": 1792469788.718854,
+      "wall_s": 731.1388540267944,
+      "precision": "approximately 1 second; Linux process start ticks and polling",
+      "lean_paralean_env": "unset"
+    },
+    {
+      "start_unix_s": 1792469788.5750759,
+      "end_unix_s": 1792470058.8907726,
+      "exit_code": 0,
+      "lean_threads": 4
+    }
+  ],
+  "source_provenance": [
+    {
+      "path": ".",
+      "commit": "0575336843263378752eeb5f4c75a612327768a2",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/Cli",
+      "commit": "843844fa601dd56767b1eb22b7ada5b64d5e567a",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/LeanSearchClient",
+      "commit": "50cd21bc62f2c8357c4f269d1185921cbfcdfc90",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/Qq",
+      "commit": "d93a8a0622807953d1e424f0fe2a5f5b5520c12e",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/aesop",
+      "commit": "fb8aa936d5607ac054fb732ba01ea37e1bc0404f",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/batteries",
+      "commit": "e07ebd76add8761266424eb3916fceff217566ce",
+      "tracked_changes": [
+        "T\tdocs/README.md"
+      ]
+    },
+    {
+      "path": ".lake/packages/importGraph",
+      "commit": "7ad9f2e325aa6cec3dacaa97c2653a98032750eb",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/plausible",
+      "commit": "1cfc4bdd5be138c8c5ca20e61c0515a392b915c2",
+      "tracked_changes": []
+    },
+    {
+      "path": ".lake/packages/proofwidgets",
+      "commit": "ebeca04ecd5ee2ba9740e13576d80d4ab6b5779c",
+      "tracked_changes": []
+    }
+  ],
+  "source_note": "Batteries docs/README.md symlink was dereferenced by the private copy; no Lean source files differ from their package commits.",
+  "after_full_sample": {
+    "root": "/data/home/kirancodes/Documents/code/paralean-m-targets/.runs/m-targets/mathlib-private",
+    "files": 18720,
+    "bytes": 1269868112,
+    "sha256": "201f9d3f86e886df42acace5291c4a2eacd88668268a8c55eee2e85ca17ead5b"
+  },
+  "before_capture_equals_after_full_sample": true,
+  "after_final_pair": {
+    "root": "/data/home/kirancodes/Documents/code/paralean-m-targets/.runs/m-targets/mathlib-private",
+    "files": 18720,
+    "bytes": 1269868112,
+    "sha256": "201f9d3f86e886df42acace5291c4a2eacd88668268a8c55eee2e85ca17ead5b"
+  },
+  "before_capture_equals_after_final_pair": true
+}
