@@ -1,0 +1,93 @@
+2026-10-20T03:03:18Z fast candidate knobs: --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25
+2026-10-20T03:03:18Z restart fdbserver-0 for fast starting setting
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:24100)
+2026-10-20T03:03:21Z healthy: write and fault tolerance >=2 after 3 s
+2026-10-20T03:03:21Z restart fdbserver-1 for fast starting setting
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:24101)
+2026-10-20T03:03:25Z healthy: write and fault tolerance >=2 after 4 s
+2026-10-20T03:03:25Z restart fdbserver-2 for fast starting setting
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:24102)
+2026-10-20T03:03:26Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T03:03:26Z restart fdbserver-3 for fast starting setting
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:24103)
+2026-10-20T03:03:26Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:03:26Z restart fdbserver-4 for fast starting setting
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:24104)
+2026-10-20T03:03:28Z healthy: write and fault tolerance >=2 after 1 s
+2026-10-20T03:03:28Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:03:33Z fast-1: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:03:48Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:03:53Z fast-1: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:04:39Z healthy: write and fault tolerance >=2 after 31 s
+{
+  "probes": 28,
+  "failed_probes": 4,
+  "max_probe_duration_s": 8.045,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465434786902070,
+      "last_failed_end_ns": 1792465469976113759,
+      "failed_samples": 4,
+      "observed_failure_span_s": 35.189,
+      "last_ok_to_next_ok_s": 43.803
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T03:04:45Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:04:50Z fast-2: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:05:07Z healthy: write and fault tolerance >=2 after 2 s
+2026-10-20T03:05:12Z fast-2: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:05:55Z healthy: write and fault tolerance >=2 after 28 s
+{
+  "probes": 25,
+  "failed_probes": 4,
+  "max_probe_duration_s": 8.052,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465512794293303,
+      "last_failed_end_ns": 1792465548004652600,
+      "failed_samples": 4,
+      "observed_failure_span_s": 35.21,
+      "last_ok_to_next_ok_s": 43.709
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}
+2026-10-20T03:06:00Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:06:06Z fast-3: SIGSTOP fdbserver-2 for 15 s
+STOP fdbserver-2
+CONT fdbserver-2
+2026-10-20T03:06:21Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T03:06:26Z fast-3: netsplit fdbserver-3 for 15 s
+isolated fdbservers: 3
+healed
+2026-10-20T03:07:11Z healthy: write and fault tolerance >=2 after 30 s
+{
+  "probes": 26,
+  "failed_probes": 4,
+  "max_probe_duration_s": 8.056,
+  "failure_windows": [
+    {
+      "first_failed_start_ns": 1792465587428415983,
+      "last_failed_end_ns": 1792465622630833324,
+      "failed_samples": 4,
+      "observed_failure_span_s": 35.202,
+      "last_ok_to_next_ok_s": 43.643
+    }
+  ],
+  "measurement_note": "Probe calls are serial, with a one-second gap. A timeout is one failed sample; actual outage is bracketed by adjacent successful probe completions."
+}

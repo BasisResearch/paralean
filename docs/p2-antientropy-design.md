@@ -15,6 +15,12 @@ certificate, and keeps sender certificates under `xcert/`. These guards remain t
 authority for applying a received publication. The network layer must never count
 foreign evidence as a local `cert/`, `tcert/`, `rcert/` or `ocert/`.
 
+There is also a relay gap: `export()` reads only the sender's local `cert/` and
+`tcert/`. If A publishes a tombstone and B receives it, B's receiver certificate
+does not prove that B was the target's original author. A later B→C push can
+fail T10 even though A→B succeeded. Verified origin evidence must remain
+forwardable across any number of relays.
+
 ## Ordered change stream and bounded protocol
 
 Append `aelog/<commit-versionstamp>/<operation>` in the **same FDB transaction**
@@ -26,9 +32,11 @@ versionstamp than every event in that page. Scanning by object ID or ordinary ke
 order would be unsound: an insert behind the cursor could be missed forever. The
 versionstamp mutation and the publication must succeed or fail together. T2/T6
 certificates that appear later get their own `Certificate(kind, ID, signer)` events
-when their addition changes transferable evidence. A repair or repeated import
-which changes no visible state emits no event. Echoes of imports generate at most
-one event per newly received item per deployment.
+when their addition changes transferable evidence. A new verified foreign
+certificate, including one attached to an item already `Present`, also gets an
+evidence event. A repair or repeated import which changes no visible state emits
+no event. Echoes of imports generate at most one publication event and one event
+per distinct certificate per deployment.
 
 The server exposes a small authenticated protocol: `Hello` (deployment identity,
 protocol version, federation configuration digest and cursor generation),
@@ -79,25 +87,77 @@ pending and reports the exact `(source, kind, ID)`. A missing object at the
 receiver is repaired by a later ID fetch, even if the publication is already
 `Present`; periodic object scrubbing is separate from change stream replay.
 
+Publication bundles include **all** relevant verified certificates: this
+deployment's own `cert/` or `tcert/` plus original certificates retained in
+`xcert/`. An `xcert` is forwarded byte-for-byte with its original signer,
+replica and object binding; relay identity is transport metadata, never a
+replacement signer. The receiver re-verifies every signature, maps writer and
+replica to a configured origin deployment, and stores each distinct certificate
+under its original provenance key. A certificate from a relay is insufficient
+as proof of the origin when an origin constraint applies. For a tombstone,
+T10's author check selects a verified **original publisher** certificate whose
+writer is the target revision's author workspace; a relay's local receiver
+certificate is only additional acknowledgement evidence. For a target-name
+group, the evidence must include a trusted publisher certificate from that
+target's configured home; the relay's own certificate cannot confer target
+ownership.
+
+An item already present locally still processes and commits newly received
+valid evidence. The new `xcert` key and its change event are written atomically;
+the original publication and local certificate remain untouched. If a key
+exists with identical bytes, return `Present` without a log event. If the same
+provenance key holds different bytes, report a certificate conflict and leave
+it unchanged. Because each immutable certificate is recorded once per
+deployment, repeated A↔B relays settle without an echo storm. The receiver
+cursor advances only after this evidence update is durable.
+
 ## Group chunk metadata
 
-The published `GroupManifest` specification already has `terms: TermTable | list
-chunk`, but the P2 store's `Opaque(Kind::Group)` API does not decode that field.
-For a group encoding whose terms field carries chunk references, define the
-canonical list of chunk IDs as the sorted, duplicate-free references parsed from
-the **hashed group bytes**. The writer must reject missing or unacknowledged
-referenced chunks before T1. Store a derived `gchunks/<groupID>` index (chunk IDs,
-optionally sizes/checksums for batching) in T1 and T9, but treat it as a cache:
-readers reconstruct and compare it against the group bytes before using it.
-Derived metadata does not change an existing group ID. A versioned group format
-with explicit tagged inline/chunk terms is required if the current P1 encoding
-does not expose those references unambiguously; the format change must be
-coordinated with P1/P3 owners. Old or unknown group formats remain opaque and
-continue to replicate by group object ID. They may be marked `chunks unknown`,
-never falsely advertised as having zero chunks. If the sender's package did
-carry chunks but its immutable group bytes do not bind their IDs, full chunk
-replication cannot be proven; report that limitation rather than guessing from
-S3 listing. A signed sidecar alone is insufficient to prove completeness.
+The published `GroupManifest` specification has `terms: TermTable | list chunk`,
+but P2 currently holds `Opaque(Kind::Group)` and cannot enumerate references.
+Add one explicit, self-identifying encoding for **new** chunked groups. The PCE
+body inside the existing `v0/group` hash preimage is:
+
+```
+string "paralean-group-chunked-v1"
+uvarint 1                         // envelope format
+bytes core                        // producer's canonical group core, opaque to P2
+list ChunkRef                     // logical term-table order, may repeat an ID
+ChunkRef := Id (PCE bytes[32]) ; uvarint byte_length
+```
+
+The full PCE body, including every ordered chunk ID and length, is hashed with
+the existing `v0/group` domain. The object is still an `Opaque { kind: Group,
+pce }`, so the current `Package.group` field and P3 struct literals need no
+change. `Package.chunks` already carries the bytes for upload. A new P2 helper
+can build this wrapper from `(core, ordered chunk objects)` and return `Opaque`.
+P2 validates the wrapper's exact PCE, nonempty core, bounded reference count,
+each chunk length in `1..=64 MiB`, and absence of trailing bytes; it does not
+interpret the core's Lean declarations. An unsupported `paralean-group-chunked-*`
+magic or malformed v1 wrapper is a precise `UnsupportedGroupEncoding` or
+`InvalidGroupEncoding` error, never an empty chunk list.
+
+At publish, derive the set of `(ID, length)` from `Package.group.pce`; require
+that `Package.chunks` contains exactly those IDs (duplicate logical references
+need only one object), and that each chunk hashes to its ID and has the declared
+length. Upload all chunks, then verify local S3 acknowledgement of every
+referenced ID before T1. The order of group and chunk PUTs is immaterial because
+T1 follows all acknowledgements. The same parser on receive drives `Fetch` of
+every chunk and local acknowledgement before T9. Store a derived
+`gchunks/<groupID>` index in T1/T9 for cheap enumeration, but reparse the
+authenticated group object and compare it to the index when serving or auditing;
+the index cannot add or omit a reference silently. The network service can
+stream the deduplicated set in ID order while preserving logical order in the
+group bytes. Since `gchunks` is set in the publication transaction, a cursor
+event never observes a published group without its chunk index.
+
+Existing P1 `paralean-group-v3` bytes and IDs remain unchanged. They are the
+`LegacyOpaque` case: P2 transfers the group object exactly as before and marks
+its chunk coverage `unknown`, even if a caller supplies additional unbound
+`Package.chunks`. No S3 bucket listing or signed sidecar can prove their
+completeness. This keeps old fixtures and P3 remote imports working. New
+producers and consumers may adopt the chunked wrapper later; P2's metadata and
+anti-entropy path can be implemented and tested without editing P1 or P3.
 
 ## Catalogue exchange
 
@@ -116,6 +176,14 @@ meaning. A read API can enumerate verified foreign catalogues by source and
 report source-ready versus missing dependencies. Promoting a foreign snapshot
 to a local checkpoint requires a separate, locally fenced T5 commit by a local
 holder; it is not an anti-entropy side effect.
+
+A relay forwards the source's signed record, token, fence history, commit and
+object certificates with their source deployment identity, even if it learned
+the record through another relay. The relay's `xcatalog/` copy is only a cache
+of that source evidence. The destination validates the original source
+authority and certificate writer bindings, then writes the same
+source-qualified keys. A relay cannot relabel its copy as a locally fenced
+record or strip source identity from a certificate.
 
 Do not equate receipt verification with catalogue readiness. A source record is
 accepted as source-ready only when its source commit certificate and every
@@ -138,18 +206,48 @@ declaring a target name is accepted only with valid publication evidence from
 that home; it is copied as a publication but does **not** update the receiver's
 target record. A missing, mismatched or unknown home mapping is rejected before
 mutation, including when the receiver currently has no local target record.
-Persist and pin the config under the deployment's FDB root before enabling the
-service. T1 and T4 read its digest and home assignment in their own transaction;
-`prepare_target` checks the same pinned config before returning a binding. A
-network service configured for federation refuses to start if the store has no
-matching pinned config. The deployment cannot silently switch from federated to
+Persist and pin the config under `federation/config` in the deployment's FDB
+root **only while the deployment is new**: no published markers, tombstones,
+target assignments, or committed catalogue records. The pin transaction scans
+these prefixes and writes the config in one serializable transaction. Joining
+an existing local deployment requires a separate migration with an explicit
+write barrier and complete state validation; P2 refuses it. Stop all old
+binary writers before pinning. The trusted-store implementation assumption is
+that every writer thereafter runs the upgraded code; an old binary that writes
+the FDB keys directly is outside this protocol's enforcement.
+
+T1, T4, T8, T9 and T10 read the persisted config in **their own FDB transaction**,
+even when their `Store` handle was opened before the config was pinned. No
+cached or optional handle field may bypass it. T1 classifies every revision
+name against the configured target-home map *before* looking for a local
+`target/<name>` record. If the name is a configured target, T1 requires this
+deployment to be its home and requires the target record, owner, epoch and
+head guards; absence of a record is an error, never ordinary-name publication.
+T4 rejects assignment or reassignment of a name not declared as homed here.
+T9 checks the same map for every received revision name and requires origin
+evidence from that home for target groups. T8 and T10 reject a tombstone of a
+group declaring any configured target name, even when no local
+`target/<name>` record exists on this deployment. Their tombstone guards use
+the pinned name classification in addition to the local target-key check.
+These transactions avoid an old handle's local-mode path.
+`prepare_target` reads the pinned config from FDB before returning a binding;
+T1 repeats the transactional check at commit. A network service configured for
+federation refuses to start if its own store or any peer has no matching
+pinned config. The deployment cannot silently switch from federated to
 unconfigured mode while serving writes. The mapping is immutable for this
 protocol version; migration needs a separately modelled handover. Ordinary
 non-target names keep Workspaces' deterministic collision rendering. Existing
-single-deployment API constructors remain usable on stores which have never
-joined a federation; they do not authorize a federated peer. This is a protocol rule beyond the
-current single-store TargetNames model and must pass a TLA model with a guard
-removal mutation before implementation.
+single-deployment APIs remain usable on stores which have never joined a
+federation; they do not authorize a federated peer. This is a protocol rule
+beyond the current single-store TargetNames model and must pass a TLA model
+with a guard removal mutation before implementation.
+
+In federated mode, configure source-bound writer sets: a writer ID may certify
+for its configured origin deployment, and its certificate's replica must match
+that origin's pinned replica ID. The existing two-instance demo may reuse a
+writer ID on both sides; it remains a non-federated local test, not evidence of
+home authentication. New federation tests use distinct writer identities (or
+an explicit unambiguous writer-to-source binding) across deployments.
 
 One immutable `marker/<group>` key fixes one position per group in Workspaces'
 `Layout`. If two deployments validly publish the same group with different
@@ -161,6 +259,26 @@ tie-break would be a new layout model and storage schema, so neither is inferred
 from ordinary name conflict rules. A same-name conflict between **different**
 non-target groups remains convergent under the existing deterministic render.
 
+## Relay verification cases
+
+- A publishes a group and tombstone; B pulls from A; C pulls only from B.
+  C receives A's original group and tombstone certificates inside B's bundles,
+  verifies the tombstone author against the target revisions, and ends with
+  the same published set as A and B. B's receiver certificate alone must fail
+  the author check.
+- A is the pinned home of target `x`; A publishes its target group; B pulls
+  from A; C pulls only from B. C accepts the group only with A's original
+  certificate and its configured home proof. Dropping A's certificate or
+  replacing it with B's local certificate fails closed, even if C has no
+  `target/<x>` key.
+- A commits a catalogue record; B pulls it and C pulls from B. C retains the
+  exact A-signed record, source token/fence evidence and source certificates
+  under `xcatalog/A`, `xrcert/A` and `xocert/A`; its local `rcert/` remains empty.
+- A and B exchange the same evidence repeatedly after convergence. Cursor and
+  log counts stop changing. Deliver an additional valid original certificate
+  for a group already present at B: B stores and forwards that evidence exactly
+  once; a crash before cursor advancement replays without duplicates.
+
 ## Exact `store.md` delta to apply after integration
 
 1. In **Layout**, add `aelog/<versionstamp>/<operation>`,
@@ -168,9 +286,13 @@ non-target groups remains convergent under the existing deterministic render.
    `gchunks/<group>`. Add source-qualified `xcatalog/`, `xrcert/`, `xocert/`
    namespaces. State that foreign certificates are evidence and cannot satisfy
    a local quorum. Document the persisted federation config digest, source
-   identity, and the T1/T4/prepare home checks.
+   identity, original writer-to-deployment/replica binding, the new-only config
+   pin transaction, and transactional T1/T4/T8/T9/T10 home checks. `xcert/`
+   evidence is exportable after any relay.
 2. In **Transactions**, require T1/T8/T9/T10 and ready T5 to append their
-   change event atomically. Add a transaction for durable cursor/pending
+   change event atomically. T9/T10 also accept new foreign evidence for an
+   existing publication, appending only a new-evidence event when the bytes
+   were absent. Add a transaction for durable cursor/pending
    advancement and one for importing a verified foreign catalogue bundle;
    neither changes the local fence or target records. T1/T9 validate and
    record derived chunk references when the group encoding exposes them.

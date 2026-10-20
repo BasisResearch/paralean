@@ -1,0 +1,1332 @@
+{
+    "client" : {
+        "cluster_file" : {
+            "path" : "/data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster",
+            "up_to_date" : true
+        },
+        "coordinators" : {
+            "coordinators" : [
+                {
+                    "address" : "127.0.0.1:24100",
+                    "protocol" : "0fdb00b073000000",
+                    "reachable" : true
+                },
+                {
+                    "address" : "127.0.0.1:24101",
+                    "protocol" : "0fdb00b073000000",
+                    "reachable" : true
+                },
+                {
+                    "address" : "127.0.0.1:24102",
+                    "protocol" : "0fdb00b073000000",
+                    "reachable" : true
+                },
+                {
+                    "address" : "127.0.0.1:24103",
+                    "protocol" : "0fdb00b073000000",
+                    "reachable" : true
+                },
+                {
+                    "address" : "127.0.0.1:24104",
+                    "protocol" : "0fdb00b073000000",
+                    "reachable" : true
+                }
+            ],
+            "quorum_reachable" : true
+        },
+        "database_status" : {
+            "available" : true,
+            "healthy" : false
+        },
+        "messages" : [
+        ],
+        "timestamp" : 1792465408
+    },
+    "cluster" : {
+        "active_primary_dc" : "",
+        "active_tss_count" : 0,
+        "bounce_impact" : {
+            "can_clean_bounce" : false,
+            "reason" : "cluster hasn't fully recovered yet"
+        },
+        "clients" : {
+            "count" : 2,
+            "supported_versions" : [
+                {
+                    "client_version" : "7.3.79",
+                    "connected_clients" : [
+                        {
+                            "address" : "127.0.0.1:36688",
+                            "log_group" : "default"
+                        },
+                        {
+                            "address" : "127.0.0.1:53084",
+                            "log_group" : "default"
+                        }
+                    ],
+                    "count" : 2,
+                    "max_protocol_clients" : [
+                        {
+                            "address" : "127.0.0.1:36688",
+                            "log_group" : "default"
+                        },
+                        {
+                            "address" : "127.0.0.1:53084",
+                            "log_group" : "default"
+                        }
+                    ],
+                    "max_protocol_count" : 2,
+                    "protocol_version" : "fdb00b073000000",
+                    "source_version" : "0074653ee0113fc39da0fa088b056c7210ab3191"
+                }
+            ]
+        },
+        "cluster_controller_timestamp" : 1792465408,
+        "configuration" : {
+            "backup_worker_enabled" : 0,
+            "blob_granules_enabled" : 0,
+            "commit_proxies" : 3,
+            "coordinators_count" : 5,
+            "encryption_at_rest_mode" : "disabled",
+            "excluded_servers" : [
+            ],
+            "grv_proxies" : 1,
+            "log_engine" : "ssd-2",
+            "log_spill" : 2,
+            "logs" : 3,
+            "perpetual_storage_wiggle" : 0,
+            "perpetual_storage_wiggle_engine" : "none",
+            "perpetual_storage_wiggle_locality" : "0",
+            "proxies" : 4,
+            "redundancy_mode" : "triple",
+            "resolvers" : 1,
+            "storage_engine" : "ssd-2",
+            "storage_migration_type" : "disabled",
+            "tenant_mode" : "disabled",
+            "usable_regions" : 1
+        },
+        "connection_string" : "paralean:mp2gray00000000578a@127.0.0.1:24100,127.0.0.1:24101,127.0.0.1:24102,127.0.0.1:24103,127.0.0.1:24104",
+        "data" : {
+            "least_operating_space_bytes_log_server" : 267002809851,
+            "least_operating_space_bytes_storage_server" : 267002715431,
+            "team_trackers" : [
+            ],
+            "total_disk_used_bytes" : 734146560
+        },
+        "database_available" : true,
+        "database_lock_state" : {
+            "locked" : false
+        },
+        "datacenter_lag" : {
+            "seconds" : 0,
+            "versions" : 0
+        },
+        "degraded_processes" : 0,
+        "fault_tolerance" : {
+            "max_zone_failures_without_losing_availability" : 2,
+            "max_zone_failures_without_losing_data" : 2
+        },
+        "full_replication" : true,
+        "generation" : 81,
+        "idempotency_ids" : {
+            "size_bytes" : 0
+        },
+        "incompatible_connections" : [
+        ],
+        "latency_probe" : {
+            "batch_priority_transaction_start_seconds" : 0.00029206299999999996,
+            "commit_seconds" : 0.0026042499999999998,
+            "immediate_priority_transaction_start_seconds" : 0.0010385500000000001,
+            "read_seconds" : 0.00013232199999999998,
+            "transaction_start_seconds" : 0.0014772399999999999
+        },
+        "layers" : {
+            "_valid" : true
+        },
+        "logs" : [
+            {
+                "begin_version" : 3907901604,
+                "current" : true,
+                "epoch" : 81,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24103",
+                        "healthy" : true,
+                        "id" : "dc02914439b55b26"
+                    },
+                    {
+                        "address" : "127.0.0.1:24100",
+                        "healthy" : true,
+                        "id" : "c9b1b08402488157"
+                    },
+                    {
+                        "address" : "127.0.0.1:24104",
+                        "healthy" : true,
+                        "id" : "c5b235dfb238fc66"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            },
+            {
+                "begin_version" : 3807343571,
+                "current" : false,
+                "end_version" : 3907501837,
+                "epoch" : 79,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24104",
+                        "healthy" : true,
+                        "id" : "68aa523d1d9f51f6"
+                    },
+                    {
+                        "address" : "127.0.0.1:24100",
+                        "healthy" : true,
+                        "id" : "d78b7cbee74596b7"
+                    },
+                    {
+                        "address" : "127.0.0.1:24102",
+                        "healthy" : true,
+                        "id" : "e383346899fcfac1"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            },
+            {
+                "begin_version" : 3707196338,
+                "current" : false,
+                "end_version" : 3807343571,
+                "epoch" : 77,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24103",
+                        "healthy" : true,
+                        "id" : "22007cc5778ec998"
+                    },
+                    {
+                        "address" : "127.0.0.1:24100",
+                        "healthy" : true,
+                        "id" : "ecd7b0ca0ee69477"
+                    },
+                    {
+                        "address" : "127.0.0.1:24102",
+                        "healthy" : true,
+                        "id" : "004b24fa3ba3bfb6"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            },
+            {
+                "begin_version" : 3605064998,
+                "current" : false,
+                "end_version" : 3707196338,
+                "epoch" : 75,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24102",
+                        "healthy" : true,
+                        "id" : "d4243aec4c6158ea"
+                    },
+                    {
+                        "address" : "127.0.0.1:24103",
+                        "healthy" : true,
+                        "id" : "9deb5b133b33f6bf"
+                    },
+                    {
+                        "address" : "127.0.0.1:24104",
+                        "healthy" : true,
+                        "id" : "0caafc0132373f1a"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            },
+            {
+                "begin_version" : 3501951219,
+                "current" : false,
+                "end_version" : 3605064998,
+                "epoch" : 73,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24102",
+                        "healthy" : true,
+                        "id" : "139977b2110178ba"
+                    },
+                    {
+                        "address" : "127.0.0.1:24103",
+                        "healthy" : true,
+                        "id" : "5e560218b31e88f6"
+                    },
+                    {
+                        "address" : "127.0.0.1:24104",
+                        "healthy" : true,
+                        "id" : "d7d02a4f9fca7d60"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            },
+            {
+                "begin_version" : 3390834005,
+                "current" : false,
+                "end_version" : 3501951219,
+                "epoch" : 71,
+                "log_fault_tolerance" : 2,
+                "log_interfaces" : [
+                    {
+                        "address" : "127.0.0.1:24103",
+                        "healthy" : true,
+                        "id" : "6630cdfebb5cfc4c"
+                    },
+                    {
+                        "address" : "127.0.0.1:24104",
+                        "healthy" : true,
+                        "id" : "e0b5ae5bb5a64b76"
+                    },
+                    {
+                        "address" : "127.0.0.1:24100",
+                        "healthy" : true,
+                        "id" : "31eecb53b6ebf1de"
+                    }
+                ],
+                "log_replication_factor" : 3,
+                "log_write_anti_quorum" : 0,
+                "possibly_losing_data" : false
+            }
+        ],
+        "lowest_compatible_protocol_version" : "fdb00b072000000",
+        "machines" : {
+            "m0" : {
+                "address" : "127.0.0.1",
+                "contributing_workers" : 1,
+                "cpu" : {
+                    "logical_core_utilization" : 0.99806300000000003
+                },
+                "excluded" : false,
+                "locality" : {
+                    "machineid" : "m0",
+                    "processid" : "76f5c9f0c7e9da9f75e4a8baf91e4380",
+                    "zoneid" : "z0"
+                },
+                "machine_id" : "m0",
+                "memory" : {
+                    "committed_bytes" : 70498390016,
+                    "free_bytes" : 62410063872,
+                    "total_bytes" : 132908453888
+                },
+                "network" : {
+                    "megabits_received" : {
+                        "hz" : 20.159199999999998
+                    },
+                    "megabits_sent" : {
+                        "hz" : 20.159199999999998
+                    },
+                    "tcp_segments_retransmitted" : {
+                        "hz" : 0.59972500000000006
+                    }
+                }
+            },
+            "m1" : {
+                "address" : "127.0.0.1",
+                "contributing_workers" : 1,
+                "cpu" : {
+                    "logical_core_utilization" : 0.99793500000000002
+                },
+                "excluded" : false,
+                "locality" : {
+                    "machineid" : "m1",
+                    "processid" : "0f5c89dfde5e0b5ef7ece02e5d1b9909",
+                    "zoneid" : "z1"
+                },
+                "machine_id" : "m1",
+                "memory" : {
+                    "committed_bytes" : 70171561984,
+                    "free_bytes" : 62736891904,
+                    "total_bytes" : 132908453888
+                },
+                "network" : {
+                    "megabits_received" : {
+                        "hz" : 17.720099999999999
+                    },
+                    "megabits_sent" : {
+                        "hz" : 17.720099999999999
+                    },
+                    "tcp_segments_retransmitted" : {
+                        "hz" : 0.60027700000000006
+                    }
+                }
+            }
+        },
+        "messages" : [
+            {
+                "description" : "Unable to retrieve all status information.",
+                "name" : "status_incomplete",
+                "reasons" : [
+                    {
+                        "description" : "Cannot retrieve all process status information."
+                    },
+                    {
+                        "description" : "Unknown cache statistics."
+                    }
+                ]
+            }
+        ],
+        "newest_protocol_version" : "fdb00b073000000",
+        "processes" : {
+            "0f5c89dfde5e0b5ef7ece02e5d1b9909" : {
+                "address" : "127.0.0.1:24101",
+                "class_source" : "command_line",
+                "class_type" : "unset",
+                "command_line" : "/data/home/kirancodes/paralean-p2/bin/fdbserver -p 127.0.0.1:24101 -l 127.0.0.1:24111 -C /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster -d /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p1/data -L /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p1/log --locality-zoneid z1 --locality-machineid m1 --cache-memory 256MiB --knob_disable_posix_kernel_aio=1 --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25",
+                "cpu" : {
+                    "usage_cores" : 0.024880100000000002
+                },
+                "disk" : {
+                    "busy" : 0.36676900000000001,
+                    "free_bytes" : 269006966784,
+                    "reads" : {
+                        "counter" : 116985464,
+                        "hz" : 18.608599999999999,
+                        "sectors" : 9096
+                    },
+                    "total_bytes" : 1002031964160,
+                    "writes" : {
+                        "counter" : 78514029,
+                        "hz" : 2842.5100000000002,
+                        "sectors" : 236568
+                    }
+                },
+                "excluded" : false,
+                "fault_domain" : "z1",
+                "locality" : {
+                    "machineid" : "m1",
+                    "processid" : "0f5c89dfde5e0b5ef7ece02e5d1b9909",
+                    "zoneid" : "z1"
+                },
+                "machine_id" : "m1",
+                "memory" : {
+                    "available_bytes" : 8589934592,
+                    "limit_bytes" : 8589934592,
+                    "rss_bytes" : 82485248,
+                    "unused_allocated_memory" : 131072,
+                    "used_bytes" : 221212672
+                },
+                "messages" : [
+                    {
+                        "description" : "Storage server lagging by 402 seconds.",
+                        "name" : "storage_server_lagging"
+                    }
+                ],
+                "network" : {
+                    "connection_errors" : {
+                        "hz" : 0
+                    },
+                    "connections_closed" : {
+                        "hz" : 2.4011100000000001
+                    },
+                    "connections_established" : {
+                        "hz" : 2.8012999999999999
+                    },
+                    "current_connections" : 5,
+                    "megabits_received" : {
+                        "hz" : 1.3976200000000001
+                    },
+                    "megabits_sent" : {
+                        "hz" : 1.73675
+                    },
+                    "tls_policy_failures" : {
+                        "hz" : 0
+                    }
+                },
+                "roles" : [
+                    {
+                        "id" : "04b2713ef8cea335",
+                        "role" : "cluster_controller"
+                    },
+                    {
+                        "role" : "coordinator"
+                    },
+                    {
+                        "id" : "894fee04bbbcb0c7",
+                        "role" : "commit_proxy"
+                    },
+                    {
+                        "bytes_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "data_lag" : {
+                            "seconds" : 402.92599999999999,
+                            "versions" : 402926055
+                        },
+                        "data_version" : 3499975549,
+                        "durability_lag" : {
+                            "seconds" : 0,
+                            "versions" : 0
+                        },
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "durable_version" : 3499975549,
+                        "fetched_versions" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "fetches_from_logs" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "finished_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "d7f4f952f26e253f",
+                        "input_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "keys_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269010878464,
+                        "kvstore_free_bytes" : 269010878464,
+                        "kvstore_inline_keys" : 0,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_total_nodes" : 0,
+                        "kvstore_total_size" : 0,
+                        "kvstore_used_bytes" : 104865792,
+                        "local_rate" : 100,
+                        "low_priority_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutation_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutations" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "query_queue_max" : 0,
+                        "role" : "storage",
+                        "storage_metadata" : {
+                            "created_time_datetime" : "2026-10-20 02:54:15.838 +0000",
+                            "created_time_timestamp" : 1792464855.8389778,
+                            "storage_engine" : "ssd-2"
+                        },
+                        "stored_bytes" : 0,
+                        "total_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "tss" : false
+                    }
+                ],
+                "run_loop_busy" : 0.028539200000000001,
+                "uptime_seconds" : 5.0000200000000001,
+                "version" : "7.3.79"
+            },
+            "3e187bac6ceca076532f9049fd5310db" : {
+                "address" : "127.0.0.1:24102",
+                "class_source" : "command_line",
+                "class_type" : "unset",
+                "command_line" : "/data/home/kirancodes/paralean-p2/bin/fdbserver -p 127.0.0.1:24102 -l 127.0.0.1:24112 -C /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster -d /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p2/data -L /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p2/log --locality-zoneid z2 --locality-machineid m2 --cache-memory 256MiB --knob_disable_posix_kernel_aio=1 --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25",
+                "excluded" : false,
+                "memory" : {
+                    "limit_bytes" : 8589934592
+                },
+                "messages" : [
+                ],
+                "roles" : [
+                    {
+                        "id" : "2bf1276f738b4881",
+                        "role" : "master"
+                    },
+                    {
+                        "id" : "e383346899fcfac1",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "004b24fa3ba3bfb6",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "d4243aec4c6158ea",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "139977b2110178ba",
+                        "role" : "log"
+                    },
+                    {
+                        "role" : "coordinator"
+                    },
+                    {
+                        "bytes_queried" : {
+                            "counter" : 4499,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "data_lag" : {
+                            "seconds" : 0.023977000000000002,
+                            "versions" : 23977
+                        },
+                        "data_version" : 3907501836,
+                        "durability_lag" : {
+                            "seconds" : 405.10399999999998,
+                            "versions" : 405103885
+                        },
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "durable_version" : 3502397951,
+                        "fetched_versions" : {
+                            "counter" : 405346621,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "fetches_from_logs" : {
+                            "counter" : 12,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "finished_queries" : {
+                            "counter" : 24,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "3dda0d9a8ce9420d",
+                        "input_bytes" : {
+                            "counter" : 110782,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "keys_queried" : {
+                            "counter" : 45,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269007118336,
+                        "kvstore_free_bytes" : 269007118336,
+                        "kvstore_inline_keys" : 0,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_total_nodes" : 0,
+                        "kvstore_total_size" : 0,
+                        "kvstore_used_bytes" : 104882176,
+                        "local_rate" : 91,
+                        "low_priority_queries" : {
+                            "counter" : 20,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutation_bytes" : {
+                            "counter" : 10464,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutations" : {
+                            "counter" : 75,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "query_queue_max" : 4,
+                        "role" : "storage",
+                        "storage_metadata" : {
+                            "created_time_datetime" : "2026-10-20 02:54:13.978 +0000",
+                            "created_time_timestamp" : 1792464853.9787581,
+                            "storage_engine" : "ssd-2"
+                        },
+                        "stored_bytes" : 36250,
+                        "total_queries" : {
+                            "counter" : 24,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "tss" : false
+                    },
+                    {
+                        "id" : "2bdde5b723f78717",
+                        "role" : "resolver"
+                    }
+                ],
+                "version" : "7.3.79"
+            },
+            "42870d6c165f54c342a3f6da227a3a11" : {
+                "address" : "127.0.0.1:24104",
+                "class_source" : "command_line",
+                "class_type" : "unset",
+                "command_line" : "/data/home/kirancodes/paralean-p2/bin/fdbserver -p 127.0.0.1:24104 -l 127.0.0.1:24114 -C /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster -d /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p4/data -L /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p4/log --locality-zoneid z4 --locality-machineid m4 --cache-memory 256MiB --knob_disable_posix_kernel_aio=1 --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25",
+                "excluded" : false,
+                "memory" : {
+                    "limit_bytes" : 8589934592
+                },
+                "messages" : [
+                    {
+                        "description" : "Storage server lagging by 400 seconds.",
+                        "name" : "storage_server_lagging"
+                    }
+                ],
+                "roles" : [
+                    {
+                        "id" : "68aa523d1d9f51f6",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "0caafc0132373f1a",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "d7d02a4f9fca7d60",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "e0b5ae5bb5a64b76",
+                        "role" : "log"
+                    },
+                    {
+                        "role" : "coordinator"
+                    },
+                    {
+                        "id" : "012117e6cfafe5e3",
+                        "role" : "commit_proxy"
+                    },
+                    {
+                        "data_version" : 3907901604,
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "c5b235dfb238fc66",
+                        "input_bytes" : {
+                            "counter" : 213,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269006966784,
+                        "kvstore_free_bytes" : 269006966784,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_used_bytes" : 104886272,
+                        "queue_disk_available_bytes" : 269006966784,
+                        "queue_disk_free_bytes" : 269006966784,
+                        "queue_disk_total_bytes" : 1002031964160,
+                        "queue_disk_used_bytes" : 1044480,
+                        "role" : "log"
+                    },
+                    {
+                        "bytes_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "data_lag" : {
+                            "seconds" : 400.50400000000002,
+                            "versions" : 400503653
+                        },
+                        "data_version" : 3502397951,
+                        "durability_lag" : {
+                            "seconds" : 0,
+                            "versions" : 0
+                        },
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "durable_version" : 3502397951,
+                        "fetched_versions" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "fetches_from_logs" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "finished_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "a9f33af51ab08a12",
+                        "input_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "keys_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269006815232,
+                        "kvstore_free_bytes" : 269006815232,
+                        "kvstore_inline_keys" : 0,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_total_nodes" : 0,
+                        "kvstore_total_size" : 0,
+                        "kvstore_used_bytes" : 104882176,
+                        "local_rate" : 100,
+                        "low_priority_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutation_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutations" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "query_queue_max" : 1,
+                        "role" : "storage",
+                        "storage_metadata" : {
+                            "created_time_datetime" : "2026-10-20 02:54:13.978 +0000",
+                            "created_time_timestamp" : 1792464853.9787581,
+                            "storage_engine" : "ssd-2"
+                        },
+                        "stored_bytes" : 36250,
+                        "total_queries" : {
+                            "counter" : 1,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "tss" : false
+                    }
+                ],
+                "version" : "7.3.79"
+            },
+            "76f5c9f0c7e9da9f75e4a8baf91e4380" : {
+                "address" : "127.0.0.1:24100",
+                "class_source" : "command_line",
+                "class_type" : "unset",
+                "command_line" : "/data/home/kirancodes/paralean-p2/bin/fdbserver -p 127.0.0.1:24100 -l 127.0.0.1:24110 -C /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster -d /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p0/data -L /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p0/log --locality-zoneid z0 --locality-machineid m0 --cache-memory 256MiB --knob_disable_posix_kernel_aio=1 --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25",
+                "cpu" : {
+                    "usage_cores" : 0.0226546
+                },
+                "disk" : {
+                    "busy" : 0.34204300000000004,
+                    "free_bytes" : 269006360576,
+                    "reads" : {
+                        "counter" : 116986721,
+                        "hz" : 262.68000000000001,
+                        "sectors" : 187808
+                    },
+                    "total_bytes" : 1002031964160,
+                    "writes" : {
+                        "counter" : 78514374,
+                        "hz" : 1490.1199999999999,
+                        "sectors" : 117416
+                    }
+                },
+                "excluded" : false,
+                "fault_domain" : "z0",
+                "locality" : {
+                    "machineid" : "m0",
+                    "processid" : "76f5c9f0c7e9da9f75e4a8baf91e4380",
+                    "zoneid" : "z0"
+                },
+                "machine_id" : "m0",
+                "memory" : {
+                    "available_bytes" : 8589934592,
+                    "limit_bytes" : 8589934592,
+                    "rss_bytes" : 85348352,
+                    "unused_allocated_memory" : 131072,
+                    "used_bytes" : 296710144
+                },
+                "messages" : [
+                ],
+                "network" : {
+                    "connection_errors" : {
+                        "hz" : 0
+                    },
+                    "connections_closed" : {
+                        "hz" : 3.3984399999999999
+                    },
+                    "connections_established" : {
+                        "hz" : 3.5983499999999999
+                    },
+                    "current_connections" : 5,
+                    "megabits_received" : {
+                        "hz" : 1.1117900000000001
+                    },
+                    "megabits_sent" : {
+                        "hz" : 1.0942400000000001
+                    },
+                    "tls_policy_failures" : {
+                        "hz" : 0
+                    }
+                },
+                "roles" : [
+                    {
+                        "id" : "d78b7cbee74596b7",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "ecd7b0ca0ee69477",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "31eecb53b6ebf1de",
+                        "role" : "log"
+                    },
+                    {
+                        "role" : "coordinator"
+                    },
+                    {
+                        "id" : "900e3965bd866d2b",
+                        "role" : "grv_proxy"
+                    },
+                    {
+                        "data_version" : 3907901604,
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "c9b1b08402488157",
+                        "input_bytes" : {
+                            "counter" : 213,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269006966784,
+                        "kvstore_free_bytes" : 269006966784,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_used_bytes" : 104882176,
+                        "queue_disk_available_bytes" : 269006966784,
+                        "queue_disk_free_bytes" : 269006966784,
+                        "queue_disk_total_bytes" : 1002031964160,
+                        "queue_disk_used_bytes" : 1044480,
+                        "role" : "log"
+                    },
+                    {
+                        "bytes_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "data_lag" : {
+                            "seconds" : 0.0061879999999999999,
+                            "versions" : 6188
+                        },
+                        "data_version" : 3907459959,
+                        "durability_lag" : {
+                            "seconds" : 405.06200000000001,
+                            "versions" : 405062008
+                        },
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "durable_version" : 3502397951,
+                        "fetched_versions" : {
+                            "counter" : 409583437,
+                            "hz" : 81915800,
+                            "roughness" : 116277999.99999999
+                        },
+                        "fetches_from_logs" : {
+                            "counter" : 28,
+                            "hz" : 5.5999400000000001,
+                            "roughness" : 6.9490100000000004
+                        },
+                        "finished_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "aabf6907e83e6f8a",
+                        "input_bytes" : {
+                            "counter" : 7736,
+                            "hz" : 1547.1800000000001,
+                            "roughness" : 4957.96
+                        },
+                        "keys_queried" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269008879616,
+                        "kvstore_free_bytes" : 269008879616,
+                        "kvstore_inline_keys" : 0,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_total_nodes" : 0,
+                        "kvstore_total_size" : 0,
+                        "kvstore_used_bytes" : 104865792,
+                        "local_rate" : 91,
+                        "low_priority_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutation_bytes" : {
+                            "counter" : 344,
+                            "hz" : 68.799199999999999,
+                            "roughness" : 219.512
+                        },
+                        "mutations" : {
+                            "counter" : 8,
+                            "hz" : 1.59998,
+                            "roughness" : 4.12819
+                        },
+                        "query_queue_max" : 0,
+                        "role" : "storage",
+                        "storage_metadata" : {
+                            "created_time_datetime" : "2026-10-20 02:54:15.880 +0000",
+                            "created_time_timestamp" : 1792464855.8806984,
+                            "storage_engine" : "ssd-2"
+                        },
+                        "stored_bytes" : 0,
+                        "total_queries" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "tss" : false
+                    }
+                ],
+                "run_loop_busy" : 0.025978300000000003,
+                "uptime_seconds" : 10.002800000000001,
+                "version" : "7.3.79"
+            },
+            "b8ee4785054a02d25f017a3b3f65ef5b" : {
+                "address" : "127.0.0.1:24103",
+                "class_source" : "command_line",
+                "class_type" : "unset",
+                "command_line" : "/data/home/kirancodes/paralean-p2/bin/fdbserver -p 127.0.0.1:24103 -l 127.0.0.1:24113 -C /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/fdb.cluster -d /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p3/data -L /data/home/kirancodes/paralean-p2/inst/mp2-gray/fdb/p3/log --locality-zoneid z3 --locality-machineid m3 --cache-memory 256MiB --knob_disable_posix_kernel_aio=1 --knob_min_available_space_ratio=0.002 --knob_min_available_space_ratio_safety_buffer=0.001 --knob_min_available_space=200000000 --knob_failure_detection_delay=1.0 --knob_connection_monitor_timeout=0.5 --knob_connection_monitor_loop_time=0.25",
+                "excluded" : false,
+                "memory" : {
+                    "limit_bytes" : 8589934592
+                },
+                "messages" : [
+                ],
+                "roles" : [
+                    {
+                        "id" : "0e1b2d7ba74ee754",
+                        "role" : "data_distributor"
+                    },
+                    {
+                        "id" : "5d6cb8745efd647e",
+                        "role" : "ratekeeper"
+                    },
+                    {
+                        "id" : "4e596463aa6be460",
+                        "role" : "consistency_scan"
+                    },
+                    {
+                        "id" : "22007cc5778ec998",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "9deb5b133b33f6bf",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "5e560218b31e88f6",
+                        "role" : "log"
+                    },
+                    {
+                        "id" : "6630cdfebb5cfc4c",
+                        "role" : "log"
+                    },
+                    {
+                        "role" : "coordinator"
+                    },
+                    {
+                        "id" : "da17329dc3da12d1",
+                        "role" : "commit_proxy"
+                    },
+                    {
+                        "data_version" : 3907901604,
+                        "durable_bytes" : {
+                            "counter" : 0,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "dc02914439b55b26",
+                        "input_bytes" : {
+                            "counter" : 213,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269006966784,
+                        "kvstore_free_bytes" : 269006966784,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_used_bytes" : 104882176,
+                        "queue_disk_available_bytes" : 269006966784,
+                        "queue_disk_free_bytes" : 269006966784,
+                        "queue_disk_total_bytes" : 1002031964160,
+                        "queue_disk_used_bytes" : 520192,
+                        "role" : "log"
+                    },
+                    {
+                        "bytes_queried" : {
+                            "counter" : 1381,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "data_lag" : {
+                            "seconds" : 0,
+                            "versions" : 0
+                        },
+                        "data_version" : 3907703993,
+                        "durability_lag" : {
+                            "seconds" : 405,
+                            "versions" : 405000000
+                        },
+                        "durable_bytes" : {
+                            "counter" : 3798,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "durable_version" : 3502703993,
+                        "fetched_versions" : {
+                            "counter" : 405323266,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "fetches_from_logs" : {
+                            "counter" : 9,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "finished_queries" : {
+                            "counter" : 20,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "id" : "c6e98fb5b5a4def5",
+                        "input_bytes" : {
+                            "counter" : 110782,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "keys_queried" : {
+                            "counter" : 11,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "kvstore_available_bytes" : 269004271616,
+                        "kvstore_free_bytes" : 269004271616,
+                        "kvstore_inline_keys" : 0,
+                        "kvstore_total_bytes" : 1002031964160,
+                        "kvstore_total_nodes" : 0,
+                        "kvstore_total_size" : 0,
+                        "kvstore_used_bytes" : 104882176,
+                        "local_rate" : 91,
+                        "low_priority_queries" : {
+                            "counter" : 14,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutation_bytes" : {
+                            "counter" : 10464,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "mutations" : {
+                            "counter" : 75,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "query_queue_max" : 9,
+                        "role" : "storage",
+                        "storage_metadata" : {
+                            "created_time_datetime" : "2026-10-20 02:54:13.978 +0000",
+                            "created_time_timestamp" : 1792464853.9787581,
+                            "storage_engine" : "ssd-2"
+                        },
+                        "stored_bytes" : 36250,
+                        "total_queries" : {
+                            "counter" : 20,
+                            "hz" : 0,
+                            "roughness" : -1
+                        },
+                        "tss" : false
+                    }
+                ],
+                "version" : "7.3.79"
+            }
+        },
+        "protocol_version" : "fdb00b073000000",
+        "qos" : {
+            "batch_performance_limited_by" : {
+                "description" : "The database is not being saturated by the workload.",
+                "name" : "workload",
+                "reason_id" : 2
+            },
+            "batch_released_transactions_per_second" : 0.990591,
+            "batch_transactions_per_second_limit" : 1000000000,
+            "limiting_data_lag_storage_server" : {
+                "seconds" : 0.12292700000000001,
+                "versions" : 122927
+            },
+            "limiting_durability_lag_storage_server" : {
+                "seconds" : 505.04500000000002,
+                "versions" : 505045494
+            },
+            "limiting_queue_bytes_storage_server" : 130096,
+            "performance_limited_by" : {
+                "description" : "The database is not being saturated by the workload.",
+                "name" : "workload",
+                "reason_id" : 2
+            },
+            "released_transactions_per_second" : 31.4224,
+            "throttled_tags" : {
+                "auto" : {
+                    "busy_read" : 0,
+                    "busy_write" : 0,
+                    "count" : 0,
+                    "recommended_only" : 0
+                },
+                "manual" : {
+                    "count" : 0
+                }
+            },
+            "transactions_per_second_limit" : 473610,
+            "worst_data_lag_storage_server" : {
+                "seconds" : 0.12292700000000001,
+                "versions" : 122927
+            },
+            "worst_durability_lag_storage_server" : {
+                "seconds" : 505.04599999999999,
+                "versions" : 505045584
+            },
+            "worst_queue_bytes_log_server" : 44861,
+            "worst_queue_bytes_storage_server" : 130096
+        },
+        "recovery_state" : {
+            "active_generations" : 5,
+            "description" : "Accepting commits. All logs recruited.",
+            "name" : "all_logs_recruited",
+            "seconds_since_last_recovered" : 0.27699800000000002
+        },
+        "version_epoch" : {
+            "enabled" : false
+        },
+        "workload" : {
+            "bytes" : {
+                "read" : {
+                    "counter" : 5880,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "written" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                }
+            },
+            "keys" : {
+                "read" : {
+                    "counter" : 56,
+                    "hz" : 0,
+                    "roughness" : 0
+                }
+            },
+            "operations" : {
+                "location_requests" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "low_priority_reads" : {
+                    "counter" : 34,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "memory_errors" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "read_requests" : {
+                    "counter" : 45,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "reads" : {
+                    "counter" : 44,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "writes" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                }
+            },
+            "transactions" : {
+                "committed" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "conflicted" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "rejected_for_queued_too_long" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "started" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "started_batch_priority" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "started_default_priority" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                },
+                "started_immediate_priority" : {
+                    "counter" : 0,
+                    "hz" : 0,
+                    "roughness" : 0
+                }
+            }
+        }
+    }
+}
