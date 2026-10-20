@@ -863,5 +863,15 @@ race: Bob's initial validation got `Connection refused`, causing gate items
 1 and 7 to fail while later validations and the other checks passed. That
 failure is retained in `p3-remote-final.log`. The P2-owned
 `scripts/remote-gate.py` runner loads the unchanged P3 scenario and replaces
-only its startup sleep with a bounded readiness wait; its rerun and the scoped
-fault phases remain in progress at this checkpoint.
+only its startup sleep with a bounded readiness wait. The rerun passed **10/10**
+gate checks in **200.4 s**, including clean export and identical re-encoding of
+**11/11 groups**. Both result JSON files and console logs are retained under
+`results/p2/merged-gates/`. No P3 scenario assertion was changed.
+
+The multiprocess suite also passed all twelve worker configurations in waves of
+three: seven completed, three aborted at injected crash points, and two were
+deliberately killed. Its audit checked 117 certified groups, 27 committed
+records, 368 object certificates, three targets and 29 tombstones. Normal
+production binaries and all workspace tests were rebuilt after the archive fix;
+their hashes are in `binary-sha256-archive.txt`. Implementation checkpoint
+`5179bcd` is pushed; the scoped fault phases remain in progress.
