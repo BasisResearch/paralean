@@ -13,9 +13,22 @@ This work uses its own FoundationDB on `127.0.0.1:5189`, Garage on
 are under `/data/home/kirancodes/paralean-m-targets-cluster`. Source
 `impl/p3/scripts/m-targets-env.sh` before starting `cluster-up.sh` or testing.
 No other instance is stopped or modified. Initial `/data` free space: 273 GB.
-Rust builds use two jobs and integration tests one test thread. Existing pinned
+Rust builds use at most two jobs and integration tests one test thread. The
+private Mathlib base build started with two Lean threads and resumed with four;
+validator jobs use two Lean threads. Existing pinned
 toolchain and Mathlib builds and captured fixtures are read-only inputs; P1 and
 Rust build caches were copied into this checkout before modification.
+
+During the first measurement on fork `99967f1`, an initializer's nested Lake build
+rebuilt dependency artifacts in the shared Mathlib cache despite the intended
+read-only use. Observed commands included `Batteries.Tactic.Lint.Simp` and
+`ImportGraph.Tools.FindHome`. The run was stopped and its timings discarded;
+no service instance or tracked source was changed, and no shared cache was
+restored over possible concurrent work. Subsequent materialization uses a
+private, dereferenced copy of Mathlib and its package caches under
+`.runs/m-targets/mathlib-private` (no hardlinks), with its sample import closure
+prebuilt before capture. This incident is an exception to the read-only-input
+intent above, not an assertion that the shared cache remained untouched.
 
 ## Implementation checkpoint
 
@@ -66,9 +79,9 @@ existing cold checker also does not sandbox.
 ## Verification
 
 The parent ran the integrated Rust build and live tests against the isolated
-cluster. Results: control/adversarial/auth/target/durable/protocol tests 29/29;
+cluster. Results: control/adversarial/auth/target/durable/protocol tests 30/30;
 process failure tests 4/4; batch and warm isolation tests 3/3; fork-validator
-test 1/1; P2 store tests 59/59. These are 37 distinct control tests and 59 store tests after rebasing onto cb1ca05.
+test 1/1; P2 store tests 59/59. These are 38 distinct control tests and 59 store tests after rebasing onto cb1ca05.
 The warm test was run separately with its required fork fixtures; a stock-only
 batch test invocation reports it as passed after an early configuration return,
 which is not counted as isolation evidence. The batch test additionally
@@ -104,7 +117,7 @@ cache. Only imported-base environments are intentionally cached between jobs.
 The paired M14 sample on implementation commit `bd081a4` accepted and published
 all 50 groups in each mode. Warm validation took **17.082 s (0.342 s/group)**;
 cold validation took **44.659 s (0.893 s/group)**: **2.61×** the validation
-throughput, or **61.75% fewer validator slot-seconds** for this sample. Measured
+throughput, or **61.75% fewer validation RPC seconds** for this sample. Measured
 module work including upload, publication and audit took 25.655 s warm versus
 53.574 s cold. Both runs used ordered batches of 32 and the new T1 dependency
 guard. This is one sequential paired sample on a shared host, not a controlled
@@ -140,6 +153,15 @@ third worker. It fails on the previous implementation (with only the pause
 failpoint added) and passes with the fix. The complete four-process-test suite,
 control scheduling tests, durable snapshot test, and target tests also pass.
 
+Review additionally found that a singleton group could be reassigned through
+legacy APIs without updating its stored group owner. Expiry could then fence
+the new live owner. Group-associated targets now require the group workflow;
+queued/running work blocks both legacy and group assignment. The regression
+checks every overlap direction before target mutation and checks that expiry
+of a separate group owner leaves a live work target unchanged. The final affected
+suite passed 16/16 (six scheduling, one durability, four process, five target);
+the final target-only working-copy gate passed 5/5 in 21.3 seconds.
+
 ## Operational limits and remaining work
 
 - Controller state is bounded at 8 MiB per snapshot. History and immutable snapshot
@@ -151,9 +173,13 @@ control scheduling tests, durable snapshot test, and target tests also pass.
   claim that untrusted code with arbitrary process-memory access is contained.
 - Each benchmark module uses one validator slot and dependent batches of 32 on a
   shared host. The final full run uses two such modules concurrently. Its wall times include validation fetch/replay and RPC, but exclude capture,
-  initial payload upload, and T1 publication, which are recorded separately. Dollar
+  initial payload upload, and T1 publication, which are recorded separately. Preparing
+  the private Mathlib base is a separate one-time setup cost. Dollar
   charges cannot be attributed without a machine rate and an allocation of shared
-  FDB/Garage costs; validator-hours and observed checker RSS are reported instead.
+  FDB/Garage costs; validation RPC time, module wall time, and observed checker RSS
+  are reported instead. Validation RPC seconds exclude time the validator remains
+  allocated during upload, issuance, publication and audit, so they are not billed
+  instance-hours.
 - Full sample certification is blocked by the existing P1 source replay mismatch
   for M08 (`Mathlib/Tactic/ByCases.lean:37`), group
   `4cb846e8e10a561a786626acb401de0870008bb7e08a975539752eb086a795d4`
@@ -169,9 +195,15 @@ control scheduling tests, durable snapshot test, and target tests also pass.
 Use `PARALEAN_LEAN=fork`, source `impl/p3/scripts/m-targets-env.sh`, start
 `impl/p3/scripts/cluster-up.sh`, and build `impl/p3/scripts/build-warm.sh`. Set
 `PARALEAN_P3_WARM_BIN` to `impl/p3/lean/.lake/build/bin/paralean-warm` **before**
-generating checker pins. Capture inputs with
-`impl/p3/scripts/capture-mathlib.py .runs/m-targets/mathlib`; it verifies the
-Mathlib commit from `versions.json` and reads the pinned Mathlib build.
+generating checker pins. Before materializing initializer jobs, make a private copy
+of the Mathlib checkout **including** `.lake/packages` and build caches (dereference
+symlinks; do not hardlink files). Set `PARALEAN_MATHLIB` to that copy and prebuild
+the 18 module targets from `corpus/modules.txt` with the selected fork. Check
+freshness under `LEAN_PARALEAN=1`, which P1's initializer export uses. Capture
+inputs with `impl/p3/scripts/capture-mathlib.py .runs/m-targets/mathlib`; it
+verifies the Mathlib commit from `versions.json`. Keep that private base fixed
+through capture and measurement: initializer export invokes Lake and may rebuild
+stale dependencies, so pointing it at another workstream's cache is unsafe.
 
 Set `LEAN_PATH` from `lake env printenv LEAN_PATH` in `$PARALEAN_MATHLIB`,
 `PARALEAN_P3_MATHLIB_STORES` to the capture directory, and
@@ -206,8 +238,13 @@ anti-entropy implementation was changed. The incoming fork pin is
 `99967f1ee50a1ee82bb178359ad95b723c8196a2`; P1 and the warm checker were rebuilt
 in this checkout against that pin. The new warm checker ID is
 `faf75494080ba4763461c8228e1861ade109d8a135e9c25762e515d741d2d8f0`.
-Fresh capture used a read-only P4 P1 build with identical Lean sources and
-produced 1,105 groups across all 18 modules in 95.776 seconds. Earlier measurements explicitly retain their older
+An initial capture used a read-only P4 P1 build with identical Lean sources.
+The final capture used this checkout’s rebuilt P1 and private Mathlib base:
+1,105 groups across all 18 modules in 49.558 seconds, with identical group IDs
+to the initial capture. The private base prebuild took 1,001.455 seconds across
+two invocations; this setup time is excluded from validation measurements.
+Freshness under `LEAN_PARALEAN=1` passed all 2,354 build targets. Hashing 18,720
+build files (1,269,868,112 bytes) before and after capture confirmed no changes. Earlier measurements explicitly retain their older
 `dfc13cc6...` toolchain provenance.
 
 The new dependency-publication guard applies to local T1. Incoming P2 T9

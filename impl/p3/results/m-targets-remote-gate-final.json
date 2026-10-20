@@ -1,0 +1,109 @@
+{
+  "targets: one group declares two owned names": {
+    "ok": true,
+    "names": [
+      "Targets.Choice",
+      "Targets.Choice.first"
+    ],
+    "assignment": {
+      "result": "assigned_group",
+      "epochs": [
+        0,
+        0
+      ]
+    },
+    "heads": [
+      {
+        "epoch": 0,
+        "exists": true,
+        "head": "6d44861cabe674175e468909f568fd888fae9525e02ee253bd98d69749175a09",
+        "name": "Targets.Choice",
+        "owner": "1f1d4cf0eeeaba523e0f6304a086242c"
+      },
+      {
+        "epoch": 0,
+        "exists": true,
+        "head": "e187d8e5fa99c63569f1b7d8246858f7420b13534d43b5fd504c89df298f9321",
+        "name": "Targets.Choice.first",
+        "owner": "1f1d4cf0eeeaba523e0f6304a086242c"
+      }
+    ],
+    "published": [
+      "1af52c02c844a1e3c4f5dfcfd17c269baeecd38dc32848850eff5d416b0bd344"
+    ]
+  },
+  "targets: handover rejects an old owner with a pending proof": {
+    "ok": true,
+    "old_owner_rejection": [
+      {
+        "group": "cf7a3334d87bc02bf9035e3b2bd892eedc4b0312751e8d6e9878652b9a5cd8d5",
+        "reason": "guard: not the owner of Targets.pending"
+      }
+    ],
+    "target_record": {
+      "epoch": 1,
+      "exists": true,
+      "head": null,
+      "name": "Targets.pending",
+      "owner": "fd68f923217fb081b2180f95a7769fc3"
+    },
+    "old_owner_output": ""
+  },
+  "targets: new owner publishes after handover": {
+    "ok": true,
+    "head": {
+      "epoch": 1,
+      "exists": true,
+      "head": "16421871f11104322a0aea4aaaf2c5eb004d0a59ae84b61b860b2f43394c1d8c",
+      "name": "Targets.pending",
+      "owner": "fd68f923217fb081b2180f95a7769fc3"
+    },
+    "published": [
+      "cf7a3334d87bc02bf9035e3b2bd892eedc4b0312751e8d6e9878652b9a5cd8d5"
+    ]
+  },
+  "targets: handover revision compares and advances the recorded head": {
+    "ok": true,
+    "previous_head": "16421871f11104322a0aea4aaaf2c5eb004d0a59ae84b61b860b2f43394c1d8c",
+    "new_head": "f50e3b12b8ed39133a9d4f59a8cc87da3a0fce2ee6c03a4057aed53114a1cac0",
+    "revision": {
+      "capsule": "9ac479136137ec3cfe4dfaf848664c78f424393d0e787e7d35a3f775d0612928",
+      "group": "9642c8b99645679ac4b425a6ded2016ffd6effb5f25955bdf53dad6112aa6869",
+      "id": "f50e3b12b8ed39133a9d4f59a8cc87da3a0fce2ee6c03a4057aed53114a1cac0",
+      "name": [
+        "Targets",
+        "pending"
+      ],
+      "parents": [
+        "16421871f11104322a0aea4aaaf2c5eb004d0a59ae84b61b860b2f43394c1d8c"
+      ],
+      "workspace": "1f1d4cf0eeeaba523e0f6304a086242c"
+    }
+  },
+  "targets: published proofs load in both working copies": {
+    "ok": true,
+    "checks": {
+      "alice:Targets.lean": {
+        "errors": [],
+        "localAxioms": [],
+        "loadedConstants": 18
+      },
+      "alice:Pending.lean": {
+        "errors": [],
+        "localAxioms": [],
+        "loadedConstants": 1
+      },
+      "bob:Targets.lean": {
+        "errors": [],
+        "localAxioms": [],
+        "loadedConstants": 18
+      },
+      "bob:Pending.lean": {
+        "errors": [],
+        "localAxioms": [],
+        "loadedConstants": 1
+      }
+    }
+  },
+  "_wall_s": 21.3
+}

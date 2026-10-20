@@ -211,3 +211,75 @@ async fn stale_joint_assignment_request_cannot_overwrite_handover() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() {
+    let c = Cluster::start("target-api-overlap", Opts { lease_ms: 3000, ..Opts::default() }).await;
+    let old = c.worker_without_heartbeat(0, 8192, &core_store()).await;
+    let live = c.worker(1, 8192, &core_store()).await;
+    let group_name = Name::parse("Overlap.group");
+    let work_name = Name::parse("Overlap.work");
+    let assigned = c.call(ControlRequest::AssignGroup {
+        targets: vec![group_name.to_string()], worker: old.id().hex(),
+        request: "overlap/singleton-group".into(),
+    }).await;
+    assert!(matches!(assigned, ControlResponse::AssignedGroup { .. }), "{assigned:?}");
+    let before_group = c.store.target(&group_name).await.unwrap().unwrap();
+
+    let legacy = c.call(ControlRequest::Assign {
+        target: group_name.to_string(), worker: live.id().hex(),
+    }).await;
+    assert!(matches!(legacy, ControlResponse::Refused { .. }), "singleton group crossed Assign: {legacy:?}");
+    let submit = c.call(ControlRequest::SubmitWork {
+        request: "overlap/submit-group".into(), target: group_name.to_string(), memory_mb: 64,
+    }).await;
+    assert!(matches!(submit, ControlResponse::Refused { .. }), "singleton group crossed SubmitWork: {submit:?}");
+    let after_group = c.store.target(&group_name).await.unwrap().unwrap();
+    assert_eq!((after_group.owner, after_group.epoch, after_group.head),
+        (before_group.owner, before_group.epoch, before_group.head));
+
+    assert_eq!(c.call(ControlRequest::SubmitWork {
+        request: "overlap/work".into(), target: work_name.to_string(), memory_mb: 64,
+    }).await, ControlResponse::Queued);
+    let queued_group = c.call(ControlRequest::AssignGroup {
+        targets: vec![work_name.to_string()], worker: old.id().hex(),
+        request: "overlap/group-while-queued".into(),
+    }).await;
+    assert!(matches!(queued_group, ControlResponse::Refused { .. }),
+        "queued work crossed AssignGroup: {queued_group:?}");
+    let queued_legacy = c.call(ControlRequest::Assign {
+        target: work_name.to_string(), worker: old.id().hex(),
+    }).await;
+    assert!(matches!(queued_legacy, ControlResponse::Refused { .. }),
+        "queued work crossed Assign: {queued_legacy:?}");
+    assert!(c.store.target(&work_name).await.unwrap().is_none(), "queued-work rejection changed target");
+    let polled = c.call(ControlRequest::Poll { worker: live.id().hex() }).await;
+    assert!(matches!(&polled, ControlResponse::Work { request, .. } if request == "overlap/work"), "{polled:?}");
+    let before_work = c.store.target(&work_name).await.unwrap().unwrap();
+    let running_group = c.call(ControlRequest::AssignGroup {
+        targets: vec![work_name.to_string()], worker: old.id().hex(),
+        request: "overlap/group-while-running".into(),
+    }).await;
+    assert!(matches!(running_group, ControlResponse::Refused { .. }),
+        "running work crossed AssignGroup: {running_group:?}");
+    let running_legacy = c.call(ControlRequest::Assign {
+        target: work_name.to_string(), worker: old.id().hex(),
+    }).await;
+    assert!(matches!(running_legacy, ControlResponse::Refused { .. }),
+        "running work crossed Assign: {running_legacy:?}");
+    let after_work = c.store.target(&work_name).await.unwrap().unwrap();
+    assert_eq!((after_work.owner, after_work.epoch, after_work.head),
+        (before_work.owner, before_work.epoch, before_work.head));
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(8);
+    loop {
+        let group = c.store.target(&group_name).await.unwrap().unwrap();
+        if group.owner != old.id() { break }
+        assert!(std::time::Instant::now() < deadline, "old group owner did not expire");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let work = c.store.target(&work_name).await.unwrap().unwrap();
+    assert_eq!((work.owner, work.epoch, work.head),
+        (before_work.owner, before_work.epoch, before_work.head),
+        "old group owner's expiry fenced live work owner");
+}

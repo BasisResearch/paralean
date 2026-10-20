@@ -483,8 +483,12 @@ impl ControlPlane {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
                 let target = Name::parse(&target);
                 if target.to_string().is_empty() { return refused("empty target name") }
-                if self.state.lock().unwrap().groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&target.to_string())) {
-                    return refused("target belongs to a jointly assigned group");
+                if self.state.lock().unwrap().groups.iter().any(|g| g.names.contains(&target.to_string())) {
+                    return refused("target belongs to an assigned group; use assign_group");
+                }
+                if self.state.lock().unwrap().work.values().any(|j| j.target == target &&
+                    matches!(j.state, WorkState::Queued | WorkState::Running { .. })) {
+                    return refused("target has queued or running work; finish that work before assign");
                 }
                 let req = format!("assign/{target}/{}/{}", w.hex(), rand::random::<u64>());
                 let term = match self.durable.current().await { Ok(Some(l)) => l.term, _ => return inconclusive("not controller leader") };
@@ -506,6 +510,10 @@ impl ControlPlane {
                     let st = self.state.lock().unwrap();
                     if st.groups.iter().any(|g| g.names.iter().any(|n| target_set.contains(n)) && g.names != target_set) {
                         return refused("target belongs to another jointly assigned group");
+                    }
+                    if st.work.values().any(|j| target_set.contains(&j.target.to_string()) &&
+                        matches!(j.state, WorkState::Queued | WorkState::Running { .. })) {
+                        return refused("target has queued or running work; finish that work before assign_group");
                     }
                 }
                 let req = if request.is_empty() { format!("assign-group/{worker}/{}", rand::random::<u64>()) } else { request };
@@ -580,8 +588,8 @@ impl ControlPlane {
                 return ControlResponse::Duplicate { state: format!("{:?}", j.state) };
             }
         }
-        if st.groups.iter().any(|g| g.names.len() > 1 && g.names.contains(&name.to_string())) {
-            return refused("target belongs to a jointly assigned group");
+        if st.groups.iter().any(|g| g.names.contains(&name.to_string())) {
+            return refused("target belongs to an assigned group; use the group workflow");
         }
         let queued = st.work.values().filter(|j| j.state == WorkState::Queued).count();
         if queued >= self.cfg.max_work_queue {

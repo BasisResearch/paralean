@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Capture the pinned M01--M18 sample serially for validator-throughput measurements.
 
-Source m-targets-env.sh (PARALEAN_LEAN=fork) first. This reads the shared Mathlib
-build but writes only the supplied output directory; it does not rebuild Mathlib.
+Source m-targets-env.sh (PARALEAN_LEAN=fork) first and set PARALEAN_MATHLIB to
+a private, prebuilt Mathlib checkout. Capture writes to the supplied output
+directory; Lake may update configuration/cache metadata while resolving LEAN_PATH.
 """
 import json
 import os
