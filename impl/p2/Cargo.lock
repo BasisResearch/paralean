@@ -1584,12 +1584,18 @@ version = "0.2.0"
 dependencies = [
  "aws-credential-types",
  "aws-sdk-s3",
+ "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
+ "bytes",
  "ed25519-dalek",
  "foundationdb",
  "futures",
  "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "paralean-crypto",
  "proptest",
  "rand 0.8.8",
@@ -2008,6 +2014,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "sha2 0.10.9",
  "tokio",
 ]
 

@@ -14,6 +14,13 @@ foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_
 aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", "behavior-version-latest", "default-https-client"] }
 aws-smithy-types = "1"
 aws-credential-types = { version = "1", features = ["hardcoded-credentials"] }
+# Test corruption at rest over Garage's private socket (s3::garage_direct).
+aws-smithy-runtime-api = { version = "1", features = ["client", "http-1x"] }
+hyper = { version = "1", features = ["client", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+http = "1"
+bytes = "1"
 sha2 = "0.10"
 base64 = "0.22"
 hex = "0.4"

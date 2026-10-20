@@ -35,6 +35,8 @@ pub struct S3Config {
     pub secret_key: String,
     /// Key prefix (one per deployment in tests; empty in production).
     pub prefix: String,
+    /// Garage's private S3 socket, for test corruption at rest only (`<p>GARAGE_S3_SOCKET`).
+    pub garage_socket: Option<String>,
 }
 
 impl std::fmt::Debug for S3Config {
@@ -42,7 +44,8 @@ impl std::fmt::Debug for S3Config {
         f.debug_struct("S3Config").field("endpoint", &self.endpoint)
             .field("bucket", &self.bucket).field("region", &self.region)
             .field("access_key", &self.access_key)
-            .field("secret_key", &"[REDACTED]").field("prefix", &self.prefix).finish()
+            .field("secret_key", &"[REDACTED]").field("prefix", &self.prefix)
+            .field("garage_socket", &self.garage_socket).finish()
     }
 }
 
@@ -76,6 +79,7 @@ impl S3Config {
             access_key: v("S3_ACCESS_KEY")?,
             secret_key: v("S3_SECRET_KEY")?,
             prefix: v("S3_PREFIX").unwrap_or_default(),
+            garage_socket: v("GARAGE_S3_SOCKET").ok(),
         })
     }
 }
@@ -102,6 +106,8 @@ impl Acked {
 #[derive(Clone)]
 pub struct Payloads {
     client: Client,
+    /// The same bucket over Garage's private socket, bypassing the gateway (tests only).
+    direct: Option<Client>,
     bucket: String,
     prefix: String,
     faults: Arc<Faults>,
@@ -129,8 +135,12 @@ impl Payloads {
             .response_checksum_validation(ResponseChecksumValidation::WhenRequired)
             .timeout_config(timeouts)
             .build();
+        let direct = cfg.garage_socket.as_ref().map(|socket| {
+            Client::from_conf(conf.to_builder().http_client(garage_direct::UnixClient(socket.into())).build())
+        });
         Payloads {
             client: Client::from_conf(conf),
+            direct,
             bucket: cfg.bucket.clone(),
             prefix: cfg.prefix.clone(),
             faults,
@@ -292,9 +302,12 @@ impl Payloads {
     // ----------------------------------------------------------- test and fault helpers
 
     /// Overwrite an object's key with arbitrary bytes and no checksum header: simulates
-    /// corruption at rest (or a buggy writer). Readers must treat it as missing.
+    /// corruption at rest (or a buggy writer). Readers must treat it as missing. The
+    /// gateway refuses such a write, so it goes to Garage's private socket directly.
     pub async fn corrupt_at_rest(&self, kind: Kind, id: &Id, bytes: &[u8]) -> Result<()> {
-        self.client
+        let direct = self.direct.as_ref()
+            .ok_or_else(|| StoreError::S3("corruption at rest needs GARAGE_S3_SOCKET (Garage's private socket)".into()))?;
+        direct
             .put_object()
             .bucket(&self.bucket)
             .key(self.key(kind, id))
@@ -311,6 +324,19 @@ impl Payloads {
         self.raw_put(&self.key(kind, claimed), body, claimed).await
     }
 
+    /// Attempt to replace a stored object through the gateway: with other bytes, or by a
+    /// server-side copy of another object. Either destroys the object as a delete would,
+    /// so the gateway must refuse both.
+    pub async fn try_overwrite(&self, kind: Kind, id: &Id, bytes: &[u8], copy_from: &Id) -> (std::result::Result<(), String>, std::result::Result<(), String>) {
+        let err = |e| format!("{}", aws_sdk_s3::error::DisplayErrorContext(e));
+        let put = self.client.put_object().bucket(&self.bucket).key(self.key(kind, id))
+            .body(ByteStream::from(bytes.to_vec())).send().await.map(|_| ()).map_err(err);
+        let copy = self.client.copy_object().bucket(&self.bucket).key(self.key(kind, id))
+            .copy_source(format!("{}/{}", self.bucket, self.key(kind, copy_from))).send().await
+            .map(|_| ()).map_err(|e| format!("{}", aws_sdk_s3::error::DisplayErrorContext(e)));
+        (put, copy)
+    }
+
     /// Attempt a delete. The P2 bucket denies deletes, so this must fail.
     pub async fn try_delete(&self, kind: Kind, id: &Id) -> std::result::Result<(), String> {
         self.client
@@ -321,6 +347,62 @@ impl Payloads {
             .await
             .map(|_| ())
             .map_err(|e| format!("{}", aws_sdk_s3::error::DisplayErrorContext(e)))
+    }
+}
+
+/// An S3 HTTP client over a Unix socket, so the SDK signs as usual but the request reaches
+/// Garage's private S3 socket instead of the gateway. Used only to simulate corruption.
+mod garage_direct {
+    use std::path::PathBuf;
+
+    use aws_smithy_runtime_api::client::http::{
+        HttpClient, HttpConnector, HttpConnectorFuture, HttpConnectorSettings, SharedHttpConnector,
+    };
+    use aws_smithy_runtime_api::client::orchestrator::{HttpRequest, HttpResponse};
+    use aws_smithy_runtime_api::client::result::ConnectorError;
+    use aws_smithy_runtime_api::client::runtime_components::RuntimeComponents;
+    use aws_smithy_types::body::SdkBody;
+    use http_body_util::{BodyExt, Full};
+
+    #[derive(Clone, Debug)]
+    pub struct UnixClient(pub PathBuf);
+
+    impl HttpClient for UnixClient {
+        fn http_connector(&self, _: &HttpConnectorSettings, _: &RuntimeComponents) -> SharedHttpConnector {
+            SharedHttpConnector::new(self.clone())
+        }
+    }
+
+    impl HttpConnector for UnixClient {
+        fn call(&self, request: HttpRequest) -> HttpConnectorFuture {
+            let socket = self.0.clone();
+            HttpConnectorFuture::new(async move {
+                let io = |e: Box<dyn std::error::Error + Send + Sync>| ConnectorError::io(e);
+                let request = request.try_into_http1x().map_err(|e| ConnectorError::other(e.into(), None))?;
+                let (mut parts, body) = request.into_parts();
+                let body = body.bytes().map(|b| b.to_vec())
+                    .ok_or_else(|| ConnectorError::other("streaming bodies are not supported".into(), None))?;
+                // Origin-form request target. The SDK signs Host from the endpoint URI and
+                // leaves the header to the HTTP client, as hyper's pooled client would.
+                if let Some(authority) = parts.uri.authority().cloned() {
+                    let host = http::HeaderValue::from_str(authority.as_str())
+                        .map_err(|e| ConnectorError::other(e.into(), None))?;
+                    parts.headers.entry(http::header::HOST).or_insert(host);
+                }
+                parts.uri = parts.uri.path_and_query().map(|p| p.as_str()).unwrap_or("/").parse()
+                    .map_err(|e: http::uri::InvalidUri| ConnectorError::other(e.into(), None))?;
+                let stream = tokio::net::UnixStream::connect(&socket).await.map_err(|e| io(e.into()))?;
+                let (mut sender, connection) = hyper::client::conn::http1::handshake(hyper_util::rt::TokioIo::new(stream))
+                    .await.map_err(|e| io(e.into()))?;
+                tokio::spawn(async move { let _ = connection.await; });
+                let response = sender.send_request(http::Request::from_parts(parts, Full::new(bytes::Bytes::from(body))))
+                    .await.map_err(|e| io(e.into()))?;
+                let (parts, body) = response.into_parts();
+                let body = body.collect().await.map_err(|e| io(e.into()))?.to_bytes();
+                HttpResponse::try_from(http::Response::from_parts(parts, SdkBody::from(body)))
+                    .map_err(|e| ConnectorError::other(e.into(), None))
+            })
+        }
     }
 }
 
@@ -335,7 +417,7 @@ mod security_tests {
     #[test]
     fn config_debug_redacts_credentials() {
         let config = S3Config { endpoint: "http://local".into(), bucket: "b".into(), region: "r".into(),
-            access_key: "public".into(), secret_key: "do-not-log-secret".into(), prefix: "".into() };
+            access_key: "public".into(), secret_key: "do-not-log-secret".into(), prefix: "".into(), garage_socket: None };
         assert!(!format!("{config:?}").contains(&config.secret_key));
     }
 }

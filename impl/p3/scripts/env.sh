@@ -19,6 +19,7 @@ export PARALEAN_FDB_CLUSTER="$PARALEAN_P3_PREFIX/fdb/fdb.cluster"
 export PARALEAN_S3_ENDPOINT="http://127.0.0.1:$PARALEAN_S3_PORT"
 export PARALEAN_S3_BUCKET="${PARALEAN_S3_BUCKET:-paralean}"
 export PARALEAN_S3_REGION="${PARALEAN_S3_REGION:-garage}"
+export PARALEAN_GARAGE_S3_SOCKET="${PARALEAN_GARAGE_S3_SOCKET:-$PARALEAN_P3_PREFIX/garage/s3.sock}"
 if [ -f "$PARALEAN_P3_PREFIX/garage/credentials.sh" ]; then
   . "$PARALEAN_P3_PREFIX/garage/credentials.sh"
 fi

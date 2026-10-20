@@ -308,6 +308,14 @@ async fn s3_checksum_delete_and_corruption() {
     let d = e.store.s3.try_delete(Kind::Chunk, &o.id()).await;
     assert!(d.is_err(), "delete was allowed");
     assert!(e.store.s3.get(Kind::Chunk, &o.id()).await.unwrap().is_some());
+    // Overwriting with other bytes or copying another object over it is refused, and an
+    // identical re-PUT (a retry) is allowed.
+    let (put, copy) = e.store.s3.try_overwrite(Kind::Chunk, &o.id(), b"rot", &other.id()).await;
+    e.store.s3.put_opaque(&other).await.unwrap();
+    let (_, copy_existing) = e.store.s3.try_overwrite(Kind::Chunk, &o.id(), b"rot", &other.id()).await;
+    assert!(put.is_err() && copy.is_err() && copy_existing.is_err(), "gateway allowed an overwrite: {put:?} {copy_existing:?}");
+    assert_eq!(e.store.s3.get(Kind::Chunk, &o.id()).await.unwrap().unwrap(), got);
+    e.store.s3.put_opaque(&o).await.unwrap();
     // Corrupt bytes at rest read as missing; a repair re-PUT restores them.
     e.store.s3.corrupt_at_rest(Kind::Chunk, &o.id(), b"garbage").await.unwrap();
     assert!(e.store.s3.get(Kind::Chunk, &o.id()).await.unwrap().is_none());
