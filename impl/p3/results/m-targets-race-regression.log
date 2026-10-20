@@ -1,0 +1,43 @@
+BEFORE FIX (expected regression failure)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-targets/impl/p3/crates/control)
+    Finished `release` profile [optimized] target(s) in 15.51s
+     Running tests/batch_warm.rs (impl/p2/target/release/deps/batch_warm-7396ce2529e5c8e6)
+
+running 1 test
+test batch_retries_joined_standalone_dependency_refusal ... 
+thread 'batch_retries_joined_standalone_dependency_refusal' (1702460) panicked at /data/home/kirancodes/Documents/code/paralean-m-targets/impl/p3/crates/control/tests/batch_warm.rs:97:5:
+batch lost temporary dependency proof: [Receipt { receipt: "df01706172616c65616e0076302f7265636569707400002036b9cd98e7453c9b1d85dd6671e60651df50d4c1291938aaffb484a333ccbfa9200f1cf98f5d3bbe7bf3f3e8dc54895fa49101e19fe36205f5eeb6619a8f513cb820636f0997372b2668b60518ddd6a605481d273d1c4a94a58e9e82d3c8dd5177912073834bc0087266d0b1e907bdd0835ccf8c0e554d8e5ca2c3358252a52ac1d12d20a72527c2ebe989ff78bbf059ea1e077d531184c3e838c5aa6d3a26dc8d1a94810120343597c88fd56376dd1b294f1109d38a392f0c9d80473e712143e2dabb439017000000401777e5abee275a74dc01e098c8a4d8b0c1beef72e8ae2025c1bf09eec1385adf770ba261ced8d003959114528b64e0b27c5d08b00a95218e949984182a9cc901" }, Refused { reason: "dependency 36b9cd98e745 has no valid published or earlier batch receipt: NotPublished" }]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    batch_retries_joined_standalone_dependency_refusal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 2.15s
+
+error: test failed, to rerun pass `-p paralean-control --test batch_warm`
+
+AFTER FIX
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-targets/impl/p3/crates/control)
+    Finished `release` profile [optimized] target(s) in 22.59s
+     Running tests/batch_warm.rs (impl/p2/target/release/deps/batch_warm-7396ce2529e5c8e6)
+
+running 3 tests
+test batch_retries_joined_standalone_dependency_refusal ... ok
+test dependent_batch_requires_earlier_accepted_receipts_and_deduplicates ... ok
+test warm_process_rechecks_same_declaration_without_leaking_environment ... skipped: fork P1 checker not installed
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.72s
+
+     Running tests/checker_protocol.rs (impl/p2/target/release/deps/checker_protocol-0d89e2b6ebb95dba)
+
+running 3 tests
+test cold_nonzero_exit_never_accepts_printed_check ... ok
+test cold_uses_last_check_line ... ok
+test warm_ignores_spoofed_and_replayed_frames ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+

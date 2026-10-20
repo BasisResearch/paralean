@@ -8,7 +8,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use common::*;
-use paralean_control::checker::base_id;
+use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_control::p1::{self, P1Group};
 use paralean_store::receipt::{JobEnvelope, SignedJob, TargetBinding};
 use paralean_store::*;
@@ -39,6 +39,64 @@ fn accepted(r: &ValidatorResponse) -> bool {
         ValidatorResponse::Receipt { receipt } => paralean_validator_api::decode_receipt(receipt).unwrap().body.verdict == Verdict::Accepted,
         _ => false,
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn batch_retries_joined_standalone_dependency_refusal() {
+    // A standalone dependent can queue behind a prerequisite before the batch
+    // obtains the prerequisite receipt. Both callers then share its request slot,
+    // but only the batch has a temporary accepted dependency certificate.
+    let tmp = scratch("batch-joined-refusal");
+    let wrapper = tmp.join("slow-checker.sh");
+    std::fs::write(&wrapper, "#!/usr/bin/env bash\nsleep 1\nexec \"$PARALEAN_REAL_BIN\" \"$@\"\n").unwrap();
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut checker = CheckerConfig::from_env().unwrap();
+    let real_bin = checker.bin.clone();
+    checker.bin = wrapper;
+    checker.env.retain(|(key, _)| key != "PARALEAN_P3_WARM_BIN");
+    checker.env.push(("PARALEAN_REAL_BIN".into(), real_bin.display().to_string()));
+    let c = Cluster::start("batch-joined-refusal", Opts {
+        validators: vec![Mode::Real], checker: Some(checker), validator_max_running: 1,
+        ..Opts::default()
+    }).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let small = w.group_declaring(&Name::parse("F01.small")).unwrap();
+    let dependent = w.group_declaring(&Name::parse("F01.uses_small")).unwrap();
+    assert_eq!(p1::closure(&w.groups, &dependent.gid).unwrap(), vec![small.gid.clone(), dependent.gid.clone()]);
+    for g in [small, dependent] {
+        c.store.s3.put_opaque(&g.group_object()).await.unwrap();
+        c.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
+    }
+    let first = job(&c, w.id(), &w.groups, small, "batch/race/small", vec![]);
+    let second = job(&c, w.id(), &w.groups, dependent, "batch/race/dependent", vec![]);
+    let validator = c.validators[0].clone();
+    let running = tokio::spawn({ let v = validator.clone(); let j = first.clone(); async move { v.validate(j).await } });
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while !matches!(validator.handle(ValidatorRequest::Status).await,
+        ValidatorResponse::Status { running: 1, .. }) {
+        assert!(tokio::time::Instant::now() < deadline, "prerequisite never occupied validator");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let standalone = tokio::spawn({ let v = validator.clone(); let j = second.clone(); async move { v.validate(j).await } });
+    while !matches!(validator.handle(ValidatorRequest::Status).await,
+        ValidatorResponse::Status { queued: 1, .. }) {
+        assert!(tokio::time::Instant::now() < deadline, "dependent never queued behind prerequisite");
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let ordered = ValidatorRequest::ValidateBatch {
+        jobs: [first, second].iter().map(|j| hex::encode(j.to_bytes())).collect(),
+    };
+    let batched = tokio::spawn({ let v = validator.clone(); async move { v.handle(ordered).await } });
+    let standalone_response = standalone.await.unwrap();
+    assert!(matches!(&standalone_response, ValidatorResponse::Refused { reason }
+        if reason.contains("dependency")), "{standalone_response:?}");
+    assert!(accepted(&running.await.unwrap()));
+    let response = batched.await.unwrap();
+    let ValidatorResponse::Batch { responses } = response else { panic!("{response:?}") };
+    assert!(responses.iter().all(accepted), "batch lost temporary dependency proof: {responses:?}");
+    assert_eq!(validator.checks_run.load(Ordering::SeqCst), 2);
+    assert!(c.store.marker(&dependent.decl).await.unwrap().is_none());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

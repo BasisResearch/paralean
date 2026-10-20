@@ -233,6 +233,96 @@ async fn leader_killed_after_durable_assignment_redelivers_once() {
     heartbeat.abort();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn expired_owner_reassignment_survives_crash_before_snapshot() {
+    let tmp = scratch("expiry-t4-crash");
+    let dep = deployment("expiry-t4-crash");
+    let kf = KeyFile::demo(3);
+    let keys = tmp.join("keys.json");
+    std::fs::write(&keys, serde_json::to_string(&kf).unwrap()).unwrap();
+    let base_env = vec![("PARALEAN_KEYS", keys.display().to_string()),
+        ("PARALEAN_DEPLOYMENT", dep.clone()), ("TMPDIR", tmp.display().to_string())];
+    let mut paused_env = base_env.clone();
+    paused_env.push(("PARALEAN_TEST_PAUSE_AFTER_EXPIRE_T4_MS", "10000".into()));
+    let a = format!("127.0.0.1:{}", free_port());
+    let b = format!("127.0.0.1:{}", free_port());
+    let mut leader = spawn(&["controller", "--listen", &a, "--validators", "127.0.0.1:1",
+        "--lease-ms", "1200"], &paused_env, &tmp.join("leader.log"));
+    let authority = kf.authority_signer().unwrap();
+    let (old_id, old_signer) = kf.workspace("w0").unwrap();
+    let (next_id, next_signer) = kf.workspace("w1").unwrap();
+    let (final_id, final_signer) = kf.workspace("w2").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !matches!(call(&a, ControlRequest::Status, &authority).await,
+        Some(ControlResponse::Status { status }) if status["leader"] == true) {
+        assert!(Instant::now() < deadline, "first controller did not lead");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    for (id, signer) in [(old_id, &old_signer), (next_id, &next_signer)] {
+        assert!(matches!(worker_call(&a, ControlRequest::Register { worker: id.hex(), capacity_mb: 4096 },
+            signer, &authority).await, Some(ControlResponse::Registered { .. })));
+    }
+    let heartbeat_addr = a.clone();
+    let heartbeat_next = next_signer.clone();
+    let heartbeat_authority = authority.clone();
+    let heartbeat = tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let _ = worker_call(&heartbeat_addr, ControlRequest::Heartbeat { worker: next_id.hex() },
+                &heartbeat_next, &heartbeat_authority).await;
+        }
+    });
+    let work_request = "expiry-t4-crash/job";
+    assert_eq!(call(&a, ControlRequest::SubmitWork { request: work_request.into(),
+        target: "ExpiryCrash.target".into(), memory_mb: 64 }, &authority).await,
+        Some(ControlResponse::Queued));
+    assert!(matches!(worker_call(&a, ControlRequest::Poll { worker: old_id.hex() },
+        &old_signer, &authority).await, Some(ControlResponse::Work { request, .. })
+        if request == work_request));
+    let store = Store::open(&StoreConfig::from_env(&dep).unwrap(), kf.ring(), Faults::none()).unwrap();
+    let name = Name::parse("ExpiryCrash.target");
+    let initial_epoch = store.target(&name).await.unwrap().unwrap().epoch;
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let next_epoch = loop {
+        let target = store.target(&name).await.unwrap().unwrap();
+        if target.owner == next_id {
+            assert!(target.epoch > initial_epoch);
+            break target.epoch;
+        }
+        assert!(Instant::now() < deadline, "expiry T4 was not durable before the pause");
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    };
+    // The successor's lease also expires before any replacement controller can
+    // reload the old snapshot. Replaying that snapshot must not try to reuse the
+    // immutable attempt-2 request for a different owner.
+    heartbeat.abort();
+    leader.0.kill().unwrap();
+    leader.0.wait().unwrap();
+    tokio::time::sleep(Duration::from_millis(1600)).await;
+    let _standby = spawn(&["controller", "--listen", &b, "--validators", "127.0.0.1:1",
+        "--lease-ms", "1200"], &base_env, &tmp.join("standby.log"));
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while !matches!(call(&b, ControlRequest::Status, &authority).await,
+        Some(ControlResponse::Status { status }) if status["leader"] == true) {
+        assert!(Instant::now() < deadline, "replacement controller did not lead");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let target = store.target(&name).await.unwrap().unwrap();
+        if target.owner != next_id && target.epoch > next_epoch { break }
+        assert!(Instant::now() < deadline, "expired successor remained owner after takeover");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(matches!(worker_call(&b, ControlRequest::Register { worker: final_id.hex(), capacity_mb: 4096 },
+        &final_signer, &authority).await, Some(ControlResponse::Registered { .. })));
+    let response = worker_call(&b, ControlRequest::Poll { worker: final_id.hex() },
+        &final_signer, &authority).await;
+    assert!(matches!(&response, Some(ControlResponse::Work { request, .. })
+        if request == work_request), "recovered job was lost: {response:?}");
+    assert_eq!(store.target(&name).await.unwrap().unwrap().owner, final_id);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn killed_owner_is_replaced_and_the_target_published() {
     let tmp = scratch("procs");

@@ -186,42 +186,52 @@ impl Validator {
             Run(watch::Sender<Option<ValidatorResponse>>, watch::Receiver<bool>),
             Answer(ValidatorResponse),
         }
-        let pre = {
-            let mut slots = self.slots.lock().unwrap();
-            match slots.get(&request) {
-                Some(s) if s.job != job.id() => Pre::Answer(refused("request ID already used for another envelope")),
-                Some(s) => Pre::Wait(s.result.clone()),
-                None if self.queued.load(Ordering::SeqCst) >= self.cfg.max_queued && self.permits.available_permits() == 0 => {
-                    Pre::Answer(ValidatorResponse::Busy)
-                }
-                None => {
-                    let (tx, rx) = watch::channel(None);
-                    let (ctx, crx) = watch::channel(false);
-                    slots.insert(request.clone(), Slot { job: job.id(), result: rx, cancel: ctx });
-                    Pre::Run(tx, crx)
-                }
-            }
-        };
-        let (tx, cancel_rx) = match pre {
-            Pre::Answer(r) => return r,
-            Pre::Wait(mut rx) => {
-                return loop {
-                    if let Some(r) = rx.borrow().clone() {
-                        break r;
+        let (tx, cancel_rx) = loop {
+            let pre = {
+                let mut slots = self.slots.lock().unwrap();
+                match slots.get(&request) {
+                    Some(s) if s.job != job.id() => Pre::Answer(refused("request ID already used for another envelope")),
+                    Some(s) => Pre::Wait(s.result.clone()),
+                    None if self.queued.load(Ordering::SeqCst) >= self.cfg.max_queued && self.permits.available_permits() == 0 => {
+                        Pre::Answer(ValidatorResponse::Busy)
                     }
-                    if rx.changed().await.is_err() {
-                        break ValidatorResponse::Inconclusive { reason: "check abandoned".into() };
+                    None => {
+                        let (tx, rx) = watch::channel(None);
+                        let (ctx, crx) = watch::channel(false);
+                        slots.insert(request.clone(), Slot { job: job.id(), result: rx, cancel: ctx });
+                        Pre::Run(tx, crx)
                     }
                 }
+            };
+            match pre {
+                Pre::Answer(r) => return r,
+                Pre::Wait(mut rx) => {
+                    let shared = loop {
+                        if let Some(r) = rx.borrow().clone() {
+                            break r;
+                        }
+                        if rx.changed().await.is_err() {
+                            break ValidatorResponse::Inconclusive { reason: "check abandoned".into() };
+                        }
+                    };
+                    // A standalone retry may have checked this job without the
+                    // earlier batch receipts. Reacquire the slot so cancellation
+                    // and request deduplication still apply to our own check.
+                    if matches!(shared, ValidatorResponse::Refused { .. }) &&
+                        j.deps.iter().any(|cap| accepted.contains_key(cap)) {
+                        continue;
+                    }
+                    return shared;
+                }
+                Pre::Run(tx, crx) => break (tx, crx),
             }
-            Pre::Run(tx, crx) => (tx, crx),
         };
         let r = self.process(&job, &policy, cancel_rx, accepted).await;
-        let _ = tx.send(Some(r.clone()));
         if !matches!(r, ValidatorResponse::Receipt { .. }) {
             // Only receipts are kept: a retry of anything else checks again.
             self.slots.lock().unwrap().remove(&request);
         }
+        let _ = tx.send(Some(r.clone()));
         r
     }
 

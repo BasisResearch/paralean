@@ -729,12 +729,12 @@ impl ControlPlane {
         if self.load_state().await.is_err() { return }
         self.on_leadership(lease.term);
         self.recover_pending().await;
-        if self.expire_leases_inner().await {
+        if self.expire_leases_inner(lease.term).await {
             let _ = self.save_state(lease.term).await;
         }
     }
 
-    async fn expire_leases_inner(&self) -> bool {
+    async fn expire_leases_inner(&self, term: u64) -> bool {
         if cfg!(feature = "mutate-no-lease-reassign") {
             return true;
         }
@@ -772,9 +772,22 @@ impl ControlPlane {
                         moves.push((r.clone(), target, n, attempts + 1));
                     }
                     None => {
-                        j.state = WorkState::Queued;
+                        // Keep the sentinel handover pending until T4 fences the
+                        // expired owner. A crash must not restore Queued while the
+                        // old owner still holds the prior target epoch.
+                        j.state = WorkState::Running { worker: unowned(), epoch: u64::MAX, delivered: false };
                         moves.push((r.clone(), target, unowned(), attempts + 1));
                     }
+                }
+            }
+            // Poll and lease-expiry handovers both persist an epoch=MAX intent
+            // before T4. Resume any such intent after a crash, including a
+            // sentinel fence for which there is no live worker to poll.
+            for r in &st.order {
+                if moves.iter().any(|(moved, ..)| moved == r) { continue }
+                let j = &st.work[r];
+                if let WorkState::Running { worker, epoch: u64::MAX, .. } = j.state {
+                    moves.push((r.clone(), j.target.clone(), worker, j.attempts));
                 }
             }
             for group in &mut st.groups {
@@ -790,20 +803,35 @@ impl ControlPlane {
                 }
             }
         }
+        // Persist the chosen owner and attempt before any assignment. A new
+        // leader can either finish this exact T4 or, if that owner has since
+        // expired, start a fresh attempt with a fresh request ID.
+        if (!moves.is_empty() || !group_moves.is_empty()) && self.save_state(term).await.is_err() {
+            return false;
+        }
         for (r, target, to, attempt) in moves {
-            let req = format!("lease/{r}/{attempt}");
+            let req = format!("work/{r}/{attempt}");
             let res = match self.durable.current().await {
                 Ok(Some(lease)) => self.durable.assign_group(&[target.clone()], to, req.as_bytes(), lease.term).await.map(|v| v[0]),
                 _ => Err("controller lost lease".into()),
             };
             if res.is_err() { return false }
-            let mut st = self.state.lock().unwrap();
-            if let Some(j) = st.work.get_mut(&r) {
-                if let (Ok(epoch), WorkState::Running { worker, delivered, .. }) = (&res, j.state.clone()) {
-                    if worker == to {
-                        j.state = WorkState::Running { worker, epoch: *epoch, delivered };
+            {
+                let mut st = self.state.lock().unwrap();
+                if let Some(j) = st.work.get_mut(&r) {
+                    if let (Ok(epoch), WorkState::Running { worker, delivered, .. }) = (&res, j.state.clone()) {
+                        if worker == to {
+                            j.state = if to == unowned() {
+                                WorkState::Queued
+                            } else {
+                                WorkState::Running { worker, epoch: *epoch, delivered }
+                            };
+                        }
                     }
                 }
+            }
+            if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_AFTER_EXPIRE_T4_MS").unwrap_or_default().parse::<u64>() {
+                tokio::time::sleep(Duration::from_millis(ms)).await;
             }
         }
         for (names, owner, req) in group_moves {

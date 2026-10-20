@@ -49,7 +49,8 @@ Rust build caches were copied into this checkout before modification.
   an earlier accepted batch receipt can establish a later job's dependency,
   after rechecking its binding, cancellation, revocation and capsule identity.
   Payloads are still rehashed. T1 now independently requires certified publication
-  of every dependency, including through the adversarial writer entry point.
+  of every envelope-listed dependency, including through the adversarial writer entry point.
+  The validator checks completeness against the captured dependency closure.
   Accepted batch receipts therefore cannot publish a dependent before its prerequisites.
 - Minimal P2 store changes: expose the existing writer signer through a read-only
   accessor for authenticated worker RPCs, and enforce dependency publication in T1.
@@ -65,8 +66,12 @@ existing cold checker also does not sandbox.
 ## Verification
 
 The parent ran the integrated Rust build and live tests against the isolated
-cluster. Results so far: control/adversarial/auth/target/durable/protocol tests
-29/29; process failure tests 3/3; P2 store tests 44/44. The batch test additionally
+cluster. Results: control/adversarial/auth/target/durable/protocol tests 29/29;
+process failure tests 4/4; batch and warm isolation tests 3/3; fork-validator
+test 1/1; P2 store tests 44/44. These are 37 distinct control tests and 44 store tests.
+The warm test was run separately with its required fork fixtures; a stock-only
+batch test invocation reports it as passed after an early configuration return,
+which is not counted as isolation evidence. The batch test additionally
 checks that a byte-distinct capsule for one group does not displace the receipt
 for the original dependency capsule. Both normal publication and the adversarial
 writer entry point reject a dependent before its prerequisites publish.
@@ -85,7 +90,53 @@ worker and observes a replacement publish. This establishes logical request and
 publication deduplication for those crash windows; work can be re-executed after
 a worker lease expires, rather than promising exactly-once physical computation.
 
-Final warm-isolation results and Mathlib measurements follow after completion.
+The final warm binary built and its isolation test passed. It checks a rejected
+contract followed by two successful checks of the same declaration, refuses an
+unpublished dependency despite having checked it earlier, replays F11 scoped
+notation then returns to F01 without growing the process count, and replaces the
+process after timeout. `checkGroup` constructs a fresh catalogue; `openSession`
+constructs fresh command state/options from an immutable imported environment;
+`kernelReplay` starts from that base with a fresh kernel environment and axiom
+cache. Only imported-base environments are intentionally cached between jobs.
+
+The paired M14 sample on implementation commit `bd081a4` accepted and published
+all 50 groups in each mode. Warm validation took **17.082 s (0.342 s/group)**;
+cold validation took **44.659 s (0.893 s/group)**: **2.61×** the validation
+throughput, or **61.75% fewer validator slot-seconds** for this sample. Measured
+module work including upload, publication and audit took 25.655 s warm versus
+53.574 s cold. Both runs used ordered batches of 32 and the new T1 dependency
+guard. This is one sequential paired sample on a shared host, not a controlled
+performance distribution. Cold-path RSS was not instrumented; its JSON zero
+means unavailable, not zero memory. Raw reports are in `impl/p3/results/`.
+
+The initial full run attempted all 1,105 groups from the 18-module sample: 1,104
+were accepted and published, one was rejected. It used 1,745.646 validation
+seconds (1.580 s/group), before the final nonce, initializer-process and T1
+dependency-publication changes. Its raw report is retained as
+`m-targets-mathlib-18-initial.json`. The complete sample is being rerun on the
+final implementation in two disjoint shards, each using one validator slot.
+
+## Additional crash and concurrency review
+
+A final full-sample rerun exposed a race between recovery of durable J1 jobs and
+an ordered batch using the same validator request ID. The standalone recovery
+request could refuse an unpublished dependency while the batch already held
+that dependency's accepted receipt. The batch inherited the refusal. The fix
+reacquires the normal validation slot with the batch's dependency context,
+preserving cancellation and deduplication. A deterministic regression fails on
+`bd081a4` with the same dependency refusal and passes with the fix. The partial
+run with three such M01 refusals was stopped and is not the final measurement.
+
+Review also found that lease-expiry reassignment could commit T4 before saving
+its chosen replacement. If the controller then crashed and that replacement
+expired, recovery could retry an immutable assignment request with a different
+owner and strand the job. Expiry now persists an owner/attempt intent before T4,
+including handovers to the unowned sentinel, and resumes unfinished intents.
+A process regression kills the leader in that window, lets the replacement
+expire, and requires the standby to fence it and deliver the original job to a
+third worker. It fails on the previous implementation (with only the pause
+failpoint added) and passes with the fix. The complete four-process-test suite,
+control scheduling tests, durable snapshot test, and target tests also pass.
 
 ## Operational limits and remaining work
 
@@ -96,11 +147,18 @@ Final warm-isolation results and Mathlib measurements follow after completion.
 - Environment isolation is checked, not arbitrary native/metaprogram process
   sandboxing. Materialized initializers run in disposable processes. There is no
   claim that untrusted code with arbitrary process-memory access is contained.
-- The benchmark uses one validator slot, dependent batches of 32, and a shared
-  host. Its wall times include validation fetch/replay and RPC, but exclude capture,
+- Each benchmark module uses one validator slot and dependent batches of 32 on a
+  shared host. The final full run uses two such modules concurrently. Its wall times include validation fetch/replay and RPC, but exclude capture,
   initial payload upload, and T1 publication, which are recorded separately. Dollar
   charges cannot be attributed without a machine rate and an allocation of shared
   FDB/Garage costs; validator-hours and observed checker RSS are reported instead.
+- Full sample certification is blocked by the existing P1 source replay mismatch
+  for M08 (`Mathlib/Tactic/ByCases.lean:37`), group
+  `8219ba1745d21c72fa9421834368a5cd89b3184e50d1d4ec5bda9ffae717b2da`.
+  Its generated macro name replays to declaration `e05ec86729e7…` instead of
+  stored `ec5cc4449883…`. A separate cold P1 `check-group` reproduces the same
+  rejection (exit 1, 1.769 s); see `m-targets-cold-M08.log`. This work does not
+  modify P1 source replay or bypass the rejection.
 
 ## Reproduction
 
@@ -133,6 +191,23 @@ For the working-copy gate, retain this cluster's environment and set
 set unused `PARALEAN_VALIDATOR_PORT` and `PARALEAN_CONTROLLER_PORT`. Run
 `impl/p3-remote/scripts/gate.py RUNDIR`, optionally with `--targets-only`.
 Worker/controller clients accept comma-separated controller addresses.
+
+## Integration notes
+
+P5 and other external callers must use authenticated RPCs with the workspace
+signer for worker operations and the authority signer for administrative
+operations. `call_controller` accepts a comma-separated replica list.
+`WorkerNode` now sends `PollRequest` with a stable token across transport retries;
+new clients should do the same. The legacy `Poll` variant remains available but
+does not have a request token for replaying a lost response. Group assignment
+request IDs are immutable bindings to a normalized name set and owner; a stale
+request cannot restore an earlier owner, and subsets of an associated group
+cannot be reassigned independently.
+
+The small P2 change is deliberately limited to the writer signer accessor and
+the T1 dependency-publication guard. Dependency capsules now need the P3/P1 JSON
+`declId` field when listed in a publication envelope. No P2 anti-entropy internals,
+P4 code, P5 code, plan.md, or README.md were changed.
 
 ## Sentences for plan.md and README.md
 
