@@ -25,6 +25,7 @@ cases=(
   "mutate-validator-skips-dep-check|adversarial|dependency_must_be_published_with_a_receipt"
   "mutate-validator-ignores-axioms|adversarial|validator_enforces_the_envelope_policy"
   "mutate-no-checker-sandbox|sandbox|checker_cannot_read_secrets_write_outside_or_use_network"
+  "mutate-no-checker-sandbox|sandbox|native_lean_tactic_cannot_reach_host"
   "mutate-no-checker-seccomp|sandbox|checker_cannot_read_secrets_write_outside_or_use_network"
   "mutate-no-checker-disk-limit|sandbox|checker_disk_budget_is_tmpfs_enospc_and_rlimit_fsize"
   "mutate-no-checker-fsize-limit|sandbox|checker_disk_budget_is_tmpfs_enospc_and_rlimit_fsize"

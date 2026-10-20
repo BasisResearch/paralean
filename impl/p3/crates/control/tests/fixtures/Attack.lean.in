@@ -20,4 +20,7 @@ theorem Attack.safe : True := by
     let net ← liftM <| IO.Process.output {
       cmd := "/bin/bash", args := #["-c", "echo leak >/dev/tcp/127.0.0.1/__PORT__"] }
     if net.exitCode == 0 then throwError "native tactic opened network"
+    -- Evidence that this code really ran: a write in its working directory (the
+    -- checker's scratch).
+    liftM <| try IO.FS.writeFile "attack-ran" "yes" catch _ => pure ()
   trivial

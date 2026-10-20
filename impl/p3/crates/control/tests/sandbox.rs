@@ -319,29 +319,32 @@ async fn real_plain_theorem_passes_inside_and_outside_the_sandbox() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn real_initializer_materializes_in_private_scratch() {
+async fn real_initializer_is_refused_before_materialization() {
     if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
     require_lean();
     // The export package the initializer group materializes has no Mathlib dependency.
     let (store, _gid, decl) = capture("init", &["Fixtures/F13InitDecl.lean", "Fixtures/F13InitUse.lean"],
         "f13Counter", &[("PARALEAN_MATHLIB", None)]);
     let gids = all_gids(&store);
-    // Capture materializes on the host as a cache; remove it so a surviving host directory
-    // after the sandboxed check can only mean the sandbox leaked.
+    // Capture materializes on the host as a cache; remove it so a host directory after the
+    // check can only come from the check itself.
     let _ = std::fs::remove_dir_all(store.join("materialized"));
     let mut cfg = CheckerConfig::from_env().unwrap();
     cfg.env.retain(|(k, _)| k != "PARALEAN_MATHLIB");
     let (_tx, cancel) = watch::channel(false);
     let out = checker::run(&cfg, &store, &gids, &decl, &[], Duration::from_secs(120), 2048, cancel).await.unwrap();
-    assert!(out.ok, "initializer check rejected: {:?}", out.diags);
-    // Materialization happens in the sandbox tmpfs copy of the store, never in the host store.
-    assert!(!store.join("materialized").exists(), "materialization must stay inside the sandbox tmpfs");
+    // Initializers run arbitrary IO on every importer, so published capsules may not have
+    // them (W2 A-28): the check refuses before materializing anything.
+    assert!(!out.ok && out.diags.iter().any(|d| d.contains("initializer effects")), "initializer: {:?}", out.diags);
+    assert!(!store.join("materialized").exists(), "a refused check materialized on the host");
     std::fs::remove_dir_all(store.parent().unwrap()).unwrap();
 }
 
-/// A package whose `run_tac` native tactic tries to read a key, write outside scratch, open
-/// the network, and exhaust memory/CPU/processes/disk. The legitimate theorem it also
-/// declares must still check; none of the host effects may happen.
+/// A package whose `run_tac` native tactic tries to read a key, write outside scratch and
+/// reach a host TCP listener. Two layers stop it. The publication gate refuses the capsule
+/// in `check-group`, so the tactic never runs there. And when the same source is
+/// elaborated by real Lean inside the sandbox (as code the gate cannot see would be), the
+/// tactic runs and every host effect fails, while its theorem still checks.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn native_lean_tactic_cannot_reach_host() {
     if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
@@ -356,10 +359,10 @@ async fn native_lean_tactic_cannot_reach_host() {
     let source = include_str!("fixtures/Attack.lean.in")
         .replace("__ROOT__", &root.display().to_string())
         .replace("__PORT__", &port.to_string());
-    std::fs::write(root.join("Attack.lean"), source).unwrap();
+    std::fs::write(root.join("Attack.lean"), &source).unwrap();
     // Capture runs the tactic on the host; the targets must not exist yet, or capture itself
-    // would see them and reject. They are created only for the sandboxed check below.
-    let capture = std::process::Command::new(&bin)
+    // would see them and reject. They are created only for the checks below.
+    let capture = std::process::Command::new(&bin).current_dir(&root)
         .args(["capture", "--store"]).arg(&store)
         .args(["--ws", "A", "--root"]).arg(&root).arg("Attack.lean")
         .output().unwrap();
@@ -374,9 +377,31 @@ async fn native_lean_tactic_cannot_reach_host() {
     listener.set_nonblocking(true).unwrap();
     let cfg = CheckerConfig::from_env().unwrap();
     assert!(cfg.sandbox);
+    // Layer 1: the published-capsule check refuses run_tac before elaborating it.
     let (_tx, cancel) = watch::channel(false);
     let out = checker::run(&cfg, &store, &[gid], &decl, &[], Duration::from_secs(60), 2048, cancel).await.unwrap();
-    assert!(out.ok, "native tactic escaped sandbox: {:?}", out.diags);
+    assert!(!out.ok && out.diags.iter().any(|d| d.contains("capsule gate")), "gate: {:?}", out.diags);
+    // Layer 2: real Lean elaborates the attack inside the same sandbox profile.
+    let direct = root.join("direct");
+    std::fs::create_dir(&direct).unwrap();
+    std::fs::write(direct.join("Attack.lean"), &source).unwrap();
+    let wrapper = root.join("lean-attack.sh");
+    std::fs::write(&wrapper, r#"#!/bin/sh
+# Elaborate the attack in the checker's store directory with the toolchain's own lean.
+while [ $# -gt 0 ]; do [ "$1" = --store ] && store="$2"; shift; done
+cd "$store" || exit 1
+if lean Attack.lean > lean.out 2>&1 && [ -f attack-ran ]; then
+  echo 'CHECK {"ok": true}'
+else
+  python3 -c 'import json; print("CHECK " + json.dumps({"ok": False, "diags": [open("lean.out").read()[-500:]]}))'
+fi
+"#).unwrap();
+    std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mut lean_cfg = cfg.clone();
+    lean_cfg.bin = wrapper;
+    let (_tx, cancel) = watch::channel(false);
+    let out = checker::run(&lean_cfg, &direct, &["attack".into()], "attack", &[], Duration::from_secs(60), 2048, cancel).await.unwrap();
+    assert!(out.ok, "native tactic escaped the sandbox or did not run: {:?}", out.diags);
     assert!(!root.join("protected/outside").exists());
     assert!(listener.accept().is_err(), "native tactic reached host network");
     std::fs::remove_dir_all(&root).unwrap();
