@@ -65,7 +65,8 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
                "-C", str(directory / "work"), "-"]
         stdin = prompt_path.read_text()
     elif task.worker_kind == "claude":
-        cmd = ["claude", "-p", "--permission-mode", "auto", prompt_path.read_text()]
+        cmd = ["claude", "-p", "--permission-mode", "auto", "--output-format", "json",
+               prompt_path.read_text()]
         stdin = None
     else:
         try:

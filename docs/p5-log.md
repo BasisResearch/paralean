@@ -181,6 +181,14 @@ The final sourced local suite passes 17 tests, including new cases for changed
 completed heads, corrupt existing export output, exact snapshot selection,
 noncurrent dependencies, journal authentication and signed-sequence replay.
 
+The final live adversarial rerun passed all ten checks, including target-bound
+checkpoint contents, accepted current completion and rejected stale completion
+after reassignment. The first attempt passed the new checks but one missing-target
+check encountered a native bridge `SIGSEGV` during a store read before reaching
+its assertion; the complete rerun passed. No native-client retry or upstream
+change hides that failure. The final P2 integration is `32549af` (gray-failure and
+coordinator-replacement scripts/evidence only); the Rust API is unchanged.
+
 ## Proposed sentences for plan.md and README.md
 
 These are proposals to update after verification, not edits to those files.

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import re
@@ -96,6 +97,7 @@ def trial(args: argparse.Namespace, workers: int, rep: int, series: str) -> dict
     cmd = [sys.executable, str(args.controller), "run", str(task), "--state", str(state),
            "--workers", str(workers), "--parallelism", str(parallelism), "--worker", args.worker]
     start = time.monotonic()
+    load_start = list(os.getloadavg())
     with (directory / "controller.log").open("w") as log:
         try:
             p = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, env=env, timeout=args.timeout)
@@ -111,6 +113,14 @@ def trial(args: argparse.Namespace, workers: int, rep: int, series: str) -> dict
     metrics = run.get("metrics", {})
     export = run.get("export") or {}
     transfer = workspace_transfer(state)
+    models = set()
+    for path in state.glob("*/p5-logs/*.log"):
+        try:
+            reply = json.loads(path.read_text())
+            if isinstance(reply, dict) and isinstance(reply.get("modelUsage"), dict):
+                models.update(reply["modelUsage"])
+        except (OSError, ValueError):
+            pass
     check_ms, export_build_ms = metrics.get("check_ms"), export.get("buildMs")
     attestation_build_ms = export.get("attestationBuildMs", 0)
     validator_rpc_ms = (max(0, check_ms - export_build_ms - attestation_build_ms)
@@ -135,6 +145,8 @@ def trial(args: argparse.Namespace, workers: int, rep: int, series: str) -> dict
            "working_copy_transfer_by_kind": transfer["by_kind"],
            "export_build_ms": export_build_ms, "attestation_build_ms": attestation_build_ms,
            "groups": export.get("groups"),
+           "models": sorted(models), "load_average_start": load_start,
+           "load_average_end": list(os.getloadavg()),
            "state": str(state), "log": str(directory / "controller.log"),
            "metric_scope": METRIC_SCOPE}
     (directory / "result.json").write_text(json.dumps(row, indent=2, sort_keys=True) + "\n")
@@ -161,6 +173,7 @@ def main() -> int:
     args.task = args.task.resolve()
     args.run_dir.mkdir(parents=True, exist_ok=True)
     series = args.series or f"p5bench-{int(time.time())}-{os.getpid()}"
+    git = git_rev("HEAD")
     rows = []
     for workers in COUNTS:
         for rep in range(1, args.repeats + 1):
@@ -178,7 +191,9 @@ def main() -> int:
         writer.writeheader()
         writer.writerows(rows)
     result = {"series": series, "worker": args.worker, "repeats": args.repeats,
-              "git": git_rev("HEAD"), "origin_main": git_rev("origin/main"),
+              "git": git, "origin_main": git_rev("origin/main"),
+              "task_sha256": hashlib.sha256(args.task.read_bytes()).hexdigest(),
+              "cpu_count": os.cpu_count(),
               "counts": list(COUNTS), "max_parallel": args.max_parallel,
               "metric_scope": METRIC_SCOPE,
               "summary": {str(n): {
