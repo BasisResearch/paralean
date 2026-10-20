@@ -350,10 +350,43 @@ true at a version they stay true, because nothing is deleted and the stores do n
 lose committed data. A guard established by reads at earlier versions therefore
 still holds at the commit version of a later transaction. Catalogue commit uses
 this: payload `ObjectCert`s are written by T6 when each object is first
-acknowledged and reused by every later snapshot; T5 itself checks only the fence,
+acknowledged and reused by every later snapshot; T5 checks the fence,
 the record and the snapshot certificate (`ocert/snapshot/<m>`). The same applies to the committer's own
 publication certificates before a checkpoint commit. Non-monotone facts (the fence,
 target records) are always read inside the transaction that depends on them.
+
+W3 additionally checks checkpoint buildability, dependency closure and current
+names inside T5. Currentness can change when another group is published or a
+position is deleted, so an earlier client-side check is insufficient. The
+transaction selects complete atomic groups, rejects duplicate selected names,
+and checks each selected name against the certified live heads. The present
+implementation fails closed on offloaded registry metadata or a prefix exceeding
+10,000 rows; a transactional index is needed to lift this availability limit.
+
+## W3 registry and position operations
+
+Tombstones hide certified file positions while preserving registry revisions,
+dependency identities and historical snapshots. New tombstones identify the
+exact marker position; legacy group-targeted tombstones retain their encoding.
+T8 certifies local deletion and T10 certifies received deletion only after local
+payload acknowledgement. Foreign certificates remain evidence, never local
+discovery certificates.
+
+T11 inserts a new same-file position after a certified author deletion. It
+preserves the group's revisions, author and lineage keys and checks the carried
+anchor path. Tombstoned positions remain usable as anchors. All compatible
+marker variants are retained; recovery chooses the least live position key and
+computes collision names from lineage keys. Controller deletion has a signed
+grant bound to the tombstone and source fence; T8 checks the current source fence,
+while relay preserves the original authorization.
+
+Controller-signed agent-key registrations bind an author to a workspace key.
+Publication, deletion and moves check registration and revocation in their FDB
+transaction. A key rotation is authorized by the workspace's pinned controller;
+old public keys remain available to verify historical certificates. Revoke the
+old key to prevent new writes by preexisting clients holding it. These additions
+have separate finite models and mutation tests; they are not a machine-checked
+Rust refinement. Decisions and evidence are in [w3-log.md](w3-log.md).
 
 ## What the refinement does not cover
 
@@ -394,9 +427,9 @@ target records) are always read inside the transaction that depends on them.
 - **Encodings and signatures.** Hash collision resistance, signature
   unforgeability (receipts, tokens, certificates) and decoder schema validation are
   assumptions, as in the models.
-- **Workspaces.** Placement, rendering and the git projection read only the
-  replicated marker set and add no store operation; they are not part of this
-  argument.
+- **Workspaces.** Placement, rendering and the git projection are outside this
+  original refinement argument. W3's T8/T10 tombstones and T11 moves have separate
+  models and implementation tests described above.
 
 ## P2 obligations from this choice
 

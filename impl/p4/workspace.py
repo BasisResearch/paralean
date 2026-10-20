@@ -231,6 +231,11 @@ def resolve(directory, file, name):
     synced = command_json([env["PARALEAN_BIN"], "ws-sync", "--dir", directory], env)
     heads = command_json([env["PARALEAN_BIN"], "ws-live"], env)
     live = set(heads["groups"])
+    selected = {record["group"] for record in records(cache)
+                if record.get("group") in live and record["file"] == file}
+    blocked = selected.intersection(heads.get("conflictedGroups", []))
+    if blocked:
+        raise RuntimeError(f"unresolved checkpoint name conflict in {file}: {sorted(blocked)}")
     revisions = sorted({revision for record in records(cache)
                         if record.get("group") in live and record["file"] == file
                         for revision in record.get("revisions", [])})

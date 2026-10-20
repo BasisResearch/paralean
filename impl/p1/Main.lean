@@ -15,7 +15,8 @@ def usage : String := "usage:
   paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
            ws-capture-server --dir D               (one document, stamped JSON lines) |
            ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] [--source 1] FILE... |
-           ws-delete --dir D --file F --name N [or --name-json JSON] | ws-live |
+           ws-delete --dir D --file F --name N [or --name-json JSON] |
+           ws-move --dir D --file F --name N [--after N] | ws-live |
            ws-check --dir D FILE... | ws-export --dir D --out DIR
            (working copies, P3; PARALEAN_STORE = D/cache; see impl/p3-remote/scripts/ws.sh)
 "
@@ -379,6 +380,13 @@ unsafe def main (args : List String) : IO UInt32 := do
       | _, some s => pure s.toName
       | _, _ => throw <| IO.userError "ws-delete requires --name or --name-json"
     IO.println (← Copy.delete dir f n).compress
+    return 0
+  | "ws-move" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some f := flags["file"]? | IO.eprintln usage; return 2
+    let some name := flags["name"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.move dir f name.toName (flags["after"]?.map String.toName)).compress
     return 0
   | ["ws-live"] =>
     IO.println (← Copy.liveHeads).compress

@@ -527,7 +527,7 @@ class Proxy:
             spelling = name(original)
             if winners[spelling][1] != marker.get("group"):
                 parts = spelling.rsplit(".", 1)
-                suffix = "✝pl" + marker.get("group", "")[:8]
+                suffix = "✝pl" + marker.get("group", "")
                 spelling = (parts[0] + "." if len(parts) == 2 else "") + parts[-1] + suffix
             if query.lower() not in spelling.lower():
                 continue

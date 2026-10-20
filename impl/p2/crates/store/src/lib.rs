@@ -14,8 +14,10 @@
 //! | `antientropy` | exchange of published groups and tombstones between deployments |
 
 pub mod ae;
+pub mod authority;
 pub mod antientropy;
 pub mod audit;
+mod checkpoint_guard;
 pub mod error;
 pub mod faults;
 pub mod fixture;
@@ -32,6 +34,7 @@ pub mod store;
 pub mod writer;
 
 pub use error::{GuardFailure, Result, StoreError};
+pub use authority::{controller_agent_id, AgentKeyGrant, AgentKeyRevocation, ControllerDeleteGrant};
 pub use ae::{AeBundlePage, AeEvent, AeIdentity, AeKind, AeObjectPage, AePage, AePart, AePending, AePendingPage, AeProgress, FederationConfig, FederationMember, PendingState};
 pub use faults::{CommitFault, CrashMode, Faults, GetFault, PutFault, RandomFaults, Txn};
 pub use id::{AgentId, Domain, Id, Kind, ReplicaId, WorkspaceId};

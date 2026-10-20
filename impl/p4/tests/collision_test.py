@@ -54,7 +54,7 @@ def main(args):
                        if name.startswith("Shared.dup")]
             assert matches, diagnostic_text[-1500:]
             raw = matches[-1]
-        suffix = re.search(r"✝pl([0-9a-f]{8})", raw)
+        suffix = re.search(r"✝pl([0-9a-f]{64})", raw)
         assert suffix, raw
         losing_prefix = suffix.group(1)
         before = (target / "work/Shared.lean").read_text()
@@ -77,7 +77,7 @@ def main(args):
         assert "theorem Shared.dup" in after, after
         # The editor draft that mentioned the losing declaration is now revised
         # by its author, then checked before making the certified checkpoint.
-        revised = re.sub(r"example : 3 = 3 := Shared\.\u00abdup\u271dpl[0-9a-f]{8}\u00bb",
+        revised = re.sub(r"example : 3 = 3 := Shared\.\u00abdup\u271dpl[0-9a-f]{64}\u00bb",
                          "example : 3 = 3 := by decide", after)
         (target / "work/Shared.lean").write_text(revised)
         checked = call(env["PARALEAN_BIN"], "ws-check", "--dir", target, "Shared.lean", env=env)

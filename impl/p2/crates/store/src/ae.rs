@@ -168,6 +168,18 @@ impl Pce for FederationMember {
         Ok(Self { replica, transport_public, authority, writers, job_issuers })
     }
 }
+impl FederationMember {
+    /// The pinned writer ID remains the source identity. Its certificate key may rotate
+    /// only under this member controller's signed AgentID registration.
+    pub fn verify_writer(&self, ring: &crate::sign::KeyRing, writer: &WorkspaceId, id: &Id, signature: &[u8]) -> bool {
+        let Some(pinned) = self.writers.get(writer) else { return false };
+        if crate::sign::verify(pinned, id, signature) { return true; }
+        let Some(rotated) = ring.signing_writer_key(writer, id, signature) else { return false };
+        ring.agent_keys.iter().any(|grant| grant.parts().is_some_and(|(_, w, key, issuer)|
+            w == *writer && key == rotated &&
+            (issuer == self.authority || cfg!(feature = "mutate-agent-foreign-rotation")) && grant.verify()))
+    }
+}
 
 /// Immutable federation roster. `deployment` selects the local member and is excluded from
 /// the shared digest; all members pin the same roster and target-home map.
@@ -276,9 +288,9 @@ impl Store {
         let Some(cert_bytes) = self.meta.get(self.meta.keys.xrcert(source, id)).await? else { return Ok(None) };
         let cert = CommitCert::from_bytes(&cert_bytes)?;
         if rec.id() != *id || rec.body.workspace != rec.body.token.holder
-            || !member.writers.get(&rec.body.workspace).is_some_and(|key| rec.verify(key))
+            || !member.verify_writer(&self.ring, &rec.body.workspace, &rec.id(), &rec.sig)
             || cert.body.catalog != *id || cert.body.token != rec.body.token || cert.body.replica != member.replica
-            || !member.writers.get(&rec.body.token.holder).is_some_and(|key| cert.verify(key)) {
+            || !member.verify_writer(&self.ring, &rec.body.token.holder, &cert.id(), &cert.sig) {
             return Err(StoreError::Invalid("cached foreign catalogue source proof invalid".into()));
         }
         Ok(Some(rec))
@@ -372,6 +384,9 @@ impl Store {
             AeKind::Tombstone { id, cert } => {
                 let tomb = self.tombstone(id).await?.ok_or(StoreError::Missing { kind: "tombstone", id: *id })?;
                 push_meta(&mut all, "tombstone", *id, &tomb.preimage())?;
+                if let Some(grant) = self.meta.get(self.meta.keys.delete_grant(id)).await? {
+                    push_meta(&mut all, "deletegrant", *id, &grant)?;
+                }
                 let cert_bytes = match self.meta.get(self.meta.keys.xcertv("tcert", id, cert)).await? {
                     Some(bytes) => bytes,
                     None => self.tcerts(id).await?.into_iter().find(|c| c.id() == *cert)
@@ -684,7 +699,8 @@ impl Store {
         }
         for member in cfg.members.values() {
             for (writer, key) in &member.writers {
-                if self.ring.writers.get(writer) != Some(key) {
+                if self.ring.writers.get(writer) != Some(key)
+                    && !self.ring.writer_key_history.get(writer).is_some_and(|history| history.contains(key)) {
                     return Err(StoreError::Invalid("federation writer key differs from trusted store ring".into()));
                 }
             }
@@ -898,20 +914,21 @@ impl Writer {
             AeKind::Tombstone { id, cert } => {
                 let tombstone = meta.get(&("tombstone".into(), *id)).ok_or_else(|| StoreError::Invalid("tombstone event lacks object".into()))?;
                 let cert_values = vec![certs.get(&("tcert".into(), *cert)).ok_or_else(|| StoreError::Invalid("tombstone event lacks bound certificate".into()))?.clone()];
-                antientropy::import(self, &Item::Tombstone { tombstone: tombstone.clone(), certs: cert_values }).await
+                let controller_grant = meta.get(&("deletegrant".into(), *id)).cloned();
+                antientropy::import(self, &Item::Tombstone { tombstone: tombstone.clone(), certs: cert_values, controller_grant }).await
             }
             AeKind::Evidence { kind, object, cert } => {
                 let bytes = certs.get(&(kind.clone(), *cert)).ok_or_else(|| StoreError::Invalid("evidence event lacks certificate".into()))?;
                 let cfg = self.store.ae_federation().await?.ok_or_else(|| StoreError::Invalid("federation config missing".into()))?;
                 let valid = if kind == "cert" {
                     Cert::from_bytes(bytes).ok().is_some_and(|c| c.id() == *cert && c.body.group == *object
-                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.writers.get(&c.body.writer).is_some_and(|k| c.verify(k))))
+                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.verify_writer(&self.store.ring, &c.body.writer, &c.id(), &c.sig)))
                 } else if kind == "tcert" {
                     TombstoneCert::from_bytes(bytes).ok().is_some_and(|c| c.id() == *cert && c.body.tombstone == *object
-                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.writers.get(&c.body.writer).is_some_and(|k| c.verify(k))))
+                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.verify_writer(&self.store.ring, &c.body.writer, &c.id(), &c.sig)))
                 } else if let Some(s3_kind) = kind.strip_prefix("ocert/").and_then(Kind::from_name) {
                     ObjectCert::from_bytes(bytes).ok().is_some_and(|c| c.id() == *cert && c.body.id == *object && c.body.kind == s3_kind
-                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.writers.get(&c.body.writer).is_some_and(|k| c.verify(k))))
+                        && cfg.members.values().any(|m| m.replica == c.body.replica && m.verify_writer(&self.store.ring, &c.body.writer, &c.id(), &c.sig)))
                 } else { false };
                 if !valid { return Ok(Outcome::Rejected("evidence signature or object binding invalid".into())); }
                 let keys = self.store.meta.keys.clone();
@@ -938,23 +955,25 @@ impl Writer {
                 let rec_bytes = meta.get(&("catalogue".into(), *id)).ok_or_else(|| StoreError::Invalid("catalogue event lacks record".into()))?;
                 let rec = SignedRecord::from_bytes(rec_bytes)?;
                 if rec.id() != *id || rec.body.workspace != rec.body.token.holder
-                    || !member.writers.get(&rec.body.workspace).is_some_and(|k| rec.verify(k)) {
+                    || !member.verify_writer(&self.store.ring, &rec.body.workspace, &rec.id(), &rec.sig) {
                     return Ok(Outcome::Rejected("catalogue record has invalid source writer signature or ID".into()));
                 }
                 let rc_bytes = certs.get(&("rcert".into(), *cert)).ok_or_else(|| StoreError::Invalid("catalogue event lacks commit certificate".into()))?;
                 let rc = CommitCert::from_bytes(rc_bytes)?;
-                if rc.id() != *cert || rc.body.catalog != *id || rc.body.token != rec.body.token || rc.body.replica != member.replica
-                    || !member.writers.get(&rec.body.token.holder).is_some_and(|k| rc.verify(k)) {
+                if !cfg!(feature = "mutate-catalogue-no-source-proof") &&
+                    (rc.id() != *cert || rc.body.catalog != *id || rc.body.token != rec.body.token || rc.body.replica != member.replica
+                    || !member.verify_writer(&self.store.ring, &rec.body.token.holder, &rc.id(), &rc.sig)) {
                     return Ok(Outcome::Rejected("catalogue commit certificate lacks source proof".into()));
                 }
                 let token_values: Vec<_> = meta.iter().filter(|((kind, _), _)| kind == "token").collect();
                 if token_values.len() != 1 { return Ok(Outcome::Rejected("catalogue event lacks unique source token".into())); }
                 let token_bytes = token_values[0].1;
                 let token = TokenEntry::from_pce(token_bytes)?;
-                if token.token.body.token != rec.body.token || !token.token.verify(&member.authority) {
+                if !cfg!(feature = "mutate-catalogue-no-token-proof") &&
+                    (token.token.body.token != rec.body.token || !token.token.verify(&member.authority)) {
                     return Ok(Outcome::Rejected("catalogue source fence token invalid".into()));
                 }
-                if let Some(parent) = rec.body.predecessor {
+                if let Some(parent) = rec.body.predecessor.filter(|_| !cfg!(feature = "mutate-catalogue-no-parent")) {
                     match self.store.foreign_record(origin, &parent).await? {
                         None => return Ok(Outcome::Deferred(format!("source catalogue predecessor {parent} absent"))),
                         Some(parent_rec) if parent_rec.body.workspace != rec.body.workspace || parent_rec.body.token.rank > rec.body.token.rank =>
@@ -997,8 +1016,9 @@ impl Writer {
                         return Ok(Outcome::Deferred(format!("catalogue {} {object} lacks source object certificate", kind.name())));
                     };
                     let oc = ObjectCert::from_bytes(bytes)?;
-                    if oc.body.kind != kind || oc.body.id != object || oc.body.replica != member.replica
-                        || !member.writers.get(&oc.body.writer).is_some_and(|key| oc.verify(key)) {
+                    if !cfg!(feature = "mutate-catalogue-no-object-proof") &&
+                        (oc.body.kind != kind || oc.body.id != object || oc.body.replica != member.replica
+                        || !member.verify_writer(&self.store.ring, &oc.body.writer, &oc.id(), &oc.sig)) {
                         return Ok(Outcome::Rejected(format!("catalogue {} {object} object certificate invalid", kind.name())));
                     }
                     ocerts.push((kind, object, bytes.clone()));

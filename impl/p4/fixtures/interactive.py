@@ -16,6 +16,7 @@ two document versions of a still-open Lean server.
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import time
@@ -85,8 +86,8 @@ def setup(out):
     for key in ("PARALEAN_BIN", "PARALEAN_PLR", "PARALEAN_P3_BIN", "PARALEAN_INSTANCE"):
         if key not in os.environ:
             raise RuntimeError(f"source impl/p4/scripts/env.sh ({key} missing)")
-    if os.environ["PARALEAN_INSTANCE"] != "m-p4":
-        raise RuntimeError("fixtures must run only on PARALEAN_INSTANCE=m-p4")
+    if os.environ["PARALEAN_INSTANCE"] not in {"m-p4", "w3"}:
+        raise RuntimeError("fixtures require an isolated m-p4 or w3 instance")
     binary = Path(os.environ["PARALEAN_BIN"]).resolve()
     library = Path(os.environ["PARALEAN_LIB"]).resolve()
     runtime = binary.parent.parent if binary.parent.name == "bin" else binary.parent
@@ -94,7 +95,7 @@ def setup(out):
     deployment = f"p4interactive-{out.name}-{int(time.time())}"
     os.environ.update(PARALEAN_KEYS=str(keys), PARALEAN_TRUST=str(trust),
                       PARALEAN_DEPLOYMENT=deployment,
-                      PARALEAN_VALIDATOR="127.0.0.1:18691")
+                      PARALEAN_VALIDATOR=os.environ.get("PARALEAN_VALIDATOR", "127.0.0.1:18691"))
     run([os.environ["PARALEAN_PLR"], "keys-init", keys, trust, rogue,
          "--agents", "alice,bob"])
     copies = {}
@@ -119,9 +120,18 @@ def build(kind, out):
                                       "--key", "v0", "--workdir", str(out / "validator")],
                                      stdout=log, stderr=log)
         try:
-            time.sleep(1.5)
-            if validator.poll() is not None:
-                raise RuntimeError("validator exited: " + (out / "validator.log").read_text())
+            host, port = os.environ["PARALEAN_VALIDATOR"].rsplit(":", 1)
+            deadline = time.monotonic() + 30
+            while True:
+                if validator.poll() is not None:
+                    raise RuntimeError("validator exited: " + (out / "validator.log").read_text())
+                try:
+                    with socket.create_connection((host, int(port)), timeout=0.5):
+                        break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError("validator did not listen: " + (out / "validator.log").read_text())
+                    time.sleep(0.2)
             if kind == "instances":
                 instances(copies, manifest)
             elif kind == "open17":
@@ -195,7 +205,7 @@ def Foo.use (x : Foo) (y : Other) : Nat := x.field + y.field
     if losing_agent != "bob":
         raise RuntimeError("OPEN17 fixture expected Bob's higher Lamport field to lose")
     losing_copy = copies[losing_agent]
-    renamed = f'Foo.«field✝pl{loser["group"][:8]}»'
+    renamed = f'Foo.«field✝pl{loser["group"]}»'
     document = losing_copy / "work/Fields.lean"
     dependent = marker(bob, "Foo.use")
     if len(dependent) != 1:
@@ -205,7 +215,7 @@ def Foo.use (x : Foo) (y : Other) : Nat := x.field + y.field
     run([os.environ["PARALEAN_BIN"], "ws-hash", "--write", projection_dir,
          "--source", "1", "Fields.lean"], env=projection_env)
     source_projection = (projection_dir / "Fields.lean").read_text()
-    rewritten_use = f'x.«field✝pl{loser["group"][:8]}» + y.field'
+    rewritten_use = f'x.«field✝pl{loser["group"]}» + y.field'
     if rewritten_use not in source_projection:
         raise RuntimeError("OPEN17 source projection did not selectively rewrite Foo.field")
     with document.open("a") as fh:
@@ -255,7 +265,7 @@ example : 3 = 3 := Shared.dup
     by_key = {key: agent for agent, key in trust}
     if by_key[loser["author"]] != "bob":
         raise RuntimeError("collision fixture expected Bob to lose")
-    renamed = f'Shared.«dup✝pl{loser["group"][:8]}»'
+    renamed = f'Shared.«dup✝pl{loser["group"]}»'
     document = bob / "work/Shared.lean"
     source = document.read_text()
     check = field(ws("check", bob, "Shared.lean"), "check")

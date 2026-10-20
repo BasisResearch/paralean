@@ -1,0 +1,10 @@
+{
+  "position move reaches working copy with unchanged group identity": {
+    "ok": true,
+    "marker_variants": 2,
+    "same_projection": true,
+    "moved_first": true,
+    "errors": []
+  },
+  "_wall_s": 32.4
+}

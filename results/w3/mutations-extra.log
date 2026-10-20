@@ -1,0 +1,5 @@
+detected  mutate-position-lineage  by positions::move_rejects_changed_lineage
+detected  mutate-position-cross-file  by positions::move_rejects_cross_file_placement
+detected  mutate-position-author  by positions::controller_deleted_position_cannot_be_reinserted_by_author
+detected  mutate-agent-historical-t8  by authority::old_signer_cannot_make_fresh_tombstone_under_rotated_ring
+detected  mutate-controller-no-origin  by authority::foreign_controller_cannot_claim_another_origins_writer_certificate

@@ -1,0 +1,3 @@
+'ParaleanCheckpointConflicts.every_unresolved_checkpoint_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]

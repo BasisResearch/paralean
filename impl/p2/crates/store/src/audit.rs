@@ -27,7 +27,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use foundationdb::tuple::Bytes;
 
 use crate::error::{Result, StoreError};
-use crate::id::{Id, Kind};
+use crate::id::{AgentId, Id, Kind, WorkspaceId};
+use crate::authority::{AgentKeyGrant, AgentKeyRevocation, ControllerDeleteGrant};
 use crate::group_chunks::unique_chunks;
 use crate::meta::{self, Envelope};
 use crate::objects::*;
@@ -74,10 +75,40 @@ async fn envelope_s3(store: &Store, v: &[u8], what: &str, r: &mut AuditReport) -
     Ok(())
 }
 
+async fn registered_key(store: &Store, agent: AgentId, writer: WorkspaceId, public: [u8; 32], replica: crate::id::ReplicaId) -> Result<bool> {
+    if store.ring.ambiguous_writer_origins.contains(&writer) { return Ok(false); }
+    let expected_issuer = if let Some(cfg) = store.ae_federation().await? {
+        cfg.members.values().find(|member| member.replica == replica && member.writers.contains_key(&writer))
+            .map(|member| member.authority)
+    } else { store.ring.writer_origins.get(&writer).copied() };
+    let Some(expected_issuer) = expected_issuer else { return Ok(false) };
+    let Some(bytes) = store.meta.get(store.meta.keys.agent_key(&agent, &public)).await? else { return Ok(false) };
+    let Ok(grant) = serde_json::from_slice::<AgentKeyGrant>(&bytes) else { return Ok(false) };
+    Ok(grant.parts().is_some_and(|(a, w, k, issuer)| a == agent && w == writer && k == public &&
+        issuer == expected_issuer && grant.verify()))
+}
+
 pub async fn audit(store: &Store) -> Result<AuditReport> {
     let mut r = AuditReport::default();
     let keys = &store.meta.keys;
     let page = store.page;
+
+    // The controller's signed registry and immutable revocations are audit records.
+    for (key, value) in store.meta.scan(&keys.sub("agent"), page, |_| None).await? {
+        let (_, raw_agent, raw_public): (String, Bytes, Bytes) = keys.root.unpack(&key).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let grant: AgentKeyGrant = serde_json::from_slice(&value).map_err(|e| StoreError::Invalid(format!("bad agent grant: {e}")))?;
+        if !grant.parts().is_some_and(|(agent, _, public, issuer)| agent.0[..] == raw_agent[..] && public[..] == raw_public[..]
+            && (issuer == store.ring.authority || store.ring.agent_authorities.contains(&issuer)) && grant.verify()) {
+            r.violations.push("agent registry contains invalid controller grant".into());
+        }
+    }
+    for (key, value) in store.meta.scan(&keys.sub("arevoke"), page, |_| None).await? {
+        let (_, raw_public): (String, Bytes) = keys.root.unpack(&key).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let revocation: AgentKeyRevocation = serde_json::from_slice(&value).map_err(|e| StoreError::Invalid(format!("bad agent revocation: {e}")))?;
+        if !revocation.public().is_some_and(|public| public[..] == raw_public[..]) || !revocation.verify(&store.ring.authority) {
+            r.violations.push("agent revocation lacks local controller signature".into());
+        }
+    }
 
     // ---- markers and certificates
     let mut all_markers: BTreeMap<Id, BTreeMap<Id, Marker>> = BTreeMap::new();
@@ -141,10 +172,9 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
                 s3_present(store, Kind::StagedMarker, mid, "marker variant", &mut r).await?;
             }
             if let Some(base) = baseline {
-                let mut comparable = (*base).clone();
-                comparable.receipt = marker.receipt;
-                if &comparable != marker {
-                    r.violations.push(format!("marker variants of {g} disagree beyond receipt"));
+                if base.group != marker.group || base.revisions != marker.revisions
+                    || base.lineage_keys != marker.lineage_keys || base.author != marker.author {
+                    r.violations.push(format!("marker variants of {g} disagree on lineage"));
                 }
             } else { baseline = Some(marker); }
         }
@@ -159,6 +189,21 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
         }
         s3_present(store, Kind::StagedMarker, mid, "marker", &mut r).await?;
         s3_present(store, Kind::Group, g, "marker", &mut r).await?;
+        let mut author_certificates = store.certs(g).await?.into_iter().filter(|c| c.body.marker == *mid).collect::<Vec<_>>();
+        for (_, bytes) in store.meta.scan(&keys.xcertvs_of("cert", g), page, |_| None).await? {
+            if let Ok(cert) = Cert::from_bytes(&bytes) {
+                if cert.body.marker == *mid && store.ring.verify_writer(&cert.body.writer, &cert.id(), &cert.sig) {
+                    author_certificates.push(cert);
+                }
+            }
+        }
+        let mut registered_author = false;
+        for cert in author_certificates {
+            if let Some(public) = store.ring.signing_writer_key(&cert.body.writer, &cert.id(), &cert.sig) {
+                if registered_key(store, m.author, cert.body.writer, public, cert.body.replica).await? { registered_author = true; break; }
+            }
+        }
+        if !registered_author { r.violations.push(format!("marker {mid} has no certificate from a registered author key")); }
         match store.receipt(&m.receipt).await? {
             None => r.violations.push(format!("marker of {g} names absent receipt")),
             Some(rc) => {
@@ -224,6 +269,7 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
         }
         tcerted.entry(t).or_default().push(c);
     }
+    let tombstone_federation = store.ae_federation().await?;
     let mut ntomb = 0;
     for (k, v) in store.meta.scan(&keys.sub("tombstone"), page, |_| None).await? {
         ntomb += 1;
@@ -244,13 +290,73 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
             r.violations.push(format!("a certificate of tombstone {tid} names another target"));
         }
         s3_present(store, Kind::StagedTombstone, &tid, "tombstone", &mut r).await?;
-        match markers.get(&tb.target) {
-            Some((_, m)) if certified.contains(&tb.target) => {
-                if m.file_path != tb.file_path || m.lamport >= tb.lamport || m.author != tb.author {
+        let target_position = if let Some(position) = tb.position { Some(position) }
+            else { store.marker_base(&tb.target).await?.map(|(id, _)| id) };
+        let target_marker = target_position.and_then(|position| all_markers.get(&tb.target)?.get(&position).map(|m| (position, m)));
+        match target_marker {
+            Some((position, m)) if certified_markers.contains(&(tb.target, position)) => {
+                if m.file_path != tb.file_path || m.lamport >= tb.lamport {
                     r.violations.push(format!("tombstone {tid} is not a valid deletion of {}", tb.target));
                 }
+                let controller_grant = store.meta.get(keys.delete_grant(&tid)).await?
+                    .map(|bytes| serde_json::from_slice::<ControllerDeleteGrant>(&bytes)
+                        .map_err(|e| StoreError::Invalid(format!("bad controller deletion grant: {e}")))).transpose()?;
+                if let Some(grant) = controller_grant {
+                    let issuer: Option<[u8; 32]> = hex::decode(&grant.issuer).ok().and_then(|v| v.try_into().ok());
+                    let valid = issuer.is_some_and(|issuer| {
+                        (issuer == store.ring.authority || store.ring.agent_authorities.contains(&issuer)) &&
+                        grant.verify(&tid, &issuer) && tb.author == crate::authority::controller_agent_id(&issuer)
+                    });
+                    if !valid { r.violations.push(format!("controller grant of tombstone {tid} is invalid")); }
+                    if let Some(issuer) = issuer {
+                        let mut source_certs = cs.clone();
+                        for (_, value) in store.meta.scan(&keys.xcertvs_of("tcert", &tid), page, |_| None).await? {
+                            if let Ok(cert) = TombstoneCert::from_bytes(&value) { source_certs.push(cert); }
+                        }
+                        let mut source_bound = false;
+                        let mut foreign_source = false;
+                        for cert in source_certs {
+                            if cert.body.tombstone != tid || cert.body.target != tb.target { continue; }
+                            let Some(public) = store.ring.signing_writer_key(&cert.body.writer, &cert.id(), &cert.sig) else { continue };
+                            let origin_matches = !store.ring.ambiguous_writer_origins.contains(&cert.body.writer) &&
+                                tombstone_federation.as_ref().map_or_else(
+                                    || store.ring.writer_origins.get(&cert.body.writer).copied() == Some(issuer),
+                                    |cfg| cfg.members.values().any(|member| member.replica == cert.body.replica &&
+                                        member.authority == issuer && member.verify_writer(&store.ring, &cert.body.writer, &cert.id(), &cert.sig)));
+                            if store.ring.agent_keys.iter().any(|entry| entry.parts().is_some_and(|(_, writer, key, controller)|
+                                writer == cert.body.writer && key == public && controller == issuer && entry.verify())) && origin_matches {
+                                source_bound = true;
+                                foreign_source |= cert.body.replica != store.replica;
+                            }
+                        }
+                        if !source_bound { r.violations.push(format!("controller deletion {tid} has no certificate from its issuing deployment")); }
+                        // A received grant is checked against its source certificate, not
+                        // against this replica's independent fence, even if controllers share
+                        // the same signing key.
+                        if issuer == store.ring.authority && !foreign_source {
+                            let current = store.meta.fence().await?;
+                            if grant.fence > current || (grant.fence > 0 && store.meta.get(keys.token(grant.fence)).await?.is_none()) {
+                                r.violations.push(format!("controller deletion {tid} has no issued fence rank"));
+                            }
+                        }
+                    }
+                } else if m.author != tb.author {
+                    r.violations.push(format!("tombstone {tid} has neither author nor controller authority"));
+                } else {
+                    let mut source_certs = cs.clone();
+                    for (_, value) in store.meta.scan(&keys.xcertvs_of("tcert", &tid), page, |_| None).await? {
+                        if let Ok(cert) = TombstoneCert::from_bytes(&value) { source_certs.push(cert); }
+                    }
+                    let mut author_bound = false;
+                    for cert in source_certs {
+                        if let Some(public) = store.ring.signing_writer_key(&cert.body.writer, &cert.id(), &cert.sig) {
+                            if registered_key(store, tb.author, cert.body.writer, public, cert.body.replica).await? { author_bound = true; break; }
+                        }
+                    }
+                    if !author_bound { r.violations.push(format!("tombstone {tid} has no registered author certificate")); }
+                }
             }
-            _ => r.violations.push(format!("tombstone {tid} deletes {}, not a published group", tb.target)),
+            _ => r.violations.push(format!("tombstone {tid} deletes {}, not a certified position", tb.target)),
         }
         if let Some(rc) = tb.receipt {
             if store.receipt(&rc).await?.is_none() {
@@ -294,7 +400,7 @@ pub async fn audit(store: &Store) -> Result<AuditReport> {
         let allowed = |replica, writer, cert: &Id, sig: &[u8]| {
             store.ring.verify_writer(&writer, cert, sig)
                 && federation.as_ref().is_none_or(|cfg| cfg.members.values().any(|member|
-                    member.replica == replica && member.writers.get(&writer).is_some_and(|key| crate::sign::verify(key, cert, sig))))
+                    member.replica == replica && member.verify_writer(&store.ring, &writer, cert, sig)))
         };
         let valid = if kind == "cert" {
             Cert::from_bytes(&v).ok().is_some_and(|c| c.id() == cert_id && c.body.group == object

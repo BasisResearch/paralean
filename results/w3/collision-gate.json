@@ -1,0 +1,11 @@
+{
+  "gate": "pass",
+  "tombstone": "631d79eca9882406d02278d3349b9c99eef4b15068e536155add11e7ff0fd6b8",
+  "checkpoint": "ecc63e46a336ede0529bab51ecb6be3edc4bd95329aed0629a8042830a39d739",
+  "snapshot": "d0cdf47b5f4bf4202bf9dab75423cade231aa9f8347ec8c6f18b4089cb03d025",
+  "projectionAdded": 4,
+  "checkedRevisions": [
+    "b658756738cd97fc32de90a17590024624781ed081c34daa09802478b49c7c29",
+    "be83ce001d245377cbb79d69b8709e317ba2de1b023ff6dc4edf55d3cce081d7"
+  ]
+}

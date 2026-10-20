@@ -144,6 +144,7 @@ witness_items=(
   'target_home_publication TargetHomes NeverPublished'
   'target_home_receive TargetHomes NeverRemoteReceived'
   'target_home_handover TargetHomes NeverReassignedPublication'
+  'catalogue_relay CatalogueExchange NeverRelayedChild'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -161,6 +162,107 @@ for item in "${witness_items[@]}"; do
 done
 
 # ---------------------------------------------------------------------------
+# Source-qualified catalogue exchange guards.
+for spec in \
+  'catalogue_no_proof|SourceProof(r) == r \in sourceCert|SourceProof(r) == TRUE|OnlySourceCertified' \
+  'catalogue_no_parent|ParentReady(n, r) == Parent(r) \subseteq (copies[n] \cup local[n])|ParentReady(n, r) == TRUE|ParentClosed' \
+  'catalogue_no_ack|PayloadReady(n, r) == r \in payload[n]|PayloadReady(n, r) == TRUE|LocallyAcknowledged'; do
+  IFS='|' read -r label old new invariant <<< "$spec"
+  # Keep the oracle independent of the predicate removed by a mutation.
+  if [[ $label == catalogue_no_parent ]]; then
+    old='  /\ ParentReady(n, r)'
+    new='  /\ TRUE'
+  fi
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/CatalogueExchange.tla\" '$old' '$new'
+    finite_witness_config \"\$neg/$label/CatalogueExchange.cfg\" '$invariant'
+    run_expected_failure '$label' CatalogueExchange 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase catalogue_local_certificate
+case_catalogue_local_certificate() {
+  prepare_case catalogue_local_certificate
+  edit_once "$neg/catalogue_local_certificate/CatalogueExchange.tla" \
+    "  /\\ local' = local" "  /\\ local' = [local EXCEPT ![n] = @ \\cup {r}]"
+  finite_witness_config "$neg/catalogue_local_certificate/CatalogueExchange.cfg" FenceIsolation
+  run_expected_failure catalogue_local_certificate CatalogueExchange 'Invariant FenceIsolation is violated'
+}
+
+for spec in \
+  'position_foreign_certificate|UseForeignEvidence|LocalCertOnly' \
+  'position_group_wide_delete|GroupWideDelete|ReinsertVisible' \
+  'position_move_without_delete|SkipMoveGuard|MoveCertified'; do
+  IFS='|' read -r label flag invariant <<< "$spec"
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/StorePositions.cfg\" '  $flag = FALSE' '  $flag = TRUE'
+    run_expected_failure '$label' StorePositions 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase position_registry_erasure
+case_position_registry_erasure() {
+  prepare_case position_registry_erasure
+  edit_once "$neg/position_registry_erasure/StorePositions.tla" \
+    '  /\ r = Author[Target[d]]
+  /\ storedD'"'"' = [storedD EXCEPT ![r] = @ \cup {d}]
+  /\ certD'"'"' = [certD EXCEPT ![r] = @ \cup {d}]
+  /\ UNCHANGED <<stagedP, ackP, storedP, certP, foreignP, ackD,
+                 foreignD, registry, checkpoint>>' \
+    '  /\ r = Author[Target[d]]
+  /\ storedD'"'"' = [storedD EXCEPT ![r] = @ \cup {d}]
+  /\ certD'"'"' = [certD EXCEPT ![r] = @ \cup {d}]
+  /\ registry'"'"' = [registry EXCEPT ![r] = @ \ {GroupOf[Target[d]]}]
+  /\ UNCHANGED <<stagedP, ackP, storedP, certP, foreignP, ackD,
+                 foreignD, checkpoint>>'
+  edit_once "$neg/position_registry_erasure/StorePositions.cfg" \
+    'INVARIANTS TypeOK LocalCertOnly TombstoneNeutral MoveCertified CheckpointKept PositionExact ReinsertVisible NoFreshCollision LineageNameStable Converged' \
+    'INVARIANT TombstoneNeutral'
+  run_expected_failure position_registry_erasure StorePositions 'Invariant TombstoneNeutral is violated'
+}
+
+for spec in \
+  'agent_no_registry|RegistryGuard|PublishedAuthorized' \
+  'agent_no_revocation|RevocationGuard|PublishedAuthorized' \
+  'agent_no_controller_fence|FenceGuard|DeletedAuthorized' \
+  'agent_no_controller_source|SourceGuard|DeletedAuthorized'; do
+  IFS='|' read -r label flag invariant <<< "$spec"
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/AgentAuthority.cfg\" '  $flag = TRUE' '  $flag = FALSE'
+    run_expected_failure '$label' AgentAuthority 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase checkpoint_no_current
+case_checkpoint_no_current() {
+  prepare_case checkpoint_no_current
+  edit_once "$neg/checkpoint_no_current/CheckpointConflicts.cfg" '  CheckCurrent = TRUE' '  CheckCurrent = FALSE'
+  run_expected_failure checkpoint_no_current CheckpointConflicts 'Invariant CommitCurrent is violated'
+}
+
+defcase checkpoint_no_buildable
+case_checkpoint_no_buildable() {
+  prepare_case checkpoint_no_buildable
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" '  CheckBuildable = TRUE' '  CheckBuildable = FALSE'
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" '  CheckCurrent = TRUE' '  CheckCurrent = FALSE'
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" \
+    'INVARIANTS TypeOK CommittedBuildable CommittedDeps CommitCurrent' 'INVARIANTS TypeOK CommittedBuildable'
+  run_expected_failure checkpoint_no_buildable CheckpointConflicts 'Invariant CommittedBuildable is violated'
+}
+
+defcase checkpoint_no_dependencies
+case_checkpoint_no_dependencies() {
+  prepare_case checkpoint_no_dependencies
+  edit_once "$neg/checkpoint_no_dependencies/CheckpointConflicts.cfg" '  CheckDeps = TRUE' '  CheckDeps = FALSE'
+  run_expected_failure checkpoint_no_dependencies CheckpointConflicts 'Invariant CommittedDeps is violated'
+}
+
 # Base protocol guards.
 defcase target_no_home
 case_target_no_home() {

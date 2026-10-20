@@ -1,0 +1,58 @@
+  [1452s] 19124359 states generated, 3104542 distinct states found, 0 states left on queue.
+hardened: no error (safety)
+  [73s] 1550495 states generated, 280614 distinct states found, 0 states left on queue.
+hardened_reacquire: no error (safety)
+  [3s] 27715 states generated, 2991 distinct states found, 906 states left on queue.
+w_completed_after_handover: Invariant NeverCompletedAfterHandover is violated
+  [2s] 5827 states generated, 1726 distinct states found, 611 states left on queue.
+w_recovered_after_loss_erasure: Invariant NeverRecoveredAfterLossAndErasure is violated
+  [2s] 1122 states generated, 389 distinct states found, 163 states left on queue.
+w_completed_unready_after_loss: Invariant NeverCompletedUnreadyAfterLoss is violated
+  [2s] 215 states generated, 54 distinct states found, 19 states left on queue.
+w_stale_prepare_refused: Action property NeverStalePrepareRefused is violated
+  [3s] 331 states generated, 63 distinct states found, 20 states left on queue.
+w_stale_catalogue_writer: Invariant NeverStaleCatalogueWriter is violated
+  [3s] 492 states generated, 156 distinct states found, 80 states left on queue.
+w_byzantine_attempt: Invariant NeverByzantineAttempt is violated
+  [3s] 6673 states generated, 969 distinct states found, 339 states left on queue.
+w_reacquired_completed: Invariant NeverReacquiredCompleted is violated
+  [2s] 2898 states generated, 382 distinct states found, 130 states left on queue.
+w_completed_superseded: Invariant NeverCompletedSuperseded is violated
+  [1s] 4 states generated, 4 distinct states found, 0 states left on queue.
+m_no_receipt: Invariant StagedValid is violated
+  [2s] 4598 states generated, 1450 distinct states found, 774 states left on queue.
+m_no_owner_check: Invariant TargetChain is violated
+  [2s] 2977 states generated, 917 distinct states found, 419 states left on queue.
+m_no_epoch_condition: Invariant TargetChain is violated
+  [1s] 2153 states generated, 658 distinct states found, 307 states left on queue.
+m_no_head_update: Invariant TargetChain is violated
+  [2s] 2745 states generated, 857 distinct states found, 378 states left on queue.
+m_head_from_scan: Invariant TargetChain is violated
+  [2s] 960 states generated, 329 distinct states found, 162 states left on queue.
+m_no_learn_own_write: Invariant TargetChain is violated
+  [1s] 194 states generated, 77 distinct states found, 41 states left on queue.
+m_publish_without_certs: Invariant PublishedDiscoverable is violated
+  [1s] 195 states generated, 74 distinct states found, 39 states left on queue.
+m_cert_before_publish: Invariant CertSound is violated
+  [1s] 915 states generated, 316 distinct states found, 145 states left on queue.
+m_unfenced_put: Invariant StaleNeverStored is violated
+  [1s] 17 states generated, 15 distinct states found, 9 states left on queue.
+m_repair_without_source: Invariant StaleNeverStored is violated
+  [2s] 15401 states generated, 5413 distinct states found, 3392 states left on queue.
+m_commit_cert_before_ack: Invariant CompletedRecoverable is violated
+  [2s] 3020 states generated, 921 distinct states found, 413 states left on queue.
+m_unfenced_commit_cert: Invariant ReadyCommitFenced is violated
+  [3s] 16632 states generated, 5137 distinct states found, 2420 states left on queue.
+m_parent_uncommitted: Invariant CompletedRecoverable is violated
+  [1s] 119 states generated, 54 distinct states found, 33 states left on queue.
+m_cert_repair_without_source: Invariant CertFenced is violated
+  [3s] 1245 states generated, 418 distinct states found, 180 states left on queue.
+m_adopt_on_bytes: Invariant ReadyCommitFenced is violated
+  [1s] 764 states generated, 277 distinct states found, 124 states left on queue.
+m_complete_uncommitted: Invariant CompletedRecoverable is violated
+  [528s] 23587845 states generated, 3766968 distinct states found, 0 states left on queue.
+r_unfenced_put_adoption: no error (redundant guard)
+  [576s] 19124359 states generated, 3104542 distinct states found, 0 states left on queue.
+r_ready_without_object_certs: no error (redundant guard)
+  [1181s] 39286492 states generated, 7628232 distinct states found, 0 states left on queue.
+r_commit_without_own_quorum: no error (redundant guard)

@@ -232,7 +232,7 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
       | some p => (none, p)
       | none =>
         -- nearest element or earlier record of this batch above it, by its lineage root
-        let above := (elems.filter (·.1 < line)).map (fun (l, gr) => (l, gr, ((v.known.byGroup[gr]?).map (·.rootPath)).getD #[]))
+        let above := (elems.filter (·.1 < line)).map (fun (l, gr) => (l, gr, ((v.positions.find? (·.group == gr)).map (·.rootPath)).getD #[]))
           ++ (batch.filter (·.1 < line))
         match (above.qsort (·.1 < ·.1)).back? with
         | some (_, _, p) =>
@@ -444,10 +444,13 @@ def hash (file : String) (source : Bool := false) : IO (String × String) := do
 Historical/tombstoned markers remain in the log but are not snapshot contents. -/
 def liveHeads : IO Json := do
   let v ← Remote.view
-  let live := v.known.markers.filter fun m => v.live.contains m.group
+  let live := v.positions.filter fun m => v.live.contains m.group
   let revisions := (live.flatMap (·.revisions)).toList.mergeSort (· < ·)
+  let conflictedGroups := (v.losers.foldl (fun s (_, loser, winner) => (s.insert loser).insert winner)
+    ({} : Std.HashSet String)).toList.mergeSort (· < ·)
   return Json.mkObj [("groups", toJson ((live.map (·.group)).qsort (· < ·))),
-    ("revisions", toJson revisions), ("files", toJson v.files)]
+    ("revisions", toJson revisions), ("files", toJson v.files),
+    ("conflictedGroups", toJson conflictedGroups)]
 
 def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   let mut st ← State.load dir
@@ -459,7 +462,31 @@ def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   let lam := max st.lamport maxKnown + 1
   st := { st with lamport := lam }
   st.save dir
-  return Json.mkObj [("target", m.group), ("lamport", lam), ("file", file)]
+  return Json.mkObj [("target", m.group), ("position", m.id), ("lamport", lam), ("file", file)]
+
+/-- Plan a same-file move. The remote command publishes an exact-position
+tombstone, then a new marker variant of the same group. -/
+def move (dir : FilePath) (file : String) (name : Name) (after : Option Name) : IO Json := do
+  let mut st ← State.load dir
+  let v ← Remote.view
+  let elems := v.elements file
+  let some m := elems.find? fun m =>
+      (v.metas[m.pid]?.any fun g => (g.publicNames.map (renameName (v.renames.getD m.pid {}))).contains name)
+    | throw <| IO.userError s!"no live declaration {name} in {file}"
+  let anchor ← match after with
+    | none => pure none
+    | some n =>
+      let some a := elems.find? fun a =>
+          (v.metas[a.pid]?.any fun g => (g.publicNames.map (renameName (v.renames.getD a.pid {}))).contains n)
+        | throw <| IO.userError s!"no live anchor {n} in {file}"
+      if a.group == m.group then throw <| IO.userError "a declaration cannot move after itself"
+      pure (some a.group)
+  let maxKnown := v.known.markers.foldl (fun n r => max n r.lamport) (v.known.tombs.foldl (fun n t => max n t.lamport) 0)
+  let lam := max st.lamport maxKnown + 2
+  st := { st with lamport := lam }
+  st.save dir
+  return Json.mkObj [("target", m.group), ("position", m.id), ("lamport", lam),
+    ("file", file), ("anchor", match anchor with | some a => Json.str a | none => Json.null)]
 
 /-- Elaborate a working file as the fork would (with `Paralean.Remote`); report errors and
 every axiom used by a constant of the file, and any axiom the file itself declares. -/

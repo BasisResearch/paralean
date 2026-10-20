@@ -25,6 +25,29 @@ fn sync_of(e: &Env) -> (&Store, &Writer) {
     (&e.store, &e.w[S])
 }
 
+#[tokio::test]
+async fn moved_position_and_tombstone_converge_between_replicas() {
+    let (a, b) = pair("ae-move", N, Faults::none(), Faults::none());
+    let p = insert(&a, 0, "moved", None, 1).await;
+    antientropy::sync(sync_of(&a), sync_of(&b), 10).await.unwrap();
+    let old = fixture::tombstone_of(&p.marker, 2);
+    a.w[0].tombstone(&old).await.unwrap();
+    let mut moved = p.marker.clone();
+    moved.lamport = 3;
+    moved.root_path = vec![(moved.group, moved.lamport, moved.author)];
+    a.w[0].move_position(&moved, &old).await.unwrap();
+    // Group variants are exported before tombstones. The receiver may see the
+    // new marker before the deletion; the final certified sets still converge.
+    antientropy::sync(sync_of(&a), sync_of(&b), 10).await.unwrap();
+    let (da, db) = (discover(&a.store).await.unwrap(), discover(&b.store).await.unwrap());
+    assert_eq!(da.positions.keys().collect::<Vec<_>>(), db.positions.keys().collect::<Vec<_>>());
+    assert_eq!(da.files, db.files);
+    assert_eq!(da.rendered_names, db.rendered_names);
+    assert_eq!(da.files[F], vec![p.group.id()]);
+    assert_eq!(db.positions.len(), 2);
+    audits_clean(&a, &b).await;
+}
+
 /// Publish a fresh group in `F`.
 async fn insert(e: &Env, wi: usize, tag: &str, anchor: Option<&Marker>, lamport: u64) -> Package {
     let mut p = fixture::package_by(&e.authority(), tag, e.w[wi].id, &e.validator, &Name::parse(&format!("Sh.{tag}")), vec![], None, lamport);
@@ -183,7 +206,7 @@ async fn receiver_rejects_corrupt_forged_and_untrusted() {
         TombstoneCertBody { replica: a.store.replica, tombstone: t.id(), target: t.target, writer: a.w[0].id },
         &Signer::derive("mallory"),
     );
-    rejected(import(&b.w[S], &Item::Tombstone { tombstone: t.preimage(), certs: vec![tforged.to_bytes()] }).await.unwrap());
+    rejected(import(&b.w[S], &Item::Tombstone { tombstone: t.preimage(), certs: vec![tforged.to_bytes()], controller_grant: None }).await.unwrap());
     // The genuine items still converge afterwards.
     antientropy::sync(sync_of(&a), sync_of(&b), 10).await.unwrap();
     assert_eq!(published_set(&a.store).await.unwrap(), published_set(&b.store).await.unwrap());
@@ -309,7 +332,7 @@ async fn marker_conflict_is_reported_not_overwritten() {
     let pa = fixture::package_by(&a.authority(), "same", a.w[0].id, &a.validator, &Name::parse("Sh.same"), vec![], None, 1);
     let mut pb = pa.clone();
     pb.marker.lamport = 2;
-    pb.marker.author = AgentId::derive("someone at b");
+    pb.marker.author = AgentId(b.w[0].id.0);
     pb.marker.root_path = vec![(pb.group.id(), 2, pb.marker.author)];
     a.w[0].publish(&pa).await.unwrap();
     // B's writer publishes the same group, revision and receipt under its own marker (B
