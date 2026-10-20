@@ -16,6 +16,8 @@ use paralean_store::*;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+mod ae;
+
 const USAGE: &str = "usage: paralean-p2 <command> [args]
   keys init <path> [--workspaces N] [--demo]   write a key file (random seeds unless --demo)
   status                                        fence and key counts
@@ -32,6 +34,11 @@ const USAGE: &str = "usage: paralean-p2 <command> [args]
   import-p1 <p1-store-root>                     check-p1, then upload them as group payloads (acked ID = declId)
   tombstone-demo <workspace> <group-hex>        T8: delete a group published by <workspace>
   sync <workspace> <peer-workspace>             anti-entropy with the peer deployment (PARALEAN_PEER_*) until converged
+  federation-init <config.json>                pin a new deployment's immutable federation membership and target homes
+  ae-keygen <seed-file>                        create a private transport seed file; print its public key
+  federation-member <deployment> <public-key>  print public membership from PARALEAN_KEYS (no seeds)
+  ae-service <config.json> [--once]             serve and schedule bounded network pulls; --once pulls one page per peer
+  ae-status <config.json>                      show durable cursors and pending diagnostics
   stress --worker I --ops N --seed S [--crash-p P] [--fault-p P] [--ack-log FILE]
                                                 random operations (multi-process tests); FILE gets one
                                                 line per acknowledged effect
@@ -59,6 +66,7 @@ fn open(faults: std::sync::Arc<Faults>) -> R<(Store, KeyFile)> {
     if let Ok(p) = std::env::var("PARALEAN_PEER_KEYS") {
         ring.trust(&read_keys(&p)?.ring());
     }
+    ae::trust_from_env(&mut ring)?;
     let store = Store::open(&cfg, ring, faults).map_err(|e| e.to_string())?;
     Ok((store, kf))
 }
@@ -134,6 +142,12 @@ async fn run(args: Vec<String>) -> R<ExitCode> {
     let a: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let es = |e: StoreError| e.to_string();
     match a.as_slice() {
+        ["ae-keygen", path] => ae::keygen(path)?,
+        ["federation-member", deployment, public] => ae::member(deployment, public)?,
+        ["federation-init", path] => return ae::run("federation-init", path, false).await,
+        ["ae-service", path] => return ae::run("ae-service", path, false).await,
+        ["ae-service", path, "--once"] => return ae::run("ae-service", path, true).await,
+        ["ae-status", path] => return ae::run("ae-status", path, false).await,
         ["keys", "init", path, rest @ ..] => {
             let n = rest.iter().position(|x| *x == "--workspaces").and_then(|i| rest.get(i + 1)).and_then(|s| s.parse().ok()).unwrap_or(4);
             let kf = if rest.contains(&"--demo") { KeyFile::demo(n) } else { random_keys(n) };

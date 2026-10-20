@@ -114,6 +114,13 @@ pub async fn discover_with(
         }
         by_group.entry(c.body.group).or_default().entry(c.body.marker).or_default().push(c.body.writer);
     }
+    for (k, v) in store.meta.scan(&keys.sub("vcer"), store.page, |_| None).await? {
+        let (_, g, marker, w): (String, Bytes, Bytes, Bytes) = keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+        let Ok(c) = Cert::from_bytes(&v) else { continue };
+        if c.body.group.0[..] != g[..] || c.body.marker.0[..] != marker[..] || c.body.writer.0[..] != w[..]
+            || !store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) { continue; }
+        by_group.entry(c.body.group).or_default().entry(c.body.marker).or_default().push(c.body.writer);
+    }
     let mut d = Discovery::default();
     for (g, markers) in by_group {
         match store.marker(&g).await? {

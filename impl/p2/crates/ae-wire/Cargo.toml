@@ -1,0 +1,12 @@
+[package]
+name = "ae-wire"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Bounded authenticated TCP transport for Paralean anti-entropy"
+
+[dependencies]
+tokio.workspace = true
+ed25519-dalek = "2"
+sha2 = "0.10"
+rand = "0.8"

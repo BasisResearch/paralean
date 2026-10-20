@@ -1,12 +1,13 @@
 # P2 anti-entropy network service design
 
-Status: implementation design for `m-p2`; the existing in-process T9/T10 exchange on
-`p2-rest` remains the receive guard. This document records the intended `store.md`
-delta until the integration branch lands. It does not claim that the service exists.
+Status: implementation and review record for `m-p2`, based on the merged P2
+store. The signed TCP service and store APIs are implemented; integration and
+fault-suite results are recorded separately in `docs/p2-log.md`.
 
 ## Baseline and safety boundary
 
-`p2-rest` exports the entire discovered set into a `Vec<Item>` on every round. It
+The inherited in-process `antientropy::export` exports the discovered set into
+a `Vec<Item>` on every round. It
 transfers groups, capsules, staged markers and tombstones, but cannot enumerate
 chunks from the opaque `v0/group` bytes. It exchanges neither catalogue records nor
 their certificates. Its T9/T10 receiver verifies IDs, receipts and foreign
@@ -15,8 +16,8 @@ certificate, and keeps sender certificates under `xcert/`. These guards remain t
 authority for applying a received publication. The network layer must never count
 foreign evidence as a local `cert/`, `tcert/`, `rcert/` or `ocert/`.
 
-There is also a relay gap: `export()` reads only the sender's local `cert/` and
-`tcert/`. If A publishes a tombstone and B receives it, B's receiver certificate
+The inherited export had a relay gap: it read only the sender's local `cert/`
+and `tcert/`. If A publishes a tombstone and B receives it, B's receiver certificate
 does not prove that B was the target's original author. A later B→C push can
 fail T10 even though A→B succeeded. Verified origin evidence must remain
 forwardable across any number of relays.
@@ -38,11 +39,11 @@ evidence event. A repair or repeated import which changes no visible state emits
 no event. Echoes of imports generate at most one publication event and one event
 per distinct certificate per deployment.
 
-The server exposes a small authenticated protocol: `Hello` (deployment identity,
-protocol version, federation configuration digest and cursor generation),
+The server exposes a small authenticated protocol: a signed `Hello` payload
+(deployment identity, protocol version, federation configuration digest and cursor generation),
 `Changes(after_cursor, max_items, max_bytes)` (an ordered page and a sealed
-`next_cursor`), and `Fetch(kind, ID)` (one content-addressed object, streamed with
-a 64 MiB object cap). A page contains event descriptors and certificate/metadata
+`next_cursor`), and `Fetch(kind, ID)` (one content-addressed object as a bounded
+whole body, with a 64 MiB cap). A page contains event descriptors and certificate/metadata
 bundles only; large S3 objects are fetched separately. Clamp the server limits
 (initial design: 128 descriptors and 1 MiB encoded metadata per page; client
 in-flight object limit 2, object cap 64 MiB). If a single metadata bundle exceeds
@@ -58,19 +59,22 @@ one immediate round on startup, bounded retry backoff). One direction is a pull
 from a peer's server; each side schedules its own pull. A supervisor keeps one
 active pull per peer. The signed TCP framing layer authenticates peer deployment
 identity against the pinned transport public key, and limits frame size,
-concurrent fetches and timeouts. The existing CLI
-`sync` may use the same protocol for a forced round. The service runs independently
+concurrent fetches and timeouts. The new CLI `ae-service --once` runs a forced
+round using the same protocol. The service runs independently
 of controller and validator processes, with a dedicated sync writer whose key is
 trusted by participants. It must avoid storing peer Garage/FDB credentials and
 must work over an ordinary network address.
 
-The receiver stores `aecursor/<source-id>/<generation>` with the last fully
+The receiver stores `aecursor/<source-id>` with a value containing the source
+generation and last fully
 processed event and a bounded, durable `aepending/<source-id>/<event-key>` entry
 for any item that cannot yet be applied. A cursor may advance past a deferred item
-only after its pending entry is committed, with its authenticated metadata bundle,
-missing dependency IDs, and a source address for retry. Do **not** persist whole
+only after its pending entry is committed, with a fragment collection cursor,
+an object-scan cursor, and a durable source identity. The configured peer address
+is held by the service, not copied into every pending row. Do **not** persist whole
 64 MiB payloads in FDB. Fetch each object by ID again after restart. Persist
-`Applied`, `Present`, and terminal diagnostic outcomes, so a poison event does not
+terminal diagnostic outcomes; `Applied` and `Present` entries are atomically
+removed with their fragments after success. A poison event does not
 stall all later events; preserve the evidence and reason for operator inspection.
 Replay the pending queue on startup, after each page, and when an observed
 dependency arrives; bound attempts and use retry backoff. A transient missing
@@ -96,8 +100,9 @@ and cursors are opaque bytes returned by the source. The transport authenticates
 the peer and carries these bytes without rewriting them.
 
 ```
-AeKind = GroupVariant(groupID, markerID) | Tombstone(tombstoneID)
-       | Catalogue(sourceDeployment, recordID)
+AeKind = GroupVariant(groupID, markerID, boundCertificateID)
+       | Tombstone(tombstoneID, boundCertificateID)
+       | Catalogue(sourceDeployment, recordID, boundCommitCertificateID)
        | Evidence(kind, objectID, certificateID)
 AeEvent = { key: bytes, kind: AeKind }       // key is commit-versionstamp order
 AePage = { generation: Id, events: list AeEvent,
@@ -111,8 +116,10 @@ AeBundlePage = { eventKey: bytes, afterPart: option uvarint,
                  nextPart: option uvarint, complete: bool }
 
 AePending = { sourceDeployment, generation, event: AeEvent,
-              nextPart: option uvarint, missingCount: uvarint,
-              state: Collecting | Deferred(reason) | Terminal(reason) }
+              nextPart: option uvarint, objectsAfter: option bytes,
+              missingCount: uvarint,
+              state: Collecting | Deferred(reason) | Terminal(reason),
+              lastError: option string }
 AeProgress = { generation, cursor: option bytes }
 AePendingPage = { entries: list AePending, next: option bytes, more: bool }
 AeObjectPage = { refs: list (s3Kind, id, storedPreimageLength),
@@ -120,19 +127,27 @@ AeObjectPage = { refs: list (s3Kind, id, storedPreimageLength),
 ```
 
 `GroupVariant` materializes exactly one marker, its revision bytes, receipt,
-signed job envelope, source publisher certificate, and S3 references for its
+the exact signed job envelope paired with its bound source publisher certificate
+under `jobproof/<group>/<marker>/<cert>`, and S3 references for its
 group, capsules, staged marker and chunks. Later certificates are separate
 `Evidence` events, each pointing to exactly one immutable certificate;
 materialization never gathers every certificate of a group. `Tombstone` does
 the analogous work with its source publisher certificate. `Catalogue` includes
-one signed record and source commit certificate; each additional object
-certificate is an `Evidence` event. This event granularity ensures that an
+one signed record and source commit certificate plus the object certificates
+required for the source checkpoint. Later alternative object certificates
+have separate `Evidence` events. This event granularity ensures that an
 evidence change for an already present item is delivered once without
 re-exporting its whole publication. The part stream is deterministic for a
 given event key; newly added evidence creates a new event, not new parts on an
 old event. Fragment bytes are capped at 64 KiB, so oversized marker, receipt,
 job or certificate metadata can be paged without a single unbounded frame.
-Object bytes are fetched separately by `(kind, ID)` and have a 64 MiB cap.
+Object bytes are fetched separately by `(kind, ID)`. The source derives each
+ObjectRef length from a hash-verified S3 GET, not an unverified HEAD response;
+otherwise repair of corrupt source bytes could change a staged event part.
+The metadata page holds only the reference, and the GET is bounded by the wire
+object cap. Chunk references have
+a 64 MiB stored-preimage limit. Inline event metadata has an 8 MiB cap and
+each materialization page emits at most 127 parts.
 
 The Rust API boundary for the service is:
 
@@ -140,11 +155,14 @@ The Rust API boundary for the service is:
 Store::ae_identity() -> Result<AeIdentity>       // own deployment, replica, config digest
 Store::ae_page(after, max_items, max_bytes) -> Result<AePage>
 Store::ae_materialize(event, after_part, max_bytes) -> Result<AeBundlePage>
-Store::ae_progress(source) -> Result<AeProgress>
+Store::ae_progress(source) -> Result<Option<AeProgress>>
 Store::ae_pending_page(source, after, max_items) -> Result<AePendingPage>
-Store::ae_missing_objects(source, event_key, after, max_items) -> Result<AeObjectPage>
+Store::ae_missing_objects(source, event, after, max_items) -> Result<AeObjectPage>
 Store::ae_save_progress(source, generation, cursor,
                         pending_upserts, pending_deletes, part_upserts) -> Result<()>
+Store::ae_note_error(source, event, reason) -> Result<()>
+Store::foreign_record(source, record_id) -> Result<Option<SignedRecord>>
+Store::foreign_catalogue_page(source, after, max_items) -> Result<ForeignCataloguePage>
 Writer::ae_import_staged(source, event) -> Result<Outcome>
 ```
 
@@ -227,7 +245,7 @@ Add one explicit, self-identifying encoding for **new** chunked groups. The PCE
 body inside the existing `v0/group` hash preimage is:
 
 ```
-string "paralean-group-chunked-v1"
+raw ASCII "paralean-group-chunked-v1" // reserved prefix, not length-prefixed
 uvarint 1                         // envelope format
 bytes core                        // producer's canonical group core, opaque to P2
 list ChunkRef                     // logical term-table order, may repeat an ID
@@ -270,14 +288,15 @@ anti-entropy path can be implemented and tested without editing P1 or P3.
 ## Catalogue exchange
 
 A `Catalogue(recordID)` bundle contains the signed `CatalogRecord`, its
-`CommitCert`, token and source fence evidence, the snapshot and source/build
+`CommitCert`, source-authority-signed token entry, the snapshot and source/build
 manifests, plus every `ObjectCert` required for that source record's readiness.
 All signatures and IDs are verified against the **source deployment's** trusted
 authority and writers. Referenced S3 objects are transferred by ID with local
 acknowledgement. Parent catalogue records are fetched or queued first. The
 receiver stores the bundle under a source-qualified foreign namespace such as
-`xcatalog/<source>/<id>`, `xrcert/<source>/<id>`, and
-`xocert/<source>/<kind>/<id>/<writer>`. This preserves source fence order and
+`xcatalog/<source>/<id>`, `xrcert/<source>/<id>`, `xtoken/<source>/<rank>`,
+`xrevision/<source>/<id>`, and `xocert/<source>/<kind>/<id>`. This preserves the
+source token's rank and
 certificate provenance. Foreign ranks cannot be compared with the local `fence`
 or used to write local `rcert/`; local `recover_catalog` keeps its current
 meaning. A read API can enumerate verified foreign catalogues by source and
@@ -285,12 +304,14 @@ report source-ready versus missing dependencies. Promoting a foreign snapshot
 to a local checkpoint requires a separate, locally fenced T5 commit by a local
 holder; it is not an anti-entropy side effect.
 
-A relay forwards the source's signed record, token, fence history, commit and
+A relay forwards the source's signed record, token, commit and
 object certificates with their source deployment identity, even if it learned
 the record through another relay. The relay's `xcatalog/` copy is only a cache
 of that source evidence. The destination validates the original source
 authority and certificate writer bindings, then writes the same
-source-qualified keys. A relay cannot relabel its copy as a locally fenced
+source-qualified keys. The token and commit certificate prove what the source
+committed under the trusted source implementation; they are not a proof of the
+entire historical fence log. A relay cannot relabel its copy as a locally fenced
 record or strip source identity from a certificate.
 
 Do not equate receipt verification with catalogue readiness. A source record is
@@ -318,9 +339,9 @@ that home; it is copied as a publication but does **not** update the receiver's
 target record. A missing, mismatched or unknown home mapping is rejected before
 mutation, including when the receiver currently has no local target record.
 Persist and pin the config under `federation/config` in the deployment's FDB
-root **only while the deployment is new**: no published markers, tombstones,
-target assignments, or committed catalogue records. The pin transaction scans
-these prefixes and writes the config in one serializable transaction. Joining
+root **only while the deployment is new**: no preexisting metadata. The pin
+transaction scans the whole deployment root and writes the config in one
+serializable transaction. Joining
 an existing local deployment requires a separate migration with an explicit
 write barrier and complete state validation; P2 refuses it. Stop all old
 binary writers before pinning. The trusted-store implementation assumption is
@@ -334,6 +355,9 @@ name against the configured target-home map *before* looking for a local
 `target/<name>` record. If the name is a configured target, T1 requires this
 deployment to be its home and requires the target record, owner, epoch and
 head guards; absence of a record is an error, never ordinary-name publication.
+The signed job for any federated T1 publication must verify under that local
+member's authority or listed job issuer; this prevents a local certificate
+for a package whose issuing deployment cannot later be proven to a peer.
 T4 rejects assignment or reassignment of a name not declared as homed here.
 T9 checks the same map for every received revision name and requires origin
 evidence from that home for target groups. T8 and T10 reject a tombstone of a
@@ -415,7 +439,7 @@ converges under the existing deterministic render.
   replacing it with B's local certificate fails closed, even if C has no
   `target/<x>` key.
 - A commits a catalogue record; B pulls it and C pulls from B. C retains the
-  exact A-signed record, source token/fence evidence and source certificates
+  exact A-signed record, source token and commit evidence and source certificates
   under `xcatalog/A`, `xrcert/A` and `xocert/A`; its local `rcert/` remains empty.
 - A and B exchange the same evidence repeatedly after convergence. Cursor and
   log counts stop changing. Deliver an additional valid original certificate
@@ -427,13 +451,13 @@ converges under the existing deterministic render.
   selected at both, and audit is clean. A receive with one changed anchor or
   revision ID reports the exact differing field and does not alter selection.
 
-## Exact `store.md` delta to apply after integration
+## Exact `store.md` delta recorded in `docs/p2-log.md`
 
 1. In **Layout**, add `aelog/<versionstamp>/<operation>`,
-   `aecursor/<source>/<generation>`, `aepending/<source>/<event>`, and
+   `aecursor/<source>`, `aepending/<source>/<event>`, `aepart/<source>/<event>/<sequence>`, and
    `gchunks/<group>`. Add `mvariant/<group>/<marker>` and
    `vcer/<group>/<marker>/<writer>` and certificate-ID-keyed `xcertv/`, plus
-   source-qualified `xcatalog/`, `xrcert/`, `xocert/`
+   source-qualified `xcatalog/`, `xrcert/`, `xtoken/`, `xrevision/`, `xocert/`
    namespaces. State that foreign certificates are evidence and cannot satisfy
    a local quorum. Document the persisted federation config digest, source
    identity, original writer-to-deployment/replica binding, the new-only config

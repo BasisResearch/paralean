@@ -55,6 +55,7 @@ pub struct Store {
     pub s3: Payloads,
     pub ring: Arc<KeyRing>,
     pub replica: ReplicaId,
+    pub deployment: String,
     pub faults: Arc<Faults>,
     pub page: usize,
 }
@@ -63,7 +64,7 @@ impl Store {
     pub fn open(cfg: &StoreConfig, ring: KeyRing, faults: Arc<Faults>) -> Result<Store> {
         let meta = Meta::open(cfg.cluster_file.as_deref(), &cfg.deployment, faults.clone())?;
         let s3 = Payloads::new(&cfg.s3, faults.clone());
-        Ok(Store { meta, s3, ring: Arc::new(ring), replica: cfg.replica, faults, page: cfg.page })
+        Ok(Store { meta, s3, ring: Arc::new(ring), replica: cfg.replica, deployment: cfg.deployment.clone(), faults, page: cfg.page })
     }
 
     /// The same deployment with another fault plan (e.g. one per simulated process).
@@ -111,12 +112,49 @@ impl Store {
         Ok(Some(o))
     }
 
-    /// The marker of a group, if its key exists (no certificate check: callers decide).
+    /// Deterministic representative of all locally certified receipt-only variants.
     pub async fn marker(&self, group: &Id) -> Result<Option<(Id, Marker)>> {
+        let base = self.marker_base(group).await?;
+        let certified: std::collections::BTreeSet<_> = self.certs(group).await?.into_iter().map(|c| c.body.marker).collect();
+        let mut good: Option<(Id, Marker)> = None;
+        let mut suspect: Option<(Id, Marker)> = None;
+        let mut consider = Vec::new();
+        if let Some(entry) = &base { consider.push(entry.clone()); }
+        for (key, value) in self.meta.scan(&self.meta.keys.marker_variants_of(group), self.page, |_| None).await? {
+            let (_, _, raw): (String, foundationdb::tuple::Bytes, foundationdb::tuple::Bytes) = self.meta.keys.root.unpack(&key)
+                .map_err(|e| StoreError::Invalid(format!("bad marker variant key: {e}")))?;
+            let mid = Id(raw[..].try_into().map_err(|_| StoreError::Invalid("bad marker variant ID".into()))?);
+            let Some(stored) = self.open_value(&value).await? else { continue };
+            let m = Marker::from_preimage(&stored)?;
+            if m.id() != mid || m.group != *group { continue; }
+            consider.push((mid, m));
+        }
+        for (mid, m) in consider {
+            if !certified.contains(&mid) { continue; }
+            let revoked = match self.receipt(&m.receipt).await? {
+                Some(receipt) => self.meta.is_revoked(&receipt.body.validator_key).await?,
+                None => true,
+            };
+            let slot = if revoked { &mut suspect } else { &mut good };
+            if slot.as_ref().is_none_or(|(selected, _)| mid < *selected) { *slot = Some((mid, m)); }
+        }
+        Ok(good.or(suspect).or(base))
+    }
+
+    pub async fn marker_base(&self, group: &Id) -> Result<Option<(Id, Marker)>> {
         let Some(v) = self.meta.get(self.meta.keys.marker(group)).await? else { return Ok(None) };
         let Some(stored) = self.open_value(&v).await? else { return Ok(None) };
         let m = Marker::from_preimage(&stored)?;
         Ok(Some((m.id(), m)))
+    }
+
+    pub async fn marker_variant(&self, group: &Id, marker: &Id) -> Result<Option<Marker>> {
+        if let Some((id, m)) = self.marker_base(group).await? { if id == *marker { return Ok(Some(m)); } }
+        let Some(value) = self.meta.get(self.meta.keys.marker_variant(group, marker)).await? else { return Ok(None) };
+        let Some(bytes) = self.open_value(&value).await? else { return Ok(None) };
+        let m = Marker::from_preimage(&bytes)?;
+        if m.id() != *marker || m.group != *group { return Err(StoreError::Invalid("marker variant key mismatch".into())); }
+        Ok(Some(m))
     }
 
     pub async fn tombstone(&self, id: &Id) -> Result<Option<Tombstone>> {
@@ -196,11 +234,18 @@ impl Store {
                 out.push(c);
             }
         }
+        for (k, v) in self.meta.scan(&self.meta.keys.variant_certs_of(group), self.page, |_| None).await? {
+            let (_, _, marker, w): (String, foundationdb::tuple::Bytes, foundationdb::tuple::Bytes, foundationdb::tuple::Bytes) =
+                self.meta.keys.root.unpack(&k).map_err(|e| StoreError::Invalid(e.to_string()))?;
+            let Ok(c) = Cert::from_bytes(&v) else { continue };
+            if c.body.group == *group && c.body.marker.0[..] == marker[..] && c.body.writer.0[..] == w[..]
+                && self.ring.verify_writer(&c.body.writer, &c.id(), &c.sig) { out.push(c); }
+        }
         Ok(out)
     }
 
     pub async fn has_cert(&self, group: &Id, w: &WorkspaceId) -> Result<bool> {
-        Ok(self.meta.get(self.meta.keys.cert(group, w)).await?.is_some())
+        Ok(self.certs(group).await?.iter().any(|c| c.body.writer == *w))
     }
 
     pub async fn fence(&self) -> Result<u64> {

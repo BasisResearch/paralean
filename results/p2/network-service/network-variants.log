@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running tests/network.rs (target/debug/deps/network-6244ea4e96296e0e)
+
+running 1 test
+test receipt_only_marker_variants_converge_and_keep_both_certificates ... anti-entropy t-net-marker-variants-0-1922739-319260344-0 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d302d313932323733392d3331393236303334342d30000261656c6f67003300000000100f8f5c00000000: Rejected("job issuer has no matching origin publication certificate")
+anti-entropy t-net-marker-variants-0-1922739-319260344-0 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d302d313932323733392d3331393236303334342d30000261656c6f67003300000000100f8f5c00000000: Rejected("job issuer has no matching origin publication certificate")
+anti-entropy t-net-marker-variants-1-1922739-319278880-1 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d312d313932323733392d3331393237383838302d31000261656c6f670033000000001013421000000000: Rejected("job issuer has no matching origin publication certificate")
+anti-entropy t-net-marker-variants-1-1922739-319278880-1 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d312d313932323733392d3331393237383838302d31000261656c6f670033000000001013421000000000: Rejected("job issuer has no matching origin publication certificate")
+
+thread 'receipt_only_marker_variants_converge_and_keep_both_certificates' (1922742) panicked at crates/ae-service/tests/network.rs:526:13:
+valid marker variants must not leave terminal replay errors at 0 from 1: AePendingPage { entries: [AePending { source: "t-net-marker-variants-1-1922739-319278880-1", generation: bfa43588f672, event: AeEvent { key: [2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 118, 97, 114, 105, 97, 110, 116, 115, 45, 49, 45, 49, 57, 50, 50, 55, 51, 57, 45, 51, 49, 57, 50, 55, 56, 56, 56, 48, 45, 49, 0, 2, 97, 101, 108, 111, 103, 0, 51, 0, 0, 0, 0, 16, 19, 66, 16, 0, 0, 0, 0], kind: GroupVariant { group: 991b7ff2bcce, marker: c81bc76a5e82, cert: 5a498d5f1122 } }, next_part: Some(7), objects_after: None, missing_count: 0, state: Terminal("Rejected(\"job issuer has no matching origin publication certificate\")"), last_error: None }], next: Some([2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 118, 97, 114, 105, 97, 110, 116, 115, 45, 48, 45, 49, 57, 50, 50, 55, 51, 57, 45, 51, 49, 57, 50, 54, 48, 51, 52, 52, 45, 48, 0, 2, 97, 101, 112, 101, 110, 100, 105, 110, 103, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 118, 97, 114, 105, 97, 110, 116, 115, 45, 49, 45, 49, 57, 50, 50, 55, 51, 57, 45, 51, 49, 57, 50, 55, 56, 56, 56, 48, 45, 49, 0, 1, 2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 255, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 118, 97, 114, 105, 97, 110, 116, 115, 45, 49, 45, 49, 57, 50, 50, 55, 51, 57, 45, 51, 49, 57, 50, 55, 56, 56, 56, 48, 45, 49, 0, 255, 2, 97, 101, 108, 111, 103, 0, 255, 51, 0, 255, 0, 255, 0, 255, 0, 255, 16, 19, 66, 16, 0, 255, 0, 255, 0, 255, 0, 255, 0]), more: false }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    receipt_only_marker_variants_converge_and_keep_both_certificates
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 8.78s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

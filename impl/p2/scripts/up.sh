@@ -39,6 +39,7 @@ export PARALEAN_FDB_CLUSTER="$H/fdb/fdb.cluster" PARALEAN_S3_ENDPOINT="http://12
 export PARALEAN_FDB_PROCS=$PARALEAN_FDB_PROCS PARALEAN_FDB_REDUNDANCY=$PARALEAN_FDB_REDUNDANCY
 export PARALEAN_FDB_COORDINATORS=$PARALEAN_FDB_COORDINATORS PARALEAN_NETSPLIT=$PARALEAN_NETSPLIT
 export PARALEAN_GARAGE_NODES=$PARALEAN_GARAGE_NODES PARALEAN_GARAGE_REPLICATION=$PARALEAN_GARAGE_REPLICATION
+export PARALEAN_GARAGE_NETSPLIT=$PARALEAN_GARAGE_NETSPLIT
 EOF
   fi
   . "$H/instance.sh"
@@ -106,6 +107,20 @@ done
 fdbcli --timeout 5 --exec "status minimal"
 
 # --- Garage
+if [ -n "$PARALEAN_INSTANCE" ] && [ "$PARALEAN_GARAGE_NETSPLIT" = 1 ] && ! alive garage-netsplit; then
+  maps=()
+  for j in $(seq 0 $((PARALEAN_GARAGE_NODES - 1))); do
+    maps+=(--map "$j:$((PARALEAN_GARAGE_RPC_PORT + j)):127.0.0.$((j + 2))")
+  done
+  proxy="$here/../target/release/garage-netsplit"
+  [ -x "$proxy" ] || ( cd "$here/.." && cargo build --release -p garage-netsplit -j 1 )
+  touch "$H/run/garage-netsplit.state"
+  setsid nohup "$proxy" --state "$H/run/garage-netsplit.state" "${maps[@]}" \
+    >> "$H/run/garage-netsplit.log" 2>&1 < /dev/null &
+  echo $! > "$H/run/garage-netsplit.pid"
+  sleep 0.2
+  alive garage-netsplit || { echo 'Garage RPC proxy failed to start' >&2; exit 1; }
+fi
 if [ -z "$PARALEAN_INSTANCE" ]; then
   if ! alive garage; then
     setsid nohup "$P/bin/garage" -c "$P/garage/garage.toml" server \
@@ -127,7 +142,8 @@ metadata_fsync = true
 data_fsync = true
 replication_factor = $PARALEAN_GARAGE_REPLICATION
 consistency_mode = "consistent"
-rpc_bind_addr = "127.0.0.1:$((PARALEAN_GARAGE_RPC_PORT + j))"
+rpc_bind_addr = "$(if [ "$PARALEAN_GARAGE_NETSPLIT" = 1 ]; then echo "127.0.0.$((j + 2))"; else echo '127.0.0.1'; fi):$((PARALEAN_GARAGE_RPC_PORT + j))"
+rpc_bind_outgoing = $(if [ "$PARALEAN_GARAGE_NETSPLIT" = 1 ]; then echo true; else echo false; fi)
 rpc_public_addr = "127.0.0.1:$((PARALEAN_GARAGE_RPC_PORT + j))"
 rpc_secret = "$PARALEAN_GARAGE_RPC_SECRET"
 
@@ -148,8 +164,16 @@ for i in $(seq 1 30); do garage status >/dev/null 2>&1 && break; sleep 1; done
 if [ -n "$PARALEAN_INSTANCE" ]; then
   # Connect the nodes (node 0 learns every peer; Garage gossips the rest).
   for j in $(seq 1 $((PARALEAN_GARAGE_NODES - 1))); do
-    id="$("$P/bin/garage" -c "$H/garage/n$j/garage.toml" node id -q 2>/dev/null | head -1)"
-    garage node connect "$id" >/dev/null
+    connected=0
+    for i in $(seq 1 30); do
+      id="$("$P/bin/garage" -c "$H/garage/n$j/garage.toml" node id -q 2>/dev/null | head -1)" || id=''
+      if [ -n "$id" ] && garage node connect "$id" >/dev/null 2>&1; then
+        connected=1
+        break
+      fi
+      sleep 1
+    done
+    [ "$connected" = 1 ] || { echo "Garage node $j did not join" >&2; exit 1; }
   done
   for i in $(seq 1 30); do
     [ "$(garage status 2>/dev/null | grep -c '127.0.0.1:')" -ge "$PARALEAN_GARAGE_NODES" ] && break; sleep 1

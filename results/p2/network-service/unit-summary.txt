@@ -1,0 +1,6 @@
+2026-10-20 UTC, rebased m-p2 working tree on f384e4c.
+Command: CARGO_BUILD_JOBS=1 cargo test -p ae-wire -p garage-netsplit -j 1
+Result: ae-wire 9 passed, garage-netsplit 6 passed, 0 failed.
+Includes signed peer/nonce/body binding, header authentication before body allocation,
+metadata/object size limits, timeout, graceful handler shutdown, existing/new Garage
+cross-partition links, and same-side traffic. Unit tests need no cluster services.
