@@ -8,6 +8,7 @@ export PARALEAN_P5_GARAGE_RPC_PORT=23640
 export PARALEAN_P5_GARAGE_ADMIN_PORT=23641
 export PARALEAN_P5_S3_PORT=23633
 export PARALEAN_VALIDATOR_PORT=23691
+export PARALEAN_FORK_PREFIX="${PARALEAN_FORK_PREFIX:-$w5_repo/.deps/lean4-paralean/build/release/stage1}"
 export PARALEAN_P5_BRIDGE="$w5_repo/impl/p2/target/release/paralean-p5-store"
 export PARALEAN_BIN="$w5_repo/impl/p1/.lake/build/bin/paralean"
 export PARALEAN_LIB="$w5_repo/impl/p1/.lake/build/lib/lean"

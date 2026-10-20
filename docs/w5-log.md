@@ -32,11 +32,12 @@ settings. This is a real loopback SSH test, not a second physical machine.
 - Derived legacy field metadata requires identity matching and verified
   replay; it does not replace signed capsule bytes.
 
-Initial checks passed: publication 178 distinct states, rename 872, private
-replay 5. Eleven guard removals produce the expected safety counterexamples;
-three reachability cases establish publication, rename and replay are possible.
-The scenarios and mutations are wired into the normal check scripts. Full
-suite and archive verification are pending at this checkpoint.
+Checks passed: publication 178 distinct states, rename 872, private replay 5.
+Eleven guard removals produce the expected safety counterexamples; three
+reachability cases establish publication, rename and replay are possible.
+The scenarios and mutations are wired into the normal check scripts. The full
+default suite passed all 24 positive scenarios and 99 expected-outcome cases.
+The complete hardened suite is still running before re-archiving.
 
 ## SSH evidence
 
@@ -45,7 +46,35 @@ to a separately rooted persistent Lean worker. It edits an unsaved buffer,
 checks error and clean diagnostics, exact source/version, hover, goals and
 completion. The initial ten-sample baseline passed using the existing P4 fork
 and frozen P4 library. Evidence: `impl/p4/results/w5-ssh-baseline.json`.
-The added-delay run and final-runtime rerun are pending.
+The added-delay run also passed. Initial p50/p95 milliseconds:
+
+| Request | SSH baseline | SSH, 40 ms each direction |
+|---|---:|---:|
+| Error diagnostics after edit | 206.27 / 455.20 | 290.84 / 506.70 |
+| Clean diagnostics after edit | 205.10 / 206.65 | 286.02 / 288.77 |
+| Hover | 1.98 / 7.24 | 83.22 / 86.79 |
+| Goals | 1.56 / 1.83 | 82.99 / 85.58 |
+| Completion | 180.98 / 547.77 | 248.92 / 606.23 |
+
+These ten-sample measurements include the first request and are descriptive
+results on a shared host. `impl/p4/tests/ssh_benchmark.sh` creates its own
+daemon, keys, pinned host identity and roots for reproduction. The SSH checkpoint
+was pushed as `744dbec`.
+
+The final pinned-fork runtime also passed both ten-sample runs, through the
+reproduction script's dedicated port 22956. Reports are
+`impl/p4/results/w5-ssh-final-{baseline,delayed}.json`. Final p50/p95 ms:
+
+| Request | SSH baseline | SSH, 40 ms each direction |
+|---|---:|---:|
+| Error diagnostics after edit | 214.37 / 722.93 | 296.08 / 687.62 |
+| Clean diagnostics after edit | 211.36 / 233.29 | 292.90 / 334.84 |
+| Hover | 5.31 / 65.07 | 87.07 / 123.01 |
+| Goals | 5.15 / 7.41 | 90.12 / 113.95 |
+| Completion | 247.67 / 1498.06 | 339.25 / 852.34 |
+
+Cold-start requests are included. These figures describe this shared-host run,
+not a WAN throughput or capacity claim.
 
 ## Integration review in progress
 
@@ -55,8 +84,35 @@ from rename inventory, capture process identity after edits/restarts, and
 reporting a successful publication after its registry update.
 
 The rename implementation commits server-owned replay buffers, not a claim
-that an arbitrary editor will atomically apply a WorkspaceEdit. Semantic
-anchor identity and a real Lean multi-workspace fixture remain review gates.
+that an arbitrary editor will atomically apply a WorkspaceEdit. The parent
+independently passed three real Lean tests: successful two-workspace edits,
+wrong-anchor refusal, and incomplete-inventory refusal. This fixture supplies
+the dependency inventory; Lean produces the actual definition and rename
+results. An `.ilean` source index is required for imported source provenance.
+
+**Published-rename blocker:** the read-only probe against the real P3 method
+fixture finds duplicate package identities in Alice's and Bob's projections.
+Bob's signed `Use` capsule contains `x.field`, but the editable `Use.lean`
+contains only a `remote%` stub. Current rename refuses this case and changes
+no buffers. General published cross-workspace rename needs capsule-aware
+materialization/refactoring and certified dependency/source coverage. The
+ordinary imported-source fixture is not evidence that this is implemented.
+
+The store limitation is concrete: `Rga.View.of` creates rename maps only for
+same-name collision losers (`impl/p1/Paralean/Rga.lean`), not for signed
+user-requested rename events. P2's T1 publishes one group at a time
+(`impl/p2/crates/store/src/meta.rs`); `plr publish --plan` loops over groups and requires
+each marker's author to be its publishing workspace. Anti-entropy also delivers
+per group. Full published rename therefore needs either a certified rename
+event with a complete affected-closure fence and atomic visibility, or a
+multi-group, multi-author publication certificate and delivery bundle.
+Reusing the current rendering map or sequential T1 calls would not provide
+the requested atomicity.
+
+The private fork builds at `bd12276840543d83766ce66c82cf260d818b8d83`.
+Unloaded generalized-method discovery passed its first live store fixture:
+Bob used `x.field` without an explicit load of Alice's `Foo.field`. The signed
+legacy-capsule replay fixture and final frozen runtime checks are in progress.
 
 ## Proposed documentation sentences
 

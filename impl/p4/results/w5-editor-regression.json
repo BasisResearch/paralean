@@ -1,0 +1,83 @@
+{
+  "gate": "pass",
+  "benchmark": "Init",
+  "search_counts": {
+    "alpha": 56,
+    "beta": 364
+  },
+  "latencies": {
+    "edit_to_diagnostics_bad": {
+      "n": 3,
+      "p50_ms": 234.69,
+      "p95_ms": 8191.71,
+      "samples_ms": [
+        9075.82,
+        210.58,
+        234.69
+      ],
+      "first_ms": 9075.82,
+      "warm_p50_ms": 222.63,
+      "warm_p95_ms": 233.48
+    },
+    "edit_to_diagnostics_good": {
+      "n": 3,
+      "p50_ms": 208.31,
+      "p95_ms": 209.1,
+      "samples_ms": [
+        208.31,
+        208.26,
+        209.19
+      ],
+      "first_ms": 208.31,
+      "warm_p50_ms": 208.72,
+      "warm_p95_ms": 209.14
+    },
+    "hover": {
+      "n": 3,
+      "p50_ms": 7.8,
+      "p95_ms": 13.31,
+      "samples_ms": [
+        13.92,
+        7.8,
+        6.5
+      ],
+      "first_ms": 13.92,
+      "warm_p50_ms": 7.15,
+      "warm_p95_ms": 7.73
+    },
+    "goals": {
+      "n": 3,
+      "p50_ms": 3.7,
+      "p95_ms": 8.22,
+      "samples_ms": [
+        8.72,
+        3.49,
+        3.7
+      ],
+      "first_ms": 8.72,
+      "warm_p50_ms": 3.59,
+      "warm_p95_ms": 3.69
+    },
+    "completion": {
+      "n": 3,
+      "p50_ms": 303.97,
+      "p95_ms": 1445.48,
+      "samples_ms": [
+        1572.31,
+        303.97,
+        243.23
+      ],
+      "first_ms": 1572.31,
+      "warm_p50_ms": 273.6,
+      "warm_p95_ms": 300.93
+    },
+    "reconnect_to_diagnostics": {
+      "n": 1,
+      "p50_ms": 391.01,
+      "p95_ms": 391.01,
+      "samples_ms": [
+        391.01
+      ]
+    }
+  }
+}
