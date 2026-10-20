@@ -54,9 +54,13 @@ def main():
     sh([PLR, "keys-init", keys, trust, rogue, "--agents", "alice,bob"])
     port = os.environ.get("PARALEAN_VALIDATOR_PORT", "18592")
     os.environ["PARALEAN_VALIDATOR"] = f"127.0.0.1:{port}"
+    # The validator refuses a key file with any seed but its own (`paralean-p3 keys export`).
+    vkeys = os.path.join(R, "validator-keys.json")
+    sh([P3BIN, "keys", "export", keys, vkeys, "--role", "validator", "--name", "v0"])
     vlog = open(os.path.join(R, "validator.log"), "a")
     val = subprocess.Popen([P3BIN, "validator", "--listen", os.environ["PARALEAN_VALIDATOR"], "--key", "v0",
-                            "--workdir", os.path.join(R, "validator"), "--max-running", "1"], stdout=vlog, stderr=vlog)
+                            "--workdir", os.path.join(R, "validator"), "--max-running", "1"], stdout=vlog, stderr=vlog,
+                           env={**os.environ, "PARALEAN_KEYS": vkeys})
     time.sleep(1.5)
     mods = modules()
     rows = []

@@ -179,15 +179,22 @@ def main():
     sh([PLR, "keys-init", keys, trust, rogue, "--agents", "alice,bob,carol"])
     port = os.environ.get("PARALEAN_VALIDATOR_PORT", "18591")
     os.environ["PARALEAN_VALIDATOR"] = f"127.0.0.1:{port}"
+    # Each process holds only its own seed (`paralean-p3 keys export`); both refuse more.
+    role_keys = {}
+    for role, name in (("validator", "v0"), ("controller", None)):
+        role_keys[role] = os.path.join(R, f"{role}-keys.json")
+        sh([P3BIN, "keys", "export", keys, role_keys[role], "--role", role] + (["--name", name] if name else []))
     vlog = open(os.path.join(R, "validator.log"), "w")
     val = subprocess.Popen([P3BIN, "validator", "--listen", os.environ["PARALEAN_VALIDATOR"], "--key", "v0",
-                            "--workdir", os.path.join(R, "validator")], stdout=vlog, stderr=vlog)
+                            "--workdir", os.path.join(R, "validator")], stdout=vlog, stderr=vlog,
+                           env={**os.environ, "PARALEAN_KEYS": role_keys["validator"]})
     controller_port = os.environ.get("PARALEAN_CONTROLLER_PORT", "18592")
     os.environ["PARALEAN_CONTROLLER"] = f"127.0.0.1:{controller_port}"
     clog = open(os.path.join(R, "controller.log"), "w")
     controller = subprocess.Popen([P3BIN, "controller", "--listen", os.environ["PARALEAN_CONTROLLER"],
                                    "--validators", os.environ["PARALEAN_VALIDATOR"], "--lease-ms", "300000"],
-                                  stdout=clog, stderr=clog)
+                                  stdout=clog, stderr=clog,
+                                  env={**os.environ, "PARALEAN_KEYS": role_keys["controller"]})
     time.sleep(1.5)
     log("deployment", os.environ["PARALEAN_DEPLOYMENT"], "validator pid", val.pid, "controller pid", controller.pid)
     try:

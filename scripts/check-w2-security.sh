@@ -29,6 +29,7 @@ cases=(
  "paralean-validator-api|mutate-unbound-rpc-peer|rpc::tests::request_signature_binds_server_key_and_service|--lib"
  "paralean-control|mutate-shared-rpc-pool|server::tests::long_authenticated_calls_cannot_lock_out_the_authority|--lib"
  "paralean-control|mutate-no-per-source-admission|server::tests::one_source_cannot_hold_every_handshake_slot|--lib"
+ "paralean-control|mutate-role-keys-unchecked|keys::tests::roles_refuse_key_files_with_other_roles_seeds|--lib"
  "paralean-control|mutate-unchecked-gid|p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store|--lib"
  "paralean-control|mutate-shared-workdir|validator::completed_tests::validator_workdir_must_be_private_and_ours|--lib"
  "paralean-control|mutate-unbounded-poll-responses|controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot|--lib"

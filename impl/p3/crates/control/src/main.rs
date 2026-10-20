@@ -2,7 +2,8 @@
 //!
 //! Configuration comes from the environment (`impl/p3/scripts/env.sh` sets the store and
 //! checker parts): `PARALEAN_FDB_CLUSTER`, `PARALEAN_S3_*`, `PARALEAN_DEPLOYMENT` (default
-//! `default`), `PARALEAN_KEYS` (a key file) and `PARALEAN_BIN` (impl/p1's `paralean`).
+//! `default`), `PARALEAN_KEYS` (a key file; the validator, controller and worker each need
+//! their own role file from `keys export`) and `PARALEAN_BIN` (impl/p1's `paralean`).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -14,6 +15,7 @@ use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_control::controller::{call_controller, ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
 use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_control::worker::WorkerNode;
+use paralean_control::keys::{self, Role};
 use paralean_store::receipt::{Policy, Revocation, SignedRevocation};
 use paralean_store::*;
 
@@ -24,6 +26,9 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   keys add-issuer <path> <name>    add a job-envelope issuer key (target-free envelopes only)
   keys retire-validator <path> <name>
                                    rotation: remove a validator key from the configured set
+  keys export <path> <out> --role validator|controller|worker [--name NAME]
+                                   write the key file of one process: its own seed only
+                                   (validator, controller and worker refuse any other seed)
   keys revoke-validator <name|public-hex> <reason>
                                    R1: revoke a validator key in the store (needs the authority seed)
   checker-version                  this machine's checker version and its ID
@@ -131,6 +136,14 @@ async fn run(args: Vec<String>) -> R<()> {
             write_keys(path, &kf)?;
             println!("added job issuer {name}: {}", hex::encode(s.public()));
         }
+        ["keys", "export", path, out, ..] => {
+            let kf: KeyFile = serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?).map_err(|e| e.to_string())?;
+            let role = Role::parse(f.get("role").ok_or("--role validator|controller|worker")?)?;
+            let name = f.get("name").map(String::as_str);
+            let exported = keys::export(&kf, role, name)?;
+            write_keys(out, &exported)?;
+            println!("wrote {out}: {role:?} {}", name.unwrap_or(""));
+        }
         ["keys", "retire-validator", path, name] => {
             let mut kf: KeyFile = serde_json::from_str(&std::fs::read_to_string(path).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             kf.retire_validator(name).ok_or(format!("no validator {name}"))?;
@@ -157,6 +170,7 @@ async fn run(args: Vec<String>) -> R<()> {
         ["validator", ..] => {
             let kf = keyfile()?;
             let name = f.get("key").ok_or("--key NAME")?;
+            keys::check(&kf, Role::Validator, Some(name))?;
             let signer = kf.validator_signer(name).ok_or(format!("no seed for validator {name}"))?;
             let checker = CheckerConfig::from_env()?;
             let base = base_id(&checker.lean_githash);
@@ -179,6 +193,7 @@ async fn run(args: Vec<String>) -> R<()> {
         }
         ["controller", ..] => {
             let kf = keyfile()?;
+            keys::check(&kf, Role::Controller, None)?;
             let checker = CheckerConfig::from_env()?;
             let cp = ControlPlane::new(ControllerConfig {
                 store: open_store(&kf)?,
@@ -201,6 +216,7 @@ async fn run(args: Vec<String>) -> R<()> {
         ["worker", ..] => {
             let kf = keyfile()?;
             let name = f.get("name").ok_or("--name W")?;
+            keys::check(&kf, Role::Worker, Some(name))?;
             let (id, s) = kf.workspace(name).ok_or(format!("no workspace {name}"))?;
             let w = WorkerNode::new(
                 Writer::new(open_store(&kf)?, id, s),

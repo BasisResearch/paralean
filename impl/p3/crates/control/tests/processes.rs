@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 
 use common::*;
 use paralean_control::checker::CheckerConfig;
+use paralean_control::keys::{self, Role};
 use paralean_control::controller::{ControlRequest, ControlResponse};
 use paralean_store::*;
 use paralean_validator_api::{rpc, ValidatorRequest, ValidatorResponse};
@@ -28,14 +29,55 @@ fn free_port() -> u16 {
     std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 }
 
+/// Start `paralean-p3 args`. A validator, controller or worker gets its own role key file
+/// (`keys export`) made from the full `PARALEAN_KEYS` file: each refuses other seeds.
 fn spawn(args: &[&str], env: &[(&str, String)], log: &std::path::Path) -> Proc {
     let out = std::fs::File::create(log).unwrap();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_paralean-p3"));
     cmd.args(args).stdout(out.try_clone().unwrap()).stderr(out).stdin(Stdio::null());
+    let flag = |f: &str| args.iter().position(|a| *a == f).and_then(|i| args.get(i + 1)).copied();
+    let role = match args.first().copied() {
+        Some("validator") => Some((Role::Validator, flag("--key"))),
+        Some("controller") => Some((Role::Controller, None)),
+        Some("worker") => Some((Role::Worker, flag("--name"))),
+        _ => None,
+    };
     for (k, v) in env {
-        cmd.env(k, v);
+        match (*k, role) {
+            ("PARALEAN_KEYS", Some((role, name))) => {
+                let full: KeyFile = serde_json::from_str(&std::fs::read_to_string(v).unwrap()).unwrap();
+                let path = format!("{v}.{}-{}.json", format!("{role:?}").to_lowercase(), name.unwrap_or("all"));
+                keys::export(&full, role, name).unwrap().write_private(&path).unwrap();
+                cmd.env(k, path);
+            }
+            _ => { cmd.env(k, v); }
+        }
     }
     Proc(cmd.spawn().unwrap())
+}
+
+#[test]
+fn processes_refuse_key_files_with_seeds_of_other_roles() {
+    // A full key file (the authority seed, every validator and workspace seed) is refused
+    // by every process role before it opens the store or listens.
+    let tmp = scratch("role-keys");
+    let keys = tmp.join("keys.json");
+    std::fs::write(&keys, serde_json::to_string(&KeyFile::demo(2)).unwrap()).unwrap();
+    for args in [vec!["validator", "--listen", "127.0.0.1:0", "--key", "v0"], vec!["controller", "--listen", "127.0.0.1:0", "--validators", "127.0.0.1:1"],
+                 vec!["worker", "--name", "w0", "--controller", "127.0.0.1:1", "--p1-store", "/nonexistent"]] {
+        let log = tmp.join(format!("{}.log", args[0]));
+        let mut p = Proc(Command::new(env!("CARGO_BIN_EXE_paralean-p3")).args(&args).env("PARALEAN_KEYS", &keys)
+            .env("PARALEAN_DEPLOYMENT", "role-keys-never-opened").stdin(Stdio::null()).stdout(Stdio::null())
+            .stderr(std::fs::File::create(&log).unwrap()).spawn().unwrap());
+        let start = Instant::now();
+        let status = loop {
+            if let Some(s) = p.0.try_wait().unwrap() { break Some(s) }
+            if start.elapsed() > Duration::from_secs(20) { break None }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        let err = std::fs::read_to_string(&log).unwrap();
+        assert!(status.is_some_and(|s| !s.success()) && err.contains("must not have"), "{} ran with a full key file: {err}", args[0]);
+    }
 }
 
 async fn call(addr: &str, req: ControlRequest, signer: &Signer) -> Option<ControlResponse> {

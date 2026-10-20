@@ -63,12 +63,16 @@ unless it is a prepared target.
 
 ```
 paralean-p3 keys init keys.json [--validators N] [--workspaces N]   # pins policy v1 and this checker
-export PARALEAN_KEYS=keys.json PARALEAN_DEPLOYMENT=demo
-paralean-p3 validator  --listen 127.0.0.1:7001 --key v0
-paralean-p3 validator  --listen 127.0.0.1:7002 --key v1
-paralean-p3 controller --listen 127.0.0.1:7000 --validators 127.0.0.1:7001,127.0.0.1:7002
-paralean-p3 worker --name w0 --controller 127.0.0.1:7000 --p1-store .runs/p1-core/store
-paralean-p3 submit --controller 127.0.0.1:7000 --request r1 --target F04.red_ne_green
+# Each process gets a key file with only its own seed, and refuses any other seed.
+paralean-p3 keys export keys.json v0.json --role validator --name v0    # also v1.json
+paralean-p3 keys export keys.json ctl.json --role controller
+paralean-p3 keys export keys.json w0.json --role worker --name w0
+export PARALEAN_DEPLOYMENT=demo
+PARALEAN_KEYS=v0.json  paralean-p3 validator  --listen 127.0.0.1:7001 --key v0
+PARALEAN_KEYS=v1.json  paralean-p3 validator  --listen 127.0.0.1:7002 --key v1
+PARALEAN_KEYS=ctl.json paralean-p3 controller --listen 127.0.0.1:7000 --validators 127.0.0.1:7001,127.0.0.1:7002
+PARALEAN_KEYS=w0.json  paralean-p3 worker --name w0 --controller 127.0.0.1:7000 --p1-store .runs/p1-core/store
+PARALEAN_KEYS=keys.json paralean-p3 submit --controller 127.0.0.1:7000 --request r1 --target F04.red_ne_green
 paralean-p3 keys add-issuer keys.json i0       # an envelope-issuer key for a working copy
 paralean-p3 keys add-validator keys.json v2 | keys retire-validator keys.json v0 | keys revoke-validator v0 "reason"
 ```

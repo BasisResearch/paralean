@@ -437,7 +437,14 @@ class Backend:
                 raise BackendError("validator address is occupied by another process")
         p3 = self.env.get("PARALEAN_P3_BIN", str(ROOT.parent / "p2" / "target" / "release" / "paralean-p3"))
         workdir = self.state_dir / "validator-work"
-        workdir.mkdir(parents=True, exist_ok=True)
+        workdir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        # The validator refuses a key file holding any seed but its own (no authority or
+        # workspace seeds): give it a role file exported from the full one.
+        validator_keys = self.state_dir / "validator-keys.json"
+        subprocess.run([p3, "keys", "export", self.env["PARALEAN_KEYS"], str(validator_keys),
+                        "--role", "validator", "--name", "v0"],
+                       env=self._runtime_env(self.env), stdin=subprocess.DEVNULL,
+                       capture_output=True, check=True)
         log = open(self.state_dir / "validator.log", "ab", buffering=0)
         try:
             guard = Path(__file__).with_name("worker_guard.py")
@@ -445,6 +452,7 @@ class Backend:
                 ["python3", str(guard), p3, "validator", "--listen", self.env["PARALEAN_VALIDATOR"], "--key", "v0",
                  "--max-running", "1", "--max-queued", "8", "--workdir", str(workdir)],
                 env={**self._runtime_env(self.env),
+                     "PARALEAN_KEYS": str(validator_keys),
                      "PARALEAN_P5_PARENT_PID": str(os.getpid())},
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         finally:

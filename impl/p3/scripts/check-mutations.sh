@@ -47,6 +47,7 @@ cases=(
   "mutate-validator-checks-issuer-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
   "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
   "mutate-keep-old-snapshot-chunks|durable|superseded_snapshot_chunks_are_cleared_with_the_head_swap"
+  "mutate-role-keys-unchecked|processes|processes_refuse_key_files_with_seeds_of_other_roles"
 )
 fail=0
 for c in "${cases[@]}"; do
