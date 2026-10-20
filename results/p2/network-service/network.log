@@ -1,0 +1,216 @@
+   Compiling smallvec v1.16.2
+   Compiling futures-core v0.3.34
+   Compiling futures-sink v0.3.34
+   Compiling parking_lot_core v0.9.12
+   Compiling parking_lot v0.12.5
+   Compiling itoa v1.0.18
+   Compiling tokio v1.53.2
+   Compiling zeroize v1.9.0
+   Compiling memchr v2.8.3
+   Compiling slab v0.4.12
+   Compiling http v1.5.0
+   Compiling futures-channel v0.3.34
+   Compiling once_cell v1.21.4
+   Compiling futures-io v0.3.34
+   Compiling futures-task v0.3.34
+   Compiling typenum v1.20.1
+   Compiling futures-util v0.3.34
+   Compiling http-body v1.1.0
+   Compiling tokio-util v0.7.19
+   Compiling tracing-core v0.1.36
+   Compiling tracing v0.1.44
+   Compiling num-traits v0.2.19
+   Compiling outref v0.5.2
+   Compiling time-core v0.1.9
+   Compiling vsimd v0.8.0
+   Compiling powerfmt v0.2.1
+   Compiling deranged v0.5.8
+   Compiling num-conv v0.2.2
+   Compiling time v0.3.55
+   Compiling base64-simd v0.8.0
+   Compiling num-integer v0.1.47
+   Compiling http-body-util v0.1.5
+   Compiling bytes-utils v0.1.4
+   Compiling ryu v1.0.23
+   Compiling pin-utils v0.1.1
+   Compiling aws-smithy-types v1.8.1
+   Compiling zerofrom v0.1.8
+   Compiling aws-smithy-async v1.3.0
+   Compiling stable_deref_trait v1.2.1
+   Compiling yoke v0.8.3
+   Compiling aws-smithy-runtime-api v1.19.0
+   Compiling zerovec v0.11.8
+   Compiling hybrid-array v0.4.15
+   Compiling percent-encoding v2.3.2
+   Compiling foldhash v0.2.0
+   Compiling hashbrown v0.17.1
+   Compiling generic-array v0.14.7
+   Compiling cmov v0.5.4
+   Compiling ctutils v0.4.3
+   Compiling block-buffer v0.12.1
+   Compiling crypto-common v0.2.2
+   Compiling aws-lc-sys v0.45.0
+   Compiling rustls-pki-types v1.15.1
+   Compiling equivalent v1.0.2
+   Compiling cpufeatures v0.3.1
+   Compiling const-oid v0.10.2
+   Compiling digest v0.11.3
+   Compiling indexmap v2.14.2
+   Compiling aws-lc-rs v1.18.1
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling tinystr v0.8.4
+   Compiling untrusted v0.9.0
+   Compiling try-lock v0.2.5
+   Compiling fnv v1.0.7
+   Compiling writeable v0.6.4
+   Compiling atomic-waker v1.1.2
+   Compiling litemap v0.8.3
+   Compiling icu_locale_core v2.3.0
+   Compiling h2 v0.4.19
+   Compiling want v0.3.2
+   Compiling rustls-webpki v0.103.15
+   Compiling digest v0.10.7
+   Compiling crc32fast v1.5.2
+   Compiling httparse v1.10.1
+   Compiling zerotrie v0.2.5
+   Compiling potential_utf v0.1.6
+   Compiling tower-service v0.3.3
+   Compiling utf8_iter v1.0.4
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling hyper v1.11.1
+   Compiling aws-smithy-eventstream v0.61.4
+   Compiling rustls v0.23.45
+   Compiling aws-smithy-schema v0.2.1
+   Compiling base64 v0.23.1
+   Compiling openssl-probe v0.2.1
+   Compiling ipnet v2.12.2
+   Compiling hyper-util v0.1.21
+   Compiling rustls-native-certs v0.8.4
+   Compiling tokio-rustls v0.26.6
+   Compiling aws-smithy-http v0.64.1
+   Compiling icu_properties_data v2.3.0
+   Compiling icu_normalizer_data v2.3.0
+   Compiling tower-layer v0.3.3
+   Compiling tower v0.5.3
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling hyper-rustls v0.27.10
+   Compiling serde_core v1.0.229
+   Compiling sha2 v0.11.0
+   Compiling form_urlencoded v1.2.2
+   Compiling aws-credential-types v1.3.0
+   Compiling rand_core v0.10.1
+   Compiling uuid v1.27.0
+   Compiling hex v0.4.3
+   Compiling aws-smithy-http-client v1.5.0
+   Compiling idna_adapter v1.2.2
+   Compiling hmac v0.13.0
+   Compiling aws-smithy-observability v0.3.0
+   Compiling fastrand v2.5.0
+   Compiling spin v0.10.1
+   Compiling crc-fast v1.10.0
+   Compiling aws-smithy-runtime v1.16.0
+   Compiling curve25519-dalek v4.1.3
+   Compiling aws-sigv4 v1.6.0
+   Compiling idna v1.1.0
+   Compiling aws-types v1.6.0
+   Compiling zmij v1.0.23
+   Compiling getrandom v0.4.3
+   Compiling sha2 v0.10.9
+   Compiling chacha20 v0.10.2
+   Compiling sha1 v0.11.0
+   Compiling md-5 v0.11.0
+   Compiling futures-executor v0.3.34
+   Compiling xmlparser v0.13.6
+   Compiling aws-smithy-xml v0.62.1
+   Compiling serde v1.0.229
+   Compiling futures v0.3.34
+   Compiling aws-smithy-checksums v0.65.0
+   Compiling rand v0.10.3
+   Compiling ed25519-dalek v2.2.0
+   Compiling serde_json v1.0.151
+   Compiling arc-swap v1.9.2
+   Compiling aws-runtime v1.10.0
+   Compiling url v2.5.8
+   Compiling foundationdb-sys v0.11.0
+   Compiling foundationdb-tuple v0.11.0
+   Compiling serde_bytes v0.11.19
+   Compiling aws-smithy-json v0.63.1
+   Compiling lru v0.18.5
+   Compiling regex-lite v0.1.9
+   Compiling static_assertions v1.1.0
+   Compiling foundationdb v0.11.0
+   Compiling aws-sdk-s3 v1.152.0
+   Compiling thiserror v2.0.21
+   Compiling base64 v0.22.1
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling ae-wire v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-wire)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 18s
+     Running tests/network.rs (target/debug/deps/network-6244ea4e96296e0e)
+
+running 12 tests
+test bounded_pages_and_restart_replay_deferred_missing_object ... anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+anti-entropy t-net-cursor-0-1887619-680116575-0: retryable event failure: t-net-cursor-0-1887619-680116575-0: object response identity or length mismatch
+
+thread 'bounded_pages_and_restart_replay_deferred_missing_object' (1887620) panicked at crates/ae-service/tests/network.rs:160:5:
+group 9c85868fe2f3 did not arrive over the network
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test catalogue_relay_retains_the_original_source_and_commit_proof ... ok
+test chunked_group_fetches_deduplicated_chunk_and_retries_missing_source ... ok
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... anti-entropy t-net-marker-layout-1-1887619-684856591-10 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d312d313838373631392d3638343835363539312d3130000261656c6f67003300000000074b53e100000000: Rejected("job issuer has no matching origin publication certificate")
+
+thread 'incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite' (1888364) panicked at crates/ae-service/tests/network.rs:584:9:
+incompatible layout must have an exact diagnostic: AePendingPage { entries: [AePending { source: "t-net-marker-layout-1-1887619-684856591-10", generation: 9783bd78a570, event: AeEvent { key: [2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 108, 97, 121, 111, 117, 116, 45, 49, 45, 49, 56, 56, 55, 54, 49, 57, 45, 54, 56, 52, 56, 53, 54, 53, 57, 49, 45, 49, 48, 0, 2, 97, 101, 108, 111, 103, 0, 51, 0, 0, 0, 0, 7, 75, 83, 225, 0, 0, 0, 0], kind: GroupVariant { group: 3c3c581ff1ac, marker: f5b19cba1455, cert: 7e67f3303480 } }, next_part: Some(7), objects_after: None, missing_count: 0, state: Terminal("Rejected(\"job issuer has no matching origin publication certificate\")"), last_error: None }], next: Some([2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 108, 97, 121, 111, 117, 116, 45, 48, 45, 49, 56, 56, 55, 54, 49, 57, 45, 54, 56, 52, 56, 53, 49, 49, 54, 51, 45, 57, 0, 2, 97, 101, 112, 101, 110, 100, 105, 110, 103, 0, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 108, 97, 121, 111, 117, 116, 45, 49, 45, 49, 56, 56, 55, 54, 49, 57, 45, 54, 56, 52, 56, 53, 54, 53, 57, 49, 45, 49, 48, 0, 1, 2, 112, 97, 114, 97, 108, 101, 97, 110, 0, 255, 2, 116, 45, 110, 101, 116, 45, 109, 97, 114, 107, 101, 114, 45, 108, 97, 121, 111, 117, 116, 45, 49, 45, 49, 56, 56, 55, 54, 49, 57, 45, 54, 56, 52, 56, 53, 54, 53, 57, 49, 45, 49, 48, 0, 255, 2, 97, 101, 108, 111, 103, 0, 255, 51, 0, 255, 0, 255, 0, 255, 0, 255, 7, 75, 83, 225, 0, 255, 0, 255, 0, 255, 0, 255, 0]), more: false }
+FAILED
+test malformed_source_receipt_cannot_be_imported_and_repair_allows_retry ... anti-entropy t-net-invalid-receipt-0-1887619-235895035-12: retryable event failure: t-net-invalid-receipt-0-1887619-235895035-12: decode: unexpected end of input
+ok
+test pinned_federation_rejects_changed_roster_and_wrong_peer_key ... ok
+test pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle ... ok
+test receipt_only_marker_variants_converge_and_keep_both_certificates ... anti-entropy t-net-marker-variants-1-1887619-467385871-22 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d312d313838373631392d3436373338353837312d3232000261656c6f670033000000000775f2e400000000: Rejected("job issuer has no matching origin publication certificate")
+anti-entropy t-net-marker-variants-1-1887619-467385871-22 event 02706172616c65616e0002742d6e65742d6d61726b65722d76617269616e74732d312d313838373631392d3436373338353837312d3232000261656c6f670033000000000775f2e400000000: Rejected("job issuer has no matching origin publication certificate")
+
+thread 'receipt_only_marker_variants_converge_and_keep_both_certificates' (1888500) panicked at crates/ae-service/tests/network.rs:510:5:
+assertion `left == right` failed
+  left: PublishedSet { groups: {991b7ff2bcce: c81bc76a5e82}, tombstones: {}, files: {"Test/File.lean": [991b7ff2bcce]} }
+ right: PublishedSet { groups: {991b7ff2bcce: 969fb6d7ff6b}, tombstones: {}, files: {"Test/File.lean": [991b7ff2bcce]} }
+FAILED
+test scheduled_pull_observes_publication_after_service_start_and_stops_cleanly ... anti-entropy t-net-scheduled-0-1887619-140923024-24: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy t-net-scheduled-0-1887619-140923024-24: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy t-net-scheduled-0-1887619-140923024-24: RoundStats { received_events: 1, received_parts: 8, fetched_objects: 3, applied: 1, present: 0, deferred: 0, terminal: 0 }
+ok
+test server_rejects_a_stale_generation_before_serving_changes ... ok
+test target_home_publication_reaches_third_deployment_without_local_target_key ... ok
+test three_deployment_group_and_tombstone_relay_preserves_origin_evidence ... ok
+
+failures:
+
+failures:
+    bounded_pages_and_restart_replay_deferred_missing_object
+    incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite
+    receipt_only_marker_variants_converge_and_keep_both_certificates
+
+test result: FAILED. 9 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.12s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

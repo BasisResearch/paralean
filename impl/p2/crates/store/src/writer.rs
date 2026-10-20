@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crate::error::{GuardFailure, Result, StoreError};
+use crate::group_chunks::unique_chunks;
 use crate::id::{Id, Kind, WorkspaceId};
 use crate::meta::{CommitArgs, PreparedTarget, PublishArgs, PublishOutcome, TombstoneArgs, ValueKind};
 use crate::objects::*;
@@ -63,6 +64,11 @@ impl Writer {
 
     /// The preparer's single linearizable read of a target record (§7).
     pub async fn prepare_target(&self, name: &Name) -> Result<PreparedTarget> {
+        if let Some(cfg) = self.store.ae_federation().await? {
+            if cfg.target_homes.get(name) != Some(&cfg.deployment) {
+                return Err(GuardFailure::ForeignTarget(name.clone()).into());
+            }
+        }
         let rec = self.store.target(name).await?.ok_or_else(|| GuardFailure::NoTargetRecord(name.clone()))?;
         if rec.owner != self.id {
             return Err(GuardFailure::NotOwner { name: name.clone() }.into());
@@ -91,6 +97,17 @@ impl Writer {
         }
         // The staging rule: a worker stages only while holding a bound receipt (§6, P3).
         crate::receipt::check(&p.receipt, &p.job, &g, &p.targets, &self.store.ring)?;
+        if let Some(refs) = unique_chunks(&p.group.pce)? {
+            let provided: BTreeSet<Id> = p.chunks.iter().map(Opaque::id).collect();
+            if provided.len() != p.chunks.len() || provided != refs.keys().copied().collect() {
+                return bad("chunked group references do not equal Package.chunks");
+            }
+            for chunk in &p.chunks {
+                if chunk.preimage().len() as u64 != refs[&chunk.id()] {
+                    return bad("chunk length differs from hashed group manifest");
+                }
+            }
+        }
         Ok(g)
     }
 
@@ -125,9 +142,18 @@ impl Writer {
                 .ok_or_else(|| GuardFailure::BadPackage(format!("dependency capsule {} has no declaration ID", cap.short())))?;
             dep_groups.insert(decl);
         }
-        self.store.s3.put_opaque(&p.group).await?;
         for c in &p.chunks {
             self.store.s3.put_opaque(c).await?;
+        }
+        self.store.s3.put_opaque(&p.group).await?;
+        let chunk_index = unique_chunks(&p.group.pce)?;
+        if let Some(refs) = &chunk_index {
+            for (id, length) in refs {
+                let Some((_, bytes)) = self.store.s3.get_acked(Kind::Chunk, id).await? else {
+                    return Err(GuardFailure::NotAcknowledged { kind: Kind::Chunk, id: *id }.into());
+                };
+                if bytes.len() as u64 != *length { return Err(GuardFailure::BadPackage("acknowledged chunk length differs from manifest".into()).into()); }
+            }
         }
         self.store.s3.put_opaque(&p.capsule).await?;
         self.store.faults.point("publish:after-payload")?;
@@ -156,6 +182,7 @@ impl Writer {
             replica: self.store.replica,
             targets: p.targets.clone(),
             cert_value: cert.to_bytes(),
+            chunk_index: chunk_index.map(|m| m.into_iter().collect()),
         };
         let _ = &cert;
         let out = self.store.meta.t1_publish(Arc::new(args)).await?;

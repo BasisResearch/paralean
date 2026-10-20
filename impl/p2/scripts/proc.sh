@@ -8,6 +8,8 @@
 #                                                     removes meta/data_layout; then `garage repair blocks`)
 #   proc.sh split <i>...                              partition fdbservers i... from the rest (netsplit)
 #   proc.sh heal                                      remove the partition
+#   proc.sh garage-split <j>...                       isolate Garage nodes j... at RPC
+#   proc.sh garage-heal                               heal Garage RPC partition
 #   proc.sh status                                    which processes are up
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -23,6 +25,21 @@ alive() { [ -f "$(pidf "$1")" ] && kill -0 "$(cat "$(pidf "$1")")" 2>/dev/null; 
 sig() { # signal name; a KILL waits until the process is gone
   if alive "$2"; then kill "-$1" "$(cat "$(pidf "$2")")"; echo "$1 $2"; else echo "$2 is not running"; return 0; fi
   if [ "$1" = KILL ]; then for i in $(seq 1 50); do alive "$2" || return 0; sleep 0.1; done; fi
+}
+
+garage_state() { # whitespace-separated isolated node indices, or none to heal
+  [ "$PARALEAN_GARAGE_NETSPLIT" = 1 ] || { echo 'Garage netsplit is disabled' >&2; exit 2; }
+  alive garage-netsplit || { echo 'Garage netsplit is not running' >&2; exit 2; }
+  local node
+  for node in "$@"; do
+    [[ "$node" =~ ^[0-9]+$ ]] && [ "$node" -lt "$PARALEAN_GARAGE_NODES" ] || {
+      echo "invalid Garage node index: $node" >&2; exit 2;
+    }
+  done
+  local state="$H/run/garage-netsplit.state" temp
+  temp="$(mktemp "$H/run/.garage-netsplit.state.XXXXXX")"
+  printf '%s\n' "$*" > "$temp"
+  mv "$temp" "$state"
 }
 
 fdb_start() {
@@ -67,6 +84,8 @@ case "${1:-} ${2:-}" in
     echo "wiped garage-$3 data blocks (empty replacement disk)" ;;
   "split "*) shift; echo "$*" > "$H/run/netsplit.state"; echo "isolated fdbservers: $*" ;;
   "heal "*) : > "$H/run/netsplit.state"; echo "healed" ;;
+  "garage-split "*) shift; [ "$#" -gt 0 ] || { echo 'garage-split needs node indices' >&2; exit 2; }; garage_state "$@"; echo "isolated Garage nodes: $*" ;;
+  "garage-heal "*) garage_state; echo "healed Garage RPC partition" ;;
   "status "*)
     for f in "$H"/run/*.pid; do
       n="$(basename "$f" .pid)"

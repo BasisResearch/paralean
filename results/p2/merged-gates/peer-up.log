@@ -1,0 +1,7 @@
+started fdbserver-0 (127.0.0.1:24600)
+Database created
+The database is available, but has issues (type 'status' for more information).
+started garage-0
+garage: 1 node(s), replication 1, bucket paralean
+s3: http://127.0.0.1:24650 (guard) -> 127.0.0.1:24620 (garage)
+fdb: /data/home/kirancodes/paralean-p2/inst/mp2-peer/fdb/fdb.cluster (paralean:p2mp2peer874fa02a3442@127.0.0.1:24600)

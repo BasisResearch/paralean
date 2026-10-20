@@ -1,0 +1,20 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.50s
+     Running tests/network.rs (target/debug/deps/network-6244ea4e96296e0e)
+
+running 1 test
+test bounded_pages_and_restart_replay_deferred_missing_object ... anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-1920744-690317167-0: retryable event failure: t-net-cursor-0-1920744-690317167-0: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.19s
+

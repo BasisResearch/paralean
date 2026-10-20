@@ -1,0 +1,12 @@
+[package]
+name = "paralean-ae-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+paralean-store = { path = "../store" }
+ae-wire = { path = "../ae-wire" }
+tokio.workspace = true
+ed25519-dalek = "2"
+rand = "0.8"
