@@ -112,8 +112,9 @@ sys.stdout.write('x' * (2 << 20) + '\n')
 print('CHECK ' + json.dumps({'ok': True}), flush=True)
 "#);
     let (_cancel_sender, cancel) = cancellation();
+    // A generous deadline: on a loaded box a 3 s one can expire first (NoVerdict::Timeout).
     let result = checker::run(&fake.config(false), Path::new("."), &["fixture".into()], "fixture", &[],
-        Duration::from_secs(3), 256, cancel).await;
+        Duration::from_secs(30), 256, cancel).await;
     assert!(matches!(result, Err(NoVerdict::Output)), "checker output escaped cap: {result:?}");
 }
 
