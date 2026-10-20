@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Local security regressions and mutations; no shared cluster or cache is touched.
+# Cases whose target is `--test <file>` exercise FDB/S3 transactions: they need the
+# caller's own P2 instance (PARALEAN_INSTANCE=<name> after impl/p2/scripts/up.sh) and refuse
+# to run against the default cluster.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source impl/p2/scripts/env.sh
 root="$PWD"
-out="$root/results/w2/mutations"
+out="${W2_MUTATION_OUT:-$root/results/w2/mutations}"
 mkdir -p "$out"
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-store -p paralean-control -p paralean-validator-api --lib > "$out/baseline.log" 2>&1
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p s3-guard >> "$out/baseline.log" 2>&1
@@ -25,7 +28,19 @@ cases=(
  "s3-guard|mutate-allow-delete|tests::encoded_and_unknown_mutations_are_denied|"
  "s3-guard|mutate-unbounded-body|tests::streamed_body_limit_is_enforced|"
  "s3-guard|mutate-allow-overwrite|tests::overwrites_copies_and_unaddressed_keys_are_denied|"
+ "paralean-store|mutate-receive-no-cancel-check|cancelled_request_is_not_received_by_its_issuer|--test antientropy"
+ "paralean-store|mutate-receive-no-dep-check|received_group_waits_for_job_dependencies_here|--test antientropy"
+ "paralean-store|mutate-no-statement-pin-check|t1_requires_the_pinned_target_statement|--test guards"
+ "paralean-ae-service|mutate-ae-unbounded-parts|endless_event_parts_are_capped_and_archived|--test network"
+ "paralean-ae-service|mutate-ae-unbounded-objects|oversized_declared_objects_are_terminal_before_fetch|--test network"
+ "paralean-ae-service|mutate-ae-unbounded-source|declared_objects_are_bounded_per_source|--test network"
 )
+if printf '%s\n' "${cases[@]}" | grep -q -- '|--test '; then
+  if [ -z "${PARALEAN_INSTANCE:-}" ] || [ ! -f "${PARALEAN_FDB_CLUSTER:-}" ]; then
+    echo "cluster cases need your own running instance: PARALEAN_INSTANCE=<name> (impl/p2/scripts/up.sh)" >&2
+    exit 1
+  fi
+fi
 for entry in "${cases[@]}"; do
   IFS='|' read -r package feature test target <<< "$entry"
   # Each verdict must name the test; a compiler or infrastructure failure is not a kill.
@@ -58,4 +73,5 @@ for name, (old, new) in mutations.items():
         assert result.returncode != 0 and "AssertionError: ValueError not raised" in result.stderr, result.stderr
         print("detected", name)
 PY
-echo "W2 security mutations: all detected"
+total=$((${#cases[@]} + 3))
+echo "W2 security mutations: $total/$total detected"
