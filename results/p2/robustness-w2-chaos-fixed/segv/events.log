@@ -1,0 +1,92 @@
+2026-10-20T17:33:46Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:33:46Z double disk-loss attempt 1: GDB stress worker=3 seed=3045 starts
+2026-10-20T17:33:47Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=419983 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:35:35Z healthy: write and fault tolerance >=2 after 102 s
+2026-10-20T17:35:37Z double disk-loss attempt 2: GDB stress worker=3 seed=3046 starts
+2026-10-20T17:35:38Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=458290 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:35:46Z healthy: write and fault tolerance >=2 after 2 s
+2026-10-20T17:35:49Z double disk-loss attempt 3: GDB stress worker=3 seed=3047 starts
+2026-10-20T17:35:50Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=463736 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:35:55Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:36:00Z double disk-loss attempt 4: GDB stress worker=3 seed=3048 starts
+2026-10-20T17:36:00Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=468660 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:36:06Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:36:12Z double disk-loss attempt 5: GDB stress worker=3 seed=3049 starts
+2026-10-20T17:36:13Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=471039 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:36:20Z healthy: write and fault tolerance >=2 after 2 s
+2026-10-20T17:36:28Z double disk-loss attempt 6: GDB stress worker=3 seed=3050 starts
+2026-10-20T17:36:28Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=474566 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:36:34Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:36:43Z double disk-loss attempt 7: GDB stress worker=3 seed=3051 starts
+2026-10-20T17:36:44Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=476876 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:36:49Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:36:59Z double disk-loss attempt 8: GDB stress worker=3 seed=3052 starts
+2026-10-20T17:37:00Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=479430 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:37:05Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:37:17Z double disk-loss attempt 9: GDB stress worker=3 seed=3053 starts
+2026-10-20T17:37:17Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=486457 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:37:22Z healthy: write and fault tolerance >=2 after 0 s
+2026-10-20T17:37:53Z double disk-loss attempt 10: GDB stress worker=3 seed=3054 starts
+2026-10-20T17:37:53Z kill and wipe fdbserver-3 and fdbserver-5 while worker pid=500729 is active
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+2026-10-20T17:39:39Z healthy: write and fault tolerance >=2 after 101 s
+2026-10-20T17:39:53Z no SIGSEGV in 10 double disk-loss attempts; acknowledge logs and audits passed

@@ -1,0 +1,975 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.79s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_rejects_non_owner ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.40s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.27s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.36s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.05s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test t8_named_receipt_respects_revocation ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.85s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 50.44s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.79s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test tombstone_faults_resolve ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.23s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.53s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test t8_named_receipt_respects_revocation ... ok
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.03s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test paginated_scan_follows_partial_batches has been running for over 60 seconds
+test t5_fenced_commit_and_its_guards has been running for over 60 seconds
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.62s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test t8_tombstone_guards ... ok
+test t8_named_receipt_respects_revocation ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.08s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 34.51s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.62s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_uncertified_tombstone_is_ignored ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.03s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.63s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.95s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.79s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 39.38s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test t8_named_receipt_respects_revocation ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.94s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.23s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test paginated_scan_follows_partial_batches ... ok
+test t5_fenced_commit_and_its_guards ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.44s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test t8_tombstone_guards ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.78s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.70s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test t8_named_receipt_respects_revocation ... ok
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.07s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash has been running for over 60 seconds
+test fixture_put_before_rotation_acked_after has been running for over 60 seconds
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.96s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_non_owner ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.88s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t1_rejects_non_owner ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_head_compare_and_swap ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.95s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.28s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.85s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.02s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.53s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.96s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.71s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.20s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.05s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.27s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.79s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.76s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.03s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.76s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.42s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.24s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.13s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.68s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_uncertified_tombstone_is_ignored ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.29s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_put_before_rotation_acked_after has been running for over 60 seconds
+test fixture_put_before_rotation_acked_after ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 61.81s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.02s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.99s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-5c0980e580d550d5)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash has been running for over 60 seconds
+test fixture_orphan_commit_rejected has been running for over 60 seconds
+test fixture_put_before_rotation_acked_after has been running for over 60 seconds
+test fixture_stale_writer_after_rotation has been running for over 60 seconds
+test fixture_zombie_record_never_adopted has been running for over 60 seconds
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 98.37s
+
+     Running tests/guards.rs (target/debug/deps/guards-b1b1242a46c4aba8)
+
+running 13 tests
+test s3_checksum_delete_and_corruption ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t1_rejects_non_owner ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.97s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-7cc30b530e4c3159)
+
+running 6 tests
+test t8_named_receipt_respects_revocation ... ok
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/faults.rs (target/debug/deps/faults-b89115c960f2686b)
+
+running 10 tests
+test s3_put_timeouts_with_and_without_landing ... ok
+test publisher_crash_right_after_publish_leaves_head_discoverable ... ok
+test rotation_and_reassignment_between_read_and_commit ... ok
+test corrupt_bytes_on_read_count_as_missing ... ok
+test duplicate_and_reordered_retries ... ok
+test unknown_commit_result_on_every_transaction ... ok
+test concurrent_writers_multi_threaded ... ok
+test paginated_scan_across_concurrent_publications ... ok
+test crash_between_payload_and_metadata_then_restart ... ok
+test crash_during_checkpoint_then_retry ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.82s
+
+     Running tests/property.rs (target/debug/deps/property-fa9e5090d37057ce)
+
+running 1 test
+test random_interleavings_keep_store_invariants has been running for over 60 seconds
+test random_interleavings_keep_store_invariants ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.17s
+

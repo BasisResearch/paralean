@@ -1,0 +1,65 @@
+[16:59:30] phase=stress scope=fdb fdb=6 garage=1 workers=1 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/scripts/../../../results/p2/faults-w2-chaos/fdb/stress/20261020T165930Z-3891893
+[16:59:30] writes ok and fault tolerance >= 2 after 0 s
+[16:59:35] garage nodes up: 1 of 1
+[16:59:45] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[16:59:56] writes ok and fault tolerance >= 2 after 0 s
+[16:59:56] FAULT pause fdbserver-2 (SIGSTOP)
+STOP fdbserver-2
+CONT fdbserver-2
+[17:00:11] writes ok and fault tolerance >= 2 after 0 s
+[17:00:11] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[17:00:27] writes ok and fault tolerance >= 2 after 1 s
+[17:00:27] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+KILL fdbserver-0
+KILL fdbserver-4
+started fdbserver-0 (127.0.0.1:29400)
+started fdbserver-4 (127.0.0.1:29404)
+[17:01:12] writes ok and fault tolerance >= 2 after 30 s
+[17:01:12] FAULT pause fdbserver-1 and partition fdbserver-5
+STOP fdbserver-1
+isolated fdbservers: 5
+CONT fdbserver-1
+healed
+[17:01:28] writes ok and fault tolerance >= 2 after 0 s
+[17:01:28] FAULT partition fdbservers 2 and 3 together (a minority side)
+isolated fdbservers: 2 3
+healed
+[17:02:02] writes ok and fault tolerance >= 2 after 19 s
+[17:02:02] FAULT kill and wipe fdbserver-2 (disk loss)
+KILL fdbserver-2
+wiped fdbserver-2 data
+started fdbserver-2 (127.0.0.1:29402)
+[17:03:38] writes ok and fault tolerance >= 2 after 91 s
+[17:03:38] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29403)
+started fdbserver-5 (127.0.0.1:29405)
+[17:05:24] writes ok and fault tolerance >= 2 after 100 s
+[17:05:24] faults done; stopping workers
+[17:05:25] acknowledged effects logged: 2285
+acknowledged effects present: {"assign": 229, "group": 825, "rank": 542, "record": 526, "tombstone": 163}; lost: 0
+certified groups   825
+committed records  526
+foreign catalogues 0
+markers            825
+object certs       2390
+received evidence  0
+records            526
+targets            3
+tombstones         163
+uncertified markers 0
+audit ok
+probe: 353 probes, 334 ok (94.6%), longest failed run 7 probes; latency ok p50 75 ms, max 2337 ms
+  unavailable from 17:00:01 for about 11 s (sampled until next success)
+  unavailable from 17:00:18 for about 8 s (sampled until next success)
+  unavailable from 17:00:33 for about 38 s (sampled until next success)
+  unavailable from 17:01:18 for about 10 s (sampled until next success)
+  unavailable from 17:01:34 for about 28 s (sampled until next success)
+[17:07:35] phase stress: PASS

@@ -14,8 +14,8 @@
 # appropriately shaped instances. Logs are kept in results/p2/robustness-<instance>/.
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-[[ "${PARALEAN_INSTANCE:-}" =~ ^mp2-[A-Za-z0-9_-]+$ ]] || {
-  echo 'requires PARALEAN_INSTANCE matching ^mp2-[A-Za-z0-9_-]+$' >&2; exit 2;
+[[ "${PARALEAN_INSTANCE:-}" =~ ^mp2-[A-Za-z0-9_-]+$ || "${PARALEAN_INSTANCE:-}" = w2-chaos ]] || {
+  echo 'requires a private mp2-* or w2-chaos PARALEAN_INSTANCE' >&2; exit 2;
 }
 . "$here/env.sh"
 H="$PARALEAN_HOME"
@@ -337,7 +337,7 @@ segv)
   completed=0
   for attempt in $(seq 1 "${SEGV_MAX_STARTS:-30}"); do
     [ "$completed" -lt "${SEGV_ATTEMPTS:-10}" ] || break
-    before_acks=$(wc -l < "$out/acks.log" 2>/dev/null || echo 0)
+    if [ -f "$out/acks.log" ]; then before_acks=$(wc -l < "$out/acks.log"); else before_acks=0; fi
     seed=$((10#$segv_seed_base + attempt - 1))
     log "double disk-loss attempt $attempt: GDB stress worker=$segv_worker seed=$seed starts"
     gdb --batch -q -ex 'set pagination off' -ex 'set disable-randomization off' \

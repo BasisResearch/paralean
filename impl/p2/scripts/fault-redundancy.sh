@@ -232,7 +232,10 @@ stress)
   finish || rc=1
   ;;
 fixtures)
-  ( i=0
+  chaos_seed="${CHAOS_SEED:-$(od -An -N2 -tu2 /dev/urandom | tr -d ' ')}"
+  [[ "$chaos_seed" =~ ^[0-9]+$ ]] || { echo 'CHAOS_SEED must be a decimal integer' >&2; exit 2; }
+  log "fixture chaos seed=$chaos_seed"
+  ( RANDOM="$chaos_seed"; i=0
     while [ ! -f "$out/stop" ]; do
       if [ "$scope" = garage ]; then
         mode=5
