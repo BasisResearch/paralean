@@ -56,8 +56,9 @@ the cursor advances only across completely enumerated events.
 Each configured peer has a periodic client task (default interval 5 s with jitter,
 one immediate round on startup, bounded retry backoff). One direction is a pull
 from a peer's server; each side schedules its own pull. A supervisor keeps one
-active pull per peer. Transport must authenticate peer deployment identity and
-limit request size, frame size, concurrent fetches and timeouts. The existing CLI
+active pull per peer. The signed TCP framing layer authenticates peer deployment
+identity against the pinned transport public key, and limits frame size,
+concurrent fetches and timeouts. The existing CLI
 `sync` may use the same protocol for a forced round. The service runs independently
 of controller and validator processes, with a dedicated sync writer whose key is
 trusted by participants. It must avoid storing peer Garage/FDB credentials and
@@ -87,13 +88,120 @@ pending and reports the exact `(source, kind, ID)`. A missing object at the
 receiver is repaired by a later ID fetch, even if the publication is already
 `Present`; periodic object scrubbing is separate from change stream replay.
 
-Publication bundles include **all** relevant verified certificates: this
-deployment's own `cert/` or `tcert/` plus original certificates retained in
-`xcert/`. An `xcert` is forwarded byte-for-byte with its original signer,
+### Store API and wire metadata contract
+
+The store exposes transport-independent, PCE-encoded types. All wire types have
+a leading `uvarint format = 0`; enum tags are one byte, IDs are PCE `bytes[32]`,
+and cursors are opaque bytes returned by the source. The transport authenticates
+the peer and carries these bytes without rewriting them.
+
+```
+AeKind = GroupVariant(groupID, markerID) | Tombstone(tombstoneID)
+       | Catalogue(sourceDeployment, recordID)
+       | Evidence(kind, objectID, certificateID)
+AeEvent = { key: bytes, kind: AeKind }       // key is commit-versionstamp order
+AePage = { generation: Id, events: list AeEvent,
+           next: option bytes, more: bool }
+
+AePart = MetaFragment(metaKind, id, offset, totalLength, bytes)
+       | ObjectRef(s3Kind, id, storedPreimageLength)
+       | CertificateFragment(certKind, id, offset, totalLength, bytes)
+AeBundlePage = { eventKey: bytes, afterPart: option uvarint,
+                 parts: list (sequence:uvarint, AePart),
+                 nextPart: option uvarint, complete: bool }
+
+AePending = { sourceDeployment, generation, event: AeEvent,
+              nextPart: option uvarint, missingCount: uvarint,
+              state: Collecting | Deferred(reason) | Terminal(reason) }
+AeProgress = { generation, cursor: option bytes }
+AePendingPage = { entries: list AePending, next: option bytes, more: bool }
+AeObjectPage = { refs: list (s3Kind, id, storedPreimageLength),
+                 next: option bytes, more: bool }
+```
+
+`GroupVariant` materializes exactly one marker, its revision bytes, receipt,
+signed job envelope, source publisher certificate, and S3 references for its
+group, capsules, staged marker and chunks. Later certificates are separate
+`Evidence` events, each pointing to exactly one immutable certificate;
+materialization never gathers every certificate of a group. `Tombstone` does
+the analogous work with its source publisher certificate. `Catalogue` includes
+one signed record and source commit certificate; each additional object
+certificate is an `Evidence` event. This event granularity ensures that an
+evidence change for an already present item is delivered once without
+re-exporting its whole publication. The part stream is deterministic for a
+given event key; newly added evidence creates a new event, not new parts on an
+old event. Fragment bytes are capped at 64 KiB, so oversized marker, receipt,
+job or certificate metadata can be paged without a single unbounded frame.
+Object bytes are fetched separately by `(kind, ID)` and have a 64 MiB cap.
+
+The Rust API boundary for the service is:
+
+```
+Store::ae_identity() -> Result<AeIdentity>       // own deployment, replica, config digest
+Store::ae_page(after, max_items, max_bytes) -> Result<AePage>
+Store::ae_materialize(event, after_part, max_bytes) -> Result<AeBundlePage>
+Store::ae_progress(source) -> Result<AeProgress>
+Store::ae_pending_page(source, after, max_items) -> Result<AePendingPage>
+Store::ae_missing_objects(source, event_key, after, max_items) -> Result<AeObjectPage>
+Store::ae_save_progress(source, generation, cursor,
+                        pending_upserts, pending_deletes, part_upserts) -> Result<()>
+Writer::ae_import_staged(source, event) -> Result<Outcome>
+```
+
+`ae_page` bounds **encoded descriptors**, not materialized payloads; clamp
+`max_items` and `max_bytes` server-side. Its `after` is exclusive, `next` is
+the last returned key (or the input cursor for an empty page), and `more`
+reflects the range's `more()` at the same FDB read version. A later commit has
+a greater versionstamp, so another page will see it even if `more` was false.
+`ae_pending_page` is likewise bounded and uses its own exclusive key cursor;
+startup replay never loads the whole deferred queue at once.
+`ae_missing_objects` pages the staged `ObjectRef` parts and returns only refs
+whose local S3 GET is absent or corrupt. Its `after` is exclusive over the
+stable part key. The client fetches these refs by ID from the peer, verifies
+the stored preimage length and SHA-256, and obtains local S3 acknowledgements
+before `ae_import_staged`. The import repeats the acknowledgement check, so a
+concurrent loss yields `Deferred` without a metadata write. The structured
+missing-object page is the scheduler's recovery path; it need not parse the
+free-text `Outcome::Deferred(String)` reason.
+`ae_materialize` caps the encoded part page and advances by stable sequence
+number; a part never changes under the same event key. If a single metadata
+object exceeds the store's object-size limit, report an explicit terminal
+diagnostic. The receiver stores fragments under
+`aepart/<source>/<event-key>/<sequence>` with an idempotent compare; it can
+resume collection after a crash. `ae_save_progress` commits cursor advancement,
+pending state and received fragments atomically for each bounded page. A fully
+collected event calls `ae_import_staged`, which validates all assembled
+metadata and locally acknowledged S3 refs; the following progress transaction
+deletes its pending fragments. An import committed before that cleanup is
+replayed idempotently. Root's scheduler owns signed TCP framing and retry policy; these
+functions own FDB consistency and the receive guards.
+
+`Hello` compares the authenticated deployment identity, pinned transport
+public key and config digest with `ae_identity()` on **both** peers. It refuses
+any unconfigured peer in federated mode. The response generation is a
+persisted source UUID/ID, not a process-start nonce. V1 network service starts
+only on a new deployment that pinned federation config before its first
+publication, so every transferable write has an `aelog` event. An existing
+local deployment with publications cannot enable this service; moving it into
+a federation needs a separately designed write barrier, state validation and
+backfill migration. V1 performs no hidden full scan. A changed generation
+without a verified bootstrap resets no cursor silently.
+
+The **union of publication and `Evidence` events** carries every relevant
+verified certificate. A publication event carries only its initial publisher
+certificate; each later local or foreign certificate has one immutable
+`Evidence` event. A `GroupVariant` event carries that variant's receipt and
+the signed job envelope it answers; without the job, the full P3 binding
+cannot be checked. Each evidence certificate is forwarded byte-for-byte with
+its original signer,
 replica and object binding; relay identity is transport metadata, never a
 replacement signer. The receiver re-verifies every signature, maps writer and
 replica to a configured origin deployment, and stores each distinct certificate
-under its original provenance key. A certificate from a relay is insufficient
+under its original provenance key. Use `xcertv/<kind>/<object>/<certID>` for
+new evidence: the existing `xcert/<kind>/<object>/<replica>/<writer>` cannot
+hold two certificates by one writer for different marker IDs. Read old
+`xcert/` entries for compatibility, then deduplicate by certificate ID. A
+certificate from a relay is insufficient
 as proof of the origin when an origin constraint applies. For a tombstone,
 T10's author check selects a verified **original publisher** certificate whose
 writer is the target revision's author workspace; a relay's local receiver
@@ -196,7 +304,10 @@ become local certificate keys.
 
 Federated mode uses a pinned, identical `FederationConfig`: a total mapping
 `home(target name) -> deployment`, an immutable config digest, trusted deployment
-identity and writer-to-deployment binding. The deployment must be identified by
+identity, one Ed25519 transport public key per deployment, and
+writer-to-deployment binding. The signed TCP handshake proves possession of the
+matching private key over fresh nonces, deployment identities and the config
+digest in both directions. The deployment must be identified by
 authenticated peer credentials and trusted writer membership; a certificate's
 `replica` field alone is an assertion by its signer. A target can be assigned,
 prepared, published and reassigned only at its home, where one linearizable
@@ -249,15 +360,47 @@ writer ID on both sides; it remains a non-federated local test, not evidence of
 home authentication. New federation tests use distinct writer identities (or
 an explicit unambiguous writer-to-source binding) across deployments.
 
-One immutable `marker/<group>` key fixes one position per group in Workspaces'
-`Layout`. If two deployments validly publish the same group with different
-marker IDs, T9 cannot replace either without violating that model. Report
-`MarkerConflict {group, local marker, remote marker, source}` and retain the
-remote signed bundle for diagnosis; cursor processing may record this as terminal
-until an explicit resolution protocol exists. Multiple marker positions or a
-tie-break would be a new layout model and storage schema, so neither is inferred
-from ordinary name conflict rules. A same-name conflict between **different**
-non-target groups remains convergent under the existing deterministic render.
+Workspaces' `Layout` fixes one position and one carried record per group. It
+does **not** require that the group have only one valid validator receipt;
+PublicationReceipts needs an intact verified receipt for the group, and the
+abstract AckCertificates relation certifies the group. P2's physical
+certificate additionally binds a marker ID. Two markers for the same group
+can therefore converge when their **only** difference is `receiptID`, provided
+both receipts pass the full P3 bound check against their own signed job,
+target epochs, pins and accepted verdict. Require byte equality for
+`filePath`, `anchor`, `lamport`, `author`, `rootPath`, `lineageKeys`, and the
+entire sorted revision-ID set; verify the revision bytes agree as well. These
+are the fields that determine Workspaces' placement, carried ancestry,
+names and dependency view. A receipt-only variant changes no modelled view.
+
+Keep the original `marker/<group>` and `cert/<group>/<writer>` keys immutable.
+Store additional valid markers under `mvariant/<group>/<markerID>` and local
+certificates under `vcer/<group>/<markerID>/<writer>`; keep the original
+publisher certificates byte-for-byte as foreign evidence under `xcertv/`.
+Discovery and audit enumerate the legacy marker plus variants, verify each
+variant's staged S3 copy and at least one matching local certificate, and
+select the **lowest marker ID** among eligible receipt-only variants. The
+selection is a deterministic physical representation of the same abstract
+group, not a new Workspaces position rule. `Store::marker`, rendered files and
+network export use the selected variant; export also carries the other valid
+variants and their certificates so a later peer can make the same selection.
+The receiver certifies each newly admitted variant locally in the transaction
+that stores it. A variant already stored can acquire more valid foreign
+evidence without replacing its local certificate or emitting repeated events.
+Old certificates remain valid for their original variant; no key is rewritten
+or cleared. This is necessary because simply replacing `marker/<group>` would
+make old certificate signatures refer to a nonexistent current marker and
+break the current audit's `cert_sound` check.
+
+If any placement or carried revision field differs, return
+`MarkerConflict {group, local marker, remote marker, differing_fields}` and
+retain the remote signed bundle for diagnosis. A different revision set can
+change Groups' registry meaning; different file, anchor or carried keys can
+change Workspaces' render. Neither can be merged under the current models.
+The P2 import path must not use `Receipt::admits` alone for this decision: P3's
+`receipt::check` also binds the signed job, policy, checker, target names and
+epochs. A same-name conflict between **different** non-target groups still
+converges under the existing deterministic render.
 
 ## Relay verification cases
 
@@ -278,12 +421,19 @@ non-target groups remains convergent under the existing deterministic render.
   log counts stop changing. Deliver an additional valid original certificate
   for a group already present at B: B stores and forwards that evidence exactly
   once; a crash before cursor advancement replays without duplicates.
+- A and B publish the same group with identical placement and revisions but
+  different valid receipt/job pairs. After exchange both retain both marker
+  variants, the original and local certificates verify, the lower marker ID is
+  selected at both, and audit is clean. A receive with one changed anchor or
+  revision ID reports the exact differing field and does not alter selection.
 
 ## Exact `store.md` delta to apply after integration
 
 1. In **Layout**, add `aelog/<versionstamp>/<operation>`,
    `aecursor/<source>/<generation>`, `aepending/<source>/<event>`, and
-   `gchunks/<group>`. Add source-qualified `xcatalog/`, `xrcert/`, `xocert/`
+   `gchunks/<group>`. Add `mvariant/<group>/<marker>` and
+   `vcer/<group>/<marker>/<writer>` and certificate-ID-keyed `xcertv/`, plus
+   source-qualified `xcatalog/`, `xrcert/`, `xocert/`
    namespaces. State that foreign certificates are evidence and cannot satisfy
    a local quorum. Document the persisted federation config digest, source
    identity, original writer-to-deployment/replica binding, the new-only config
@@ -305,5 +455,7 @@ non-target groups remains convergent under the existing deterministic render.
    source-qualified and cannot be a local fenced commit. Preserve FDB's
    `more()` rule. State the old opaque group limitation explicitly.
 5. In **What the refinement does not cover**, record cross-deployment target
-   homing and immutable marker conflict handling. Link the new TLA target-home
+   homing and the precise placement/revision conflicts that the current
+   Workspaces and Groups models cannot merge. Explain why receipt-only marker
+   variants refine one group and are selected deterministically. Link the new TLA target-home
    model and its mutation case once they pass.
