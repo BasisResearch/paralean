@@ -37,6 +37,13 @@
       "log": "results/w2/p1-security-mutation-logs/cached_job_id.log"
     },
     {
+      "name": "cached_receipt_signature",
+      "assertion": "weak-key cached receipt: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/cached_receipt_signature.log"
+    },
+    {
       "name": "ed25519_small_order",
       "assertion": "weak-key signature accepted",
       "exit_code": 1,

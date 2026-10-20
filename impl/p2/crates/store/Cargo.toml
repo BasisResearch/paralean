@@ -18,6 +18,7 @@ sha2 = "0.10"
 base64 = "0.22"
 hex = "0.4"
 ed25519-dalek = { version = "2", features = ["rand_core"] }
+paralean-crypto = { path = "../crypto" }
 rand = "0.8"
 thiserror = "2"
 futures = "0.3"
@@ -55,7 +56,11 @@ mutate-receive-overwrite-marker = []
 mutate-receive-no-payload-ack = []
 # Receipt binding across deployments (merge of p2-rest with p3-control).
 mutate-receive-no-receipt-check = []
+mutate-public-key-file = []
 mutate-weak-signature = []
+mutate-key-debug = []
+mutate-unbounded-pce = []
+mutate-unbounded-s3-read = []
 
 [dev-dependencies]
 proptest = "1"

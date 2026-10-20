@@ -1,12 +1,12 @@
 uncaught exception: issuer target job: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpo8agd93r', '461841576d5e15c460ad38b3359edcffeb481d5f9f854e88fa6cc66191ba5bfd', '84da338a1d6d60d53adbc9cc5ebe281ce7f307fc22a2f6a4d8bde0ea4a6945de', '394af0ead523ad1eceac3bd9e5103a14e64f35d2a07694be7a66a10dd1692ff2', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '8a287c2892a61fd5e45d3c2f9592ab5c719c66e457625575381ea48b5dc78537', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmph1d_h517', '4889074d7be64eeb32f4b0fd4a5073570a6f8e9734841748ef74d62d77dc0d3a', '055973856fe8b987176f7458869a50605dadae4e4d2f13d2adb2272a4fb56617', '76acca769c1dc79bd6a35e0cafcb70db78ade2ef50d470a9ef9246e9c1552f77', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '261de0a679de128a2b0332bb4f09b75d90da32c08deaa5c5a27b70a6baac6966', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

@@ -47,7 +47,7 @@ pub fn verify(public: &[u8; 32], id: &Id, sig: &[u8]) -> bool {
     if cfg!(feature = "mutate-weak-signature") {
         ed25519_dalek::Verifier::verify(&vk, &id.0, &Signature::from_bytes(&sig)).is_ok()
     } else {
-        vk.verify_strict(&id.0, &Signature::from_bytes(&sig)).is_ok()
+        paralean_crypto::verify(public, &id.0, &sig)
     }
 }
 

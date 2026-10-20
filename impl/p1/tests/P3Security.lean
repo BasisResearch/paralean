@@ -1,6 +1,6 @@
 import Paralean.P3
 
-open Paralean Paralean.P3 System
+open Lean Paralean Paralean.P3 System
 
 def expectError (result : Except String α) (label : String) : IO Unit :=
   if result.isOk then throw <| IO.userError s!"{label}: accepted invalid input" else pure ()
@@ -10,9 +10,15 @@ def expectOk (result : Except String α) (label : String) : IO α :=
   | .ok x => pure x
   | .error e => throw <| IO.userError s!"{label}: {e}"
 
+def hexBytes (hex : String) : IO ByteArray :=
+  match Ed25519.hexToBytes hex with
+  | some bytes => pure bytes
+  | none => throw <| IO.userError "invalid test vector hex"
+
 def main (args : List String) : IO UInt32 := do
-  let [rootArg, authorityKey, issuer, validator, group, capsule, receiptId, jobId] := args
-    | throw <| IO.userError "usage: P3Security ROOT AUTH ISSUER VALIDATOR GROUP CAPSULE RECEIPT JOB"
+  let [rootArg, authorityKey, issuer, validator, group, capsule, receiptId, jobId,
+       weakReceiptId, vectorPath] := args
+    | throw <| IO.userError "usage: P3Security ROOT AUTH ISSUER VALIDATOR GROUP CAPSULE RECEIPT JOB WEAK_RECEIPT VECTORS"
   let identity := ByteArray.mk (#[1] ++ Array.replicate 31 0)
   let identitySig := identity ++ ByteArray.mk (Array.replicate 32 0)
   let orderTwo := ByteArray.mk (#[0xfe] ++ Array.replicate 30 0xff ++ #[0x7f])
@@ -40,5 +46,24 @@ def main (args : List String) : IO UInt32 := do
   IO.FS.writeBinFile (root / "p3" / "jobs" / s!"{jobId}.bin")
     (← IO.FS.readBinFile (root / "replacement-job.bin"))
   expectError (← checkReceipt root m) "replaced cached job"
+  IO.FS.writeBinFile (root / "p3" / "jobs" / s!"{jobId}.bin")
+    (← IO.FS.readBinFile (root / "authority-job.bin"))
+  let weakMarker := { m with receipt := weakReceiptId }
+  expectError (← checkReceipt root weakMarker) "weak-key cached receipt"
+  let vectorJson ← expectOk (Json.parse (← IO.FS.readFile vectorPath)) "vector JSON"
+  let rows : Array Json ← expectOk (vectorJson.getObjValAs? (Array Json) "vectors") "vectors"
+  for row in rows do
+    let label : String ← expectOk (row.getObjValAs? String "case") "vector case"
+    let message ← hexBytes (← expectOk (row.getObjValAs? String "message_hex") label)
+    let publicKeyHex : String ← expectOk (row.getObjValAs? String "public_key_hex") label
+    let publicKey ← hexBytes publicKeyHex
+    let signature ← hexBytes (← expectOk (row.getObjValAs? String "signature_hex") label)
+    let expected : Bool ← expectOk (row.getObjValAs? Bool "expect") label
+    unless Ed25519.verify publicKey message signature == expected do
+      throw <| IO.userError s!"vector {label}: Lean Ed25519 result differs"
+    let vectorTrust := { t with validators := #[publicKeyHex] }
+    let vectorReceipt := { receipt with id := message, key := publicKey, sig := signature }
+    unless (vectorTrust.admits vectorReceipt job group capsule).isOk == expected do
+      throw <| IO.userError s!"vector {label}: P3 admission result differs"
   IO.println "P3 security checks passed"
   return 0

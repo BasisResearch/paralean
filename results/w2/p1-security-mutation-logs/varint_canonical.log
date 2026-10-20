@@ -1,12 +1,12 @@
 uncaught exception: nonminimal varint: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 103, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 99, in main
+  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpvnbf98ic', '97ae239fadd42c8d1fee8eb9928cb035b21f5dba0df517b29a9b0b3a4f93468d', '16e13b418671bdf250eb825b8d6c3afafa558ad327918e4160797a23194e10f9', '20c86cfb0b0fc80d3fbf21882f170127f4ea55156305a49910a983d024b9c6c2', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '73268aa238f5610278ab35a768a0d844ae2f3c4227f27de2cdf36f9ff219f8d9', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/Users/kirancodes/tmp/tmpu1qlhdfi', '24aa3f54209cd0b0dfdd2b57e1c9e1260dd75ed9f142800bcdaaa79eeaa3c137', '0df26a261a938214dc8052c379fa88151cb62ec3ec7b8b1623e0bcb3a838c04c', '91450cbe7ec2b34151450ccb0f7c2cefca1d8968b04e6e87f04e1209d83ef1ca', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'cc393e04d7f6428185602251a3bc30af5cab9c0e4eea7295ee4fd172d3ef9ccc', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

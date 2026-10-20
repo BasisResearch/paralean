@@ -180,11 +180,11 @@ impl Frame {
             ));
         }
         let verified = if cfg!(feature = "mutate-weak-signature") {
-            ed25519_dalek::Verifier::verify(&peer.verifying_key, &self.signed_header, &self.signature)
+            ed25519_dalek::Verifier::verify(&peer.verifying_key, &self.signed_header, &self.signature).is_ok()
         } else {
-            peer.verifying_key.verify_strict(&self.signed_header, &self.signature)
+            paralean_crypto::verify(&peer.verifying_key.to_bytes(), &self.signed_header, &self.signature.to_bytes())
         };
-        verified.map_err(|_| WireError::Authentication("signature"))?;
+        if !verified { return Err(WireError::Authentication("signature")); }
         Ok(())
     }
 
@@ -483,8 +483,26 @@ where
 }
 
 #[cfg(test)]
+#[path = "../../../../../verification/fixtures/ed25519_cases.rs"]
+mod strict_vectors;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn transport_strict_signature_vectors() {
+        let source = identity("peer", 1);
+        let frame = Frame::new(REQUEST, &source, "local", [9; 32], [0; 32], Payload::default()).unwrap();
+        for case in strict_vectors::cases(source.signing_key.verifying_key().to_bytes(), frame.signature.to_bytes()) {
+            let mut f = Frame::new(REQUEST, &source, "local", [9; 32], [0; 32], Payload::default()).unwrap();
+            f.signature = Signature::from_bytes(&case.signature);
+            let accepted = VerifyingKey::from_bytes(&case.public).is_ok_and(|verifying_key| {
+                f.verify_header(&Peer { deployment: "peer".into(), verifying_key }, "local", REQUEST).is_ok()
+            });
+            assert_eq!(accepted, case.expected, "{}", case.name);
+        }
+    }
 
     #[test]
     fn weak_pinned_peer_key_is_rejected() {

@@ -65,24 +65,33 @@ def fixture(directory):
 
     good, receipt_id = receipt(target)
     wrong, _ = receipt(other_target)
+    weak_body = (uv(0) + blob(group) + blob(base) + blob(bytes([1]) + bytes(31)) +
+                 blob(checker) + blob(policy) + b"\1" + blob(job_id) +
+                 b"\1" + blob(target) + b"\0" + uv(0))
+    weak_pre = b"paralean\0v0/receipt\0" + weak_body
+    weak_id = hashlib.sha256(weak_pre).digest()
+    weak = blob(weak_pre) + blob(bytes([1]) + bytes(63))
     (directory / "authority-job.bin").write_bytes(authority_job)
     (directory / "issuer-job.bin").write_bytes(issuer_job)
     (directory / "replacement-job.bin").write_bytes(replacement_job)
     (directory / "receipt.bin").write_bytes(good)
     (directory / "wrong-target.bin").write_bytes(wrong)
+    (directory / "weak-receipt.bin").write_bytes(weak)
     jobs = directory / "p3" / "jobs"
     receipts = directory / "p3" / "receipts"
     jobs.mkdir(parents=True)
     receipts.mkdir(parents=True)
     (jobs / (job_id.hex() + ".bin")).write_bytes(authority_job)
     (receipts / (receipt_id.hex() + ".bin")).write_bytes(good)
-    trust = {"validators": [pub(validator).hex()], "authority": pub(auth).hex(),
+    (receipts / (weak_id.hex() + ".bin")).write_bytes(weak)
+    trust = {"validators": [pub(validator).hex(), (bytes([1]) + bytes(31)).hex()], "authority": pub(auth).hex(),
              "jobIssuers": [["w0", pub(issuer).hex()]], "policies": [policy.hex()],
              "checkers": [checker.hex()], "base": base.hex(), "allowedAxioms": [],
              "agents": [["w0", worker.hex()]]}
     (directory / "trust.json").write_text(json.dumps(trust))
+    vectors = ROOT.parents[1] / "verification" / "fixtures" / "ed25519-strict-vectors.json"
     return [str(directory), pub(auth).hex(), pub(issuer).hex(), pub(validator).hex(),
-            group.hex(), capsule.hex(), receipt_id.hex(), job_id.hex()]
+            group.hex(), capsule.hex(), receipt_id.hex(), job_id.hex(), weak_id.hex(), str(vectors)]
 
 
 def main():
