@@ -169,7 +169,8 @@ async fn run(args: Vec<String>) -> R<()> {
                 max_running: num(&f, "max-running", 2)? as usize,
                 max_queued: num(&f, "max-queued", 16)? as usize,
                 workdir: PathBuf::from(f.get("workdir").cloned().unwrap_or_else(|| {
-                    std::env::var("TMPDIR").unwrap_or("/tmp".into()) + "/paralean-validator"
+                    // Per user; `prepare_workdir` refuses one that is not ours or not private.
+                    format!("{}/paralean-validator-{}", std::env::var("TMPDIR").unwrap_or("/tmp".into()), unsafe { libc::geteuid() })
                 })),
             })?;
             let l = tokio::net::TcpListener::bind(f.get("listen").ok_or("--listen ADDR")?).await.map_err(|e| e.to_string())?;

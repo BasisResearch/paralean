@@ -43,6 +43,8 @@ cases=(
   "mutate-unchecked-gid|adversarial|hostile_capsule_gid_is_refused_before_any_write"
   "paralean-store/mutate-unscoped-job-keys|control|request_ids_are_scoped_per_workspace"
   "mutate-unscoped-validator-slots|control|validator_slots_are_scoped_by_issuer_and_workspace"
+  "mutate-attached-validation|control|dropped_validation_still_finishes_and_releases_its_resources"
+  "mutate-validator-checks-issuer-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
 )
 fail=0
 for c in "${cases[@]}"; do

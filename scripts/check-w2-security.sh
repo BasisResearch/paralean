@@ -27,6 +27,7 @@ cases=(
  "paralean-control|mutate-no-rpc-deadline|server::tests::incomplete_frames_expire_and_release_admission|--lib"
  "paralean-validator-api|mutate-oversized-frame|rpc::tests::oversized_frame_is_rejected_without_waiting_for_body|--lib"
  "paralean-control|mutate-unchecked-gid|p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store|--lib"
+ "paralean-control|mutate-shared-workdir|validator::completed_tests::validator_workdir_must_be_private_and_ours|--lib"
  "s3-guard|mutate-allow-delete|tests::encoded_and_unknown_mutations_are_denied|"
  "s3-guard|mutate-unbounded-body|tests::streamed_body_limit_is_enforced|"
  "s3-guard|mutate-allow-overwrite|tests::overwrites_copies_and_unaddressed_keys_are_denied|"

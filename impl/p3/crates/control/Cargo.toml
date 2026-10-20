@@ -50,6 +50,9 @@ mutate-unbounded-rpc = []
 mutate-no-rpc-deadline = []
 mutate-unchecked-gid = []
 mutate-unscoped-validator-slots = []
+mutate-attached-validation = []
+mutate-shared-workdir = []
+mutate-validator-checks-issuer-targets = []
 
 [dev-dependencies]
 paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }

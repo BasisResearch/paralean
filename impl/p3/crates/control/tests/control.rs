@@ -295,6 +295,57 @@ async fn request_ids_are_scoped_per_workspace() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn dropped_validation_still_finishes_and_releases_its_resources() {
+    // The RPC server drops a handler future at its execution limit (and a client may go
+    // away). Two checks are dropped: one running, one waiting in the queue. Both still
+    // finish, their receipts land in their slots for a retry, and the queued and running
+    // counts and scratch directories return to nothing.
+    let o = Opts { validators: vec![Mode::Real], validator_max_running: 1, ..Opts::default() };
+    let c = Cluster::start("detached", o).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let g = w.group_declaring(&n("F01.small")).unwrap().clone();
+    w.writer.store.s3.put_opaque(&g.group_object()).await.unwrap();
+    w.writer.store.s3.put_opaque(&g.capsule_object()).await.unwrap();
+    let authority = c.kf.authority_signer().unwrap();
+    let job = |request: &str| paralean_store::receipt::SignedJob::sign(paralean_store::receipt::JobEnvelope {
+        request: request.as_bytes().to_vec(),
+        group: g.decl,
+        capsule: g.capsule_id(),
+        deps: vec![],
+        base: paralean_control::checker::base_id(&c.checker.lean_githash),
+        policy: paralean_store::receipt::Policy::v1().id(),
+        checker: c.validators[0].checker_id(),
+        worker: w.id(),
+        targets: vec![],
+        deadline_ms: 120_000,
+        memory_mb: 0,
+    }, &authority);
+    let v = c.validators[0].clone();
+    let jobs = [job("detached/1"), job("detached/2")];
+    for j in &jobs {
+        assert!(tokio::time::timeout(Duration::from_millis(30), v.validate(j.clone())).await.is_err(), "check finished before the drop");
+    }
+    let t0 = Instant::now();
+    while checks_run(&c) < 2 {
+        assert!(t0.elapsed() < Duration::from_secs(120), "a dropped check did not finish");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    let ValidatorResponse::Status { running, queued, .. } = v.handle(ValidatorRequest::Status).await else { panic!() };
+    assert_eq!((running, queued), (0, 0));
+    for j in &jobs {
+        match v.validate(j.clone()).await {
+            ValidatorResponse::Receipt { receipt } => {
+                assert_eq!(paralean_validator_api::decode_receipt(&receipt).unwrap().body.request, Some(j.id().0.to_vec()));
+            }
+            other => panic!("retry after a dropped check: {other:?}"),
+        }
+    }
+    assert_eq!(checks_run(&c), 2, "a retry checked again instead of taking the finished receipt");
+    let left: Vec<_> = std::fs::read_dir(c.tmp.join("validator-0")).unwrap().collect();
+    assert!(left.is_empty(), "scratch directories left behind: {left:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn validator_slots_are_scoped_by_issuer_and_workspace() {
     // One request ID in envelopes for two workspaces, and from a job issuer and the
     // controller for one workspace: each envelope gets its own receipt.

@@ -69,7 +69,7 @@ pub struct Validator {
 impl Validator {
     pub fn new(cfg: ValidatorConfig) -> Result<Arc<Validator>, String> {
         let checker_id = cfg.checker.version()?.id();
-        std::fs::create_dir_all(&cfg.workdir).map_err(|e| e.to_string())?;
+        prepare_workdir(&cfg.workdir)?;
         Ok(Arc::new(Validator {
             permits: Semaphore::new(cfg.max_running.max(1)),
             cfg,
@@ -125,26 +125,8 @@ impl Validator {
                 if jobs.is_empty() || jobs.len() > 64 {
                     return refused("batch must contain 1 to 64 jobs");
                 }
-                let mut accepted = BTreeMap::new();
-                let mut responses = Vec::with_capacity(jobs.len());
-                for encoded in jobs {
-                    let job = match hex::decode(&encoded).ok().and_then(|b| SignedJob::from_bytes(&b).ok()) {
-                        Some(j) => j,
-                        None => { responses.push(refused("undecodable envelope")); continue; }
-                    };
-                    let response = self.validate_with_dependencies(job.clone(), &accepted).await;
-                    if let ValidatorResponse::Receipt { receipt } = &response {
-                        if let Ok(r) = paralean_validator_api::decode_receipt(receipt) {
-                            if r.body.verdict == Verdict::Accepted {
-                                // Distinct replay capsules can encode the same group.
-                                // Dependencies name the capsule, so retain each receipt.
-                                accepted.insert(job.body.capsule, (r, job));
-                            }
-                        }
-                    }
-                    responses.push(response);
-                }
-                ValidatorResponse::Batch { responses }
+                let me = self.clone();
+                self.detached(async move { me.validate_batch(jobs).await }).await
             }
             ValidatorRequest::Cancel { request, worker } => {
                 let Ok(r) = hex::decode(&request) else { return refused("bad request ID") };
@@ -169,8 +151,46 @@ impl Validator {
     }
 
     /// Check one envelope (deduplicated by request ID).
+    ///
+    /// The check runs in its own task: when the caller's future is dropped (the RPC
+    /// server's execution limit, a client that went away) the check still finishes, its
+    /// result lands in the request's slot for a retry, and its counters and scratch
+    /// directory are released by the check itself.
     pub async fn validate(self: &Arc<Self>, job: SignedJob) -> ValidatorResponse {
-        self.validate_with_dependencies(job, &BTreeMap::new()).await
+        let me = self.clone();
+        self.detached(async move { me.validate_with_dependencies(job, &BTreeMap::new()).await }).await
+    }
+
+    async fn detached<F>(&self, check: F) -> ValidatorResponse
+    where F: std::future::Future<Output = ValidatorResponse> + Send + 'static {
+        if cfg!(feature = "mutate-attached-validation") {
+            return check.await;
+        }
+        tokio::spawn(check).await.unwrap_or_else(|e| inconclusive(&format!("check task failed: {e}")))
+    }
+
+    /// A dependency-ordered batch: earlier accepted receipts may serve later jobs.
+    async fn validate_batch(self: &Arc<Self>, jobs: Vec<String>) -> ValidatorResponse {
+        let mut accepted = BTreeMap::new();
+        let mut responses = Vec::with_capacity(jobs.len());
+        for encoded in jobs {
+            let job = match hex::decode(&encoded).ok().and_then(|b| SignedJob::from_bytes(&b).ok()) {
+                Some(j) => j,
+                None => { responses.push(refused("undecodable envelope")); continue; }
+            };
+            let response = self.validate_with_dependencies(job.clone(), &accepted).await;
+            if let ValidatorResponse::Receipt { receipt } = &response {
+                if let Ok(r) = paralean_validator_api::decode_receipt(receipt) {
+                    if r.body.verdict == Verdict::Accepted {
+                        // Distinct replay capsules can encode the same group.
+                        // Dependencies name the capsule, so retain each receipt.
+                        accepted.insert(job.body.capsule, (r, job));
+                    }
+                }
+            }
+            responses.push(response);
+        }
+        ValidatorResponse::Batch { responses }
     }
 
     async fn validate_with_dependencies(
@@ -183,6 +203,11 @@ impl Validator {
             return refused("envelope is not signed by the controller");
         };
         let j = &job.body;
+        // An issuer-signed envelope that binds targets can never stage (the staging rule and
+        // T1 refuse it), so checking it would only spend this validator's capacity.
+        if !j.targets.is_empty() && issuer != ring.authority && !cfg!(feature = "mutate-validator-checks-issuer-targets") {
+            return refused("a job-issuer envelope cannot bind targets; only the controller's can");
+        }
         if j.checker != self.checker_id {
             return refused(&format!("envelope names checker {}, this validator runs {}", j.checker.short(), self.checker_id.short()));
         }
@@ -240,7 +265,11 @@ impl Validator {
                 Pre::Run(tx, crx) => break (tx, crx),
             }
         };
+        // Should this future be dropped before an answer, the slot goes with it, so the
+        // request ID is not held by a check that no longer runs.
+        let slot = SlotGuard { slots: &self.slots, key: Some(request.clone()) };
         let r = self.process(&job, &policy, cancel_rx, accepted).await;
+        slot.release();
         if !matches!(r, ValidatorResponse::Receipt { .. }) {
             // Only receipts are kept: a retry of anything else checks again.
             self.slots.lock().unwrap().remove(&request);
@@ -268,20 +297,16 @@ impl Validator {
             Ok(true) => return ValidatorResponse::Cancelled,
             Err(e) => return inconclusive(&format!("store: {e}")),
         }
-        self.queued.fetch_add(1, Ordering::SeqCst);
+        // The gauges count down when dropped, also if this future is.
+        let queued = Gauge::up(&self.queued);
         let permit = tokio::select! {
             p = self.permits.acquire() => p,
-            _ = cancel.changed() => {
-                self.queued.fetch_sub(1, Ordering::SeqCst);
-                return ValidatorResponse::Cancelled;
-            }
+            _ = cancel.changed() => return ValidatorResponse::Cancelled,
         };
-        self.queued.fetch_sub(1, Ordering::SeqCst);
+        drop(queued);
         let _permit = permit.expect("semaphore open");
-        self.running.fetch_add(1, Ordering::SeqCst);
-        let r = self.check(job, policy, cancel, accepted).await;
-        self.running.fetch_sub(1, Ordering::SeqCst);
-        r
+        let _running = Gauge::up(&self.running);
+        self.check(job, policy, cancel, accepted).await
     }
 
     /// Fetch the inputs, run the checker and sign.
@@ -303,8 +328,11 @@ impl Validator {
         // A fresh private directory per check (`write_store` refuses an existing one).
         let dir = self.cfg.workdir.join(format!("job-{}-{:016x}", job.id().hex(), rand::random::<u64>()));
         if let Err(e) = p1::write_store(&dir, &groups) {
+            // Never remove a directory this check did not create.
+            if e.kind() != std::io::ErrorKind::AlreadyExists { let _ = std::fs::remove_dir_all(&dir); }
             return inconclusive(&format!("scratch store: {e}"));
         }
+        let scratch = Scratch(dir.clone());
         let gids: Vec<String> = groups.iter().map(|g| g.gid.clone()).collect();
         // Each target must be declared; its statement is compared when the policy says so.
         let targets: Vec<TargetArg> = j
@@ -336,7 +364,7 @@ impl Validator {
         } else {
             checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
         };
-        let _ = std::fs::remove_dir_all(&dir);
+        drop(scratch);
         let o = match out {
             Ok(o) => o,
             Err(NoVerdict::Cancelled) => return ValidatorResponse::Cancelled,
@@ -439,6 +467,72 @@ impl Validator {
     }
 }
 
+/// The validator writes scratch stores outside the checker sandbox under `dir`: it must be
+/// a real directory (not a symlink) owned by this user and closed to everyone else. A
+/// missing one is created 0700; one of ours that is open to others is narrowed to 0700.
+/// One owned by someone else (a planted `/tmp/...`) is refused.
+pub fn prepare_workdir(dir: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+    let shown = dir.display();
+    if !dir.exists() && std::fs::symlink_metadata(dir).is_err() {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir).map_err(|e| format!("validator workdir {shown}: {e}"))?;
+    }
+    if cfg!(feature = "mutate-shared-workdir") {
+        return Ok(());
+    }
+    let m = std::fs::symlink_metadata(dir).map_err(|e| format!("validator workdir {shown}: {e}"))?;
+    if m.file_type().is_symlink() || !m.is_dir() {
+        return Err(format!("validator workdir {shown} is not a directory (a symlink is refused)"));
+    }
+    // SAFETY: geteuid has no preconditions.
+    if m.uid() != unsafe { libc::geteuid() } {
+        return Err(format!("validator workdir {shown} is owned by uid {}, not this user", m.uid()));
+    }
+    if m.mode() & 0o077 != 0 {
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(|e| format!("validator workdir {shown}: {e}"))?;
+    }
+    Ok(())
+}
+
+/// A count held while this value lives (queued or running checks).
+struct Gauge<'a>(&'a AtomicUsize);
+
+impl<'a> Gauge<'a> {
+    fn up(count: &'a AtomicUsize) -> Gauge<'a> {
+        count.fetch_add(1, Ordering::SeqCst);
+        Gauge(count)
+    }
+}
+
+impl Drop for Gauge<'_> {
+    fn drop(&mut self) { self.0.fetch_sub(1, Ordering::SeqCst); }
+}
+
+/// A check's scratch store, removed when the check ends however it ends.
+struct Scratch(PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
+}
+
+/// Removes the slot of a check that stopped before giving an answer.
+struct SlotGuard<'a> {
+    slots: &'a Mutex<HashMap<Vec<u8>, Slot>>,
+    key: Option<Vec<u8>>,
+}
+
+impl SlotGuard<'_> {
+    fn release(mut self) { self.key = None; }
+}
+
+impl Drop for SlotGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(key) = self.key.take() {
+            if let Ok(mut slots) = self.slots.lock() { slots.remove(&key); }
+        }
+    }
+}
+
 /// The deduplication slot of a request: (envelope issuer, requesting workspace, request ID).
 fn slot_key(issuer: &[u8; 32], worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
     if cfg!(feature = "mutate-unscoped-validator-slots") {
@@ -476,6 +570,35 @@ mod completed_tests {
         assert_eq!(order.len(), 256);
         assert!(!slots.contains_key(&0u16.to_be_bytes().to_vec()));
         assert!(slots.contains_key(&299u16.to_be_bytes().to_vec()));
+    }
+
+    #[test]
+    fn validator_workdir_must_be_private_and_ours() {
+        use std::os::unix::fs::PermissionsExt;
+        let base = std::env::temp_dir().join(format!("validator-workdir-test-{}-{}", std::process::id(), rand::random::<u64>()));
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        // Missing: created private.
+        let fresh = base.join("a/b");
+        prepare_workdir(&fresh).unwrap();
+        assert_eq!(mode(&fresh), 0o700);
+        // Ours but open: narrowed.
+        let open = base.join("open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o777)).unwrap();
+        prepare_workdir(&open).unwrap();
+        assert_eq!(mode(&open), 0o700);
+        // A symlink (even to a private directory of ours) and a file are refused.
+        let link = base.join("link");
+        std::os::unix::fs::symlink(&fresh, &link).unwrap();
+        assert!(prepare_workdir(&link).is_err(), "symlinked workdir accepted");
+        let file = base.join("file");
+        std::fs::write(&file, b"").unwrap();
+        assert!(prepare_workdir(&file).is_err(), "file accepted as workdir");
+        // Someone else's directory (root's, unless the tests run as root).
+        if unsafe { libc::geteuid() } != 0 {
+            assert!(prepare_workdir(std::path::Path::new("/")).is_err(), "a directory owned by root accepted");
+        }
+        std::fs::remove_dir_all(&base).unwrap();
     }
 }
 

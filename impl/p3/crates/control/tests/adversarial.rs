@@ -567,16 +567,30 @@ async fn job_issuer_keys_sign_target_free_envelopes_only() {
     let two = w.group_declaring(&n("F01.two_eq")).unwrap().clone();
     upload(&w.writer, &two).await;
     assert!(matches!(ask(SignedJob::sign(env("issuer/two", &two, vec![], vec![]), &other)).await, Err(paralean_validator_api::ValidatorResponse::Refused { .. })));
-    // An issuer-signed envelope binding a target (even at the owner's current epoch):
-    // validators sign it, but no worker stages it and T1 refuses it.
+    // An issuer-signed envelope binding a target (even at the owner's current epoch): the
+    // validator refuses to check it, and a receipt for it (signed by a validator key that
+    // did check it, e.g. an older build) is still refused by the staging rule and by T1.
     let t = n("F01.uses_small");
     let epoch = c.assign(&t.to_string(), w.id()).await;
     let g = w.group_declaring(&t).unwrap().clone();
     upload(&w.writer, &g).await;
     let tb = TargetBinding { name: t.clone(), epoch, statement: hex::decode(g.statement(&t).unwrap()).unwrap() };
     let j = SignedJob::sign(env("issuer/target", &g, vec![small.capsule_id()], vec![tb]), &issuer);
-    let r = ask(j.clone()).await.unwrap();
-    assert_eq!(r.body.verdict, Verdict::Accepted);
+    match ask(j.clone()).await {
+        Err(paralean_validator_api::ValidatorResponse::Refused { reason }) => assert!(reason.contains("issuer"), "{reason}"),
+        other => panic!("issuer-signed target envelope was checked: {other:?}"),
+    }
+    let r = Receipt::sign(ReceiptBody {
+        group: g.decl,
+        base: j.body.base,
+        validator_key: c.vsigners[0].public(),
+        validator_bin: j.body.checker.0.to_vec(),
+        policy: j.body.policy,
+        request: Some(j.id().0.to_vec()),
+        target: paralean_store::receipt::target_slot(&j.body.targets),
+        verdict: Verdict::Accepted,
+        axioms: vec![],
+    }, &c.vsigners[0]);
     let pt = w.writer.prepare_target(&t).await.unwrap();
     refused_both_ways(&w.writer, &w.package(&g, r, j, vec![pt]), |f| *f == GuardFailure::ReceiptBinding(BindingFault::JobNotIssued), "issuer-signed target envelope").await;
     c.audit_ok().await;
