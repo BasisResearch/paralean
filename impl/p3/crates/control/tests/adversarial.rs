@@ -436,6 +436,40 @@ async fn dependency_must_be_published_with_a_receipt() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn published_means_a_certificate_that_verifies() {
+    // A key under `cert/<group>/` is not a certificate: `published_receipt` (and so the
+    // validator's dependency check) needs one that verifies under a ring writer for the
+    // group's marker and this replica, as T1 requires of a dependency.
+    let c = Cluster::start("certified", Opts { validators: vec![Mode::Real], ..Opts::default() }).await;
+    let w = c.worker(0, 8192, &core_store()).await;
+    let small = w.group_declaring(&n("F01.small")).unwrap().clone();
+    let (r, j) = w.validate(&small, "cert/small", &[], 0).await.unwrap();
+    w.writer.publish(&w.package(&small, r, j, vec![])).await.unwrap();
+    published_receipt(&c.store, &small.decl).await.expect("a certified group");
+    let key = c.store.meta.keys.cert(&small.decl, &w.id());
+    let genuine = c.store.meta.get(key.clone()).await.unwrap().expect("the writer's certificate");
+    for forged in [b"not a certificate".to_vec(), {
+        // A well-formed certificate signed by a key that is not the writer's.
+        let mut cert = Cert::from_bytes(&genuine).unwrap();
+        cert.sig = Signer::derive("not-the-writer").sign(&cert.id());
+        cert.to_bytes()
+    }] {
+        c.store.meta.raw_set(key.clone(), forged).await.unwrap();
+        match published_receipt(&c.store, &small.decl).await {
+            Err(PublishedReceiptError::NotPublished) => {}
+            other => panic!("an unverifiable certificate counted as published: {other:?}"),
+        }
+        let g = w.group_declaring(&n("F01.uses_small")).unwrap().clone();
+        match w.validate(&g, &format!("cert/uses/{}", rand::random::<u32>()), &[], 0).await {
+            Err(WorkerError::NoReceipt(ControlResponse::Refused { reason })) => assert!(reason.contains("dependency"), "{reason}"),
+            other => panic!("validated against an uncertified dependency: {other:?}"),
+        }
+    }
+    c.store.meta.raw_set(key, genuine).await.unwrap();
+    published_receipt(&c.store, &small.decl).await.expect("certified again");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn validator_enforces_the_envelope_policy() {
     let o = Opts {
         policy: strict_policy(),

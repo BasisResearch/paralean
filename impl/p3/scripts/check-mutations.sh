@@ -48,6 +48,7 @@ cases=(
   "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
   "mutate-keep-old-snapshot-chunks|durable|superseded_snapshot_chunks_are_cleared_with_the_head_swap"
   "mutate-role-keys-unchecked|processes|processes_refuse_key_files_with_seeds_of_other_roles"
+  "paralean-validator-api/mutate-unverified-published-cert|adversarial|published_means_a_certificate_that_verifies"
 )
 fail=0
 for c in "${cases[@]}"; do

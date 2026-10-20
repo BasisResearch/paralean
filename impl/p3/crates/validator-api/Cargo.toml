@@ -21,3 +21,4 @@ rand = "0.8"
 mutate-oversized-frame = []
 mutate-relaxed-rpc-sig = []
 mutate-unbound-rpc-peer = []
+mutate-unverified-published-cert = []

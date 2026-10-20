@@ -100,10 +100,17 @@ pub enum PublishedReceiptError {
 /// checked against the envelope's own target set: T1 fenced them at publication.
 pub async fn published_receipt(store: &Store, group: &Id) -> Result<(Receipt, SignedJob), PublishedReceiptError> {
     use PublishedReceiptError as E;
-    let (_, marker) = store.marker(group).await.map_err(E::Store)?.ok_or(E::NotPublished)?;
-    // Published means certified (§8.3): a marker key alone is not evidence.
-    let certs = store.meta.scan(&store.meta.keys.certs_of(group), 16, |_| None).await.map_err(E::Store)?;
-    if certs.is_empty() {
+    let (marker_id, marker) = store.marker(group).await.map_err(E::Store)?.ok_or(E::NotPublished)?;
+    // Published means certified (§8.3): a marker key alone is not evidence, and neither is
+    // a key under `cert/<group>/`. As T1 requires of a dependency, one certificate must
+    // verify under its ring writer's key and name this group, this marker and this replica.
+    let certified = if cfg!(feature = "mutate-unverified-published-cert") {
+        !store.meta.scan(&store.meta.keys.certs_of(group), 16, |_| None).await.map_err(E::Store)?.is_empty()
+    } else {
+        store.certs(group).await.map_err(E::Store)?.iter()
+            .any(|c| c.body.group == *group && c.body.marker == marker_id && c.body.replica == store.replica)
+    };
+    if !certified {
         return Err(E::NotPublished);
     }
     let rc = store.receipt(&marker.receipt).await.map_err(E::Store)?.ok_or(E::Missing("receipt"))?;
