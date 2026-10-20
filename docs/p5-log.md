@@ -51,6 +51,14 @@ history-preserving projection branches). P5 was rebased onto it. It changes
 `impl/p4/` and its log only, so the P2/P3 binary interfaces remain at `7df9ace`.
 `m-targets` and `m-p2` were still absent at this integration checkpoint.
 
+Both remaining branches subsequently landed: `m-targets=463e6d8` and
+`m-p2=323bd48`. P5 was rebased onto each, preserving P4's changes. Sequential
+rebases change the copied upstream commit hashes; the original branch hashes
+above identify the patches tested. The P5 adapter was updated for the new
+authenticated validator API, using its authority signer and pinned validator
+public keys. P2/P3 release binaries and the P5 bridge were rebuilt together.
+Warm checking remains disabled; these runs measure the cold checker.
+
 ## Gate and benchmark status
 
 Initial live trial: ten addition lemmas proved by ordinary Claude Code CLI
@@ -79,6 +87,23 @@ are sealed with AES-GCM under a separate deployment recovery secret, rather
 than the workers' S3 credential. Workers do not inherit this recovery secret or
 Garage administration credentials. This does not claim OS isolation between
 mutually hostile processes running under the same Unix account.
+
+Before the final upstream integration, the realistic List gate passed all eight
+checks in `impl/p5/results/pre-integration-gate.json`: ten frozen contracts,
+sixteen actual dependency edges, remote helper projections, task discovery by
+store enumeration, deletion of the entire desktop including TASK.toml, recovery
+preserving acknowledged groups, and stock export. The run took 175.955 s including
+export (166.317 s through target validation). A separate clean build of the
+initial export, with no Paralean environment variables or copied build cache,
+also passed on stock Lean; see `impl/p5/results/isolated-stock.json`.
+
+All seven live adversarial checks passed before integration
+(`impl/p5/results/pre-integration-adversarial.json`): invalid DAG, missing target,
+changed statement, stale epoch, successful retry under a fresh epoch, stale task
+journal writer, and idempotent assignment. This found a P5 bug: capture can return
+an older rejected draft as well as the edited candidate. The adapter now selects
+the candidate whose capsule text matches the current file before asking the
+validator to check it.
 
 ## Proposed sentences for plan.md and README.md
 

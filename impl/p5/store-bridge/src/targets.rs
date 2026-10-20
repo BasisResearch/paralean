@@ -165,7 +165,13 @@ async fn validate_target(args: &[String]) -> R<Value> {
         .await
         .map_err(|e| e.to_string())?;
     let addr = need(args, "--validator")?;
-    let response = validate(addr, &job, Duration::from_secs(1800))
+    let response = validate(
+        addr,
+        &job,
+        &authority,
+        &store.ring.validators,
+        Duration::from_secs(1800),
+    )
         .await
         .map_err(|e| e.to_string())?;
     let receipt = match response {
