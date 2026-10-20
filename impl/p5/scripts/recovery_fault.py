@@ -61,6 +61,8 @@ def main() -> int:
     state["targets"][name].update(status="running", agent="w0", epoch=epoch,
                                   epoch_ready=False, attempts=1,
                                   dispatch_head=before["head"],
+                                  fence_request="planned-fence-before-lost-call",
+                                  fence_expected_epoch=epoch,
                                   fence_expected_head=before["head"])
     backend.save_state(state)  # last P5 acknowledgement before T1
     (workspace / "work/Target.lean").write_text(
@@ -88,6 +90,11 @@ def main() -> int:
     recovered_task = from_saved(recovered.task)
     with patch("p5lib.controller.run_worker", side_effect=AssertionError("new proof forbidden")):
         result = Controller(recovered_task, desktop, recovered, workers=1).run(recover=True, export=True)
+        if result["targets"][name].get("fence_request"):
+            raise AssertionError("adopted publication retained obsolete fence intent")
+        again = Controller(recovered_task, desktop, recovered, workers=1).run(recover=True, export=True)
+        if again["phase"] != "complete":
+            raise AssertionError("completed recovery lost the adopted publication")
     if result["phase"] != "complete" or result["targets"][name]["group"] != group:
         raise AssertionError("store recovery did not adopt original group and complete")
     if result["targets"][name]["attempts"] != 1:
@@ -113,6 +120,8 @@ def main() -> int:
                 "recovered_phase": result["phase"], "attempts": result["targets"][name]["attempts"],
                 "historical_receipt_rejected": not historical["ok"],
                 "stock_export_ok": bool((result.get("export") or {}).get("ok")),
+                "pending_fence_cleared": not result["targets"][name].get("fence_request"),
+                "completed_recovery_ok": again["phase"] == "complete",
                 "fence_retry_epoch": retried["epoch"],
                 "git": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()}
     (run_dir / "recovery-fault.json").write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")

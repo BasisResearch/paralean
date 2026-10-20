@@ -75,7 +75,7 @@ class Controller:
                     stale.append((name, entry["agent"]))
                     entry["status"] = "pending"
                     entry["epoch_ready"] = False
-                elif entry.get("fence_request"):
+                elif entry["status"] != "done" and entry.get("fence_request"):
                     entry["status"] = "pending"
         for agent in self.agents:
             self.backend.provision(agent, self.state_dir / agent)
@@ -110,6 +110,9 @@ class Controller:
         entry["group"] = detail["group"]
         entry["status"] = "done"
         entry["error"] = None
+        entry["epoch_ready"] = False
+        for key in ("fence_request", "fence_expected_epoch", "fence_expected_head"):
+            entry.pop(key, None)
         return True
 
     def _prepare_assignment(self, name: str, entry: dict, agent: str) -> bool:

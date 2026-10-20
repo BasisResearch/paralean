@@ -237,6 +237,28 @@ worktree. Rebuilding the integrated binaries, the live crash-window test and
 the final gate remain pending at this checkpoint; results are recorded below
 only after execution.
 
+The next fetch brought `m-p2=ffbdb6e`, the scheduled authenticated anti-entropy
+implementation rebased onto `cb1ca05`. P5 was rebased onto it as well. Resolution
+preserves its chunk upload and anti-entropy code alongside the target branch's
+T1 dependency checks. The P5 guarded fence now reads P2's pinned federation
+configuration in the same transaction and enforces the target's home.
+Both a local-home fence and foreign-home rejection passed on a fresh deployment
+of P5's own cluster. No peer cluster was started.
+
+At checkpoint `31051a88435c03016a585bed70fa331562769c13`, the integrated P2/P3
+release build, P5 bridge build, all 27 local tests (none skipped), all ten live
+adversarial checks, and the publication-before-journal desktop-loss test passed.
+That fault test adopted the original group with only one proof attempt, built a
+stock export, rejected the old receipt after reassignment and reused a fence
+request without advancing its epoch twice.
+
+A final review added a regression for a publication adopted while an obsolete
+fence request remains in the journal. Adoption now clears that intent, and a
+later recovery preserves the completed task. The live fault fixture exercises
+both recoveries. Worker cleanup also terminates only its own process group on
+launch errors, timeout or parent death; a real Python child test checks that the
+guard does not leave SIGTERM blocked in the CLI.
+
 ## Proposed sentences for plan.md and README.md
 
 These are proposals to update after verification, not edits to those files.

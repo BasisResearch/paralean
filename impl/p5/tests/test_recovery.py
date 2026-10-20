@@ -209,5 +209,30 @@ class RecoveryRegression(unittest.TestCase):
         self.assertEqual(self.backend.epoch, 2)
         self.assertEqual(self.backend.fence_request_ids, [planned, planned])
 
+    def test_published_head_clears_pending_fence_across_completed_recovery(self):
+        controller = Controller(self.task, self.desktop, self.backend, workers=1)
+        state = controller._new_state()
+        state["targets"][NAME].update(
+            status="running", agent="w0", epoch=1, attempts=1,
+            dispatch_head=None, fence_request="durable-fence-intent",
+            fence_expected_epoch=1, fence_expected_head=None)
+        self.backend.saved = copy.deepcopy(state)
+        self.backend.epoch = self.backend.receipt_epoch = 1
+        self.backend.head = GROUP
+        with patch("p5lib.controller.run_worker", side_effect=AssertionError("new proof forbidden")) as worker:
+            first = Controller(self.task, self.desktop, self.backend, workers=1).run(recover=True)
+            second = Controller(self.task, self.desktop, self.backend, workers=1).run(recover=True)
+        self.assertEqual(first["phase"], "complete")
+        self.assertEqual(second["phase"], "complete")
+        self.assertEqual(worker.call_count, 0)
+        self.assertEqual(self.backend.fence_calls, 0)
+        entry = self.backend.saved["targets"][NAME]
+        self.assertEqual(entry["status"], "done")
+        self.assertEqual(entry["group"], GROUP)
+        self.assertFalse(entry["epoch_ready"])
+        self.assertNotIn("fence_request", entry)
+        self.assertNotIn("fence_expected_epoch", entry)
+        self.assertNotIn("fence_expected_head", entry)
+
 
 if __name__ == "__main__": unittest.main()
