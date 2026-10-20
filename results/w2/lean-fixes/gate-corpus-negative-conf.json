@@ -1,0 +1,42 @@
+[
+ {
+  "file": "C1.lean",
+  "line": 1,
+  "gid": "160637c348cea8e6c2b4befbee27a76b771d4d60cb1cda9aae4862f0737d0431",
+  "decl": "94fbecca9da66a5fded1b2ef73d896cb19074de23ffb400524620b54fbe942de",
+  "names": [
+   "Conf.foo"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "C2.lean",
+  "line": 1,
+  "gid": "012303dbda01147431ab8c0e165b6935cafd8c99eca1af75c9bd75b2d80633fa",
+  "decl": "fead8f9a02856beb80883324be18e5fe5f110b1fcacf8b221ee3e78a6e7ca830",
+  "names": [
+   "Conf.foo"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ }
+]

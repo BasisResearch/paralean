@@ -1,0 +1,18 @@
+detected mutate-public-key-file
+detected mutate-weak-signature
+detected mutate-key-debug
+detected mutate-unbounded-pce
+detected mutate-unbounded-s3-read
+detected mutate-unbounded-rpc
+detected mutate-no-rpc-deadline
+detected mutate-oversized-frame
+detected mutate-allow-delete
+detected mutate-unbounded-body
+detected mutate-unchecked-file-path
+detected mutate-unchecked-pid
+detected mutate-unchecked-capsule-id
+detected mutate-unchecked-publish-path
+detected private_backend_mode
+detected private_backend_tcp
+W2 security mutations: 16/16 detected
+exit=0

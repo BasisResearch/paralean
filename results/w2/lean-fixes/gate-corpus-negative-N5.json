@@ -1,0 +1,22 @@
+[
+ {
+  "file": "N5ChangedDep.lean",
+  "line": 2,
+  "gid": "8d2727eacbd0551d0b45f95316552f50223c5a9333511ca4db77c298d21cf773",
+  "decl": "a9d3fa0a60b3817afced8d1341b2bd09cdebcf45440f007af0c860aac9a8485d",
+  "names": [
+   "N5.value"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ }
+]

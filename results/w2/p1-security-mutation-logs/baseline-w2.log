@@ -1,0 +1,7 @@
+Lean security checks passed
+ eval: refused by validator and consumer; sentinel absent
+init: refused by validator and consumer; sentinel absent
+init-touched: refused by validator and consumer; sentinel absent
+skipkernel: refused by validator and consumer; sentinel absent
+benign: consumer loads it
+Lean W2 security checks passed

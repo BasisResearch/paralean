@@ -1,0 +1,29 @@
+G2 commands with public names: 84; exact public-set match 79; mismatch 5; reserved names published 0; groups without public name lacking an anchor 0
+instances: oracle public names spelled inst* 11, public in P1 too 11; anonymous instances named canonically 3 (not public: 0)
+  F08PrivateGenerated L15: canonical instance F08.instFooNat_3b90afc0 (stock F08.instFooNat)
+  F09InstanceOnly L8: canonical instance F09.instInhabitedBoxNat_dcd49358 (stock F09.instInhabitedBoxNat)
+  F10SimpAttrUse L7: oracle-only ['F10.triple_def'] p1-only []
+  F10SimpAttrUse L11: oracle-only ['F10.triple_one'] p1-only []
+  F11ScopedDecl L19: canonical instance F11.instPointedNat_61df497f (stock F11.instPointedNat)
+  F13InitUse L5: oracle-only ['command#f13_check'] p1-only []
+  F13InitUse L13: oracle-only ['F13.flag_scoped'] p1-only []
+  F13InitUse L16: oracle-only ['F13.trace_scoped'] p1-only []
+  F16MathlibAttrs: missing data
+  M01: missing data
+  M02: missing data
+  M03: missing data
+  M04: missing data
+  M05: missing data
+  M06: missing data
+  M07: missing data
+  M08: missing data
+  M09: missing data
+  M10: missing data
+  M11: missing data
+  M12: missing data
+  M13: missing data
+  M14: missing data
+  M15: missing data
+  M16: missing data
+  M17: missing data
+  M18: missing data

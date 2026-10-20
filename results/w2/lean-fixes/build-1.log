@@ -1,0 +1,56 @@
+✖ [11/83] Building Paralean.Safety (633ms)
+trace: .> LEAN_PATH=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/lib/lean /data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/Paralean/Safety.lean -o /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/lib/lean/Paralean/Safety.olean -i /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/lib/lean/Paralean/Safety.ilean -c /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/ir/Paralean/Safety.c --setup /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/ir/Paralean/Safety.setup.json --json
+error: Paralean/Safety.lean:70:5: Invalid field notation: Field projection operates on types of the form `C ...` where C is a constant. The expression
+  m
+has type `Name` which does not have the necessary form.
+error: Paralean/Safety.lean:71:11: Invalid field notation: Field projection operates on types of the form `C ...` where C is a constant. The expression
+  m
+has type `Name` which does not have the necessary form.
+error: Paralean/Safety.lean:73:6: Invalid dotted identifier notation: The expected type of `.str` could not be determined
+
+Hint: Using one of these would be unambiguous:
+  [apply] `Lean.DataValue.str`
+  [apply] `Lean.Json.str`
+  [apply] `Lean.Name.str`
+  [apply] `Lean.NamePart.str`
+  [apply] `String.Slice.str`
+  [apply] `Substring.Raw.str`
+  [apply] `Lean.Doc.ArgValView.str`
+  [apply] `Lean.Doc.DocArg.str`
+  [apply] `Lean.IR.LitVal.str`
+  [apply] `Lean.Json.Parser.str`
+  [apply] `Lean.JsonRpc.RequestID.str`
+  [apply] `Lean.Parser.Term.str`
+  [apply] `String.Slice.Pos.str`
+  [apply] `Lean.Compiler.LCNF.LitValue.str`
+  [apply] `Lean.Doc.Parser.ArgVal.str`
+error: Paralean/Safety.lean:69:16: (kernel) declaration has metavariables 'Paralean.Safety.checkModuleName'
+error: Paralean/Safety.lean:80:57: Invalid field notation: Field projection operates on types of the form `C ...` where C is a constant. The expression
+  Name
+has type `Type` which does not have the necessary form.
+error: Paralean/Safety.lean:80:68: Invalid dotted identifier notation: The expected type of `.anonymous`
+  Name
+is not of the form `C ...` or `... → C ...` where C is a constant
+error: Paralean/Safety.lean:78:4: Failed to find LCNF signature for Paralean.Safety.checkModuleName
+error: Paralean/Safety.lean:87:9: failed to synthesize instance of type class
+  BEq Name
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
+error: Paralean/Safety.lean:87:49: failed to synthesize instance of type class
+  ToString Name
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
+error: Paralean/Safety.lean:85:16: failed to compile definition, consider marking it as 'noncomputable' because it depends on 'moduleOfFile', which is 'noncomputable'
+⚠ [14/83] Built Paralean.Encode (1.8s)
+warning: Paralean/Encode.lean:461:92: `List.asString` has been deprecated: Use `String.ofList` instead
+
+Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.asString` to `String.ofList x`).
+✔ [16/83] Built Paralean.Model (1.2s)
+✔ [28/83] Built Paralean.Render (419ms)
+✔ [43/83] Built Paralean.InstName (978ms)
+✔ [46/83] Built Paralean.Hooks (727ms)
+✔ [82/83] Built Paralean.Encode:c.o (3.6s)
+Some required targets logged failures:
+- Paralean.Safety
+error: build failed
+exit=1

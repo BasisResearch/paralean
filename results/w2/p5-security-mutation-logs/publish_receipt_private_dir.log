@@ -2,7 +2,7 @@
 FAIL: test_target_publication_does_not_follow_worker_symlinks (test_worker_folder_writes.TargetPublicationPathTest.test_target_publication_does_not_follow_worker_symlinks)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_worker_folder_writes.py", line 88, in test_target_publication_does_not_follow_worker_symlinks
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hz42diqn/tests/test_worker_folder_writes.py", line 88, in test_target_publication_does_not_follow_worker_symlinks
     self.assertEqual(self.outside_receipt.read_text(), "outside sentinel")
     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: '{"accepted": true, "ms": 1}' != 'outside sentinel'
@@ -11,6 +11,6 @@ AssertionError: '{"accepted": true, "ms": 1}' != 'outside sentinel'
 
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.004s
+Ran 3 tests in 0.005s
 
 FAILED (failures=1)

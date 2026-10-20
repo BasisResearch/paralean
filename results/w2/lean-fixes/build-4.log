@@ -1,0 +1,24 @@
+⚠ [4/86] Replayed Paralean.Encode
+warning: Paralean/Encode.lean:461:92: `List.asString` has been deprecated: Use `String.ofList` instead
+
+Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.asString` to `String.ofList x`).
+✔ [47/86] Built Paralean.Remote (3.5s)
+✔ [49/86] Built Paralean.Visibility (1.1s)
+✔ [52/86] Built Paralean.Remote:c.o (4.9s)
+✔ [53/86] Built Paralean.Capture (7.4s)
+✔ [55/86] Built Paralean.Driver (2.3s)
+✔ [58/86] Built Paralean.Replay (1.8s)
+✔ [60/86] Built Paralean.FAsync (1.2s)
+✔ [63/86] Built Paralean.Capture:c.o (5.7s)
+✔ [64/86] Built Paralean.Export (1.7s)
+✔ [66/86] Built Paralean.Replay:c.o (1.7s)
+✔ [68/86] Built Paralean.Materialize (901ms)
+✔ [71/86] Built Paralean.Validate (1.4s)
+✔ [74/86] Built Paralean.Copy (2.9s)
+✔ [76/86] Built Paralean (854ms)
+✔ [79/86] Built Paralean.Interactive (1.1s)
+✔ [82/86] Built Paralean.Copy:c.o (3.3s)
+✔ [83/86] Built Main (2.3s)
+✔ [86/86] Built paralean:exe (889ms)
+Build completed successfully (86 jobs).
+exit=0

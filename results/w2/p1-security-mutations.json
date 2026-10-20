@@ -1,5 +1,5 @@
 {
-  "baseline": "P3 security checks passed",
+  "baseline": "P3 security checks passed; Lean W2 security checks passed",
   "cases": [
     {
       "name": "varint_canonical",
@@ -70,6 +70,262 @@
       "exit_code": 1,
       "passed": true,
       "log": "results/w2/p1-security-mutation-logs/ed25519_negative_zero.log"
+    },
+    {
+      "name": "rel_path_dot_component",
+      "assertion": "relative path \"../x.lean\": accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/rel_path_dot_component.log",
+      "recompiled": [
+        "Paralean.Safety",
+        "Paralean.Gate",
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "marker_file_rule",
+      "assertion": "marker file ../../.bashrc: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/marker_file_rule.log",
+      "recompiled": [
+        "Paralean.P3",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "safe_join_symlink",
+      "assertion": "join through a symlinked directory: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/safe_join_symlink.log",
+      "recompiled": [
+        "Paralean.Safety",
+        "Paralean.Gate",
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "export_module_path",
+      "assertion": "export of module \u00ab..\u00bb.\u00ab..\u00bb.victim: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/export_module_path.log",
+      "recompiled": [
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "capsule_module_matches_file",
+      "assertion": "capsule module differs from its file: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/capsule_module_matches_file.log",
+      "recompiled": [
+        "Paralean.Safety",
+        "Paralean.Gate",
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "meta_package_id",
+      "assertion": "forged metadata under another package's ID: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/meta_package_id.log",
+      "recompiled": [
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "meta_hex_id",
+      "assertion": "package ID ../escape: refused for another reason",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/meta_hex_id.log",
+      "recompiled": [
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "payload_varint_overflow",
+      "assertion": "varint overflow: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/payload_varint_overflow.log",
+      "recompiled": [
+        "Paralean.Encode",
+        "Paralean.Model",
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Render",
+        "Paralean.InstName",
+        "Paralean.Hooks",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "payload_varint_canonical",
+      "assertion": "nonminimal varint: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/payload_varint_canonical.log",
+      "recompiled": [
+        "Paralean.Encode",
+        "Paralean.Model",
+        "Paralean.Store",
+        "Paralean.P3",
+        "Paralean.Render",
+        "Paralean.InstName",
+        "Paralean.Hooks",
+        "Paralean.Crdt",
+        "Paralean.Rga",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "gate_command_allowlist",
+      "assertion": "gate: #print: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/gate_command_allowlist.log",
+      "recompiled": [
+        "Paralean.Gate",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "gate_option_name",
+      "assertion": "gate: set_option \u00abdebug\u00bb.skipKernelTC: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/gate_option_name.log",
+      "recompiled": [
+        "Paralean.Gate",
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "consumer_gate_call",
+      "assertion": "eval consumer: the capsule's code ran",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/consumer_gate_call.log",
+      "recompiled": [
+        "Paralean.Remote",
+        "Paralean.Capture",
+        "Paralean.Driver",
+        "Paralean.Replay",
+        "Paralean.Export",
+        "Paralean.Materialize",
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "validator_gate_call",
+      "assertion": "eval validator: the capsule's code ran",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/validator_gate_call.log",
+      "recompiled": [
+        "Paralean.Validate"
+      ]
+    },
+    {
+      "name": "validator_initializer_refusal",
+      "assertion": "init-touched validator: ",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/validator_initializer_refusal.log",
+      "recompiled": [
+        "Paralean.Validate"
+      ]
     }
   ],
   "passed": true

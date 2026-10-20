@@ -1,0 +1,9 @@
+== Remote
+== Capture
+== Driver
+== Replay
+== Export
+== Materialize
+== Validate
+Lean security checks passed
+ uncaught exception: eval consumer: the capsule's code ran (sentinel written)

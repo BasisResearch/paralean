@@ -1,0 +1,62 @@
+[
+ {
+  "file": "ws_a/A.lean",
+  "line": 4,
+  "gid": "9c54742336aecc5f545b9d23143492bf63091361a9de0900686014db3fa92f9c",
+  "decl": "51e1a6c00002dce1cee4cca8d0e9e9aa72708088b22b56ee411e28d540c882ea",
+  "names": [
+   "Cross.helper"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "ws_b/B.lean",
+  "line": 4,
+  "gid": "57a57195fd563d34d5992613bc99e68fc5f571ca249e9b2cea0f3699e14ee878",
+  "decl": "6095c8ad993a989bca528e428cd97284f9e4b9b3b9abc5c1221fbc248c7236ee",
+  "names": [
+   "Cross.helper_b"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "ws_b/B.lean",
+  "line": 7,
+  "gid": "73db30dfb1f04e06f3b30aa0287adea1f8e324d12ad3f9eb54f4284238944b66",
+  "decl": "bf3ebb2ad15f09163e1af82fe8ce155fe5c68377a2258afb7968e07fde476cc4",
+  "names": [
+   "Cross.helper_c"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ }
+]

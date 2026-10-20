@@ -37,7 +37,7 @@ private network or confidential transport. No seeds belong in those payloads.
 | --- | --- |
 | T1 publication | `receipt::check` checks validator signature, acceptance, group, signed envelope, pinned policy/checker and exact target bindings. T1 transactionally reads revocation, cancellation, every declared target's owner/epoch/head and certified dependencies. Existing guard mutations exercise these reads. |
 | Anti-entropy T9/T10 | Authenticated deployment peers, signed certificate validation, receiver-local receipt pins and revocation checks, acknowledged/rehashed payloads, and pinned target homes. Peer authorities become target-free issuers, not local fence authorities. A transport signature alone is insufficient to import a group. |
-| Lean `remote%` | Each closure receipt is checked locally and against live store consumer verification. W2 fixes authority-only target signing, exact target bytes, noncanonical/unbounded varints and cached-job replacement. Published-consumer verification reads revocation; cancellation prevents later publication but does not retroactively unpublish content. |
+| Lean `remote%` | Each closure receipt is checked locally and against live store consumer verification. W2 fixes authority-only target signing, exact target bytes, noncanonical/unbounded varints and cached-job replacement. Every capsule command passes the command gate (W2-18) before it elaborates; records, capsule modules/files and package IDs are checked (W2-14 to W2-16). Published-consumer verification reads revocation; cancellation prevents later publication but does not retroactively unpublish content. |
 | Validator RPC | Fresh server challenge, signed request and signed response; authority/issuer authorization. Signed job binding/policy/checker/dependency checks precede a receipt. OS containment protects the signing parent from child file/network access. Checker verdict integrity remains open below. |
 | Controller RPC | Worker operations bind the authenticated key to the claimed workspace; administrative operations require authority. Fresh nonces reject captured exchanges. Durable controller term/holder checks fence stale controller writes. W2 bounds pre-authentication connections and handshake time. |
 | P5 | Authenticated journals, separate recovery secret, target owner/epoch/head checks and stock export. W2 secures its own path operations and checks recorded export heads. CLI workers themselves remain outside a hostile-process boundary. |
@@ -59,6 +59,85 @@ private network or confidential transport. No seeds belong in those payloads.
 | W2-11 | High | Untrusted checker had host filesystem/network/process access. Now contained in a rootless Bubblewrap sandbox inside a transient systemd cgroup scope: no network, read-only host except a size-capped scratch tmpfs, x86_64 seccomp allowlist (io_uring and TIOCSTI/TIOCLINUX closed), hard cgroup memory/task limits plus rlimit/RSS second layers, fail-closed with no unsandboxed fallback, single-use processes. Evidence, mutation results and overhead in the section below and w2-sandbox-notes.md. This closes the host/key-containment part of W2-11; it does **not** close W2-13 (verdict provenance inside the checker process). |
 | W2-12 | High, OPEN | P5 CLI workers share the controller UID, can read outside workspaces and hold raw store access. A sentinel reproduction confirms filesystem reach. Needs narrowly mounted worker isolation plus authenticated brokered storage operations; current direct FDB access cannot be made safe by client-side guards. |
 | W2-13 | High, OPEN | Package source/native execution and trusted replay share a checker address space. The signer trusts checker stdout. Namespace isolation and response nonces do not authenticate results against code in that same process. A separate trusted verifier must consume independently checked immutable kernel inputs and execute no package code. Static review only; no exploit demonstrated. |
+| W2-14 (A-6) | High | Working copies wrote files at another worker's `Marker.filePath` (`Copy.sync`) with no path rule anywhere, so `../../.bashrc` or `.git/config` reached every syncing copy. Fixed with one canonical relative-path rule (non-empty, at most 1024 bytes, relative, no `\`, NUL or ASCII control character, non-empty components that are not `.`, `..` or `.git` in any ASCII case, a `.lean` file with a non-empty stem): `objects::check_file_path` (Rust) and `Safety.checkRelPath` (Lean) are the same rule. Marker and tombstone decoding refuses it (T9 import, every store read), the writer refuses it before T1/T8 (`Writer::check_package`, `Writer::tombstone`), `plr` and the P5 store bridge refuse it where they construct markers or deliver records, Lean refuses it when records decode (`P3.Marker.ofJson`/`Tomb.ofJson`, together with 64-hex record IDs), and `Copy.sync` joins with `Safety.safeJoin`, which re-checks the rule and refuses symbolic links below the work tree. T1 itself (`meta.rs`) does not decode the staged marker value, so a raw FDB writer (W2-12) is still not stopped there; receivers and working copies are. Regressions: Rust unit, T1/T8/T9 cluster tests, `plr` cache tests, Lean unit tests; mutations `mutate-unchecked-file-path`, `mutate-unchecked-publish-path`, `rel_path_dot_component`, `marker_file_rule`, `safe_join_symlink`. |
+| W2-15 (A-7) | High | Export module paths and the generated `lakefile.toml` came straight from capsule metadata: `«..».«..».victim` wrote outside the export directory, and a quote plus newline injected TOML; files were written before reject diagnostics were checked. Fixed: every module name component must be a plain ASCII identifier and map below the export root (`safeModulePath`), checked for all modules before anything is removed or written; TOML strings are escaped; the validator (`checkGroup`), the consumer's capsule loader (`P3.loadCapsule`) and `ws-export` require `capsule.module` to be exactly the module derived from `capsule.file` under the path rule. Lean unit tests and mutations `export_module_path`, `capsule_module_matches_file`. |
+| W2-16 (A-8) | Medium | `plr` stored `meta/<gid>.json` under a capsule's self-declared `gid` (path traversal for new `.json` files) and first writer won, while Lean `Store.getMeta` trusted the record. Fixed: `plr` requires a 64-hex package ID and capsule bytes that hash to the capsule ID, and reports a different capsule already stored for that package; Lean `getMeta` requires a 64-hex ID and recomputes the package ID from the record (`GroupRec.packageIdOf`, P1's `H("v0/package", (declId, capsuleID))`) and refuses a mismatch, so a forged record can block but never shadow a package; object IDs are hex-checked too. The scheme allows recomputation only from the record itself (`declId` is checked by the validator's replay). Tests and mutations `mutate-unchecked-pid`, `mutate-unchecked-capsule-id`, `meta_package_id`, `meta_hex_id`. |
+| W2-17 (A-11) | Low | The Lean payload decoder's `uvarint` recursed once per byte without a bound. It is now iterative, at most ten bytes (the tenth carrying one bit) and canonical, exactly as `pce.rs`; mutations `payload_varint_overflow`, `payload_varint_canonical`. |
+| W2-18 (A-28) | High, partly OPEN | `remote%` elaborated another worker's capsule source in the consumer's own Lean process, and the validator replayed it; `#eval`, `run_cmd`, `initialize`, `elab`/`macro` bodies and similar ran in both (the validator only inside its sandbox), and the `debug.*` guard was a text search that `«debug».skipKernelTC` defeated. Fixed by a command gate on parsed syntax (`Paralean/Gate.lean`, below) applied to every command of a rendered capsule before it elaborates, in the validator (`check-group`) and in the consumer (`remote%`/`remote_decl%`, both for declarations and for effect-only groups). The validator also refuses groups with initializer effects before materialization. End-to-end tests publish receipted-looking capsules (`#eval` and `initialize` writing a sentinel, `«debug».skipKernelTC`) and show refusal with the sentinel absent on both sides; mutations `gate_command_allowlist`, `gate_option_name`, `consumer_gate_call`, `validator_gate_call`, `validator_initializer_refusal`. The residual trust is described in the next section. |
+| W2-19 (A-29) | Low | `remote_value%` skipped its receipt check whenever any package was loading. It now skips it only for the package whose capsule is being elaborated at that moment (a stack of loading package IDs; each was receipt-checked immediately before), and the gate refuses `remote_value%` for any other package and `remote%`/`remote_decl%` inside capsules. |
+| W2-20 (A-9) | Low | The P5 controller wrote the target receipt and plan into the worker folder through possible symlinks. They are now staged in a fresh owner-only directory under the state directory with `O_EXCL|O_NOFOLLOW`; worker log/prompt files are replaced rather than followed, and controller reads of worker files do not follow links. Tests plant symlinks/hard links to sentinels; three mutations. `impl/p3-remote/scripts/ws.py` still writes `receipt.json`/`plan.json` into the worker directory on the non-target publish path. |
+| W2-21 (A-20) | Medium | `env.sh` defaulted the P5 recovery secret to the Garage admin token. It now creates a random 256-bit secret once in an owner-only file (`PARALEAN_P5_RECOVERY_SECRET_FILE`), and the controller fails closed if the secret is missing, short, equal to the Garage admin/RPC or S3 credentials, or its file is a symlink, not a regular file, not owned by the controller user or group/world-readable. Journals authenticated under the old admin-token-derived secret no longer verify; affected tasks must be rerun. Two mutations. |
+| W2-22 (A-21) | Medium/High | P5 accepted legacy key bundles sealed under a key derived from the S3 secret every worker holds, and S3 keeps old blobs. The runtime now refuses any non-`v2:` bundle and never re-journals one; no in-place migration is offered. **Deployments that ever stored a legacy bundle must treat those seeds as exposed: rotate them (new keys and trust roots), rerun the affected tasks and expire the old journal blobs.** Two mutations. |
+| W2-23 (A-23) | Low | P5 child environments used a short denylist. Children now receive no credential-shaped variable (names containing SECRET, TOKEN, PASSWORD, PASSWD, CREDENTIAL, PRIVATE, SEED, API_KEY, ACCESS_KEY, every `PARALEAN_PEER_*`, every `PARALEAN_*` containing KEY) except those each child needs (deployment S3 credentials and key-file path; a coding CLI's own login variables; operator-named passthroughs). A strict allowlist was impractical for arbitrary worker CLIs. Two mutations. |
+
+## Capsule command gate (W2-18) and what remains
+
+**Before the fix.** Neither the validator nor the consumer refused code-running commands.
+The validator's source replay elaborated every closure capsule (`#eval` ran inside the
+checker; initializer groups were materialized, built and imported with initializers
+enabled), and the kernel check of the result does not care what the elaborator executed.
+A capsule with `#eval IO.Process.run …` could therefore get a receipt (an effect-only group
+produces no members to compare) and run in every teammate's `remote%`. The fixture test
+reproduces both halves with the baseline code removed by mutation.
+
+**The gate** (`Gate.checkCommand`) runs on each command's parsed syntax, with the parser
+state that will elaborate it, before elaboration (`Capture.processCommandGated` in the
+validator's `runCommands`; `Remote.elabSourceAtRoot` in the consumer). It admits:
+
+* command kinds: declarations (including `instance`, `structure`, `inductive`, `axiom` —
+  axioms remain a policy matter — and Mathlib's `lemma`), `section`/`namespace`/`end`,
+  `open`, `variable`, `universe`, `include`/`omit`, `export`, `attribute`, `set_option`,
+  `deriving instance`, `notation` and mixfix, doc comments, and `in`/`mutual` built from
+  these;
+* options: `maxHeartbeats`/`synthInstance.maxHeartbeats` (not 0), `maxRecDepth`,
+  `synthInstance.maxSize`, `autoImplicit`, `relaxedAutoImplicit`, `Elab.async`, `pp.*`,
+  `linter.*`, `trace.*`, in command, term and tactic `set_option` alike, identified from the
+  parsed name (so `«debug».skipKernelTC` is `debug.skipKernelTC`); the old text search for
+  `debug.*` is kept as well;
+* attributes: a fixed data-only set (`simp`, reducibility, `instance`, `ext`, `simps`,
+  `to_additive`, `norm_cast`, `gcongr`, `grind`, …) and registered simp sets;
+
+and refuses anywhere in the tree: `#eval`/`#eval!`, `run_cmd`/`run_elab`/`run_meta`,
+`by_elab`, `run_tac`, `native_decide`, `decide +native`, `unsafe` (modifier or term),
+`initialize`/`builtin_initialize`, `macro`/`macro_rules`/`syntax`/`elab`/`elab_rules`,
+identifiers naming `reduceBool`/`reduceNat`/`ofReduceBool`/`ofReduceNat` (kernel native
+evaluation), every other attribute (`implemented_by`, `extern`, `export`, `init`, elaborator,
+macro, delaborator, simproc and tactic-extension attributes, `aesop`, `norm_num`, …), and
+`remote%`/`remote_decl%`/`remote_value%` for another package.
+
+**Corpus impact.** Over the no-Mathlib corpus (`gate-corpus-*.json` in
+`results/w2/lean-fixes/`) the W2 validator accepts 83 of 97 core groups and every F14, F15,
+diagmap, conflict, N5 and duplicate-instance group the baseline accepts. The 14 newly
+refused groups are exactly the code-running ones: F12 (`macro`, `syntax`+`macro_rules`,
+`elab`, a declared tactic, and the four theorems that use them), F13a (`initialize`,
+`register_option`) and F10a (`register_simp_attr`, which is an `initialize`). These cannot
+be published any more; they are not provably safe (macro bodies can construct any syntax,
+including refused commands, and initializers run arbitrary IO when imported). They still
+capture, replay and export locally in P1, where the author's own code is trusted, and
+anything that needs them must come from the pinned base imports. M06–M08 and M17 in the
+Mathlib corpus are local-capture cases of the same kinds.
+
+**What remains (trust that the gate does not remove):**
+
+1. Elaboration-time code from *imported* packages still runs on capsule input: tactics
+   (`simp`, `omega`, Mathlib's automation), term elaborators, notation and macro expansion,
+   deriving handlers, and attribute handlers such as `simps`/`to_additive` that generate
+   declarations. This is the W2-13 class: the pinned base is trusted code, and a bug or
+   hostile extension there is reachable from capsule text.
+2. Terms produced by imported tactics may contain `Lean.reduceBool`, which the kernel
+   evaluates natively; the gate only refuses capsule text that names it. Proof terms that
+   `remote_value%` takes from a payload are refused if any member uses `Lean.reduceBool`
+   or `Lean.reduceNat`, but the validator's kernel replay of payloads (inside its sandbox)
+   and consumer elaboration of tactic-produced terms do not scan for them.
+3. Elaboration cost is bounded only by heartbeats and recursion limits the capsule may raise
+   (not to 0); a consumer can still be slowed down.
+4. Paths without the gate: P1's local transparent prelude and `paralean merge` replay other
+   stores' capsules ungated (P1's local trust model); `ws-export` builds published capsules
+   with stock `lake build` and relies on the receipts of the gated validator; the
+   validator's own sandbox (W2-11) remains the containment for the replay itself.
+5. The attribute and option sets are allowlists by name; an imported attribute macro whose
+   syntax kind differs from its attribute name is refused (fail closed) rather than
+   expanded.
 
 ## Keys, replay and fencing
 

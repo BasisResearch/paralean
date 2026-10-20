@@ -1,0 +1,43 @@
+G4 axioms: 10/10 public members have the reference's axiom set (0 differ, 0 missing); all shared constants 17/17
+G4 source mappings: 5/5 export diagnostics resolve to an agent file and line (100.0%); 5 reproduce a reference diagnostic at that line (reference total 4)
+  core: axiom dump failed for ['Fixtures.F01Theorem', 'Fixtures.F02Def', 'Fixtures.F03Structure', 'Fixtures.F04Inductive', 'Fixtures.F05Mutual', 'Fixtures.F06Structural', 'Fixtures.F07WellFounded', 'Fixtures.F08PrivateGenerated', 'Fixtures.F09InstanceOnly', 'Fixtures.F10SimpAttrDecl', 'Fixtures.F10SimpAttrUse', 'Fixtures.F11ScopedDecl', 'Fixtures.F11ScopedUse', 'Fixtures.F12Macro', 'Fixtures.F13InitDecl']: uncaught exception: unknown module prefix 'Fixtures'
+
+No directory 'Fixtures' or file 'Fixtures.olean' in the search path entries:
+/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/corpus/fixtures/.lake/build/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+
+  crossws: axiom dump failed for ['Fixtures.F14.B1', 'Fixtures.F14.A', 'Fixtures.F14.B2']: uncaught exception: unknown module prefix 'Fixtures'
+
+No directory 'Fixtures' or file 'Fixtures.olean' in the search path entries:
+/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/corpus/fixtures/.lake/build/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+
+  f15: axiom dump failed for ['Fixtures.F15Module']: uncaught exception: unknown module prefix 'Fixtures'
+
+No directory 'Fixtures' or file 'Fixtures.olean' in the search path entries:
+/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/corpus/fixtures/.lake/build/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+/data/home/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/lib/lean
+
+  f16: no store/export (not run)
+  diagmap: axioms equal 10/10 public members (0 differ, 0 missing); diagnostics 5, resolved 5, reproduced at the same agent line 5 (reference has 4)
+  M01: no store/export (not run)
+  M02: no store/export (not run)
+  M03: no store/export (not run)
+  M04: no store/export (not run)
+  M05: no store/export (not run)
+  M06: no store/export (not run)
+  M07: no store/export (not run)
+  M08: no store/export (not run)
+  M09: no store/export (not run)
+  M10: no store/export (not run)
+  M11: no store/export (not run)
+  M12: no store/export (not run)
+  M13: no store/export (not run)
+  M14: no store/export (not run)
+  M15: no store/export (not run)
+  M16: no store/export (not run)
+  M17: no store/export (not run)
+  M18: no store/export (not run)

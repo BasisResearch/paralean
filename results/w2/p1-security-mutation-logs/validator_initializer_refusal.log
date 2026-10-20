@@ -1,0 +1,5 @@
+== Validate
+Lean security checks passed
+ eval: refused by validator and consumer; sentinel absent
+init: refused by validator and consumer; sentinel absent
+uncaught exception: init-touched validator: the capsule's code ran (sentinel written)

@@ -1,0 +1,21 @@
+== Safety
+/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/.runs/w2lean/tmp/w2-p1-mutations-ghk7u3zp/capsule_module_matches_file/Paralean/Safety.lean:86:6: warning: Variable name `m` is not explicitly referenced.
+
+Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+  [apply] _m
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+== Gate
+== Store
+== P3
+== Crdt
+== Rga
+== Remote
+== Capture
+== Driver
+== Replay
+== Export
+== Materialize
+== Validate
+ uncaught exception: capsule module differs from its file: accepted invalid input
+unit checks failed

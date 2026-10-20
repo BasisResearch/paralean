@@ -1,0 +1,136 @@
+[
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 2,
+  "gid": "4ad3fe52423aa37b1728fd057e3f23df5b08f39251da17776a054ad5520c0d2a",
+  "decl": "beb571ab30e1d6382f22e917687e02b39dcd167eecb2450eda7232950dc1dc96",
+  "names": [],
+  "cmd": "Lean.Parser.Command.moduleDoc",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 9,
+  "gid": "f939257b2db730f2561b37d0d8bccaf151f33b4b663213e4c5e571df6bbfbc7d",
+  "decl": "1f416145d44a4726dbd4ce0d14036b18522f449a030e8326424ac81d60a9fb7f",
+  "names": [
+   "F15.hidden"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 11,
+  "gid": "caf8dda5d6aa7e0d0fb54c677389e60afab5812aa66fce4cf3bdb525a5d66cb3",
+  "decl": "51d2fd9a42f682abedaa03cda0e87ed301f5b9e1339698c1e7c4c560c229ac5a",
+  "names": [
+   "F15.shown"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 13,
+  "gid": "d3a020f545a03c99acfb18a50ce2af9701de4ce3860772862e9ddba1bd1233ac",
+  "decl": "bc6fb3e24a32fcce6a0c4d7c0670abf038d442f4c42cc2c70336a69ef60f069d",
+  "names": [
+   "F15.shown_eq"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 15,
+  "gid": "b89c19e5cbf957b2f0656d5d63a7a0e73acb386b2383cb43e21134e19adcf7f9",
+  "decl": "ce64c4e1285bf5e0f1e8af70097e12381226d4630eb14aecc364f053768cbdfd",
+  "names": [],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 17,
+  "gid": "40bed27628edff43a83728250f820d92b93f330ac313d74ee9920dec576a4ebb",
+  "decl": "7b4e532381aef4a063c9d7acbf24757cfe46405efef23ec9cb8f8a3f17c7aa6a",
+  "names": [
+   "F15.usesHelper"
+  ],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ },
+ {
+  "file": "Fixtures/F15Module.lean",
+  "line": 21,
+  "gid": "c93e8120a058515e24d67f9de7de2807f93929a70945c61a7c7b40f343e7863b",
+  "decl": "e6d94aa482d829b5caef54717a428def44122a06293db3105f8770774907a148",
+  "names": [],
+  "cmd": "Lean.Parser.Command.declaration",
+  "verdicts": {
+   "/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   },
+   "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/w2lean/base/impl/p1/.lake/build/bin/paralean": {
+    "ok": true,
+    "diags": []
+   }
+  }
+ }
+]

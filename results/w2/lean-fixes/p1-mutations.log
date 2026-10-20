@@ -1,0 +1,26 @@
+varint_canonical: PASS
+varint_overflow: PASS
+target_authority: PASS
+target_exact_bytes: PASS
+cached_job_id: PASS
+cached_receipt_signature: PASS
+ed25519_small_order: PASS
+ed25519_scalar_range: PASS
+ed25519_canonical_y: PASS
+ed25519_negative_zero: PASS
+rel_path_dot_component: PASS
+marker_file_rule: PASS
+safe_join_symlink: PASS
+export_module_path: PASS
+capsule_module_matches_file: PASS
+meta_package_id: PASS
+meta_hex_id: PASS
+payload_varint_overflow: PASS
+payload_varint_canonical: PASS
+gate_command_allowlist: PASS
+gate_option_name: PASS
+consumer_gate_call: PASS
+validator_gate_call: PASS
+validator_initializer_refusal: PASS
+/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-acdb0f6d311f71013/results/w2/p1-security-mutations.json
+exit=0

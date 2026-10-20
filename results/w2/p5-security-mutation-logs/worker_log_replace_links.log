@@ -2,13 +2,13 @@
 FAIL: test_worker_logs_replace_planted_links (test_worker_folder_writes.WorkerLogPathTest.test_worker_logs_replace_planted_links)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/kirancodes/tmp/w2-p5-mutations-hfz8m298/tests/test_worker_folder_writes.py", line 127, in test_worker_logs_replace_planted_links
+  File "/Users/kirancodes/tmp/w2-p5-mutations-hz42diqn/tests/test_worker_folder_writes.py", line 127, in test_worker_logs_replace_planted_links
     self.assertEqual(prompt_sentinel.read_text(), "outside sentinel")
     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: "You are an ordinary Lean coding agent wo[728 chars]\n\n" != 'outside sentinel'
 Diff is 801 characters long. Set self.maxDiff to None to see it.
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.009s
+Ran 3 tests in 0.006s
 
 FAILED (failures=1)

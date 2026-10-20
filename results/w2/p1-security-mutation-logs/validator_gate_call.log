@@ -1,0 +1,3 @@
+== Validate
+Lean security checks passed
+ uncaught exception: eval validator: the capsule's code ran (sentinel written)
