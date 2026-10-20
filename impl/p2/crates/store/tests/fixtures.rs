@@ -52,8 +52,15 @@ async fn fixture_stale_writer_after_rotation() {
 /// adopted.
 #[tokio::test]
 async fn fixture_put_before_rotation_acked_after() {
+    for attempt in 0..10 {
+        if late_ack_attempt(attempt).await { return; }
+    }
+    panic!("ten fresh deployments all had an interrupted injected commit; did not exercise the fence-order fixture");
+}
+
+async fn late_ack_attempt(attempt: usize) -> bool {
     let faults = Faults::none();
-    let e = Env::with_faults("fx-lateack", 2, faults.clone());
+    let e = Env::with_faults(&format!("fx-lateack-{attempt}"), 2, faults.clone());
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
     let base = e.w[0].commit_checkpoint(&one_snapshot(&e, 0, "base", t1, None).await).await.unwrap();
     let cp = one_snapshot(&e, 0, "late", t1, Some(base)).await;
@@ -65,7 +72,19 @@ async fn fixture_put_before_rotation_acked_after() {
         CommitFault::UnknownThen { committed: true, hook: rotate_hook(&e.ctl, e.w[1].id, "r2") },
     );
     // The staging write resolves its unknown outcome after the rotation: bytes present.
-    assert!(!e.w[0].stage_record(&rec).await.unwrap(), "retry found the effect: no second write");
+    let interrupted_before = faults.stats().get("injected-commit-real-error").copied().unwrap_or(0);
+    let stage_fresh = e.w[0].stage_record(&rec).await.unwrap();
+    let interrupted_after = faults.stats().get("injected-commit-real-error").copied().unwrap_or(0);
+    if interrupted_after > interrupted_before {
+        assert_eq!(e.store.record(&rec.id()).await.unwrap(), Some(rec.clone()),
+            "interrupted stage still returns only after exact record bytes are durable");
+        assert!(e.store.meta.get(e.store.meta.keys.rcert(&rec.id())).await.unwrap().is_none(),
+            "stage does not create a commit certificate");
+        e.audit_ok().await;
+        eprintln!("late-ack attempt {attempt}: injected T5Stage commit interrupted by real FDB error; retrying fresh deployment: {:?}", faults.stats());
+        return false;
+    }
+    assert!(!stage_fresh, "retry found the effect: no second write");
     assert_eq!(e.store.fence().await.unwrap(), 2);
     assert!(e.store.record(&rec.id()).await.unwrap().is_some());
     // The commit aborts on the new fence (in its body, before any commit is attempted).
@@ -91,7 +110,20 @@ async fn fixture_put_before_rotation_acked_after() {
         0,
         CommitFault::UnknownThen { committed: true, hook: rotate_hook(&e.ctl, e.w[0].id, "r3") },
     );
-    assert!(!e.w[1].commit_record(&rec2).await.unwrap(), "retry found the commit certificate");
+    let interrupted_before = faults.stats().get("injected-commit-real-error").copied().unwrap_or(0);
+    let committed_fresh = e.w[1].commit_record(&rec2).await.unwrap();
+    let interrupted_after = faults.stats().get("injected-commit-real-error").copied().unwrap_or(0);
+    if interrupted_after > interrupted_before {
+        assert_eq!(e.store.record(&rec2.id()).await.unwrap(), Some(rec2.clone()),
+            "interrupted commit still returns only after exact record bytes are durable");
+        assert!(e.store.meta.get(e.store.meta.keys.rcert(&rec2.id())).await.unwrap().is_some(),
+            "successful interrupted commit must retain its certificate");
+        assert!(recover_catalog(&e.store, e.w[1].id).await.unwrap().records[&rec2.id()].admissible);
+        e.audit_ok().await;
+        eprintln!("late-ack attempt {attempt}: injected T5Commit interrupted by real FDB error; retrying fresh deployment: {:?}", faults.stats());
+        return false;
+    }
+    assert!(!committed_fresh, "retry found the commit certificate");
     assert!(recover_catalog(&e.store, e.w[1].id).await.unwrap().records[&rec2.id()].admissible);
     let t4 = e.ctl.rotate(e.w[1].id, b"r3b").await.unwrap();
     let snap3 = prepare_snapshot(&e, 1, &one_snapshot(&e, 1, "c3", t4, None).await).await;
@@ -104,6 +136,7 @@ async fn fixture_put_before_rotation_acked_after() {
     assert!(matches!(guard_of(e.w[1].commit_record(&rec3).await), GuardFailure::StaleToken { .. }));
     assert!(e.store.record(&rec3.id()).await.unwrap().is_none());
     e.audit_ok().await;
+    true
 }
 
 // ---------------------------------------------------------------------------------------

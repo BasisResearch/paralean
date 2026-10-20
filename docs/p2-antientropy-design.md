@@ -278,8 +278,9 @@ The full PCE body, including every ordered chunk ID and length, is hashed with
 the existing `v0/group` domain. The object is still an `Opaque { kind: Group,
 pce }`, so the current `Package.group` field and P3 struct literals need no
 change. `Package.chunks` already carries the bytes for upload. A new P2 helper
-can build this wrapper from `(core, ordered chunk objects)` and return `Opaque`.
-P2 validates the wrapper's exact PCE, nonempty core, bounded reference count,
+can build this wrapper from `(core, ordered ChunkRef values)` and return `Opaque`.
+P2 validates the wrapper's exact PCE, nonempty core, at most 2,048 ordered
+references,
 each chunk length in `1..=64 MiB`, and absence of trailing bytes; it does not
 interpret the core's Lean declarations. An unsupported `paralean-group-chunked-*`
 magic or malformed v1 wrapper returns a precise invalid-encoding diagnostic,
@@ -298,6 +299,9 @@ the index cannot add or omit a reference silently. The network service can
 page the deduplicated set in ID order while preserving logical order in the
 group bytes. Since `gchunks` is set in the publication transaction, a cursor
 event never observes a published group without its chunk index.
+The 2,048-reference cap also bounds the one-value `gchunks` encoding: even if
+all IDs are distinct and every length uses four PCE bytes, its value is 75,778
+bytes, below FoundationDB's 100,000-byte value limit.
 
 Existing P1 `paralean-group-v3` bytes and IDs remain unchanged. They are the
 `LegacyOpaque` case: P2 transfers the group object exactly as before and marks
@@ -424,12 +428,17 @@ Keep the original `marker/<group>` and `cert/<group>/<writer>` keys immutable.
 Store additional valid markers under `mvariant/<group>/<markerID>` and local
 certificates under `vcer/<group>/<markerID>/<writer>`; keep the original
 publisher certificates byte-for-byte as foreign evidence under `xcertv/`.
-Discovery and audit enumerate the legacy marker plus variants, verify each
-variant's staged S3 copy and at least one matching local certificate, and
-select the **lowest marker ID** among eligible receipt-only variants. The
-selection is a deterministic physical representation of the same abstract
-group, not a new Workspaces position rule. `Store::marker` and rendered files
-use the selected variant. The network change stream carries
+Discovery requires a matching valid local certificate for its selected marker.
+Audit enumerates the base and every stored variant, compares their immutable
+layout and revisions, and checks the staged S3 copy of each certified variant;
+an uncertified variant is not independently required to have a staged copy.
+`Store::marker` selects the lowest locally certified variant whose receipt is
+not revoked. If none exists, it selects the lowest certified suspect variant;
+if none is certified, it returns the legacy base marker as a lookup fallback.
+The fallback does not make a revoked receipt valid for a new publication, nor
+does discovery render an uncertified group. This deterministic physical choice
+does not change the Workspaces position rule. Rendered files use the selected
+certified variant. The network change stream carries
 every valid variant and its certificate in distinct events, so a later peer
 can make the same selection; legacy in-process `export()` retains its
 canonical-only behavior.

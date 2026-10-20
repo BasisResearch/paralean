@@ -81,8 +81,9 @@ and audit commands use `PARALEAN_DEPLOYMENT=A` and
 The persisted home rules apply even to handles opened before federation pinning.
 `ae-service federation.json --once` performs one bounded round per configured peer;
 it does not promise that the entire backlog is drained. `ae-status federation.json`
-prints durable progress and pending diagnostics. SIGINT/SIGTERM drain service tasks
-before the CLI shuts down its FDB network thread.
+prints durable progress and pending diagnostics. SIGINT/SIGTERM stop scheduled
+pulls, cancel and join in-flight server handlers, then shut down the CLI's FDB
+network thread; in-flight requests may need to retry after restart.
 Terminal conflicts are archived separately, freeing their active pending slots and
 fragments. `ae-status` lists the first 64 archived diagnostics per peer; `--once`
 continues to report a conflict while any archived diagnostic exists. Its terminal
@@ -165,6 +166,6 @@ corrupt, forged and untrusted items, deferral, receive faults, rot repair, marke
 foreign target names, receipts and revocations under the receiver's key ring;
 plus a proptest over delivery orders with drops, duplicates, corruption and truncation),
 `crates/cli/tests/multiprocess.rs` (12 worker processes with injected aborts and SIGKILLs).
-The network service suite has 14 cases covering authenticated relay, source
+The network service suite has 15 cases covering authenticated relay, source
 certificates/catalogues, home targets, chunks, incremental pages, durable fragment
 restart, missing-object repair, compatible variants and archived conflict diagnostics.

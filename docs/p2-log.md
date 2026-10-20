@@ -776,17 +776,23 @@ The implementation design and wire/store API contract are in
   raw `paralean-group-chunked-v1`, then a PCE version, opaque core and ordered
   `(chunk ID, stored-preimage length)` references. Its full bytes remain under
   `v0/group`; the refs are authenticated by that group ID and checked against
-  `gchunks`. T1/T9 require local acknowledgements for each referenced chunk.
+  `gchunks`. New wrappers admit at most 2,048 ordered references, bounding the
+  one-value derived index to 75,778 bytes at maximum distinct IDs and lengths,
+  below FoundationDB's 100,000-byte value limit. T1/T9 require local
+  acknowledgements for each referenced chunk.
   Legacy opaque P1 groups have unknown chunk coverage, rather than an asserted
   empty chunk set. Commit-versionstamp pagination prevents inserts behind a
   cursor; `more()` is followed even after a short FDB batch. A deferred event
   is durably queued before the cursor passes it, then replayed idempotently.
   Receipt-only marker variants preserve immutable placement, revisions, root
-  and lineage; the lowest locally certified, non-revoked variant is selected.
+  and lineage; the lowest locally certified, non-revoked variant is preferred.
+  If none qualifies, lookup selects a certified suspect variant, then the
+  legacy base for inspection; discovery still requires a valid local
+  certificate, and the fallback does not admit a new revoked receipt.
   Other marker differences produce a field-level diagnostic. Source-signed
   catalogue records, tokens and certificates remain source-qualified and do
   not become local fenced commits. The target-home rule is checked by the new
-  TargetNames TLA module and its mutation case.
+  `TargetHomes.tla` model refining TargetNames and its mutation case.
 - **Trust boundary:** signed TCP frames authenticate configured deployments but
   carry plaintext. An authenticated federation member can `Fetch` any known
   content-addressed object, including staged/unpublished bytes. This does not
@@ -908,3 +914,49 @@ and safe interruption are retained under
 `results/p2/faults-mp2-fdb-gate/fdb/fixtures/20261020T043454Z-2668337/`.
 A fresh full 20-round fixture run follows the focused verification of this
 test-only fix; production binaries are unchanged.
+
+The second attempt completed all 20 rounds plus the fault and eight-case
+property suites under 152 injected faults. It remains **FAIL**: 61/62 suite
+results passed, but round 19's first valid tombstone call returned `false`
+instead of the test's expected `true`. T8 returns that value only after reading
+the exact tombstone and this writer's certificate, as happens when a committed
+transaction loses its reply and resolves by idempotent retry. The test had
+confused freshness with successful publication. The corrected tests retain
+strict first-fresh expectations unless that operation records a real ambiguous
+commit, and always check the exact durable effect and certificates. Repeat-false
+and invalid-guard assertions remain strict. Real FDB errors interrupting a
+simulated committed outcome now have a separate diagnostic counter; the
+fence-order fixture retries a fresh scenario only for that recorded interruption,
+with a ten-attempt bound and durable-state checks on interrupted attempts.
+Its original ordering assertions must all pass on an uninterrupted attempt.
+A fresh full chaos gate is required after these changes.
+
+### Review corrections after the first merged fault phases
+
+The chunk wrapper now admits at most 2,048 ordered references. The earlier
+4,096 limit could produce a 151,554-byte `gchunks` value, exceeding FDB's
+100,000-byte value limit. The new maximum is 75,778 bytes; a regression constructs
+distinct IDs with maximum lengths and measures the actual index encoding.
+
+A new network regression reproduced a marker-variant liveness bug:
+after a lower receipt-only variant became canonical, certification failed with
+`certificate names another marker`. T2, T8 and T10 deliberately bind the
+immutable base marker, so their three caller paths now use `marker_base`.
+The new regression checks certification, author deletion and tombstone relay
+when both source and receiver select a lower variant. It failed before the
+fix, and the complete network suite passed **15/15** afterward
+(`results/p2/network-service/base-marker-before.log` and
+`base-marker-full.log`). Transaction guards and canonical discovery selection
+are unchanged.
+
+The next Garage run also uses strengthened harness checks: read pre-loss bytes
+through the replacement node, heal an issued RPC partition on harness exit,
+and report a final failed-probe window as a censored sampled span without
+inventing a recovery time. The SIGSEGV harness can now select the original
+worker 3 and seed 3045 for a further bounded replay.
+
+The post-review baseline passed **54 store checks** (16 library, 10 fault,
+9 fixture, 13 guard and 6 tombstone checks), plus **9 wire checks**. The
+production CLI, P3 controller and remote binaries rebuilt successfully;
+their hashes are saved in `results/p2/merged-gates/binary-sha256-base-marker.txt`.
+Shell syntax and recovered/censored/empty probe-summary cases also passed.

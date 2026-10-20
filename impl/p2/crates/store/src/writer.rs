@@ -183,7 +183,9 @@ impl Writer {
     /// Returns false if the tombstone was already published by this writer.
     pub async fn tombstone(&self, t: &Tombstone) -> Result<bool> {
         let st = &self.store;
-        let (_, m) = st.marker(&t.target).await?.ok_or(GuardFailure::NotPublished(t.target))?;
+        // T8 compares this target against immutable marker/<group>, while receipt-only
+        // variants can have a lower canonical ID. Their carried revisions are identical.
+        let (_, m) = st.marker_base(&t.target).await?.ok_or(GuardFailure::NotPublished(t.target))?;
         let (mut names, mut workspaces) = (Vec::new(), Vec::new());
         for rid in &m.revisions {
             let r = st.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?;
@@ -217,7 +219,9 @@ impl Writer {
 
     /// T2: certify a group already published (and certified by someone).
     pub async fn certify(&self, group: &Id) -> Result<bool> {
-        let (mid, _) = self.store.marker(group).await?.ok_or(GuardFailure::NotPublished(*group))?;
+        // T2 signs the immutable marker/<group> value; canonical receipt-only variants
+        // live under mvariant and are certified by their receive transaction.
+        let (mid, _) = self.store.marker_base(group).await?.ok_or(GuardFailure::NotPublished(*group))?;
         let cert = Cert::sign(CertBody { replica: self.store.replica, marker: mid, group: *group, writer: self.id }, &self.signer);
         self.store.meta.t2_certify(*group, self.id, mid, cert.to_bytes()).await
     }

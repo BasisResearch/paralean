@@ -1,0 +1,7 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3/crates/control)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+   Compiling paralean-cli v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/cli)
+   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p3-remote)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.23s

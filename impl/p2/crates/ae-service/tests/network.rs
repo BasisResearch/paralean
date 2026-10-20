@@ -572,6 +572,161 @@ async fn receipt_only_marker_variants_converge_and_keep_both_certificates() {
 }
 
 #[tokio::test]
+async fn lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards() {
+    let net = Net::new("net-base-marker-guards", None).await;
+    let a = &net.envs[0];
+    let b = &net.envs[1];
+    let c = &net.envs[2];
+    // Select an immutable A base whose compatible B receipt-only variant sorts
+    // lower. This forces Store::marker to differ from the base guarded by T2/T8/T10.
+    let (pa, pb) = (0..64)
+        .find_map(|attempt| {
+            let pa = a.plain_package(0, "Net.baseMarker", &format!("base-marker-{attempt}"));
+            let mut pb = pa.clone();
+            pb.job = SignedJob::sign(pb.job.body.clone(), &b.authority());
+            let mut receipt = pb.receipt.body.clone();
+            receipt.request = Some(pb.job.id().0.to_vec());
+            receipt.validator_key = b.validator.public();
+            receipt.axioms = vec![Name::parse("Classical.choice")];
+            pb.receipt = Receipt::sign(receipt, &b.validator);
+            pb.marker.receipt = pb.receipt.id();
+            (pb.marker.id() < pa.marker.id()).then_some((pa, pb))
+        })
+        .expect("64 deterministic receipt candidates should include a lower variant");
+    assert_eq!(pa.marker.group, pb.marker.group);
+    assert_eq!(pa.marker.revisions, pb.marker.revisions);
+    assert!(pb.marker.id() < pa.marker.id());
+
+    a.w[0].publish(&pa).await.unwrap();
+    b.w[0].publish(&pb).await.unwrap();
+    let mut c_from_a = net.puller(2, 0).await;
+    until_group(&mut c_from_a, c, pa.group.id()).await;
+    assert_eq!(
+        c.store
+            .marker_base(&pa.group.id())
+            .await
+            .unwrap()
+            .unwrap()
+            .0,
+        pa.marker.id(),
+        "C must first install A's high marker as its immutable base"
+    );
+    let mut a_from_b = net.puller(0, 1).await;
+    let mut c_from_b = net.puller(2, 1).await;
+    for _ in 0..20 {
+        a_from_b.round().await.unwrap();
+        c_from_b.round().await.unwrap();
+        if a.store.marker(&pa.group.id()).await.unwrap().unwrap().0 == pb.marker.id()
+            && c.store.marker(&pa.group.id()).await.unwrap().unwrap().0 == pb.marker.id()
+        {
+            break;
+        }
+    }
+    for receiver in [a, c] {
+        assert_eq!(
+            receiver
+                .store
+                .marker_base(&pa.group.id())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            pa.marker.id()
+        );
+        assert_eq!(
+            receiver
+                .store
+                .marker(&pa.group.id())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            pb.marker.id()
+        );
+    }
+
+    assert!(a.w[1].certify(&pa.group.id()).await.unwrap());
+    let base_cert = a
+        .store
+        .certs(&pa.group.id())
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|cert| cert.body.writer == a.w[1].id)
+        .expect("second A writer certified the base group");
+    assert_eq!(base_cert.body.marker, pa.marker.id());
+    assert_eq!(
+        a.store.marker(&pa.group.id()).await.unwrap().unwrap().0,
+        pb.marker.id()
+    );
+
+    let tombstone = fixture::tombstone_of(&pa.marker, 2);
+    assert!(a.w[0].tombstone(&tombstone).await.unwrap());
+    for _ in 0..20 {
+        c_from_a.round().await.unwrap();
+        if published_set(&c.store)
+            .await
+            .unwrap()
+            .tombstones
+            .contains(&tombstone.id())
+        {
+            break;
+        }
+    }
+    assert!(published_set(&c.store)
+        .await
+        .unwrap()
+        .tombstones
+        .contains(&tombstone.id()));
+    assert_eq!(
+        c.store
+            .marker_base(&pa.group.id())
+            .await
+            .unwrap()
+            .unwrap()
+            .0,
+        pa.marker.id()
+    );
+    assert_eq!(
+        c.store.marker(&pa.group.id()).await.unwrap().unwrap().0,
+        pb.marker.id()
+    );
+    let source_tomb_cert = a
+        .store
+        .tcerts(&tombstone.id())
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|cert| cert.body.writer == a.w[0].id)
+        .unwrap();
+    assert_eq!(
+        c.store
+            .meta
+            .get(
+                c.store
+                    .meta
+                    .keys
+                    .xcertv("tcert", &tombstone.id(), &source_tomb_cert.id())
+            )
+            .await
+            .unwrap(),
+        Some(source_tomb_cert.to_bytes()),
+        "relay must retain A's original tombstone certificate"
+    );
+    assert!(
+        c.store
+            .ae_terminal_page(&net.identities[0].deployment, None, 16)
+            .await
+            .unwrap()
+            .entries
+            .is_empty(),
+        "T10 must not reject a tombstone because canonical differs from base"
+    );
+    a.audit_ok().await;
+    c.audit_ok().await;
+}
+
+#[tokio::test]
 async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite() {
     let net = Net::new("net-marker-layout", None).await;
     let a = &net.envs[0];

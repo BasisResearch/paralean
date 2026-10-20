@@ -1,0 +1,11 @@
+recovered: PASS
+probe: 3 probes, 2 ok (66.7%), longest failed run 1 probes; latency ok p50 5 ms, max 5 ms
+  unavailable from 00:16:41 for about 6 s (sampled until next success)
+
+censored: PASS
+probe: 3 probes, 1 ok (33.3%), longest failed run 2 probes; latency ok p50 4 ms, max 4 ms
+  unavailable from 00:16:41 through last failed sample 00:16:47 (sampled span 6 s; right-censored)
+
+empty: PASS
+probe: 0 probes, 0 ok (0.0%), longest failed run 0 probes; latency ok p50 - ms, max - ms
+

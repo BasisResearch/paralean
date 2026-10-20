@@ -21,7 +21,8 @@ fn x() -> Name {
 
 #[tokio::test]
 async fn crash_between_payload_and_metadata_then_restart() {
-    let e = Env::new("fi-crash", 1);
+    let observing = Faults::none();
+    let e = Env::with_faults("fi-crash", 1, observing.clone());
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
     let points: Vec<(&str, Box<dyn Fn(&Arc<Faults>)>)> = vec![
         ("after-payload", Box::new(|f: &Arc<Faults>| f.crash_at("publish:after-payload", 0))),
@@ -39,8 +40,15 @@ async fn crash_between_payload_and_metadata_then_restart() {
         assert!(matches!(r, Err(StoreError::Crashed(_))), "{label}: {r:?}");
         e.audit_ok().await; // nothing names an unacknowledged object
         // The restarted writer (no local state beyond the package it re-derives) retries.
+        let before = real_commit_unknowns(&observing);
         let o = e.w[0].publish(&p).await.unwrap();
-        assert_eq!(o.fresh, *label != "t1-after-commit", "{label}");
+        let expected_fresh = *label != "t1-after-commit";
+        assert!(o.fresh == expected_fresh ||
+            (expected_fresh && !o.fresh && real_commit_unknowns(&observing) > before),
+            "{label}: unexpected fresh={}", o.fresh);
+        assert_eq!(e.store.marker(&p.group.id()).await.unwrap().unwrap().0, p.marker.id());
+        assert!(e.store.certs(&p.group.id()).await.unwrap().iter().any(|c|
+            c.body.writer == e.w[0].id && c.body.marker == p.marker.id()));
         assert_eq!(e.store.target(&x()).await.unwrap().unwrap().head, Some(rev_id(&p)));
         e.audit_ok().await;
     }
@@ -111,8 +119,21 @@ async fn unknown_commit_result_on_every_transaction() {
         let tok = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
         assert_eq!((tok.rank, e.store.fence().await.unwrap()), (1, 1), "rank issued once");
         // T1.
+        let before = faults.stats();
+        let real_before = real_commit_unknowns(&faults);
+        let interrupted_before = before.get("injected-commit-real-error").copied().unwrap_or(0);
         let (p, o) = e.publish_target(0, &x(), "p").await.unwrap();
-        assert_eq!(o.fresh, !committed);
+        let after = faults.stats();
+        let interrupted = after.get("injected-commit-real-error").copied().unwrap_or(0);
+        let real = real_commit_unknowns(&faults);
+        assert!(o.fresh == !committed ||
+            (committed && interrupted > interrupted_before) ||
+            (!committed && !o.fresh && real > real_before),
+            "injected committed={committed}, fresh={}, interrupted_delta={}, real_unknown_delta={}, telemetry={after:?}",
+            o.fresh, interrupted - interrupted_before, real - real_before);
+        assert_eq!(e.store.marker(&p.group.id()).await.unwrap().unwrap().0, p.marker.id());
+        assert!(e.store.certs(&p.group.id()).await.unwrap().iter().any(|c|
+            c.body.writer == e.w[0].id && c.body.marker == p.marker.id()));
         // T2.
         e.w[1].certify(&p.group.id()).await.unwrap();
         assert_eq!(e.store.certs(&p.group.id()).await.unwrap().len(), 2);
@@ -170,13 +191,22 @@ async fn rotation_and_reassignment_between_read_and_commit() {
 
 #[tokio::test]
 async fn duplicate_and_reordered_retries() {
-    let e = Env::new("fi-retries", 2);
+    let faults = Faults::none();
+    let e = Env::with_faults("fi-retries", 2, faults.clone());
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
-    // Duplicate concurrent publishes of one package: exactly one is fresh.
+    // Duplicate concurrent publishes have one durable effect. A lost commit reply can
+    // make the winning call report already-present, but two fresh replies are impossible.
     let p1 = e.prepare(0, &x(), "p1", 1).await.unwrap();
+    let before = real_commit_unknowns(&faults);
     let (a, b) = tokio::join!(e.w[0].publish(&p1), e.w[0].publish(&p1));
     let (a, b) = (a.unwrap(), b.unwrap());
-    assert!(a.fresh ^ b.fresh, "{a:?} {b:?}");
+    assert!(!(a.fresh && b.fresh), "two fresh publication replies: {a:?} {b:?}");
+    assert!(a.fresh || b.fresh || real_commit_unknowns(&faults) > before,
+        "neither caller reported fresh without a real ambiguous commit: {a:?} {b:?}");
+    assert_eq!(e.store.marker(&p1.group.id()).await.unwrap().unwrap().0, p1.marker.id());
+    let certs = e.store.certs(&p1.group.id()).await.unwrap();
+    assert_eq!(certs.len(), 1);
+    assert_eq!(certs[0].body.marker, p1.marker.id());
     // p2 revises p1; then a late retry of p1's publish arrives: effect present, head stays.
     let p2 = e.prepare(0, &x(), "p2", 2).await.unwrap();
     e.w[0].publish(&p2).await.unwrap();

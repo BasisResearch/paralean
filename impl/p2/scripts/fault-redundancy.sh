@@ -130,13 +130,17 @@ print(f"probe: {len(ok)} probes, {sum(ok)} ok ({100*sum(ok)/max(1,len(ok)):.1f}%
       f"latency ok p50 {lat[len(lat)//2] if lat else '-'} ms, max {lat[-1] if lat else '-'} ms")
 import time
 runs, start = [], None
-for r in rows + [["0", "1", "0"]]:
+for r in rows:
     if r[1] == "0" and start is None:
         start = int(r[0])
     elif r[1] == "1" and start is not None:
         runs.append((start, int(r[0]) - start)); start = None
 for s, d in runs:
-    print(f"  unavailable from {time.strftime('%H:%M:%S', time.localtime(s))} for about {d} s")
+    print(f"  unavailable from {time.strftime('%H:%M:%S', time.localtime(s))} for about {d} s (sampled until next success)")
+if start is not None:
+    last = int(rows[-1][0])
+    print(f"  unavailable from {time.strftime('%H:%M:%S', time.localtime(start))} through last failed sample "
+          f"{time.strftime('%H:%M:%S', time.localtime(last))} (sampled span {max(0, last-start)} s; right-censored)")
 PY
 }
 finish() { # verify acknowledged effects and audit
@@ -154,6 +158,17 @@ garage_up() { # how many Garage nodes node 0 sees as up
   "$PARALEAN_P2_PREFIX/bin/garage" -c "$H/garage/n0/garage.toml" status 2>/dev/null | awk '/====/{h = /HEALTHY/; next} h && /127\.0\.0\.1:/{n++} END{print n+0}'
 }
 wpids=()
+garage_split_marker="$out/garage-rpc-split-issued"
+cleanup_garage_split() {
+  if [ -f "$garage_split_marker" ]; then
+    if proc garage-heal; then
+      rm -f "$garage_split_marker"
+      log 'Garage RPC partition healed by EXIT cleanup'
+    else
+      log 'ERROR: Garage RPC partition could not be healed by EXIT cleanup'
+    fi
+  fi
+}
 cleanup_probe() {
   if [ -n "${probe_pid:-}" ]; then
     touch "$out/stop-probe"
@@ -162,7 +177,11 @@ cleanup_probe() {
     rm -f "$out/stop-probe"
   fi
 }
-trap cleanup_probe EXIT
+cleanup() {
+  cleanup_garage_split
+  cleanup_probe
+}
+trap cleanup EXIT
 for j in $(seq 0 $((PARALEAN_GARAGE_NODES - 1))); do proc garage start "$j"; done
 probe & probe_pid=$!
 wait_tolerance "$min_tolerance" 300 || exit 1
@@ -192,8 +211,9 @@ stress)
     fault "pause garage-1 (SIGSTOP)"; proc garage pause 1; sleep 15; proc garage resume 1; sleep 10
     log "garage nodes up: $(garage_up)"
     if [ "${PARALEAN_GARAGE_NETSPLIT:-0}" = 1 ]; then
-      fault "partition Garage RPC node 2"; proc garage-split 2 || return 1
-      sleep 15; proc garage-heal || return 1; sleep 10
+      fault "partition Garage RPC node 2"; touch "$garage_split_marker" || return 1
+      proc garage-split 2 || return 1
+      sleep 15; proc garage-heal || return 1; rm -f "$garage_split_marker"; sleep 10
       log "garage nodes up: $(garage_up)"
     fi
     fault "kill and wipe garage-2 (disk loss), resync blocks"; proc garage kill 2; proc garage wipe 2; sleep 10

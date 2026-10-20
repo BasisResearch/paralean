@@ -1,0 +1,19 @@
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-m-p2/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.58s
+     Running tests/network.rs (target/debug/deps/network-bffe1fb6ba26d370)
+
+running 1 test
+test lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards ... 
+thread 'lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards' (3657315) panicked at crates/ae-service/tests/network.rs:648:50:
+called `Result::unwrap()` on an `Err` value: Guard(BadPackage("certificate names another marker"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.95s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

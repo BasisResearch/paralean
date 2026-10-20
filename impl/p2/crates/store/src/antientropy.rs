@@ -433,7 +433,9 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             if st.s3.get_acked(Kind::StagedTombstone, &tid).await?.is_none() {
                 return Ok(Outcome::Deferred("tombstone copy not acknowledged here".into()));
             }
-            let Some((_, m)) = st.marker(&t.target).await? else {
+            // T10's transactional tombstone guard binds the immutable base marker.
+            // Receipt-only variants carry the same revisions and layout.
+            let Some((_, m)) = st.marker_base(&t.target).await? else {
                 return Ok(Outcome::Deferred(format!("target {:?} not published here", t.target)));
             };
             let (mut names, mut workspaces) = (Vec::new(), Vec::new());
