@@ -4,7 +4,10 @@
    process wall clock. All checks and writes in a named action are one
    serializable transaction. Objects are controller snapshot incarnations:
    a later authorized save may use the same content hash with a new generation.
-   P2 protocol/S3 objects are outside this model and remain grow-only. *)
+   P2 protocol/S3 objects are outside this model and remain grow-only.
+   W3 tombstones are modelled only as roots: a tombstoned position leaves the
+   live view, but its record, certificates and marker remain an RGA anchor and
+   lineage, so nothing reachable from them may be collected. *)
 EXTENDS Naturals, FiniteSets
 
 CONSTANTS Shards, Workers, Objects, MaxVersion, LeaseSpan, Grace
@@ -12,23 +15,26 @@ CONSTANTS Shards, Workers, Objects, MaxVersion, LeaseSpan, Grace
 VARIABLES version, holder, term, expiry, heldTerm, pending, pendingTerm,
           roots, live, retired, deleted, known, demand, checkpoint, catalog,
           retained, commitFenced, fetchDemanded, recovered, handoverPublished,
-          lostDesktop
+          lostDesktop, tombstoned
 
 vars == <<version, holder, term, expiry, heldTerm, pending, pendingTerm,
           roots, live, retired, deleted, known, demand, checkpoint, catalog,
           retained, commitFenced, fetchDemanded, recovered, handoverPublished,
-          lostDesktop>>
+          lostDesktop, tombstoned>>
 
 None == "none"
 Deps == [o \in Objects |-> IF o = "dependent" THEN {"base"} ELSE {}]
 Home == [o \in Objects |-> IF o = "dependent" THEN "s2" ELSE "s1"]
 InitialRoot == [s \in Shards |-> IF s = "s1" THEN "base" ELSE None]
 Range(f) == {f[x] : x \in DOMAIN f}
+TombstoneRoots == tombstoned
 RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog
            \cup retained \cup UNION {demand[w] : w \in Workers}
+           \cup TombstoneRoots
 ActualRootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint
                  \cup catalog \cup retained
                  \cup UNION {demand[w] : w \in Workers}
+                 \cup tombstoned
 Closure(R) == R \cup UNION {Deps[o] : o \in R}
 Protected == Closure(Closure(Closure(RootSet)))
 LeaseOK(s, w) == holder[s] = w /\ version[s] < expiry[s]
@@ -57,6 +63,7 @@ Init ==
   /\ recovered = [w \in Workers |-> {}]
   /\ handoverPublished = FALSE
   /\ lostDesktop = FALSE
+  /\ tombstoned = {}
 
 Advance(s) ==
   /\ version[s] < MaxVersion
@@ -64,7 +71,7 @@ Advance(s) ==
   /\ UNCHANGED <<holder, term, expiry, heldTerm, pending, pendingTerm,
                  roots, live, retired, deleted, known, demand, checkpoint,
                  catalog, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 Acquire(s, w) ==
   /\ expiry[s] <= version[s]
@@ -75,7 +82,7 @@ Acquire(s, w) ==
   /\ UNCHANGED <<version, pending, pendingTerm, roots, live, retired,
                  deleted, known, demand, checkpoint, catalog, commitFenced,
                  retained, fetchDemanded, recovered, handoverPublished,
-                 lostDesktop>>
+                 lostDesktop, tombstoned>>
 
 Renew(s, w) ==
   /\ LeaseOK(s, w)
@@ -84,7 +91,7 @@ Renew(s, w) ==
   /\ UNCHANGED <<version, holder, term, heldTerm, pending, pendingTerm,
                  roots, live, retired, deleted, known, demand, checkpoint,
                  catalog, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 Stage(w, o) ==
   /\ o \in live \ pending
@@ -96,7 +103,7 @@ Stage(w, o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, roots, live,
                  retired, deleted, known, demand, checkpoint, catalog,
                  retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 Publish(w, o) ==
   /\ o \in pending
@@ -114,7 +121,7 @@ Publish(w, o) ==
   /\ handoverPublished' = (handoverPublished \/ term[Home[o]] > 1)
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pendingTerm,
                  live, deleted, known, demand, checkpoint, catalog,
-                 retained, fetchDemanded, recovered, lostDesktop>>
+                 retained, fetchDemanded, recovered, lostDesktop, tombstoned>>
 
 AbortStale(o) ==
   /\ o \in pending
@@ -123,7 +130,7 @@ AbortStale(o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pendingTerm,
                  roots, live, retired, deleted, known, demand, checkpoint,
                  catalog, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 PinCheckpoint(o) ==
   /\ o = "base"
@@ -133,7 +140,7 @@ PinCheckpoint(o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, known, demand,
                  catalog, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 PinCatalog(o) ==
   /\ o = "base"
@@ -143,7 +150,7 @@ PinCatalog(o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, known, demand,
                  checkpoint, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 PinRetained(o) ==
   /\ o = "base"
@@ -153,7 +160,18 @@ PinRetained(o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, known, demand,
                  checkpoint, catalog, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
+
+(* A tombstoned position leaves the live file view; its lineage stays a root. *)
+Tombstone(o) ==
+  /\ o = "base"
+  /\ o \in live
+  /\ Deps[o] \subseteq live
+  /\ tombstoned' = tombstoned \cup {o}
+  /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
+                 pendingTerm, roots, live, retired, deleted, known, demand,
+                 checkpoint, catalog, retained, commitFenced, fetchDemanded,
+                 recovered, handoverPublished, lostDesktop>>
 
 (* Root membership and the deletion conflict-read occur in the same FDB
    transaction. A retained snapshot starts its grace when superseded. *)
@@ -167,7 +185,7 @@ Collect(o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, retired, demand, checkpoint, catalog,
                  retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 LoseDesktop(w) ==
   /\ w = "b"
@@ -178,7 +196,7 @@ LoseDesktop(w) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, checkpoint,
                  catalog, retained, commitFenced, fetchDemanded, recovered,
-                 handoverPublished>>
+                 handoverPublished, tombstoned>>
 
 Request(w, o) ==
   /\ w = "b"
@@ -188,7 +206,7 @@ Request(w, o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, known,
                  checkpoint, catalog, retained, commitFenced, fetchDemanded,
-                 recovered, handoverPublished, lostDesktop>>
+                 recovered, handoverPublished, lostDesktop, tombstoned>>
 
 (* A demand-driven recovery fetch can only read a still-live incarnation. A
    retired incarnation is not revived by an old advertisement. *)
@@ -203,14 +221,14 @@ Fetch(w, o) ==
   /\ UNCHANGED <<version, holder, term, expiry, heldTerm, pending,
                  pendingTerm, roots, live, retired, deleted, demand,
                  checkpoint, catalog, retained, commitFenced,
-                 handoverPublished, lostDesktop>>
+                 handoverPublished, lostDesktop, tombstoned>>
 
 Next == (\E s \in Shards : Advance(s))
   \/ (\E s \in Shards, w \in Workers : Acquire(s, w) \/ Renew(s, w))
   \/ (\E w \in Workers, o \in Objects : Stage(w, o) \/ Publish(w, o)
                                             \/ Request(w, o) \/ Fetch(w, o))
   \/ (\E o \in Objects : PinCheckpoint(o) \/ PinCatalog(o) \/ PinRetained(o)
-                         \/ Collect(o) \/ AbortStale(o))
+                         \/ Tombstone(o) \/ Collect(o) \/ AbortStale(o))
   \/ (\E w \in Workers : LoseDesktop(w))
 Spec == Init /\ [][Next]_vars
 
@@ -228,5 +246,6 @@ NeverRecovered == \A w \in Workers : recovered[w] = {}
 NeverHandoverPublished == ~handoverPublished
 NeverDependentPublished == roots["s2"] # "dependent"
 NeverRetained == retained = {}
+NeverTombstoned == tombstoned = {}
 
 =============================================================================

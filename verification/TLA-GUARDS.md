@@ -300,7 +300,9 @@ The GC domain is **controller snapshot incarnations**, not P2 protocol objects,
 catalogue certificates or S3 keys. A snapshot incarnation may be reclaimed only
 after a shard-local logical grace and a transactionally fresh root check. The
 roots modeled are current shard heads, in-flight saves, retained references,
-checkpoints, catalogue references and outstanding demands. Their dependency
+checkpoints, catalogue references, outstanding demands and (since the W3/W4
+integration) W3 tombstone lineage: a tombstoned position leaves the live view,
+but its record, certificates and anchor marker stay roots. Their dependency
 closure crosses shard boundaries. A later authorized save may reuse the same
 content hash as a collected incarnation; `NoResurrection` concerns the deleted
 incarnation, not byte-level hash uniqueness. Recovery fetches require an explicit
@@ -313,12 +315,13 @@ and [plan.md](../docs/plan.md).
 
 The positive `W4Scale.cfg` instance checks root closure, incarnation
 non-resurrection, the independent stale-publication observer, demanded fetches,
-logical grace and absence of deleted outstanding demands. On one TLC worker it
-explored 428,800 distinct states. The negative suite requires witnesses for
-handover, publication after handover, cross-shard dependent publication,
-collection, retained roots and desktop recovery. Removing either the term or
-expiry check violates `NoStalePublish`; removing dependency closure or any one
-of pending, checkpoint, catalogue or retained roots violates `RootsLive`;
+logical grace and absence of deleted outstanding demands. W4 alone explored
+428,800 distinct states; with the tombstone root it explores 856,832. The
+negative suite requires witnesses for handover, publication after handover,
+cross-shard dependent publication, collection, retained roots, tombstoning and
+desktop recovery. Removing either the term or expiry check violates
+`NoStalePublish`; removing dependency closure or any one of pending, checkpoint,
+catalogue, retained or tombstone roots (`w4_no_tombstone_root`) violates `RootsLive`;
 removing demand protection violates `NoDemandDeleted`; removing grace violates
 `GraceKept`; allowing unsolicited fetch violates `NoUnrequestedFetch`.
 

@@ -14,15 +14,17 @@ cases=(
   'mutate-no-validation-catalog|target_free_job_routes_its_cancellation_to_issuing_shard'
   'mutate-no-receipt-shard-check|target_free_job_routes_its_cancellation_to_issuing_shard'
   'mutate-no-unowned-reassign|unowned_fence_can_be_taken_by_later_registered_worker'
+  'mutate-no-task-claim-check|task_and_shard_claims_are_mutually_exclusive|p5_claims'
 )
 fail=0
 for case in "${cases[@]}"; do
-  IFS='|' read -r feature name <<<"$case"
-  output="$(cargo test -q -j1 -p paralean-control --features "$feature" --test durable -- --exact "$name" 2>&1)"
+  IFS='|' read -r feature name test <<<"$case"
+  test="${test:-durable}"
+  output="$(cargo test -q -j1 -p paralean-control --features "$feature" --test "$test" -- --exact "$name" 2>&1)"
   if rg -q 'assertion failed|assertion `left == right` failed' <<<"$output" && rg -q "${name} --- FAILED" <<<"$output"; then
-    echo "detected  $feature  by durable::$name"
+    echo "detected  $feature  by $test::$name"
   else
-    echo "SURVIVED  $feature  durable::$name"
+    echo "SURVIVED  $feature  $test::$name"
     echo "$output" | tail -20
     fail=1
   fi

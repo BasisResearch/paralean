@@ -8,6 +8,7 @@ cases=(
   'mutate-no-gc-principal-check|gc_key_only_allows_signed_object_delete_candidate'
   'mutate-no-bucket-delete-check|gc_key_only_allows_signed_object_delete_candidate'
   'mutate-no-query-key-decode|decodes_query_keys_before_denying_destructive_subresources'
+  'mutate-no-gc-prefix-check|gc_never_deletes_p2_content_or_unlisted_keys'
 )
 for case in "${cases[@]}"; do
   IFS='|' read -r feature test_name <<<"$case"

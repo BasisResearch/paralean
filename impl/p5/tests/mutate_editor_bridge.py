@@ -31,6 +31,11 @@ CASES = [
      "if False or not target", "test_policy_and_assignment_guards"),
     ("precommit_stamp", "def precommit_guard() -> None:\n                self._assert_current(ws, uri, stamp)",
      "def precommit_guard() -> None:\n                pass", "test_mutation_after_validation_aborts_before_commit"),
+    ("authoring_refusal", "            self._assert_authoring(ws)\n            spec = next(",
+     "            spec = next(", "test_agent_key_revocation_changes_policy_and_refuses_publication"),
+    ("authoring_probe", 'else "workspace agent key is revoked or unregistered")',
+     'else "")',
+     "test_agent_key_revocation_changes_policy_and_refuses_publication"),
     ("precommit_policy", "self._assert_store_policy(ws)", "pass",
      "test_live_policy_change_after_validation_aborts_commit"),
     ("precommit_disk", "if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != stamp[\"source_sha256\"]:",
@@ -97,6 +102,7 @@ def main() -> int:
             tests.BridgeError = module.BridgeError
             tests.policy_feed = module.policy_feed
             tests.attach_p5 = module.attach_p5
+            tests.authoritative_policy_probe = module.authoritative_policy_probe
             suite = unittest.TestSuite([tests.BridgeTests(method)])
             with open(Path(tmp) / f"{name}.log", "w") as stream:
                 result = unittest.TextTestRunner(stream=stream).run(suite)
@@ -107,6 +113,7 @@ def main() -> int:
         tests.BridgeError = __import__("controller_bridge").BridgeError
         tests.policy_feed = __import__("controller_bridge").policy_feed
         tests.attach_p5 = __import__("controller_bridge").attach_p5
+        tests.authoritative_policy_probe = __import__("controller_bridge").authoritative_policy_probe
         router_cases = [
             ("router_response_defer",
              "    async def worker_response(self, ws, message):\n        if self.bridge is not None:\n            await self.bridge.policy_events[ws.name].wait()",

@@ -9,8 +9,11 @@
 //! aborts. A writer never proceeds past an unresolved outcome: if the loop gives up it
 //! returns `StoreError::Unresolved`, never a guard failure.
 //!
-//! No code path in this crate clears a key (`clear`/`clear_range` are never called): the
-//! key spaces are grow-only, which the paginated-scan argument of store.md needs.
+//! Protocol key spaces are grow-only, which the paginated-scan argument of store.md
+//! needs: nothing clears a marker, certificate, tombstone, grant, fence, catalogue or
+//! registry key. The only clears are the anti-entropy work queues in `ae.rs` (pending
+//! events and their parts, once archived as terminal records); they hold no lineage.
+//! W4's controller GC clears only its own `controller/shard/*` chunks and retirements.
 
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -508,6 +511,31 @@ impl Meta {
                 }
             })
         })).await
+    }
+
+    /// Read-only view of `active_agent_key`'s admission rule for schedulers and
+    /// editors: whether a controller grant binds `agent` to `public` for
+    /// `workspace` (persisted, or configured and still bootstrappable), and
+    /// whether that key is revoked. Admission itself is still decided in T1/T8.
+    pub async fn agent_key_state(
+        &self, ring: &crate::sign::KeyRing, agent: AgentId, workspace: WorkspaceId, public: [u8; 32],
+    ) -> Result<(bool, bool)> {
+        let (slot, revoke) = (self.keys.agent_key(&agent, &public), self.keys.agent_revoke(&public));
+        let ring = ring.clone();
+        self.read(move |trx| {
+            let (slot, revoke, ring) = (slot.clone(), revoke.clone(), ring.clone());
+            Box::pin(async move {
+                let matches = |grant: &crate::authority::AgentKeyGrant| grant.parts().is_some_and(|(a, w, p, issuer)|
+                    a == agent && w == workspace && p == public && issuer == ring.authority) && grant.verify();
+                let registered = match get(trx, &slot).await? {
+                    Some(bytes) => serde_json::from_slice::<crate::authority::AgentKeyGrant>(&bytes)
+                        .is_ok_and(|grant| matches(&grant)),
+                    None => ring.agent_keys.iter().any(matches),
+                };
+                Ok((registered, get(trx, &revoke).await?.is_some()))
+            })
+        })
+        .await
     }
 
     /// Revocation is grow-only and conflicts with T1/T8/T10 reads of this key.

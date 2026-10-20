@@ -54,6 +54,18 @@ def authoritative_policy_probe(ws) -> str:
             not isinstance(row.get("key"), str) or not isinstance(row.get("revoked"), bool)
             for row in validators if isinstance(row, dict)) or any(not isinstance(row, dict) for row in validators):
         raise BridgeError("store policy query returned malformed validators")
+    agents = live_policy.get("agents")
+    if not isinstance(agents, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get("workspace"), str)
+            or not isinstance(row.get("registered"), bool) or not isinstance(row.get("revoked"), bool)
+            for row in agents):
+        raise BridgeError("store policy query returned malformed agent keys")
+    # W3 agent-key registry. A revoked or unregistered author key leaves the
+    # workspace readable but unable to publish; it is part of the hashed policy,
+    # so the change also expires sessions and captures.
+    own = [row for row in agents if row["workspace"] == ws.name]
+    ws.authoring_refusal = (None if len(own) == 1 and own[0]["registered"] and not own[0]["revoked"]
+        else "workspace agent key is revoked or unregistered")
     pulled = command(plr, "pull", "--cache", str(cache))
     if pulled.get("stale") or not isinstance(pulled.get("available"), int):
         raise BridgeError("store registry pull was stale or incomplete")
@@ -142,6 +154,11 @@ class ControllerBridge:
                 raise BridgeError("authoritative store policy changed since capture")
             if ws.environment_digest() != ws.environment:
                 raise BridgeError("workspace environment changed since capture")
+
+    def _assert_authoring(self, ws) -> None:
+        refusal = getattr(ws, "authoring_refusal", None)
+        if refusal:
+            raise BridgeError(refusal)
 
     def _probe_policy(self, ws) -> str:
         if self.backend is not None:
@@ -241,6 +258,7 @@ class ControllerBridge:
             if saved is None or any(saved.get(k) != v for k, v in stamp.items()):
                 raise BridgeError("current buffer has no successful private capture")
             self._assert_current(ws, uri, stamp)
+            self._assert_authoring(ws)
             spec = next((t for t in self.backend.task.get("targets", []) if t.get("name") == target), None)
             if (spec is None or spec.get("file") != stamp["file"] or owner != ws.name
                     or owner not in self.backend.agents):
@@ -259,6 +277,7 @@ class ControllerBridge:
             def precommit_guard() -> None:
                 self._assert_current(ws, uri, stamp)
                 self._assert_store_policy(ws)
+                self._assert_authoring(ws)
                 if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != stamp["source_sha256"]:
                     raise BridgeError("working source changed after receipt validation")
 

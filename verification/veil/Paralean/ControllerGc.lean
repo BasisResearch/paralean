@@ -3,8 +3,10 @@ import Std
 /-!
 Local transition lemmas for W4 controller metadata. `Object` denotes a
 snapshot incarnation, not a byte hash or a P2 protocol object. `reachable`
-already includes current, pending, retained, checkpoint, catalogue, demand and
-transitive dependency roots. These lemmas do not refine the Rust transactions.
+already includes current, pending, retained, checkpoint, catalogue, demand,
+W3 tombstone-lineage and transitive dependency roots; `Roots` and `Reachable`
+below make that root set explicit. These lemmas do not refine the Rust
+transactions.
 -/
 
 namespace Paralean.ControllerGc
@@ -35,6 +37,42 @@ theorem recovery_roots_live_after_collect
   intro object hRoot
   exact reachable_live_after_collect live reachable victim hLive hUnreachable
     object (hRecovery object hRoot)
+
+/-- The GC root inventory. `tombstoned` holds W3 tombstone lineage: a
+tombstoned position leaves the live view, but its record, certificates and
+anchor marker must stay reachable. -/
+structure Roots (Object : Type) where
+  current : Object → Prop
+  pending : Object → Prop
+  retained : Object → Prop
+  checkpoint : Object → Prop
+  catalogue : Object → Prop
+  demand : Object → Prop
+  tombstoned : Object → Prop
+
+def Roots.any (roots : Roots Object) (object : Object) : Prop :=
+  roots.current object ∨ roots.pending object ∨ roots.retained object ∨
+    roots.checkpoint object ∨ roots.catalogue object ∨ roots.demand object ∨
+    roots.tombstoned object
+
+/-- Reachability from the roots along dependencies (including RGA anchors). -/
+inductive Reachable (roots : Roots Object) (dep : Object → Object → Prop) : Object → Prop
+  | root {object : Object} : roots.any object → Reachable roots dep object
+  | dep {object target : Object} :
+      Reachable roots dep object → dep object target → Reachable roots dep target
+
+theorem tombstone_lineage_live_after_collect
+    (roots : Roots Object) (dep : Object → Object → Prop)
+    (live : Object → Prop) (victim : Object)
+    (hLive : ∀ object, Reachable roots dep object → live object)
+    (hUnreachable : ¬ Reachable roots dep victim) :
+    ∀ object target, roots.tombstoned object → dep object target →
+      afterCollect live victim object ∧ afterCollect live victim target := by
+  intro object target hTombstoned hDep
+  have hRoot : Reachable roots dep object :=
+    .root (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr hTombstoned))))))
+  exact ⟨reachable_live_after_collect live (Reachable roots dep) victim hLive hUnreachable object hRoot,
+    reachable_live_after_collect live (Reachable roots dep) victim hLive hUnreachable target (.dep hRoot hDep)⟩
 
 structure Lease (Worker : Type) where
   holder : Worker

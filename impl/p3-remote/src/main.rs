@@ -248,14 +248,30 @@ async fn validate(a: &[&str]) -> R<Value> {
                     .await.map_err(es)
             }
         };
-        let lease = match call(ControlRequest::Register {
-            worker: wid.hex(),
-            capacity_mb: 8192,
-        })
-        .await?
-        {
-            ControlResponse::Registered { lease_ms } => lease_ms,
-            other => return Err(format!("controller registration: {other:?}")),
+        // With fixed controller shards (W4) each shard keeps its own worker
+        // registry, and a target is validated by its own shard. Register with
+        // every configured endpoint; one accepting shard is enough to start.
+        let endpoints: Vec<String> = controller.split(',').map(str::trim)
+            .filter(|s| !s.is_empty()).map(str::to_string).collect();
+        let register = |endpoint: String| {
+            let signer = signer.clone();
+            let request = ControlRequest::Register { worker: wid.hex(), capacity_mb: 8192 };
+            async move {
+                call_controller(&endpoint, &request, &signer, &authority, Duration::from_secs(15)).await
+            }
+        };
+        let mut lease = None;
+        let mut refusal = None;
+        for endpoint in &endpoints {
+            match register(endpoint.clone()).await {
+                Ok(ControlResponse::Registered { lease_ms }) => {
+                    lease = Some(lease.map_or(lease_ms, |l: u64| l.min(lease_ms)))
+                }
+                other => refusal = Some(format!("{other:?}")),
+            }
+        }
+        let Some(lease) = lease else {
+            return Err(format!("controller registration: {}", refusal.unwrap_or_default()));
         };
         let mut requests = Vec::new();
         for target in targets.split(',').filter(|s| !s.is_empty()) {
@@ -278,23 +294,35 @@ async fn validate(a: &[&str]) -> R<Value> {
             hex::encode(rand::random::<[u8; 16]>())
         );
         let heartbeat = tokio::spawn({
-            let controller = controller.to_string();
             let signer = signer.clone();
             let authority = authority;
             let worker = wid.hex();
             async move {
                 loop {
                     tokio::time::sleep(Duration::from_millis((lease / 3).max(100))).await;
-                    let _: std::io::Result<ControlResponse> = call_controller(
-                        &controller,
-                        &ControlRequest::Heartbeat {
-                            worker: worker.clone(),
-                        },
-                        &signer,
-                        &authority,
-                        Duration::from_secs(10),
-                    )
-                    .await;
+                    for endpoint in &endpoints {
+                        let beat = call_controller(
+                            endpoint,
+                            &ControlRequest::Heartbeat {
+                                worker: worker.clone(),
+                            },
+                            &signer,
+                            &authority,
+                            Duration::from_secs(10),
+                        )
+                        .await;
+                        // A shard that expired or never saw this worker re-registers it.
+                        if matches!(beat, Ok(ControlResponse::Unknown)) {
+                            let _ = call_controller(
+                                endpoint,
+                                &ControlRequest::Register { worker: worker.clone(), capacity_mb: 8192 },
+                                &signer,
+                                &authority,
+                                Duration::from_secs(10),
+                            )
+                            .await;
+                        }
+                    }
                 }
             }
         });

@@ -338,6 +338,11 @@ fn ws(s: &str) -> Option<WorkspaceId> {
 /// Call a controller replica list such as `host-a:9000,host-b:9000`.
 /// The signed request is regenerated for each connection's challenge, while its
 /// logical request ID stays unchanged across retries and leader failover.
+/// The monitor's scheduling interval: one logical clock advance per replica.
+pub fn monitor_interval(lease: Duration) -> Duration {
+    (lease / 8).max(Duration::from_millis(20))
+}
+
 pub async fn call_controller(
     addrs: &str, req: &ControlRequest, signer: &Signer, authority_public: &[u8; 32], total_timeout: Duration,
 ) -> std::io::Result<ControlResponse> {
@@ -552,7 +557,7 @@ impl ControlPlane {
         let server = AbortOnDrop(server);
         let me = self.clone();
         tokio::spawn(async move {
-            let mut tick = tokio::time::interval((me.cfg.lease / 8).max(Duration::from_millis(20)));
+            let mut tick = tokio::time::interval(monitor_interval(me.cfg.lease));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut next_gc_tick = 0;
             loop {
@@ -736,7 +741,12 @@ impl ControlPlane {
                     w,
                     WorkerInfo { capacity_mb, used_mb, lease_until: now.saturating_add(8), alive: true },
                 );
-                ControlResponse::Registered { lease_ms: self.cfg.lease.as_millis() as u64 }
+                // A worker lease is eight store increments, and every replica of
+                // this shard advances the store clock once per monitor interval.
+                // Workers heartbeat at a third of the advertised lease, so
+                // advertise one monitor interval: heartbeats then outpace expiry
+                // for fewer than 24 concurrently ticking replicas.
+                ControlResponse::Registered { lease_ms: monitor_interval(self.cfg.lease).as_millis() as u64 }
             }
             ControlRequest::Heartbeat { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -1168,6 +1178,11 @@ impl ControlPlane {
         for (r, target, to, attempt) in moves {
             let req = format!("work/{r}/{attempt}");
             let res = self.durable.assign_group(&[target.clone()], to, req.as_bytes(), term).await.map(|v| v[0]);
+            // A superseded request is final for this attempt: another
+            // assignment owns the target now. Skip it rather than aborting the
+            // remaining handovers of this tick; the intent stays durable and
+            // is reconsidered with a fresh attempt once its owner expires.
+            if res.as_ref().is_err_and(|e| e.contains("superseded")) { continue }
             if res.is_err() { return false }
             {
                 let mut st = self.state.lock().unwrap();

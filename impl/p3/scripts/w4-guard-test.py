@@ -19,7 +19,9 @@ import requests
 
 
 def main():
-    assert os.environ["PARALEAN_INSTANCE"] == "w4-scale"
+    # Only a named private instance; never the default shared cluster.
+    instance = os.environ["PARALEAN_INSTANCE"]
+    assert instance, "set PARALEAN_INSTANCE to a private instance"
     root = Path(__file__).resolve().parents[3]
     home = Path(os.environ["PARALEAN_HOME"])
     garage = Path(os.environ["PARALEAN_P2_PREFIX"]) / "bin/garage"
@@ -38,14 +40,16 @@ def main():
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
     endpoint = f"http://127.0.0.1:{port}"
-    log = root / ".runs/w4/guard-live.log"
+    log = root / f".runs/{instance}/guard-live.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
     results = {}
     with log.open("w") as output:
         proc = subprocess.Popen([
             str(root / "impl/p2/target/debug/s3-guard"),
             "--listen", f"127.0.0.1:{port}",
-            "--upstream", "127.0.0.1:29520",
+            "--upstream", f"127.0.0.1:{os.environ['PARALEAN_GARAGE_S3_PORT']}",
             "--gc-access-key", gc_key,
+            "--gc-delete-prefix", f"{bucket}/w4-guard-test/",
         ], stdout=output, stderr=output)
         try:
             for _ in range(100):
@@ -108,6 +112,19 @@ def main():
                 results["gc_encoded_bulk_delete_denied"] = True
             finally:
                 connection.close()
+            # P2 content kinds stay undeletable even inside an allowlisted prefix,
+            # and keys outside the allowlist are refused.
+            run = secrets.token_hex(8)
+            protected = [f"w4-guard-test/{run}/obj/tombstone/{secrets.token_hex(32)}",
+                         f"w4-guard-{run}/obj/marker/{secrets.token_hex(32)}"]
+            unlisted = f"w4-guard-other-{run}/{secrets.token_hex(16)}"
+            for key in [*protected, unlisted]:
+                app.put_object(Bucket=bucket, Key=key, Body=b"retained test bytes")
+            for i, key in enumerate(protected):
+                denied(f"gc_protected_kind_denied_{i}", lambda key=key: gc.delete_object(Bucket=bucket, Key=key))
+            denied("gc_unlisted_prefix_denied", lambda: gc.delete_object(Bucket=bucket, Key=unlisted))
+            for key in [*protected, unlisted]:
+                assert app.get_object(Bucket=bucket, Key=key)["Body"].read() == b"retained test bytes"
             assert app.get_object(Bucket=bucket, Key=obj)["Body"].read() == b"unreferenced test bytes"
             gc.delete_object(Bucket=bucket, Key=obj)
             try:

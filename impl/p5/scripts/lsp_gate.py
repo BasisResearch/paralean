@@ -264,6 +264,29 @@ deps = ["P5Lsp.one"]
             result["checks"]["idle_store_policy_push"] = {
                 "ok": True, "generation": pushed["params"]["generation"],
                 "old_session_rejected": expired}
+            # W3 agent-key registry through the same feed: a worker key cannot
+            # revoke an author; the authority's revocation reaches the editor and
+            # publication is refused before any validator work.
+            worker_agent = subprocess.run([bridge_bin, "revoke-agent-key", "--ws", "w0"],
+                                          env={**os.environ, "PARALEAN_KEYS": str(run_dir / "keys-w0.json")},
+                                          text=True, capture_output=True, timeout=30)
+            assert worker_agent.returncode and "authority seed required" in worker_agent.stderr, worker_agent
+            agent_before = editor.response(editor.send("paralean/source", {"uri": uri}))
+            revoked_agent = subprocess.run([bridge_bin, "revoke-agent-key", "--ws", "w0"],
+                                           env={**os.environ, "PARALEAN_KEYS": str(key_file)},
+                                           text=True, capture_output=True, timeout=30)
+            if revoked_agent.returncode:
+                raise RuntimeError("private agent-key revocation failed: " + revoked_agent.stderr[-1000:])
+            agent_push = editor.take(lambda item: item.get("method") == "paralean/environmentChanged"
+                and item.get("params", {}).get("workspace") == "w0"
+                and item["params"].get("generation", 0) > agent_before["generation"], timeout=45)
+            editor.response(editor.send("paralean/capture", {"uri": uri, "version": 3}))
+            refused = rejected(editor, "paralean/publish", {"uri": uri, "version": 3,
+                "target": "P5Lsp.one", "owner": "w0", "epoch": epoch, "policy": "frozen-target"})
+            assert "agent key" in refused.lower(), refused
+            result["checks"]["agent_key_revocation"] = {
+                "ok": True, "generation": agent_push["params"]["generation"],
+                "worker_refused": True, "publish_refused": refused}
         result["ok"] = True
         return 0
     finally:

@@ -298,6 +298,7 @@ for line in sys.stdin:
         def run(argv, **kwargs):
             if argv[1] == "policy-state":
                 body = {"validators": [{"key": "a" * 64, "revoked": revoked[0]}],
+                        "agents": [{"workspace": "w0", "registered": True, "revoked": False}],
                         "policies": ["policy"], "checkers": ["checker"]}
             elif argv[1] == "pull":
                 body = {"stale": False, "available": 0}
@@ -310,6 +311,30 @@ for line in sys.stdin:
             revoked[0] = True
             after = authoritative_policy_probe(self.ws)
         self.assertNotEqual(before, after)
+
+    async def test_agent_key_revocation_changes_policy_and_refuses_publication(self):
+        agent = {"workspace": "w0", "registered": True, "revoked": False}
+
+        def run(argv, **kwargs):
+            if argv[1] == "policy-state":
+                body = {"validators": [{"key": "a" * 64, "revoked": False}],
+                        "agents": [dict(agent)], "policies": ["policy"], "checkers": ["checker"]}
+            elif argv[1] == "pull":
+                body = {"stale": False, "available": 0}
+            else:
+                self.fail(f"unexpected authoritative query: {argv}")
+            return subprocess.CompletedProcess(argv, 0, json.dumps(body), "")
+
+        with patch("controller_bridge.subprocess.run", side_effect=run):
+            before = authoritative_policy_probe(self.ws)
+            self.assertIsNone(self.ws.authoring_refusal)
+            agent["revoked"] = True
+            after = authoritative_policy_probe(self.ws)
+        self.assertNotEqual(before, after)
+        self.assertIn("agent key", self.ws.authoring_refusal)
+        with self.assertRaisesRegex(BridgeError, "agent key"):
+            await self.bridge.publish(self.ws, self.uri, 1, "P5.answer", "w0", 4, policy="frozen-target")
+        self.assertEqual(self.backend.calls, 0)
 
     async def test_failed_policy_restart_fails_closed_then_recovers(self):
         current = ["p1"]

@@ -17,3 +17,4 @@ bytes = "1"
 mutate-no-gc-principal-check = []
 mutate-no-bucket-delete-check = []
 mutate-no-query-key-decode = []
+mutate-no-gc-prefix-check = []

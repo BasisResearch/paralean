@@ -11,6 +11,47 @@ use paralean_store::receipt::SignedJob;
 use paralean_store::id::sha256;
 use serde::{Deserialize, Serialize};
 
+/// The per-target ownership claim shared by every scheduler of a deployment.
+/// A W4 controller shard stores its shard number; P5's task bridge stores
+/// [`P5_TASK_CLAIM`]. Each side refuses a target the other has claimed, so P5
+/// and a controller shard never reassign each other's targets through T4.
+pub fn target_claim_key(store: &Store, name: &Name) -> Vec<u8> {
+    store.meta.keys.root.pack(&("controller", "target-shard", foundationdb::tuple::Bytes::from(&name.to_pce()[..])))
+}
+
+/// Claim value for targets scheduled by P5's task bridge. Its length differs from
+/// every shard number's encoding, so no shard can mistake it for its own.
+pub const P5_TASK_CLAIM: &[u8] = b"p5-task";
+
+/// Claim `name` for a P5 task before any T4 write, or refuse a target that a
+/// controller shard owns. The claim is write-once, so once it commits no shard
+/// can assign the target; a shard writes its own claim in its T4 transaction.
+pub async fn claim_for_task(store: &Store, name: &Name) -> Result<(), String> {
+    let key = target_claim_key(store, name);
+    let mut trx = store.meta.db.create_trx().map_err(|e| e.to_string())?;
+    for _ in 0..60 {
+        if !claim_in(&trx, &key, name).await? { return Ok(()) }
+        match trx.commit().await {
+            Ok(_) => return Ok(()),
+            Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
+        }
+    }
+    Err("target claim outcome unresolved".into())
+}
+
+/// Read the claim at `key` in `trx`: refuse a shard's claim, and write P5's
+/// claim if there is none. Returns whether a write is pending.
+pub async fn claim_in(trx: &Transaction, key: &[u8], name: &Name) -> Result<bool, String> {
+    match trx.get(key, false).await.map_err(|e| e.to_string())? {
+        Some(v) if v.as_ref() == P5_TASK_CLAIM => Ok(false),
+        Some(_) if !cfg!(feature = "mutate-no-task-claim-check") => {
+            Err(format!("target {name} belongs to a controller shard, not a P5 task"))
+        }
+        Some(_) => Ok(false),
+        None => { trx.set(key, P5_TASK_CLAIM); Ok(true) }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Lease {
     pub holder: String,
@@ -129,9 +170,7 @@ impl Durable {
         Ok(record)
     }
     fn topology_key(&self) -> Vec<u8> { self.store.meta.keys.root.pack(&("controller", "topology")) }
-    fn target_shard_key(&self, name: &Name) -> Vec<u8> {
-        self.store.meta.keys.root.pack(&("controller", "target-shard", foundationdb::tuple::Bytes::from(&name.to_pce()[..])))
-    }
+    fn target_shard_key(&self, name: &Name) -> Vec<u8> { target_claim_key(&self.store, name) }
     fn work_shard_key(&self, request: &str) -> Vec<u8> {
         self.store.meta.keys.root.pack(&("controller", "work-shard", foundationdb::tuple::Bytes::from(&sha256(request.as_bytes())[..])))
     }

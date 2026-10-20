@@ -216,6 +216,7 @@ witness_items=(
   'w4_collect W4Scale NeverCollected'
   'w4_desktop_recovery W4Scale NeverRecovered'
   'w4_retained W4Scale NeverRetained'
+  'w4_tombstoned W4Scale NeverTombstoned'
   'history_compacted W4History NeverCompacted'
   'history_poll_compacted W4History NeverPollCompacted'
   'history_late_work W4History NeverReplayedAfterCompact'
@@ -321,6 +322,16 @@ case_w4_no_retained_root() {
     '           \cup retained \cup UNION {demand[w] : w \in Workers}' \
     '           \cup UNION {demand[w] : w \in Workers}'
   run_expected_failure w4_no_retained_root W4Scale 'Invariant RootsLive is violated'
+}
+
+# Integration: W3 tombstone lineage is a GC root like checkpoints and catalogue
+# records; without it a tombstoned, superseded snapshot can be collected.
+defcase w4_no_tombstone_root
+case_w4_no_tombstone_root() {
+  prepare_case w4_no_tombstone_root
+  edit_once "$neg/w4_no_tombstone_root/W4Scale.tla" \
+    'TombstoneRoots == tombstoned' 'TombstoneRoots == {}'
+  run_expected_failure w4_no_tombstone_root W4Scale 'Invariant RootsLive is violated'
 }
 
 defcase w4_unsolicited_fetch

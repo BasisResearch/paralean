@@ -88,6 +88,7 @@ pub async fn run(args: &[String]) -> R<Value> {
     match args.first().map(String::as_str) {
         Some("policy-state") => policy_state().await,
         Some("revoke-validator") => revoke_validator(args).await,
+        Some("revoke-agent-key") => revoke_agent_key(args).await,
         Some("assign-target") => assign(args).await,
         Some("observe-target") => observe_target(args).await,
         Some("fence-unfinished") => fence_unfinished(args).await,
@@ -110,8 +111,34 @@ async fn policy_state() -> R<Value> {
             "revoked": store.meta.is_revoked(key).await.map_err(|e| e.to_string())?}));
     }
     validators.sort_by(|a, b| a["key"].as_str().cmp(&b["key"].as_str()));
-    Ok(json!({"validators": validators, "policies": keys.policies,
+    // W3's agent-key registry: an author whose key is revoked or unregistered
+    // can no longer publish. Reporting it here changes the policy identity, so
+    // editor sessions are invalidated as for a validator revocation.
+    let ring = keys.ring();
+    let mut agents = Vec::new();
+    for (name, entry) in &keys.workspaces {
+        let wid = paralean_store::WorkspaceId::from_hex(&entry.id).ok_or("bad workspace ID in key file")?;
+        let public: [u8; 32] = hex::decode(&entry.public).ok().and_then(|p| p.try_into().ok())
+            .ok_or("bad workspace public key in key file")?;
+        let (registered, revoked) = store.meta.agent_key_state(&ring, AgentId(wid.0), wid, public)
+            .await.map_err(|e| e.to_string())?;
+        agents.push(json!({"workspace": name, "id": wid.hex(), "public": entry.public,
+            "registered": registered, "revoked": revoked}));
+    }
+    Ok(json!({"validators": validators, "agents": agents, "policies": keys.policies,
               "checkers": keys.checkers}))
+}
+
+/// Refuse before validator work when `wid`'s author key cannot publish. T1
+/// remains the authoritative check inside the publication transaction.
+async fn require_authoring(store: &Store, kf: &KeyFile, wid: paralean_store::WorkspaceId) -> R<()> {
+    let entry = kf.workspaces.values().find(|e| e.id == wid.hex()).ok_or("workspace is not in the key file")?;
+    let public: [u8; 32] = hex::decode(&entry.public).ok().and_then(|p| p.try_into().ok())
+        .ok_or("bad workspace public key in key file")?;
+    let (registered, revoked) = store.meta.agent_key_state(&kf.ring(), AgentId(wid.0), wid, public)
+        .await.map_err(|e| e.to_string())?;
+    if registered && !revoked { return Ok(()) }
+    Err(format!("workspace agent key is {}", if revoked { "revoked" } else { "not registered" }))
 }
 
 /// Authority-only maintenance operation, used by the isolated editor policy
@@ -132,6 +159,19 @@ async fn revoke_validator(args: &[String]) -> R<Value> {
         receipt::Revocation { key, reason: reason.to_owned() }, &signer);
     let fresh = store.meta.revoke_validator(&signed).await.map_err(|e| e.to_string())?;
     Ok(json!({"key": hex::encode(key), "revoked": true, "fresh": fresh}))
+}
+
+/// Authority-only: revoke a workspace's author key in W3's registry. Existing
+/// publications stay; new admissions by that key are refused by T1/T8.
+async fn revoke_agent_key(args: &[String]) -> R<Value> {
+    let (store, keys) = open()?;
+    let signer = keys.authority_signer().ok_or("authority seed required for agent-key revocation")?;
+    let name = need(args, "--ws")?;
+    let entry = keys.workspaces.get(name).ok_or("workspace is not in the key file")?;
+    let public: [u8; 32] = hex::decode(&entry.public).ok().and_then(|p| p.try_into().ok())
+        .ok_or("bad workspace public key in key file")?;
+    let fresh = Controller::new(store, signer).revoke_agent_key(public).await.map_err(|e| e.to_string())?;
+    Ok(json!({"workspace": name, "public": entry.public, "revoked": true, "fresh": fresh}))
 }
 
 /// A P5 checkpoint is selected from exact live revision IDs by the exporter. The
@@ -282,11 +322,12 @@ async fn assign(args: &[String]) -> R<Value> {
     let signer = kf
         .authority_signer()
         .ok_or("authority seed is required for target assignment")?;
-    let ctl = Controller::new(store, signer);
     let request = need(args, "--request")?.as_bytes();
     if request.is_empty() {
         return Err("empty assignment request".into());
     }
+    paralean_control::durable::claim_for_task(&store, &n).await?;
+    let ctl = Controller::new(store, signer);
     let epoch = ctl
         .reassign(&n, wid, request)
         .await
@@ -331,8 +372,12 @@ async fn fence_unfinished(args: &[String]) -> R<Value> {
     let keys = &store.meta.keys;
     let request_key = keys.assign_request(&n, &request);
     let target_key = keys.target(&n);
+    let claim_key = paralean_control::durable::target_claim_key(&store, &n);
     let mut trx = store.meta.db.create_trx().map_err(|e| e.to_string())?;
     for _ in 0..60 {
+        // The fence is a T4 write: it shares the claim rule with `assign`, read
+        // in this transaction so a concurrent shard claim conflicts with it.
+        paralean_control::durable::claim_in(&trx, &claim_key, &n).await?;
         // Mirror P2 T4's federation-home guard in this same transaction.
         // Reading the pinned config here also conflicts with a concurrent
         // federation pin; a foreign home can never be fenced locally.
@@ -396,6 +441,7 @@ async fn validate_target(args: &[String]) -> R<Value> {
     let (store, kf) = open()?;
     let n = name(args)?;
     let (wid, signer) = workspace(&kf, args)?;
+    require_authoring(&store, &kf, wid).await?;
     let writer = Writer::new(store.clone(), wid, signer);
     let prepared = writer.prepare_target(&n).await.map_err(|e| e.to_string())?;
     let expected_epoch: u64 = need(args, "--epoch")?
