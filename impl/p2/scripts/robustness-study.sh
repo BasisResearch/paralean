@@ -209,7 +209,11 @@ garage-layout)
   need aws
   export AWS_ACCESS_KEY_ID="$PARALEAN_S3_ACCESS_KEY" AWS_SECRET_ACCESS_KEY="$PARALEAN_S3_SECRET_KEY"
   export AWS_DEFAULT_REGION="$PARALEAN_S3_REGION" AWS_EC2_METADATA_DISABLED=true
-  s3() { aws --endpoint-url "http://127.0.0.1:$((PARALEAN_GARAGE_S3_PORT+$1))" s3api "${@:2}"; }
+  s3() {
+    local node=$1; shift
+    timeout 35 aws --no-cli-pager --cli-connect-timeout 2 --cli-read-timeout 15 \
+      --endpoint-url "http://127.0.0.1:$((PARALEAN_GARAGE_S3_PORT+node))" s3api "$@"
+  }
   payload="$out/acknowledged-payload.txt"
   printf 'Garage layout replacement %s\n' "$(date -u +%FT%TZ)" > "$payload"
   key="robustness/layout/$(date +%s%N)"
@@ -229,8 +233,34 @@ text = (h / 'garage/n2/garage.toml').read_text()
 text = text.replace(str(h / 'garage/n2'), str(h / 'garage/n3'))
 for port in map(int, sys.argv[2:]):
     text = text.replace(f'127.0.0.1:{port+2}', f'127.0.0.1:{port+3}')
+text = text.replace(f'rpc_bind_addr = "127.0.0.4:{int(sys.argv[2])+2}"',
+                    f'rpc_bind_addr = "127.0.0.5:{int(sys.argv[2])+3}"')
 (h / 'garage/n3/garage.toml').write_text(text)
 PY
+  fi
+  if [ "${PARALEAN_GARAGE_NETSPLIT:-0}" = 1 ]; then
+    proxy_pid_file="$H/run/garage-netsplit.pid"
+    [ -f "$proxy_pid_file" ] || { echo 'Garage proxy PID missing' >&2; exit 2; }
+    proxy_pid=$(cat "$proxy_pid_file")
+    proxy_bin=$(readlink -f "/proc/$proxy_pid/exe")
+    proxy_cmd=$(tr '\0' ' ' < "/proc/$proxy_pid/cmdline")
+    [[ "$proxy_cmd" == *"$H/run/garage-netsplit.state"* ]] || {
+      echo 'Garage proxy PID does not belong to this instance' >&2; exit 2;
+    }
+    kill "$proxy_pid"
+    for _ in $(seq 1 50); do
+      kill -0 "$proxy_pid" 2>/dev/null || break
+      sleep 0.1
+    done
+    state="$H/run/garage-netsplit.state"
+    setsid nohup "$proxy_bin" --state "$state" \
+      --map "0:$PARALEAN_GARAGE_RPC_PORT:127.0.0.2" \
+      --map "1:$((PARALEAN_GARAGE_RPC_PORT+1)):127.0.0.3" \
+      --map "2:$((PARALEAN_GARAGE_RPC_PORT+2)):127.0.0.4" \
+      --map "3:$((PARALEAN_GARAGE_RPC_PORT+3)):127.0.0.5" \
+      >> "$H/run/garage-netsplit.log" 2>&1 < /dev/null &
+    echo $! > "$proxy_pid_file"
+    log "Garage proxy extended to n3 at 127.0.0.1:$((PARALEAN_GARAGE_RPC_PORT+3))"
   fi
   proc garage start 3
   for _ in $(seq 1 30); do
@@ -246,7 +276,7 @@ PY
   garage layout show > "$out/layout-before.txt"
   log "permanently kill Garage n2=$old; replace its role with n3=$new"
   proc garage kill 2
-  garage layout assign -z dc2 -c 2G --replace "$old" "$new" | tee "$out/layout-stage.txt"
+  garage layout assign "$new" -z dc2 -c 2G --replace "$old" | tee "$out/layout-stage.txt"
   garage layout show > "$out/layout-staged.txt"
   version=$(sed -n 's/.*[Cc]urrent cluster layout version: *\([0-9]*\).*/\1/p' "$out/layout-staged.txt" | head -1)
   [ -n "$version" ] || { echo 'could not parse Garage layout version' >&2; exit 1; }
@@ -254,6 +284,17 @@ PY
   garage layout show > "$out/layout-after.txt"
   garage status > "$out/status-after.txt"
   "$P/bin/garage" -c "$H/garage/n3/garage.toml" repair --yes blocks > "$out/block-repair.txt" 2>&1
+  # The removed identity cannot acknowledge the new layout. Garage requires an
+  # explicit skip for a permanently dead node; do not permit missing quorum data.
+  garage layout skip-dead-nodes --version "$((version+1))" > "$out/skip-dead-nodes.txt"
+  for _ in $(seq 1 90); do
+    garage health > "$out/health-after.txt"
+    grep -q 'Cluster health: *HEALTHY' "$out/health-after.txt" && break
+    sleep 2
+  done
+  grep -q 'Cluster health: *HEALTHY' "$out/health-after.txt" || {
+    log 'FAILED: layout did not return to HEALTHY after replacing dead node'; exit 1;
+  }
   for _ in $(seq 1 90); do
     if s3 0 get-object --bucket "$PARALEAN_S3_BUCKET" --key "$key" "$out/post-replacement.txt" > "$out/post-replacement.json" 2>&1 \
       && cmp -s "$payload" "$out/post-replacement.txt"; then break; fi

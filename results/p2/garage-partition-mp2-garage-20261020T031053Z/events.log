@@ -1,0 +1,9 @@
+[2026-10-20T03:10:53Z] write and read an acknowledged baseline object through all nodes
+[2026-10-20T03:10:59Z] isolate Garage node 2 from nodes 0 and 1
+isolated Garage nodes: 2
+[2026-10-20T03:11:04Z] isolated minority must not acknowledge a new object
+[2026-10-20T03:11:21Z] minority PUT did not acknowledge (exit 255)
+[2026-10-20T03:11:21Z] two-node majority must acknowledge and read a new object during the cut
+[2026-10-20T03:12:20Z] heal RPC partition and verify the majority acknowledgement on every node
+healed Garage RPC partition
+[2026-10-20T03:12:34Z] PASS: minority did not acknowledge; majority remained available; all nodes read both acknowledged objects after healing
