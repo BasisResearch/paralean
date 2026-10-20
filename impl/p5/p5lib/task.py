@@ -60,7 +60,9 @@ def _positive(v: object, label: str) -> int:
 
 
 def _relative_file(v: object, label: str) -> str:
-    if not isinstance(v, str) or not v or Path(v).is_absolute() or ".." in Path(v).parts or v.startswith("-"):
+    if (not isinstance(v, str) or not v or Path(v).is_absolute() or
+            any(part in ("", ".", "..") for part in v.split("/")) or
+            "\\" in v or "\0" in v or v.startswith("-")):
         raise ValueError(f"{label} must be a safe relative path")
     return v
 

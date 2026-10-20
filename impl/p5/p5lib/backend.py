@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import socket
 import signal
+import stat
 import time
 import atexit
 import subprocess
@@ -35,15 +36,87 @@ def _canonical(obj: Any) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
-def _inside(directory: Path, relative: str) -> Path:
-    p = Path(relative)
-    if p.is_absolute() or ".." in p.parts or not p.parts:
+def _hex_id(value: object) -> str:
+    if not isinstance(value, str) or len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+        raise BackendError("malformed object ID in workspace cache")
+    return value
+
+
+def _source_parts(relative: str) -> tuple[str, ...]:
+    if not isinstance(relative, str):
         raise BackendError(f"unsafe source path: {relative}")
-    return directory / p
+    p = Path(relative)
+    if (p.is_absolute() or
+            not relative or any(part in ("", ".", "..") for part in relative.split("/")) or
+            "\\" in relative or "\0" in relative):
+        raise BackendError(f"unsafe source path: {relative}")
+    return p.parts
+
+
+def _source_fd(work: Path, relative: str, *, create_dirs: bool = False) -> tuple[int, str]:
+    """Walk a worker-controlled source path without following symlinks."""
+    parts = _source_parts(relative)
+    fd = os.open(work, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in parts[:-1]:
+            if create_dirs:
+                try:
+                    os.mkdir(part, dir_fd=fd)
+                except FileExistsError:
+                    pass
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                              dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+        return fd, parts[-1]
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _read_source(work: Path, relative: str) -> str | None:
+    try:
+        directory_fd, name = _source_fd(work, relative)
+    except FileNotFoundError:
+        return None
+    try:
+        try:
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                         dir_fd=directory_fd)
+        except FileNotFoundError:
+            return None
+        with os.fdopen(fd, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                raise BackendError(f"source is not a regular file: {relative}")
+            return handle.read().decode()
+    finally:
+        os.close(directory_fd)
+
+
+def _write_source_if_missing(work: Path, relative: str, text: str) -> None:
+    directory_fd, name = _source_fd(work, relative, create_dirs=True)
+    try:
+        try:
+            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         0o600, dir_fd=directory_fd)
+        except FileExistsError:
+            # A symlink or device at this name must not be accepted as source.
+            _read_source(work, relative)
+            return
+        with os.fdopen(fd, "w") as handle:
+            handle.write(text)
+    finally:
+        os.close(directory_fd)
 
 
 class Backend:
     _JOURNAL_DOMAIN = b"paralean/p5/journal-hmac/v1\0"
+    _CONTROLLER_ONLY_ENV = ("PARALEAN_P5_RECOVERY_SECRET", "PARALEAN_GARAGE_ADMIN_TOKEN",
+                            "PARALEAN_GARAGE_RPC_SECRET")
+
+    @classmethod
+    def _runtime_env(cls, env: dict) -> dict:
+        return {key: value for key, value in env.items() if key not in cls._CONTROLLER_ONLY_ENV}
 
     @classmethod
     def _journal_key(cls, task_id: str, env: dict) -> bytes:
@@ -105,7 +178,7 @@ class Backend:
         """Enumerate durable task heads without a local task file or remembered ID."""
         source_env = {**os.environ, **(env or {})}
         bridge = source_env.get("PARALEAN_P5_BRIDGE", str(ROOT / "store-bridge" / "target" / "release" / "paralean-p5-store"))
-        child_env = {k: v for k, v in source_env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"}
+        child_env = Backend._runtime_env(source_env)
         proc = subprocess.run([bridge, "list"], env=child_env, capture_output=True, text=True)
         if proc.returncode:
             raise BackendError("task catalogue enumeration failed")
@@ -125,7 +198,7 @@ class Backend:
         with tempfile.NamedTemporaryFile(dir=state_dir, delete=False) as tmp:
             path = Path(tmp.name)
         try:
-            bridge_env = {k: v for k, v in source_env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"}
+            bridge_env = cls._runtime_env(source_env)
             proc = subprocess.run([bridge, "get", "--task", task_id, "--out", str(path)],
                                   env=bridge_env, capture_output=True, text=True)
             if proc.returncode:
@@ -154,8 +227,7 @@ class Backend:
             raise BackendError("missing deployment configuration: " + ", ".join(missing))
 
     def _run(self, argv: list[str], *, env: dict | None = None, cwd: Path | None = None) -> Any:
-        child_env = dict(self.env)
-        child_env.pop("PARALEAN_P5_RECOVERY_SECRET", None)
+        child_env = self._runtime_env(self.env)
         for key, value in (env or {}).items():
             if value is None:
                 child_env.pop(key, None)
@@ -166,7 +238,8 @@ class Backend:
         if proc.returncode:
             self.state_dir.mkdir(parents=True, exist_ok=True)
             detail = proc.stderr[-4000:]
-            for key in ("PARALEAN_S3_SECRET_KEY", "PARALEAN_S3_ACCESS_KEY"):
+            for key in ("PARALEAN_S3_SECRET_KEY", "PARALEAN_S3_ACCESS_KEY",
+                        *self._CONTROLLER_ONLY_ENV):
                 if self.env.get(key):
                     detail = detail.replace(self.env[key], "[redacted]")
             log = self.state_dir / "backend.log"
@@ -322,7 +395,7 @@ class Backend:
             self.validator_process = subprocess.Popen(
                 ["python3", str(guard), p3, "validator", "--listen", self.env["PARALEAN_VALIDATOR"], "--key", "v0",
                  "--max-running", "1", "--max-queued", "8", "--workdir", str(workdir)],
-                env={**{k: v for k, v in self.env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"},
+                env={**self._runtime_env(self.env),
                      "PARALEAN_P5_PARENT_PID": str(os.getpid())},
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
         finally:
@@ -373,18 +446,33 @@ class Backend:
             if Path(name).name != name:
                 raise BackendError("unsafe key filename in task store")
             path = dest / name
-            if not path.exists():
-                path.write_bytes(self._open(encrypted))
-                path.chmod(0o600)
+            plaintext = self._open(encrypted)
+            with tempfile.NamedTemporaryFile(mode="wb", dir=dest, delete=False) as tmp:
+                staged = Path(tmp.name)
+                tmp.write(plaintext)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            try:
+                try:
+                    # link installs the complete file only if the name is unused.
+                    os.link(staged, path)
+                except FileExistsError:
+                    # A stale desktop must not silently replace a recovered signer.
+                    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                    with os.fdopen(fd, "rb") as handle:
+                        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode) or handle.read() != plaintext:
+                            raise BackendError(f"local key differs from authenticated task store: {name}")
+            finally:
+                staged.unlink(missing_ok=True)
 
     def _sources(self) -> dict:
         result = {}
         for agent, path in self.paths.items():
             files = {}
             for rel in self.task.get("files", []):
-                source = _inside(path / "work", rel)
-                if source.exists():
-                    files[rel] = source.read_text()
+                source = _read_source(path / "work", rel)
+                if source is not None:
+                    files[rel] = source
             result[agent] = files
         return result
 
@@ -403,15 +491,12 @@ class Backend:
         saved = self.payload.get("sources", {}).get(agent, {})
         for rel in self.task.get("files", []):
             text = saved.get(rel, self.task.get("sources", {}).get(rel, ""))
-            destination = _inside(directory / "work", rel)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            if not destination.exists():
-                destination.write_text(text)
+            _write_source_if_missing(directory / "work", rel, text)
 
     def _ws(self, action: str, agent: str, directory: Path, *args: str) -> dict:
         env = {"PARALEAN_AGENT": agent}
         proc = subprocess.run(["python3", self.ws, action, str(directory), *args],
-                              env={**{k: v for k, v in self.env.items() if k != "PARALEAN_P5_RECOVERY_SECRET"},
+                              env={**self._runtime_env(self.env),
                                    **env}, text=True, capture_output=True)
         if proc.returncode:
             raise BackendError(f"ws.py {action} failed for {agent} (exit {proc.returncode})")
@@ -499,9 +584,10 @@ class Backend:
         by_capsule = {}
         if capsules.exists():
             for file in capsules.glob("*.json"):
-                meta = json.loads(file.read_text())
+                _hex_id(file.stem)
+                meta = json.loads(_read_source(capsules, file.name))
                 if meta.get("gid"):
-                    by_gid[meta["gid"]] = meta
+                    by_gid[_hex_id(meta["gid"])] = meta
                     by_capsule[file.stem] = meta["gid"]
         closure: set[str] = set()
         todo = [by_capsule.get(root, root) for root in roots]
@@ -526,12 +612,13 @@ class Backend:
         for directory in self.paths.values():
             records = directory / "cache" / "p3" / "records"
             for record in records.glob("m-*.json"):
-                marker = json.loads(record.read_text())
+                marker = json.loads(_read_source(records, record.name))
                 for name, group in groups.items():
                     if marker.get("group") == group:
-                        capsule = directory / "cache" / "p3" / "capsules" / (marker["capsule"] + ".json")
-                        if capsule.exists():
-                            found[name] = json.loads(capsule.read_text())["gid"]
+                        capsule_root = directory / "cache" / "p3" / "capsules"
+                        capsule_text = _read_source(capsule_root, _hex_id(marker.get("capsule")) + ".json")
+                        if capsule_text is not None:
+                            found[name] = _hex_id(json.loads(capsule_text)["gid"])
         if set(found) != set(names):
             raise BackendError("published predecessor capsule is missing from the synced cache")
         return found
@@ -571,7 +658,9 @@ class Backend:
         cap = self._run([self.lean, "ws-capture", "--dir", str(directory), file], env=own_env)
         published = []
         check_ms = 0.0
-        current_source = _inside(directory / "work", file).read_text()
+        current_source = _read_source(directory / "work", file)
+        if current_source is None:
+            raise BackendError(f"target source is missing: {file}")
         for item in reversed(cap.get("packages", [])):
             pkg = f'{item["group"]}:{item["capsule"]}'
             names = {".".join(map(str, n)) if isinstance(n, list) else str(n)
@@ -579,8 +668,8 @@ class Backend:
             if name not in names:
                 # Non-target helpers use the ordinary P3 path in a separate call.
                 continue
-            capsule_path = cache / "p3" / "capsules" / (item["capsule"] + ".json")
-            capsule_text = json.loads(capsule_path.read_text())["capsule"]["text"]
+            capsule_text = json.loads(_read_source(cache / "p3" / "capsules",
+                                                   _hex_id(item["capsule"]) + ".json"))["capsule"]["text"]
             if not capsule_text or capsule_text not in current_source:
                 # ws-capture may report earlier rejected drafts; only publish the
                 # declaration whose command is still present in this working file.
@@ -646,11 +735,11 @@ class Backend:
             if not rec.exists():
                 continue
             for f in rec.glob("m-*.json"):
-                m = json.loads(f.read_text())
-                c = caps / (m["capsule"] + ".json")
-                if not c.exists():
+                m = json.loads(_read_source(rec, f.name))
+                capsule_text = _read_source(caps, _hex_id(m.get("capsule")) + ".json")
+                if capsule_text is None:
                     continue
-                meta = json.loads(c.read_text())
+                meta = json.loads(capsule_text)
                 for raw in meta.get("publicNames", []):
                     n = ".".join(map(str, raw)) if isinstance(raw, list) else str(raw)
                     if n in required:
@@ -746,8 +835,7 @@ class Backend:
         if not stock_lake or not Path(stock_lake).exists():
             raise BackendError("PARALEAN_STOCK_LAKE must name an installed stock Lean lake")
         sources = list(self.task.get("sources", {}).values()) + [
-            (_inside(directory / "work", f).read_text() if _inside(directory / "work", f).exists() else "")
-            for f in self.task.get("files", [])]
+            _read_source(directory / "work", f) or "" for f in self.task.get("files", [])]
         uses_mathlib = any("import Mathlib" in source or "import all Mathlib" in source for source in sources)
         mathlib = self.env.get("PARALEAN_MATHLIB")
         if uses_mathlib and (not mathlib or not Path(mathlib).exists()):
@@ -799,6 +887,7 @@ class Backend:
                     any(not isinstance(rid, str) or len(rid) != 64 or
                         any(c not in "0123456789abcdef" for c in rid) for rid in rids)):
                 raise BackendError("export snapshot selection is malformed or duplicated")
+            _source_parts(file)
             seen_groups.add(group)
             by_file.setdefault(file, set()).update(rids)
         revisions = sorted({rid for ids in by_file.values() for rid in ids})

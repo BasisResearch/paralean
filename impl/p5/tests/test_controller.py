@@ -169,6 +169,17 @@ class ControllerTest(unittest.TestCase):
             self.assertEqual(by_name[f"P5List.reverse_map_len_{i}"].deps, ("P5List.map_length",))
         self.assertEqual(len(by_name["P5List.reverse_map_lengths"].deps), 8)
 
+    def test_explicit_export_rejects_replaced_valid_head(self):
+        backend = DurableBackend()
+        desktop = self.root / "export-head"
+        with patch("p5lib.controller.run_worker", side_effect=worker_ok):
+            Controller(two_target_task(), desktop, backend, parallelism=1).run(export=False)
+        backend.groups["P5.base"] = "replacement-valid-group"
+        out = self.root / "out"
+        with self.assertRaisesRegex(RuntimeError, "differs from recorded"):
+            Controller(two_target_task(), desktop, backend).export(out)
+        self.assertFalse(out.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

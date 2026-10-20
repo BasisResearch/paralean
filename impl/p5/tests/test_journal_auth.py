@@ -28,6 +28,8 @@ class JournalAuthTest(unittest.TestCase):
                     "PARALEAN_S3_ENDPOINT": "unused", "PARALEAN_S3_ACCESS_KEY": "worker-can-use-this",
                     "PARALEAN_S3_SECRET_KEY": "worker-can-use-this-too",
                     "PARALEAN_P5_RECOVERY_SECRET": "controller-only-recovery-key",
+                    "PARALEAN_GARAGE_ADMIN_TOKEN": "controller-only-admin-token",
+                    "PARALEAN_GARAGE_RPC_SECRET": "controller-only-rpc-secret",
                     "PARALEAN_VALIDATOR": "127.0.0.1:1"}
         self.backend = Backend(self.task, self.root, self.env)
         self.blob = None
@@ -77,6 +79,35 @@ class JournalAuthTest(unittest.TestCase):
     def test_old_signed_payload_cannot_be_replayed_at_new_head(self):
         with self.assertRaisesRegex(BackendError, "sequence"):
             Backend._verify_journal(self.blob, "frozen", self.backend.env, 2)
+
+    def test_key_restore_rejects_symlink_and_stale_local_key(self):
+        sealed = self.backend._seal(b"authenticated signing seed")
+        payload = {"keys": {"keys.json": sealed}}
+        outside = self.root / "outside"
+        key = self.root / "keys.json"
+        key.symlink_to(outside)
+        with self.assertRaises(OSError):
+            self.backend._restore_keys(payload)
+        self.assertFalse(outside.exists())
+        key.unlink()
+        key.write_bytes(b"stale seed")
+        with self.assertRaisesRegex(BackendError, "differs"):
+            self.backend._restore_keys(payload)
+        self.assertEqual(key.read_bytes(), b"stale seed")
+        key.unlink()
+        self.backend._restore_keys(payload)
+        self.assertEqual(key.read_bytes(), b"authenticated signing seed")
+
+    def test_runtime_child_does_not_inherit_controller_secrets(self):
+        def fake_run(argv, **kwargs):
+            child_env = kwargs["env"]
+            for name in Backend._CONTROLLER_ONLY_ENV:
+                self.assertNotIn(name, child_env)
+            self.assertEqual(child_env["PARALEAN_S3_ACCESS_KEY"], "worker-can-use-this")
+            return subprocess.CompletedProcess(argv, 0, "{}", "")
+        with patch("p5lib.backend.subprocess.run", side_effect=fake_run):
+            self.backend._run(["bridge", "noop"])
+            self.backend._ws("sync", "w0", self.root / "w0")
 
 
 if __name__ == "__main__":

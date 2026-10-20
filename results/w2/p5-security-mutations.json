@@ -1,0 +1,42 @@
+{
+  "baseline": "passed",
+  "baseline_log": "results/w2/p5-security-mutation-logs/baseline.log",
+  "cases": [
+    {
+      "name": "source_no_follow",
+      "assertion": "test_capture_rejects_leaf_symlink_before_journaling",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/source_no_follow.log"
+    },
+    {
+      "name": "key_plaintext_match",
+      "assertion": "test_key_restore_rejects_symlink_and_stale_local_key",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/key_plaintext_match.log"
+    },
+    {
+      "name": "runtime_secret_filter",
+      "assertion": "test_runtime_child_does_not_inherit_controller_secrets",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/runtime_secret_filter.log"
+    },
+    {
+      "name": "export_recorded_head",
+      "assertion": "test_explicit_export_rejects_replaced_valid_head",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/export_recorded_head.log"
+    },
+    {
+      "name": "snapshot_file_path",
+      "assertion": "test_snapshot_rejects_unsafe_file_name_before_checkpoint",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p5-security-mutation-logs/snapshot_file_path.log"
+    }
+  ],
+  "passed": true
+}

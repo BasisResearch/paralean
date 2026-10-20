@@ -385,12 +385,20 @@ class Controller:
         self.state = self.status()
         if any(e["status"] != "done" for e in self.state["targets"].values()):
             raise RuntimeError("required targets are incomplete")
+        def verify_recorded_heads() -> dict:
+            verdict = self.backend.validate([t.name for t in self.task.targets])
+            if not verdict.get("ok") or any(
+                not verdict.get("targets", {}).get(t.name, {}).get("ok") or
+                verdict["targets"][t.name].get("group") != self.state["targets"][t.name].get("group")
+                for t in self.task.targets
+            ):
+                raise RuntimeError("required target head differs from recorded validated group")
+            return verdict
+        verify_recorded_heads()
         exported = self.backend.export(out.resolve())
         if not exported.get("ok"):
             raise RuntimeError("stock export failed")
-        verdict = self.backend.validate([t.name for t in self.task.targets])
-        if not verdict.get("ok"):
-            raise RuntimeError("frozen target contracts failed validation")
+        verdict = verify_recorded_heads()
         self.state["export"] = exported
         self.state["contract_validation"] = verdict
         self.state["phase"] = "complete"

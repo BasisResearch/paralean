@@ -77,6 +77,12 @@ class ExportSnapshotTest(unittest.TestCase):
             self.backend.export(self.root / "export")
         self.assertIsNone(self.committed)
 
+    def test_snapshot_rejects_unsafe_file_name_before_checkpoint(self):
+        self.selection["groups"][1]["file"] = "../outside.lean"
+        with self.assertRaisesRegex(BackendError, "unsafe source path"):
+            self.backend.export(self.root / "export")
+        self.assertIsNone(self.committed)
+
 
 if __name__ == "__main__":
     unittest.main()

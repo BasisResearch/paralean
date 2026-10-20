@@ -1,0 +1,22 @@
+======================================================================
+FAIL: test_capture_rejects_leaf_symlink_before_journaling (test_source_paths.SourcePathTest.test_capture_rejects_leaf_symlink_before_journaling)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-p5-mutations-zh3h7ge9/tests/test_source_paths.py", line 32, in test_capture_rejects_leaf_symlink_before_journaling
+    with self.assertRaises(OSError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: OSError not raised
+
+======================================================================
+FAIL: test_restore_rejects_symlink_parent_and_preserves_outside (test_source_paths.SourcePathTest.test_restore_rejects_symlink_parent_and_preserves_outside)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/kirancodes/tmp/w2-p5-mutations-zh3h7ge9/tests/test_source_paths.py", line 37, in test_restore_rejects_symlink_parent_and_preserves_outside
+    with self.assertRaises(OSError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: OSError not raised
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.009s
+
+FAILED (failures=2)
