@@ -116,6 +116,13 @@ impl Writer {
         if p.marker.receipt != p.receipt.id() {
             return bad("marker names another receipt");
         }
+        // W2 A-6: every syncing copy writes a file at the marker's path; receivers refuse
+        // to decode one that breaks the relative-path rule, so it is never published.
+        if !cfg!(feature = "mutate-unchecked-publish-path") {
+            if let Err(e) = p.marker.check() {
+                return bad(&format!("marker file path: {e}"));
+            }
+        }
         // The staging rule: a worker stages only while holding a bound receipt (§6, P3).
         crate::receipt::check(&p.receipt, &p.job, &g, &p.targets, &self.store.ring)?;
         if let Some(refs) = unique_chunks(&p.group.pce)? {
@@ -207,6 +214,9 @@ impl Writer {
     /// Returns false if the tombstone was already published by this writer.
     pub async fn tombstone(&self, t: &Tombstone) -> Result<bool> {
         let st = &self.store;
+        if let Err(e) = t.check() {
+            return Err(StoreError::Guard(GuardFailure::BadPackage(format!("tombstone file path: {e}"))));
+        }
         // T8 compares this target against immutable marker/<group>, while receipt-only
         // variants can have a lower canonical ID. Their carried revisions are identical.
         let (_, m) = st.marker_base(&t.target).await?.ok_or(GuardFailure::NotPublished(t.target))?;

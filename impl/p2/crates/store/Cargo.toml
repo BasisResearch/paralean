@@ -81,6 +81,10 @@ mutate-no-statement-pin-check = []
 mutate-ae-unbounded-parts = []
 mutate-ae-unbounded-objects = []
 mutate-ae-unbounded-source = []
+# W2 A-6: the marker/tombstone relative source-path rule (objects::check_file_path).
+mutate-unchecked-file-path = []
+# W2 A-6: the worker-side T1 publish check of a constructed marker (Writer::check_package).
+mutate-unchecked-publish-path = []
 
 [dev-dependencies]
 proptest = "1"

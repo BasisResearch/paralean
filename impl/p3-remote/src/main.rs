@@ -434,6 +434,8 @@ async fn publish(a: &[&str]) -> R<Value> {
         if marker.author.0 != wid.0 {
             return Err("a record's author must be the publishing workspace".into());
         }
+        // W2 A-6: the path every syncing copy writes (T1 and receivers check it as well)
+        marker.check().map_err(|e| format!("plan entry for {g}: {e}"))?;
         if job.body.capsule != cap {
             return Err(format!("the job of {g} names another capsule"));
         }
@@ -468,6 +470,7 @@ async fn tombstone(a: &[&str]) -> R<Value> {
         author: AgentId(wid.0),
         receipt: None,
     };
+    t.check().map_err(|e| format!("--file: {e}"))?;
     // T8 atomically checks the author's authority and certifies the tombstone.
     let fresh = Writer::new(st, wid, signer).tombstone(&t).await.map_err(es)?;
     Ok(json!({"tombstone": t.id().hex(), "fresh": fresh}))
@@ -533,7 +536,7 @@ async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) 
         };
         pid = c.put_capsule(cid, &cb)?;
     }
-    let v = marker_json(mid, m, &cap, &pid).to_string();
+    let v = checked_marker_json(mid, m, &cap, &pid)?.to_string();
     bytes += v.len();
     c.write_new(&c.p3().join(sub).join(format!("m-{}.json", mid.hex())), v.as_bytes()).map_err(es)?;
     Ok(bytes)
@@ -600,7 +603,7 @@ async fn pull(a: &[&str]) -> R<Value> {
             if st.tcerts(&id).await.map_err(es)?.is_empty() {
                 continue; // never deliver an uncertified tombstone
             }
-            let tv = tomb_json(&id, &tb).to_string();
+            let tv = checked_tomb_json(&id, &tb)?.to_string();
             bytes += tv.len();
             c.write_new(&c.tomb_rec(&id), tv.as_bytes()).map_err(es)?;
             delivered.push(json!(["tombstone", id.hex()]));

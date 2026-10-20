@@ -19,3 +19,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 hex = "0.4"
 rand = "0.8"
+
+[features]
+# W2 guard-removal mutations (scripts/check-w2-security.sh); never enable otherwise.
+mutate-unchecked-pid = []
+mutate-unchecked-capsule-id = []

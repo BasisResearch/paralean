@@ -1117,11 +1117,13 @@ async fn restarted_puller_resumes_a_persisted_metadata_fragment_cursor() {
     let a = &net.envs[0];
     let b = &net.envs[1];
     let mut package = a.plain_package(0, "Net.fragmentRestart", "fragment-restart");
-    // This synthetic path is carried only in the immutable marker value. It
+    // This synthetic lineage key is carried only in the immutable marker value. It
     // stays below FDB's 100 KiB value limit while exceeding one 64 KiB metadata
     // fragment and the requested 70 KiB page. A long job request ID would
-    // instead exceed FDB's 10 KiB key limit at the cancellation lookup.
-    package.marker.file_path = format!("Test/{}.lean", "x".repeat(80 * 1024));
+    // instead exceed FDB's 10 KiB key limit at the cancellation lookup. (The
+    // marker's file path is capped at 1 KiB by the relative-path rule, W2 A-6.)
+    let (_, lamport, author) = package.marker.lineage_keys[0].clone();
+    package.marker.lineage_keys.push((Name(vec![NameComp::Str("x".repeat(80 * 1024))]), lamport, author));
     a.w[0].publish(&package).await.unwrap();
 
     let generation = a.store.ae_identity().await.unwrap().generation;

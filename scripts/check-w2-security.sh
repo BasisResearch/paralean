@@ -11,6 +11,7 @@ out="${W2_MUTATION_OUT:-$root/results/w2/mutations}"
 mkdir -p "$out"
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-store -p paralean-control -p paralean-validator-api --lib > "$out/baseline.log" 2>&1
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p s3-guard >> "$out/baseline.log" 2>&1
+cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-remote --bin plr >> "$out/baseline.log" 2>&1
 python3 impl/p2/scripts/test-storage-boundary.py >> "$out/baseline.log" 2>&1
 # FoundationDB's connection string is its only client credential: never commit one.
 if git grep -nE 'paralean:[a-z0-9]+@[0-9]' -- results docs impl scripts; then
@@ -34,6 +35,10 @@ cases=(
  "paralean-ae-service|mutate-ae-unbounded-parts|endless_event_parts_are_capped_and_archived|--test network"
  "paralean-ae-service|mutate-ae-unbounded-objects|oversized_declared_objects_are_terminal_before_fetch|--test network"
  "paralean-ae-service|mutate-ae-unbounded-source|declared_objects_are_bounded_per_source|--test network"
+ "paralean-store|mutate-unchecked-file-path|objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule|--lib"
+ "paralean-remote|mutate-unchecked-pid|cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes|--bin plr"
+ "paralean-remote|mutate-unchecked-capsule-id|cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes|--bin plr"
+ "paralean-store|mutate-unchecked-publish-path|t1_refuses_a_marker_with_an_unsafe_file_path|--test file_paths"
 )
 if printf '%s\n' "${cases[@]}" | grep -q -- '|--test '; then
   if [ -z "${PARALEAN_INSTANCE:-}" ] || [ ! -f "${PARALEAN_FDB_CLUSTER:-}" ]; then

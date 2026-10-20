@@ -239,6 +239,60 @@ impl Object for Revision {
     const DOMAIN: Domain = Domain::Revision;
 }
 
+// ---------------------------------------------------------------- source file paths
+
+/// Longest accepted marker/tombstone `filePath`, in UTF-8 bytes (Lean `Safety.maxFilePath`).
+pub const MAX_FILE_PATH: usize = 1024;
+
+/// The canonical relative source-path rule for `filePath` in markers and tombstones
+/// (W2 A-6). Every syncing working copy writes a file at this path, so it must be
+/// non-empty, at most `MAX_FILE_PATH` bytes, relative, free of `\`, NUL and other ASCII
+/// control characters, made of non-empty `/`-separated components none of which is `.`,
+/// `..` or `.git` (ASCII case-insensitive), and name a `.lean` file with a non-empty stem.
+/// Lean's `Paralean.Safety.checkRelPath` is the same rule.
+pub fn check_file_path(p: &str) -> Result<(), &'static str> {
+    if cfg!(feature = "mutate-unchecked-file-path") {
+        return Ok(());
+    }
+    if p.is_empty() {
+        return Err("empty file path");
+    }
+    if p.len() > MAX_FILE_PATH {
+        return Err("file path too long");
+    }
+    if p.starts_with('/') {
+        return Err("absolute file path");
+    }
+    if p.chars().any(|c| c == '\\' || (c as u32) < 0x20 || c == '\x7f') {
+        return Err("backslash or control character in file path");
+    }
+    if !p.ends_with(".lean") {
+        return Err("file path does not name a .lean file");
+    }
+    let comps: Vec<&str> = p.split('/').collect();
+    for c in &comps {
+        if c.is_empty() {
+            return Err("empty file path component");
+        }
+        if *c == "." || *c == ".." {
+            return Err("dot component in file path");
+        }
+        if c.eq_ignore_ascii_case(".git") {
+            return Err(".git component in file path");
+        }
+    }
+    if comps.last() == Some(&".lean") {
+        return Err("empty file name");
+    }
+    Ok(())
+}
+
+fn decode_file_path(d: &mut Dec<'_>) -> DResult<String> {
+    let p = d.string()?;
+    check_file_path(&p).map_err(DecodeError::Invalid)?;
+    Ok(p)
+}
+
 // ---------------------------------------------------------------- markers (§8.2, §11.1)
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -297,7 +351,7 @@ impl Pce for Marker {
         let group = Id::decode(d)?;
         let revisions = dec_ids(d)?;
         let receipt = Id::decode(d)?;
-        let file_path = d.string()?;
+        let file_path = decode_file_path(d)?;
         let anchor = match d.byte()? {
             0 => Anchor::FileStart,
             1 => Anchor::After(Id::decode(d)?),
@@ -323,6 +377,13 @@ impl Pce for Marker {
 impl Object for Marker {
     const DOMAIN: Domain = Domain::Marker;
 }
+impl Marker {
+    /// Field rules a decoder enforces, for a marker constructed in memory before it is
+    /// published (T1) or delivered to a working copy.
+    pub fn check(&self) -> Result<(), &'static str> {
+        check_file_path(&self.file_path)
+    }
+}
 
 /// Tombstone (§11.4): `{filePath, target : group, lamport, author, receiptID?}`.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -346,7 +407,7 @@ impl Pce for Tombstone {
     fn decode(d: &mut Dec<'_>) -> DResult<Self> {
         get_format(d)?;
         Ok(Tombstone {
-            file_path: d.string()?,
+            file_path: decode_file_path(d)?,
             target: Id::decode(d)?,
             lamport: d.uvarint()?,
             author: AgentId::decode(d)?,
@@ -356,6 +417,12 @@ impl Pce for Tombstone {
 }
 impl Object for Tombstone {
     const DOMAIN: Domain = Domain::Tombstone;
+}
+impl Tombstone {
+    /// Field rules a decoder enforces (see `Marker::check`).
+    pub fn check(&self) -> Result<(), &'static str> {
+        check_file_path(&self.file_path)
+    }
 }
 
 // ---------------------------------------------------------------- certificates (§8.3, §9)
@@ -876,6 +943,42 @@ mod tests {
         assert_eq!(Marker::from_pce(&b3), Err(DecodeError::Format(1)));
         // Domain separation: a marker preimage does not decode as a revision.
         assert!(Revision::from_preimage(&m.preimage()).is_err());
+    }
+
+    #[test]
+    fn marker_and_tombstone_file_paths_follow_the_relative_path_rule() {
+        let base = Marker {
+            group: id(1),
+            revisions: vec![],
+            receipt: id(4),
+            file_path: "Test/File.lean".into(),
+            anchor: Anchor::FileStart,
+            lamport: 1,
+            author: AgentId::derive("a"),
+            root_path: vec![],
+            lineage_keys: vec![],
+        };
+        for ok in ["A.lean", "Test/File.lean", "a/b/c.d.lean", "Ünï/cödé.lean", ".hidden/X.lean"] {
+            assert_eq!(check_file_path(ok), Ok(()), "{ok}");
+            let m = Marker { file_path: ok.into(), ..base.clone() };
+            assert_eq!(Marker::from_pce(&m.to_pce()).unwrap(), m);
+        }
+        let long = format!("{}.lean", "x".repeat(MAX_FILE_PATH));
+        for bad in [
+            "", "../../.bashrc", "../x.lean", "A/../B.lean", "./A.lean", "A/./B.lean", "/etc/x.lean",
+            ".git/config", ".git/hooks/x.lean", "a/.GIT/x.lean", "A//B.lean", "A/", "A.lean/",
+            "A\\B.lean", "A\0.lean", "A\nB.lean", "A\x7f.lean", "A.txt", ".lean", "A/.lean",
+            long.as_str(),
+        ] {
+            assert!(check_file_path(bad).is_err(), "{bad:?} accepted");
+            let m = Marker { file_path: bad.into(), ..base.clone() };
+            assert!(m.check().is_err());
+            assert!(matches!(Marker::from_pce(&m.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
+            assert!(Marker::from_preimage(&m.preimage()).is_err());
+            let t = Tombstone { file_path: bad.into(), target: id(1), lamport: 2, author: AgentId::derive("a"), receipt: None };
+            assert!(t.check().is_err());
+            assert!(matches!(Tombstone::from_pce(&t.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
+        }
     }
 
     #[test]
