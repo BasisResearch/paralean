@@ -234,3 +234,62 @@ Proposed README.md text:
 > Interactive workspaces use persistent Lean servers and incremental capture.
 > `impl/p4` adds distributed LSP routing, collision-resolution tooling and
 > history-preserving Git projections; see [docs/p4-log.md](docs/p4-log.md).
+
+## Final report
+
+Tested implementation commit:
+`0d04d27f8f0437a681ce4d5de4427d975efcbe71`, pushed to `origin/m-p4`.
+The later report-only commit adds this section. Repeated fetches, including
+after the implementation push, found `origin/main` unchanged at `7df9ace`;
+no rebase was needed. No cove `report` capability was available, so this
+section is the requested report.
+
+**P4 gate: PASS.** The real JSON-RPC client covers two workspace routes and URI
+mapping, aggregated search/source, exact document/environment/generation
+checks, diagnostics, hover, goals, completion/resolve, rename, cancellation
+and RPC affinity. Watchdog and native file-worker death recover the latest
+buffer and reject stale references. The final cancellation-ID reuse smoke
+passes. Published `remote%` runs in a persistent server, and a separate
+persistent capture worker reuses imported bases and unchanged commands.
+Local-instance isolation, renamed generalized fields, live receipt revocation,
+guided collision tombstone/checkpoint, history-preserving projection and
+certified snapshot tags all have passing integration tests.
+
+**Latencies:** ten samples on the shared host, p50/p95 milliseconds:
+
+| Operation | Init | Mathlib.Order.Basic |
+|---|---:|---:|
+| remote edit → error diagnostics | 213 / 235 | 212 / 218 |
+| remote edit → clean diagnostics | 211 / 218 | 213 / 217 |
+| hover | 5.5 / 8.4 | 7.1 / 11.5 |
+| goals | 6.0 / 9.5 | 8.2 / 11.8 |
+| completion | 193 / 550 | 232 / 631 |
+| capture edit with published prefix | 370 / 647 | 399 / 442 |
+
+Single reconnects were 1824/2037 ms. Capture first loads were 1378/1838 ms
+for those published-prefix fixtures. These are not measurements of the full
+Mathlib umbrella import or network round trips.
+
+**Regression results:** rebuilt pinned fork; five fork tests and 158 mode-off
+server tests pass; P1 builds 80/80; P3 remote gate passes, including 11/11 export
+identities. P1 source/kernel/isolated replay passes 103/103 each, and negatives
+match baseline. P1 core export retains its four documented initializer identity
+mismatches (81/85); that script returns 1.
+
+**Not done / integration dependencies:**
+
+- The controller must provision remote roots, connect capture/publication, and
+  advance the environment identity on store policy changes. There is no new
+  policy push feed or automatic publication of LSP buffers; controller wiring
+  belongs to m-p5.
+- SSH transport was not exercised; routing and URI remapping used separate local
+  workers and a mirror root. No claim is made about WAN latency.
+- P2's complete `buildable` / `current` checkpoint conflict guard remains with
+  m-p2. The positive resolved-collision workflow passes, but P4 does not prove
+  rejection of every unresolved checkpoint.
+- Legacy capsules lacking resolved field spans require recapture for affected
+  field renames. Automatic discovery of previously unloaded generalized methods
+  is not added. Registry search positions can be approximate after rendering.
+- The four baseline initializer export-identity mismatches remain. Rename is
+  delegated to the owning Lean worker; a transactional refactor across multiple
+  workspaces is not implemented.
