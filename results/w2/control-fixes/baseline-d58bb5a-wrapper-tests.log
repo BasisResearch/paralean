@@ -1,0 +1,19 @@
+test batch_retries_joined_standalone_dependency_refusal ... FAILED
+thread 'batch_retries_joined_standalone_dependency_refusal' (3667172) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/batch_warm.rs:94:5:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.41s
+test checker_memory_limit_gives_no_receipt ... FAILED
+test cancellation_stops_checks_and_publication ... FAILED
+test validator_timeouts_give_no_receipt ... FAILED
+test queues_apply_backpressure ... FAILED
+thread 'checker_memory_limit_gives_no_receipt' (3667869) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/control.rs:134:82:
+no validator gave a verdict (127.0.0.1:35603: checker crashed: exit status: 127: /data/home/kirancodes/tmp/p3test-p3-memory-3667863-5328234-3/checker-wrapper.sh: line 6: exec: : not found)
+thread 'cancellation_stops_checks_and_publication' (3667868) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/control.rs:165:5:
+  left: Inconclusive { reason: "no validator gave a verdict (127.0.0.1:33785: checker crashed: exit status: 127: /data/home/kirancodes/tmp/p3test-p3-cancel-3667863-8216702-7/checker-wrapper.sh: line 6: exec: : not found)" }
+thread 'validator_timeouts_give_no_receipt' (3667871) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/control.rs:106:82:
+no validator gave a verdict (127.0.0.1:35679: checker crashed: exit status: 127: /data/home/kirancodes/tmp/p3test-p3-timeout-3667863-7191571-5/checker-wrapper.sh: line 6: exec: : not found)
+thread 'queues_apply_backpressure' (3667870) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/control.rs:229:5:
+  left: Inconclusive { reason: "checker crashed: exit status: 127: /data/home/kirancodes/tmp/p3test-p3-busy-3667863-5174375-2/checker-wrapper.sh: line 6: exec: : not found" }
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.75s
+test leader_killed_during_validation_recovers_j1_without_client_retry ... FAILED
+thread 'leader_killed_during_validation_recovers_j1_without_client_retry' (3668350) panicked at /data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/baseline/impl/p3/crates/control/tests/processes.rs:124:9:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 31.15s

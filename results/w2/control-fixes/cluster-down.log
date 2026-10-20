@@ -1,0 +1,3 @@
+stopped s3-guard
+stopped garage-0
+stopped fdbserver-0

@@ -1,0 +1,48 @@
+started fdbserver-0 (127.0.0.1:29900)
+Database created
+The database is available, but has issues (type 'status' for more information).
+started garage-0
+garage: 1 node(s), replication 1, bucket paralean
+   Compiling libc v0.2.190
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling parking_lot_core v0.9.12
+   Compiling bytes v1.12.1
+   Compiling pin-project-lite v0.2.17
+   Compiling smallvec v1.16.2
+   Compiling itoa v1.0.18
+   Compiling futures-core v0.3.34
+   Compiling scopeguard v1.2.0
+   Compiling cfg-if v1.0.5
+   Compiling lock_api v0.4.14
+   Compiling http v1.5.0
+   Compiling syn v3.0.6
+   Compiling errno v0.3.14
+   Compiling httparse v1.10.1
+   Compiling signal-hook-registry v1.4.8
+   Compiling tokio-macros v2.7.2
+   Compiling http-body v1.1.0
+   Compiling parking_lot v0.12.5
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.4
+   Compiling once_cell v1.21.4
+   Compiling try-lock v0.2.5
+   Compiling want v0.3.2
+   Compiling tracing-core v0.1.36
+   Compiling tokio v1.53.2
+   Compiling futures-channel v0.3.34
+   Compiling atomic-waker v1.1.2
+   Compiling futures-task v0.3.34
+   Compiling httpdate v1.0.3
+   Compiling hyper v1.11.1
+   Compiling futures-util v0.3.34
+   Compiling tracing v0.1.44
+   Compiling tower-service v0.3.3
+   Compiling hyper-util v0.1.21
+   Compiling http-body-util v0.1.5
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-aa4c773e32d430d0a/impl/p2/crates/s3-guard)
+    Finished `release` profile [optimized] target(s) in 7.97s
+s3: http://127.0.0.1:29950 (guard) -> unix:/data/home/kirancodes/paralean-p2/inst/w2-control/garage/n0/s3.sock (garage)
+fdb: /data/home/kirancodes/paralean-p2/inst/w2-control/fdb/fdb.cluster (paralean:p2w2controleb9a4f32454d@127.0.0.1:29900)
+exit 0

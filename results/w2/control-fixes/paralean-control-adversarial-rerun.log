@@ -1,0 +1,24 @@
+# 2026-10-20T22:47:08Z commit 28ecac3: adversarial target again, after building .runs/p1-negative (missing in the first run)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/adversarial.rs (target/debug/deps/adversarial-aa52de340df26416)
+
+running 15 tests
+test changed_target_statement_is_rejected ... ok
+test dependency_must_be_published_with_a_receipt ... ok
+test end_to_end_target_work_publishes_with_bound_receipts ... ok
+test hostile_capsule_gid_is_refused_before_any_write ... ok
+test forged_receipts_fail_closed ... ok
+test job_issuer_keys_sign_target_free_envelopes_only ... ok
+test published_means_a_certificate_that_verifies ... ok
+test receipt_for_another_epoch_fails_closed ... ok
+test receipt_for_another_group_policy_checker_base_or_target_fails_closed ... ok
+test receipt_for_another_or_cancelled_request_fails_closed ... ok
+test receipt_under_an_unpinned_policy_fails_closed ... ok
+test revoked_or_retired_validator_key_fails_closed ... ok
+test stale_owner_after_lease_expiry_cannot_publish ... ok
+test validator_enforces_the_envelope_policy ... ok
+test worker_that_skips_validation_cannot_publish ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.03s
+
+exit 0
