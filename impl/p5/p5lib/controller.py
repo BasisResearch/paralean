@@ -138,12 +138,42 @@ class Controller:
     def run(self, *, recover: bool = False, export: bool = True) -> dict:
         self._open(recover=recover)
         if self.state["phase"] == "complete":
-            if export and not (self.state_dir / "export").exists():
-                exported = self.backend.export(self.state_dir / "export")
-                if not exported.get("ok"):
-                    raise RuntimeError("stock export failed during recovery")
-                self.state["export"] = exported
-                self._save("stock_export_recreated", output=str(self.state_dir / "export"))
+            required = [target.name for target in self.task.targets]
+
+            def verify_heads() -> bool:
+                verdict = self.backend.validate(required)
+                self._record_costs(verdict)
+                self.state["contract_validation"] = verdict
+                details = verdict.get("targets", {})
+                return bool(verdict.get("ok")) and all(
+                    self.state["targets"].get(name, {}).get("status") == "done"
+                    and self.state["targets"][name].get("group")
+                    and details.get(name, {}).get("ok")
+                    and details[name].get("group") == self.state["targets"][name]["group"]
+                    for name in required
+                )
+
+            try:
+                if not verify_heads():
+                    raise RuntimeError("a completed target no longer matches its current validated head")
+                if export:
+                    # An existing directory is not evidence of a stock build. Rebuild it
+                    # from the current store projection and check the heads again afterward.
+                    out = self.state_dir / "export"
+                    exported = self.backend.export(out)
+                    self._record_costs(exported)
+                    if not exported.get("ok"):
+                        raise RuntimeError("stock export failed during recovery")
+                    self.state["export"] = exported
+                    if not verify_heads():
+                        raise RuntimeError("a target head changed during stock export")
+            except Exception as exc:
+                self.state["phase"] = "failed"
+                self.state["error"] = str(exc)
+                self._save("completed_run_reverification_failed", reason=str(exc))
+                return self.state
+            self.state.pop("error", None)
+            self._save("completed_run_reverified", export=export)
             return self.state
         targets = {t.name: t for t in self.task.targets}
         running = {}

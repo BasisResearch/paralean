@@ -59,6 +59,12 @@ authenticated validator API, using its authority signer and pinned validator
 public keys. P2/P3 release binaries and the P5 bridge were rebuilt together.
 Warm checking remains disabled; these runs measure the cold checker.
 
+A later fetch found P4 `fade5b3` (persistent Lean worker routing and editor
+state fences). P5 was rebased onto it before the Codex adapter smoke and scaling
+runs. It changes only P4 and its log; the P1/P2/P3/P5 gate implementation is
+unchanged. The latest fetch before scaling still found main `7df9ace`, targets
+`463e6d8`, P2 `323bd48` and P4 `fade5b3`.
+
 ## Gate and benchmark status
 
 Initial live trial: ten addition lemmas proved by ordinary Claude Code CLI
@@ -74,8 +80,7 @@ environment variable for tasks without Mathlib imports. Retrying the same
 recovered task exported ten modules, built them with stock Lean `193c3589`, and
 re-encoded all ten groups identically; P2 committed catalogue
 `937a66a3eea816ce81273f00b73f2e5b3405d022a0a8de49d085ed43fd537340`.
-The stock build took 5.623 s. This initial trial is not the final gate report:
-the realistic list task, adversarial retry checks and scaling runs remain.
+The stock build took 5.623 s. This initial trial is superseded by the realistic List gate recorded below.
 
 Seven tests pass under the sourced P5 environment, including comparing the
 private contract compiler's type hash with actual P1 capture, rejection of an
@@ -104,6 +109,77 @@ journal writer, and idempotent assignment. This found a P5 bug: capture can retu
 an older rejected draft as well as the edited candidate. The adapter now selects
 the candidate whose capsule text matches the current file before asking the
 validator to check it.
+
+## Integrated live evidence
+
+The integrated List gate passed all eight checks in
+[`integrated-gate.json`](../impl/p5/results/integrated-gate.json). Ordinary Claude
+Code workers proved a generic map-length helper, eight reverse/map
+specializations and their conjunction. All ten frozen statement hashes matched
+signed validator receipts and the current target heads; all sixteen required
+package dependency edges were present. The gate killed the controller after two
+publications, deleted the whole desktop directory including TASK.toml and keys,
+enumerated the surviving store to rediscover the task ID, and completed recovery
+with the acknowledged group IDs unchanged. Deployment credentials and compiler
+installations are external inputs, not recovered desktop state.
+
+The run took 134.584 s including export, with 126.731 s through target validation.
+The stock export contained ten modules and re-encoded all ten groups identically;
+its build took 2.991 s. The final P2 catalogue was
+`5560b8cde53a2ad995e4e118e847965fdc4aeee167a86988ea719bc1f75a722f`.
+The gate's controller metrics exclude export costs because its driver exports
+in a separate command. All seven integrated live adversarial checks also passed;
+see [`integrated-adversarial.json`](../impl/p5/results/integrated-adversarial.json).
+
+The actual generated source is retained in
+[`list-export/`](../impl/p5/results/list-export/). An independent clean build used
+stock Lean `193c3589` with no Paralean environment variables, no remote services
+and no copied build cache: ten oleans, 5.753 s, success. See
+[`list-isolated-stock.json`](../impl/p5/results/list-isolated-stock.json).
+This establishes that the delivered library contains ordinary Lean source;
+the task scheduling metadata is not part of that library.
+
+The configurable Codex adapter also passed a live two-target dependent task,
+including both fixed contracts and a stock export, in 86.863 s. Its worker sandbox
+allows network access for `remote%` demand fetching. See
+[`codex-smoke.json`](../impl/p5/results/codex-smoke.json). The tested CLI versions
+are Claude Code 2.1.304 and codex-cli 0.156.1; Python is 3.14.4 and Cargo is 1.98.1.
+Credentials were taken from the existing box configuration and are not in the
+result artifacts.
+
+## Review hardening before final measurements
+
+Parent review and delegated regression review found two completion edge cases:
+a completed run trusted an existing export directory, and the final catalogue
+selected all cached revisions rather than the exact live export closure. P5 now
+rechecks current heads and rebuilds the export on completed recovery. A small
+P5 Lean helper calls the same P1 `Remote.view` and `Catalog.ofStore` functions as
+`ws-export`, so the checkpoint selects the built live closure and rejects stale
+dependencies. Historical revisions remain in the store.
+
+The upstream `plr checkpoint` command also leaves required targets and target
+checks empty. P5's target-bound checkpoint adapter instead records every frozen
+contract's checked group and assignment in the P2 snapshot and build receipt.
+It captures an additional stock `lake build` log to supply a real log hash and
+compiler commit. P2's existing T5 checks its catalogue fence but does not check
+target records. P5 therefore checks every required target's owner, epoch and head
+in the same FDB transaction that marks its journal complete. A stale completion
+write fails even if a catalogue was already produced. This is the P5 completion
+point; an older catalogue remains a historical build, not a fresh completion
+claim. No P2 or P3 source changes implement these guards.
+
+The journal now authenticates its complete canonical payload with HMAC-SHA256
+under a domain-separated recovery-secret key. Its signed sequence must match the
+FDB head. Both normal loading and store-only recovery verify this before trusting
+the task specification or restoring keys. Tampered, unsigned and replayed payloads
+are rejected. Earlier unsigned prototype journals are intentionally unsupported;
+all final runs use fresh deployments. This prevents workers from forging accepted
+controller metadata with their store credentials, but does not provide availability
+against a malicious store writer or OS isolation under the shared Unix account.
+
+The final sourced local suite passes 17 tests, including new cases for changed
+completed heads, corrupt existing export output, exact snapshot selection,
+noncurrent dependencies, journal authentication and signed-sequence replay.
 
 ## Proposed sentences for plan.md and README.md
 

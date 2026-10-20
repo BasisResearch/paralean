@@ -6,15 +6,19 @@ mod cache;
 
 use std::env;
 use std::fs;
+use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
 use cache::{id_of, name_of_json, Cache};
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{self, Policy, TargetBinding};
 use paralean_store::{
-    AgentId, Anchor, Controller, Faults, Id, JobEnvelope, KeyFile, Kind, Marker, Name, Object,
-    Opaque, Package, Receipt, Revision, Signed, SignedJob, Store, StoreConfig, Verdict, Writer,
+    AgentId, Anchor, AssignEntry, BuildVerdict, Checkpoint, Controller, Faults, Id, JobEnvelope, KeyFile, Kind,
+    Manifest, Marker, Name, Object, Opaque, Package, Receipt, Revision, Signed, SignedJob,
+    Snapshot, Store, StoreConfig, TargetAssignment, TargetCheck, Verdict, Writer,
 };
+use paralean_store::id::sha256;
+use paralean_store::pce::{Enc, Pce};
 use paralean_validator_api::{decode_receipt, published_receipt, validate, ValidatorResponse};
 use serde_json::{json, Value};
 
@@ -85,8 +89,150 @@ pub async fn run(args: &[String]) -> R<Value> {
         Some("validate-target") => validate_target(args).await,
         Some("publish-target") => publish_target(args).await,
         Some("verify-target") => verify_target(args).await,
+        Some("checkpoint-targets") => checkpoint_targets(args).await,
         _ => Err("unknown target bridge command".into()),
     }
+}
+
+/// A P5 checkpoint is selected from exact live revision IDs by the exporter. The
+/// bridge rechecks each frozen target against its signed publication and current
+/// target head before constructing the immutable P2 snapshot.
+async fn checkpoint_targets(args: &[String]) -> R<Value> {
+    let (store, kf) = open()?;
+    let (wid, signer) = workspace(&kf, args)?;
+    let authority = kf.authority_signer().ok_or("authority seed required for checkpoint")?;
+    let spec: Value = serde_json::from_slice(&fs::read(need(args, "--spec")?).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("invalid checkpoint spec: {e}"))?;
+    let raw_revisions = spec.get("revisions").and_then(Value::as_array).ok_or("spec.revisions must be an array")?;
+    let mut contents = raw_revisions.iter().map(|v| parse_id(v.as_str().ok_or("revision must be hex")?)).collect::<R<Vec<_>>>()?;
+    if contents.is_empty() { return Err("checkpoint needs revisions".into()); }
+    contents.sort(); contents.dedup();
+    if contents.len() != raw_revisions.len() { return Err("duplicate checkpoint revision".into()); }
+    let mut revision_map = BTreeMap::new();
+    for rid in &contents {
+        let rev = store.revision(rid).await.map_err(|e| e.to_string())?.ok_or("checkpoint revision absent")?;
+        revision_map.insert(*rid, rev);
+    }
+    let files_json = spec.get("files").and_then(Value::as_object).ok_or("spec.files must be an object")?;
+    let mut files = Vec::new();
+    let mut projected = BTreeSet::new();
+    for (path, ids) in files_json {
+        if path.is_empty() || path.starts_with('/') || path.split('/').any(|s| s == "..") || !path.ends_with(".lean") {
+            return Err("invalid checkpoint source path".into());
+        }
+        let ids = ids.as_array().ok_or("file revisions must be an array")?
+            .iter().map(|v| parse_id(v.as_str().ok_or("file revision must be hex")?)).collect::<R<Vec<_>>>()?;
+        for rid in &ids {
+            if !revision_map.contains_key(rid) { return Err("file names revision outside snapshot".into()); }
+            if !projected.insert(*rid) { return Err("revision appears in multiple file positions".into()); }
+        }
+        files.push((path.clone(), ids));
+    }
+    if projected != contents.iter().copied().collect() { return Err("source layout does not cover snapshot contents exactly".into()); }
+    let targets_json = spec.get("targets").and_then(Value::as_array).ok_or("spec.targets must be an array")?;
+    if targets_json.is_empty() { return Err("checkpoint needs required targets".into()); }
+    let mut assignments = Vec::new();
+    let mut checks = Vec::new();
+    let mut completion = Vec::new();
+    let mut seen = BTreeSet::new();
+    for item in targets_json {
+        let n = Name::parse(item.get("name").and_then(Value::as_str).ok_or("target name missing")?);
+        if n.0.is_empty() || !seen.insert(n.to_string()) { return Err("empty or duplicate target name".into()); }
+        let statement = parse_hash(item.get("statement_hash").and_then(Value::as_str).ok_or("target statement_hash missing")?)?;
+        let group = parse_id(item.get("group").and_then(Value::as_str).ok_or("target group missing")?)?;
+        let (receipt, job) = published_receipt(&store, &group).await.map_err(|e| format!("target receipt: {e:?}"))?;
+        if job.body.targets.len() != 1 { return Err("target job must bind exactly one target".into()); }
+        let binding = &job.body.targets[0];
+        if binding.name != n || binding.statement != statement || receipt.body.verdict != Verdict::Accepted {
+            return Err("published receipt does not bind frozen target statement".into());
+        }
+        let record = store.target(&n).await.map_err(|e| e.to_string())?.ok_or("target record absent")?;
+        let assignment = store.meta.get(store.meta.keys.assign(&n, record.epoch)).await
+            .map_err(|e| e.to_string())?.ok_or("target assignment log absent")?;
+        let assignment = AssignEntry::from_pce(&assignment).map_err(|e| e.to_string())?;
+        if assignment.owner != record.owner || assignment.request != record.last_request {
+            return Err("target assignment log differs from current record".into());
+        }
+        if binding.epoch != record.epoch || job.body.worker != record.owner {
+            return Err("target assignment changed after validation".into());
+        }
+        let head = record.head.ok_or("target has no published head")?;
+        let revision = revision_map.get(&head).ok_or("target head missing from checkpoint contents")?;
+        if revision.group != group || revision.name != n { return Err("checkpoint does not select current target head".into()); }
+        // The target record and its T4 assignment log are the authoritative source.
+        // Snapshot's assignment signature is a domain-separated authority signature
+        // over exactly the record's name, owner and epoch.
+        let mut msg = Enc::new();
+        n.encode(&mut msg); record.owner.encode(&mut msg); msg.uvarint(record.epoch);
+        let assignment_id = Id(sha256(&[b"paralean-p5-target-assignment\0".as_slice(), &msg.out].concat()));
+        assignments.push(TargetAssignment {
+            name: n.clone(), owner: record.owner, epoch: record.epoch,
+            assigned_by: authority.public().to_vec(), signature: authority.sign(&assignment_id).to_vec(),
+        });
+        checks.push(TargetCheck {
+            target: receipt.body.target.clone().ok_or("target receipt missing target slot")?,
+            group, statement_matches: true, axioms: receipt.body.axioms.clone(),
+        });
+        completion.push(json!({"name": n.to_string(), "owner": record.owner.hex(), "epoch": record.epoch,
+            "head": head.hex(), "group": group.hex(), "statement_hash": hex::encode(&statement)}));
+    }
+    assignments.sort_by_key(Pce::to_pce);
+    checks.sort_by(|a,b| a.target.cmp(&b.target));
+    let source_root = Manifest::SourceRoot { files };
+    let build = spec.get("build");
+    let build_receipt = Manifest::BuildReceipt {
+        exporter_bin: build.and_then(|v| v.get("exporter_bin")).and_then(Value::as_str).unwrap_or("paralean-p1-export").as_bytes().to_vec(),
+        lean_commit: build.and_then(|v| v.get("lean_commit")).and_then(Value::as_str).unwrap_or("").into(),
+        mathlib_commit: build.and_then(|v| v.get("mathlib_commit")).and_then(Value::as_str).unwrap_or("").into(),
+        layout: source_root.id(),
+        build_log_hash: match build.and_then(|v| v.get("build_log_hash")).and_then(Value::as_str) {
+            Some(s) => parse_hash(s)?, None => vec![],
+        },
+        target_checks: checks,
+        verdict: BuildVerdict::Ok,
+    };
+    let writer = Writer::new(store.clone(), wid, signer);
+    let ctl = Controller::new(store.clone(), authority);
+    let token = ctl.rotate(wid, &rand::random::<[u8; 16]>()).await.map_err(|e| e.to_string())?;
+    let predecessor = opt(args, "--predecessor").map(parse_id).transpose()?;
+    let snapshot = Snapshot {
+        workspace: wid, base: base_id(&CheckerConfig::from_env()?.lean_githash), contents,
+        predecessors: vec![], targets: assignments, source_root: source_root.id(), build_receipt: build_receipt.id(),
+    };
+    let snapshot_id = snapshot.id();
+    let cp = Checkpoint { snapshot, source_root, build_receipt, predecessor, token };
+    let catalog = writer.commit_checkpoint(&cp).await.map_err(|e| e.to_string())?;
+    let stored_snapshot = store.s3.get_object::<Snapshot>(Kind::Snapshot, &snapshot_id)
+        .await.map_err(|e| e.to_string())?.ok_or("committed snapshot missing")?;
+    let stored_receipt = store.s3.get_object::<Manifest>(Kind::Manifest, &stored_snapshot.build_receipt)
+        .await.map_err(|e| e.to_string())?.ok_or("committed build receipt missing")?;
+    let stored_checks = match stored_receipt {
+        Manifest::BuildReceipt { target_checks, verdict: BuildVerdict::Ok, .. } => target_checks,
+        _ => return Err("committed build receipt invalid".into()),
+    };
+    if stored_snapshot.targets.len() != completion.len() || stored_checks.len() != completion.len() {
+        return Err("committed checkpoint omitted target attestations".into());
+    }
+    // This post-check narrows the race before the P5 completion journal's atomic
+    // target guard. The journal guard is the durable completion linearization point.
+    for t in &completion {
+        let n = Name::parse(t["name"].as_str().unwrap());
+        let rec = store.target(&n).await.map_err(|e| e.to_string())?.ok_or("target record disappeared")?;
+        if rec.epoch != t["epoch"].as_u64().unwrap() || rec.head.map(|h| h.hex()) != t["head"].as_str().map(str::to_owned) {
+            return Err("target changed during checkpoint; completion must retry".into());
+        }
+    }
+    Ok(json!({"catalog": catalog.hex(), "snapshot": snapshot_id.hex(), "rank": cp.token.rank,
+        "snapshot_targets": stored_snapshot.targets.iter().map(|t| json!({
+            "name": t.name.to_string(), "owner": t.owner.hex(), "epoch": t.epoch,
+            "assigned_by": hex::encode(&t.assigned_by), "signature": hex::encode(&t.signature)
+        })).collect::<Vec<_>>(),
+        "build_receipt_target_checks": stored_checks.iter().map(|t| json!({
+            "target": hex::encode(&t.target), "group": t.group.hex(),
+            "statement_matches": t.statement_matches,
+            "axioms": t.axioms.iter().map(ToString::to_string).collect::<Vec<_>>()
+        })).collect::<Vec<_>>(),
+        "completion_targets": completion }))
 }
 
 async fn assign(args: &[String]) -> R<Value> {

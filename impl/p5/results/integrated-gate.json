@@ -1,0 +1,419 @@
+{
+  "checks": {
+    "all_contracts": {
+      "groups": {
+        "P5List.map_length": "b85522ca7c9408d0afdcb1f84ba4f712b98a7b799f3fee05eda918d32999e2f7",
+        "P5List.reverse_map_len_1": "00dc858d257408b1c693c8360f268a36537b5adf502db78e8792fd61c35d5a48",
+        "P5List.reverse_map_len_2": "3336ccd632dc9afa20461c75276b2654e93f63f83c3c5cf53643b70e0e257c96",
+        "P5List.reverse_map_len_3": "bce96b00e7654fa058fbb02ed5e4a6152c045d9c8586dafb077083ba0f6a3f2c",
+        "P5List.reverse_map_len_4": "a49640ef840d7304932c619af9240c7a6ca3b78a67a397fb38f1636fb002fcce",
+        "P5List.reverse_map_len_5": "4bf2338f9f006f7ff6d9d830a1e3026d3074516809d3f871bb790140de5a9f37",
+        "P5List.reverse_map_len_6": "dd66c1b80db5f86b26d1e19a23e501bc47a7601b851b9f138014148c79e9b0e7",
+        "P5List.reverse_map_len_7": "947363cb1552a564e9e856a9bdeb8c6eeb877ed33d0560fcedf7609016a5ed77",
+        "P5List.reverse_map_len_8": "74a8045360f9778a0a0897bd8f2876bb7582fc217b5e86c903ae6da6f73f67f2",
+        "P5List.reverse_map_lengths": "22465d762490146a9c5264ac5a68e80cc16b3ed94722a3939ac71d752911a5f1"
+      },
+      "ok": true,
+      "statuses": {
+        "P5List.map_length": "done",
+        "P5List.reverse_map_len_1": "done",
+        "P5List.reverse_map_len_2": "done",
+        "P5List.reverse_map_len_3": "done",
+        "P5List.reverse_map_len_4": "done",
+        "P5List.reverse_map_len_5": "done",
+        "P5List.reverse_map_len_6": "done",
+        "P5List.reverse_map_len_7": "done",
+        "P5List.reverse_map_len_8": "done",
+        "P5List.reverse_map_lengths": "done"
+      },
+      "validation": {
+        "ok": true,
+        "targets": {
+          "P5List.map_length": {
+            "epoch": 0,
+            "group": "b85522ca7c9408d0afdcb1f84ba4f712b98a7b799f3fee05eda918d32999e2f7",
+            "head": "51081b6590eac2e5da3c3d0e808e5addb46ac781695a699bb0c527b11ea91117",
+            "name": "P5List.map_length",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "68ed3bcb019159cb36943ca10c81a34caebeba8339fa4580b1b8448d8e18c851"
+          },
+          "P5List.reverse_map_len_1": {
+            "epoch": 0,
+            "group": "00dc858d257408b1c693c8360f268a36537b5adf502db78e8792fd61c35d5a48",
+            "head": "5983165dbac1056d55e2c4bbc46253ebed4f75bd7780f2419db78b2b96c412a9",
+            "name": "P5List.reverse_map_len_1",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "ee6642732a5541a0b4dfe3e510faed9ce184328e1b50bfb5ef927ac5c8ae388c"
+          },
+          "P5List.reverse_map_len_2": {
+            "epoch": 2,
+            "group": "3336ccd632dc9afa20461c75276b2654e93f63f83c3c5cf53643b70e0e257c96",
+            "head": "cba48a9d043067c5589814e4c01bfc7149b1b2edcef6c61c0927c2937de2be3f",
+            "name": "P5List.reverse_map_len_2",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "0b02b54de407c8bc6d38a26e72000386ccdcd22ec021b794f0618667fa913840"
+          },
+          "P5List.reverse_map_len_3": {
+            "epoch": 2,
+            "group": "bce96b00e7654fa058fbb02ed5e4a6152c045d9c8586dafb077083ba0f6a3f2c",
+            "head": "95bc254cd97978c0abbee68fd43b233ba34fc473c769540d3329d22a2e2e671f",
+            "name": "P5List.reverse_map_len_3",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "0b8ac4898a29abdc1cdf4de88506afb90526582453022b1f47f78875d3f86a12"
+          },
+          "P5List.reverse_map_len_4": {
+            "epoch": 2,
+            "group": "a49640ef840d7304932c619af9240c7a6ca3b78a67a397fb38f1636fb002fcce",
+            "head": "7cfb9a5a989c00dcabd5ee794d116326ab3ad696d1b3be6474848a5ee15b1a2a",
+            "name": "P5List.reverse_map_len_4",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "88e9653a98b617bd5ebd7731cd9727bedf65575b33b5188d258b355aab9b7908"
+          },
+          "P5List.reverse_map_len_5": {
+            "epoch": 0,
+            "group": "4bf2338f9f006f7ff6d9d830a1e3026d3074516809d3f871bb790140de5a9f37",
+            "head": "054ad361c29022d5b8055f276b45d7fb861184f0593b72129e1157b135540a70",
+            "name": "P5List.reverse_map_len_5",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "4e3125efd2041fe8ce11c96b00689daca2cf6e67d0ead624e739435c389d369b"
+          },
+          "P5List.reverse_map_len_6": {
+            "epoch": 0,
+            "group": "dd66c1b80db5f86b26d1e19a23e501bc47a7601b851b9f138014148c79e9b0e7",
+            "head": "2078e6f58d08ca1185417440678fc6240b40ae6e269a64659776ca85a90d0b04",
+            "name": "P5List.reverse_map_len_6",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "90a2ee9031f3d2d9cbc7d24e3f848618bb4d9eab905b38132ecbd65029dea57c"
+          },
+          "P5List.reverse_map_len_7": {
+            "epoch": 0,
+            "group": "947363cb1552a564e9e856a9bdeb8c6eeb877ed33d0560fcedf7609016a5ed77",
+            "head": "de537b3c38a1a293ffa333788c5a287720867d09d122e0a3bce5926633e34f52",
+            "name": "P5List.reverse_map_len_7",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "957073297368d97cb5c64324f3879674cc5fff73b73735e69d2289cc3ea1f0c7"
+          },
+          "P5List.reverse_map_len_8": {
+            "epoch": 0,
+            "group": "74a8045360f9778a0a0897bd8f2876bb7582fc217b5e86c903ae6da6f73f67f2",
+            "head": "9185d5d92ba4c9ac831520738c90657a8abb80b248f5f7711ffb3619a90dbfb4",
+            "name": "P5List.reverse_map_len_8",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "6aaaffa2f97f95d80fabd4b7d4d95957504551443f4fbe72f7796664a1d18742"
+          },
+          "P5List.reverse_map_lengths": {
+            "epoch": 0,
+            "group": "22465d762490146a9c5264ac5a68e80cc16b3ed94722a3939ac71d752911a5f1",
+            "head": "722dcb532bc8a94daac37a907d7434b5b129290c36a508175c3cd6b27c5a8ec8",
+            "name": "P5List.reverse_map_lengths",
+            "ok": true,
+            "reason": "",
+            "statement_hash": "028c48a58bfbeeb5fff842d313cd8ac29189933e45411734188e8f661b7679d2"
+          }
+        }
+      }
+    },
+    "dependency_closure": {
+      "edges": [
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_1"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_2"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_3"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_4"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_5"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_6"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_7"
+        },
+        {
+          "depends_on": "P5List.map_length",
+          "package": "4232e857ba49c90761679ba59e7161ce9e81205061511cc4deabdd9c13e66232",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_len_8"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_1",
+          "package": "4c7329f95cb8adf354fe947089a8ac85438c795f32eef94cc53a0938634cda42",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_2",
+          "package": "938351c6696bd7a30f6d9b75693aac7c103705360b8896f84462cbfc7da86553",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_3",
+          "package": "7d84d4f2a16be9811a15923ed30ad82e875cf04bf278969b39cf319f8d9eeea5",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_4",
+          "package": "e268a52f12e62b244ee308f3e209995a1dc3cc2c5ace654475c0da070845d257",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_5",
+          "package": "4f3da294bf57398d5d632384e186b023fa2bf2bd382b05541f745b291ca31024",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_6",
+          "package": "a4d04d86d15edf064f53dd4aff9f2c3e10f4f1a1cd76837c064c2bbde85e5f98",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_7",
+          "package": "c9a70b78125c0adb0d6e3a79e68bda21f78d3b32dbba2e95ca18b8923d28d5e6",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        },
+        {
+          "depends_on": "P5List.reverse_map_len_8",
+          "package": "721811f337ade74d98b229d36eae2ac3e06e9ff250ecb586c4d8b2601e11f68e",
+          "present_in_checked_closure": true,
+          "target": "P5List.reverse_map_lengths"
+        }
+      ],
+      "ok": true,
+      "packages_found": 10
+    },
+    "desktop_state_removed": {
+      "lost_task_file": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-integrated-gate/TASK.toml",
+      "ok": true
+    },
+    "partial_before_loss": {
+      "groups": {
+        "P5List.map_length": "b85522ca7c9408d0afdcb1f84ba4f712b98a7b799f3fee05eda918d32999e2f7",
+        "P5List.reverse_map_len_1": "00dc858d257408b1c693c8360f268a36537b5adf502db78e8792fd61c35d5a48"
+      },
+      "ok": true
+    },
+    "remote_helpers": {
+      "files": [
+        "w6/work/ReverseMap8.lean",
+        "w6/work/ReverseMap2.lean",
+        "w6/work/ReverseMap1.lean",
+        "w6/work/MapLength.lean",
+        "w6/work/ReverseMap3.lean",
+        "w6/work/ReverseMap6.lean",
+        "w6/work/Final.lean",
+        "w6/work/ReverseMap4.lean",
+        "w6/work/ReverseMap5.lean",
+        "w6/work/ReverseMap7.lean",
+        "w4/work/ReverseMap8.lean",
+        "w4/work/ReverseMap2.lean",
+        "w4/work/ReverseMap1.lean",
+        "w4/work/MapLength.lean",
+        "w4/work/ReverseMap3.lean",
+        "w4/work/ReverseMap6.lean",
+        "w4/work/Final.lean",
+        "w4/work/ReverseMap4.lean",
+        "w4/work/ReverseMap5.lean",
+        "w4/work/ReverseMap7.lean",
+        "w5/work/ReverseMap8.lean",
+        "w5/work/ReverseMap2.lean",
+        "w5/work/ReverseMap1.lean",
+        "w5/work/MapLength.lean",
+        "w5/work/ReverseMap3.lean",
+        "w5/work/ReverseMap6.lean",
+        "w5/work/Final.lean",
+        "w5/work/ReverseMap4.lean",
+        "w5/work/ReverseMap5.lean",
+        "w5/work/ReverseMap7.lean",
+        "w3/work/ReverseMap8.lean",
+        "w3/work/ReverseMap2.lean",
+        "w3/work/ReverseMap1.lean",
+        "w3/work/MapLength.lean",
+        "w3/work/ReverseMap3.lean",
+        "w3/work/ReverseMap6.lean",
+        "w3/work/Final.lean",
+        "w3/work/ReverseMap4.lean",
+        "w3/work/ReverseMap5.lean",
+        "w3/work/ReverseMap7.lean",
+        "w1/work/ReverseMap8.lean",
+        "w1/work/ReverseMap2.lean",
+        "w1/work/ReverseMap1.lean",
+        "w1/work/MapLength.lean",
+        "w1/work/ReverseMap3.lean",
+        "w1/work/ReverseMap6.lean",
+        "w1/work/Final.lean",
+        "w1/work/ReverseMap4.lean",
+        "w1/work/ReverseMap5.lean",
+        "w1/work/ReverseMap7.lean",
+        "w2/work/ReverseMap8.lean",
+        "w2/work/ReverseMap2.lean",
+        "w2/work/ReverseMap1.lean",
+        "w2/work/MapLength.lean",
+        "w2/work/ReverseMap3.lean",
+        "w2/work/ReverseMap6.lean",
+        "w2/work/Final.lean",
+        "w2/work/ReverseMap4.lean",
+        "w2/work/ReverseMap5.lean",
+        "w2/work/ReverseMap7.lean",
+        "w7/work/ReverseMap8.lean",
+        "w7/work/ReverseMap2.lean",
+        "w7/work/ReverseMap1.lean",
+        "w7/work/MapLength.lean",
+        "w7/work/ReverseMap3.lean",
+        "w7/work/ReverseMap6.lean",
+        "w7/work/Final.lean",
+        "w7/work/ReverseMap4.lean",
+        "w7/work/ReverseMap5.lean",
+        "w7/work/ReverseMap7.lean",
+        "w0/work/ReverseMap8.lean",
+        "w0/work/ReverseMap2.lean",
+        "w0/work/ReverseMap1.lean",
+        "w0/work/MapLength.lean",
+        "w0/work/ReverseMap3.lean",
+        "w0/work/ReverseMap6.lean",
+        "w0/work/Final.lean",
+        "w0/work/ReverseMap4.lean",
+        "w0/work/ReverseMap5.lean",
+        "w0/work/ReverseMap7.lean"
+      ],
+      "ok": true
+    },
+    "stock_export": {
+      "lean_files": [
+        "Final.lean",
+        "MapLength.lean",
+        "ReverseMap1.lean",
+        "ReverseMap2.lean",
+        "ReverseMap3.lean",
+        "ReverseMap4.lean",
+        "ReverseMap5.lean",
+        "ReverseMap6.lean",
+        "ReverseMap7.lean",
+        "ReverseMap8.lean"
+      ],
+      "ok": true,
+      "olean_count": 10,
+      "result": {
+        "buildMs": 2991,
+        "bytes": 7065,
+        "checkpoint": {
+          "catalog": "5560b8cde53a2ad995e4e118e847965fdc4aeee167a86988ea719bc1f75a722f",
+          "rank": 1,
+          "snapshot": "afebd5484ecff77d814820f249b174c3b9f0db26079559c151bbbb186f9faee5"
+        },
+        "diags": [],
+        "effectOnly": 0,
+        "groups": 10,
+        "identical": 10,
+        "metrics": {
+          "check_ms": 2991.0,
+          "transfer_bytes": 0,
+          "transfer_ms": 0
+        },
+        "modules": [
+          "MapLength",
+          "ReverseMap1",
+          "ReverseMap3",
+          "ReverseMap5",
+          "ReverseMap7",
+          "ReverseMap2",
+          "ReverseMap4",
+          "ReverseMap8",
+          "ReverseMap6",
+          "Final"
+        ],
+        "ok": true,
+        "output": "/data/home/kirancodes/Documents/code/paralean-m-p5/.runs/p5-integrated-gate/export"
+      },
+      "toolchain": "leanprover/lean4-nightly:nightly-2026-10-03"
+    },
+    "store_recovery": {
+      "ok": true,
+      "recovered": {
+        "P5List.map_length": "b85522ca7c9408d0afdcb1f84ba4f712b98a7b799f3fee05eda918d32999e2f7",
+        "P5List.reverse_map_len_1": "00dc858d257408b1c693c8360f268a36537b5adf502db78e8792fd61c35d5a48",
+        "P5List.reverse_map_len_2": "3336ccd632dc9afa20461c75276b2654e93f63f83c3c5cf53643b70e0e257c96",
+        "P5List.reverse_map_len_3": "bce96b00e7654fa058fbb02ed5e4a6152c045d9c8586dafb077083ba0f6a3f2c",
+        "P5List.reverse_map_len_4": "a49640ef840d7304932c619af9240c7a6ca3b78a67a397fb38f1636fb002fcce",
+        "P5List.reverse_map_len_5": "4bf2338f9f006f7ff6d9d830a1e3026d3074516809d3f871bb790140de5a9f37",
+        "P5List.reverse_map_len_6": "dd66c1b80db5f86b26d1e19a23e501bc47a7601b851b9f138014148c79e9b0e7",
+        "P5List.reverse_map_len_7": "947363cb1552a564e9e856a9bdeb8c6eeb877ed33d0560fcedf7609016a5ed77",
+        "P5List.reverse_map_len_8": "74a8045360f9778a0a0897bd8f2876bb7582fc217b5e86c903ae6da6f73f67f2",
+        "P5List.reverse_map_lengths": "22465d762490146a9c5264ac5a68e80cc16b3ed94722a3939ac71d752911a5f1"
+      },
+      "retained": {
+        "P5List.map_length": "b85522ca7c9408d0afdcb1f84ba4f712b98a7b799f3fee05eda918d32999e2f7",
+        "P5List.reverse_map_len_1": "00dc858d257408b1c693c8360f268a36537b5adf502db78e8792fd61c35d5a48"
+      }
+    },
+    "store_task_discovery": {
+      "catalog": [
+        {
+          "blob": "04a7e40222c11e0d116a04edd6a91c2d245376abbdbffc688247ddf9cb4edef9",
+          "sequence": 10,
+          "task": "list-reverse-map-lengths-v1"
+        }
+      ],
+      "discovered_id": "list-reverse-map-lengths-v1",
+      "ok": true
+    }
+  },
+  "deployment": "p5gate-1792465521-837202",
+  "metrics": {
+    "check_ms": 9373.808717000002,
+    "started_at": 1792465525.4837303,
+    "transfer_bytes": 187601,
+    "transfer_ms": 544.276118,
+    "wall_s": 126.731,
+    "worker_wall_s": 185.45999999999998
+  },
+  "ok": true,
+  "task": "/data/home/kirancodes/Documents/code/paralean-m-p5/impl/p5/tasks/list_reverse_map_lengths.toml",
+  "versions": {
+    "git": "1ddda87fa7132a0d61faa61564154b24413ebdbf",
+    "origin_main": "7df9aceeff08d673703c9579145b5fb68c476c9a"
+  },
+  "worker": "claude"
+}

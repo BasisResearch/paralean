@@ -2,7 +2,8 @@
 //! content-addressed task/spec/state blob. Both live under the selected deployment.
 use foundationdb::tuple::Subspace;
 mod targets;
-use paralean_store::{Faults, Id, Kind, Opaque, Store, StoreConfig};
+use paralean_store::{Faults, Id, Kind, Name, Opaque, Store, StoreConfig, TargetRecord};
+use paralean_store::pce::Pce;
 use serde_json::{json, Value};
 use std::{env, fs, process::ExitCode};
 
@@ -45,7 +46,7 @@ async fn run(args: Vec<String>) -> R<Value> {
     let space = keyspace(&dep);
     let cmd = args.first().map(String::as_str).ok_or("missing command")?;
     match cmd {
-        "assign-target" | "validate-target" | "publish-target" | "verify-target" => targets::run(&args).await,
+        "assign-target" | "validate-target" | "publish-target" | "verify-target" | "checkpoint-targets" => targets::run(&args).await,
         "put" => {
             let task = task_id(need(&args, "--task")?)?;
             let file = need(&args, "--file")?;
@@ -53,6 +54,32 @@ async fn run(args: Vec<String>) -> R<Value> {
             let bytes = fs::read(file).map_err(|e| e.to_string())?;
             let value: Value = serde_json::from_slice(&bytes).map_err(|e| format!("invalid JSON: {e}"))?;
             if value.get("task").and_then(Value::as_str) != Some(task) { return Err("payload names another task".into()); }
+            let completion = if value.pointer("/state/phase").and_then(Value::as_str) == Some("complete") {
+                let frozen = value.pointer("/spec/targets").and_then(Value::as_array).ok_or("complete task lacks frozen targets")?;
+                let names = frozen.iter().map(|v| v.get("name").and_then(Value::as_str)
+                    .ok_or_else(|| "frozen target name missing".to_owned()).map(str::to_owned))
+                    .collect::<R<std::collections::BTreeSet<_>>>()?;
+                let rows = value.get("completion_targets").and_then(Value::as_array).ok_or("complete task lacks completion_targets")?;
+                if names.is_empty() || names.len() != frozen.len() || rows.len() != names.len() { return Err("completion target count differs from frozen task".into()); }
+                let hashes = value.get("contract_hashes").and_then(Value::as_object).ok_or("complete task lacks frozen hashes")?;
+                let mut seen = std::collections::BTreeSet::new();
+                let mut checks = Vec::new();
+                for row in rows {
+                    let name = row.get("name").and_then(Value::as_str).ok_or("completion target name missing")?;
+                    if !names.contains(name) || !seen.insert(name.to_owned()) { return Err("completion target names differ from frozen task".into()); }
+                    let hash = row.get("statement_hash").and_then(Value::as_str).ok_or("completion hash missing")?;
+                    if hashes.get(name).and_then(Value::as_str) != Some(hash) { return Err("completion statement differs from frozen contract".into()); }
+                    let owner = row.get("owner").and_then(Value::as_str).and_then(paralean_store::WorkspaceId::from_hex).ok_or("completion owner invalid")?;
+                    let epoch = row.get("epoch").and_then(Value::as_u64).ok_or("completion epoch invalid")?;
+                    let head = row.get("head").and_then(Value::as_str).and_then(Id::from_hex).ok_or("completion head invalid")?;
+                    let group = row.get("group").and_then(Value::as_str).and_then(Id::from_hex).ok_or("completion group invalid")?;
+                    let n = Name::parse(name);
+                    let rev = store.revision(&head).await.map_err(|e| e.to_string())?.ok_or("completion head revision absent")?;
+                    if rev.name != n || rev.group != group { return Err("completion head does not identify target group".into()); }
+                    checks.push((n, owner, epoch, head));
+                }
+                Some(checks)
+            } else { None };
             let object = Opaque::new(Kind::Blob, bytes);
             let ack = store.s3.put_opaque(&object).await.map_err(|e| e.to_string())?;
             if ack.id() != object.id() { return Err("S3 acknowledgement ID mismatch".into()); }
@@ -63,6 +90,15 @@ async fn run(args: Vec<String>) -> R<Value> {
             for _ in 0..60 {
                 let found = trx.get(&hk, false).await.map_err(|e| e.to_string())?;
                 let current = match found.as_ref() { Some(v) => decode_head(v)?, None => (0, Id::default()) };
+                if let Some(ref checks) = completion {
+                    for (name, owner, epoch, head) in checks {
+                        let raw = trx.get(&store.meta.keys.target(name), false).await.map_err(|e| e.to_string())?.ok_or("completion target record absent")?;
+                        let record = TargetRecord::from_pce(&raw).map_err(|e| e.to_string())?;
+                        if record.owner != *owner || record.epoch != *epoch || record.head != Some(*head) {
+                            return Err(format!("target {name} changed before durable completion"));
+                        }
+                    }
+                }
                 if current.0 == next && current.1 == object.id() {
                     return Ok(json!({"sequence": next, "blob": object.id().hex(), "already": true}));
                 }

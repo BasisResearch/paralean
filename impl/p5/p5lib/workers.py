@@ -39,6 +39,7 @@ def prompt(task: Task, target: Target, agent: str, directory: Path, feedback: st
             "remote% declarations already synchronized into this working copy. "
             f"Required predecessor targets: {deps}.\n"
             "Leave unrelated declarations and generated Paralean markers intact. "
+            "Do not inspect or print credentials, key files, or environment secrets. "
             "Check with the installed Paralean Lean command: "
             f"$PARALEAN_BIN ws-check --dir {shlex.quote(str(directory))} {shlex.quote(target.file)}. "
             "The controller independently validates and publishes the result.\n"
@@ -60,6 +61,7 @@ def run(task: Task, target: Target, agent: str, attempt: int, directory: Path,
     if task.worker_kind == "codex":
         cmd = ["codex", "exec", "--sandbox", "workspace-write", "--add-dir", str(directory),
                "--skip-git-repo-check", "-c", 'approval_policy="never"',
+               "-c", "sandbox_workspace_write.network_access=true",
                "-C", str(directory / "work"), "-"]
         stdin = prompt_path.read_text()
     elif task.worker_kind == "claude":

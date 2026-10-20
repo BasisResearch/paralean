@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,8 @@ import tempfile
 from typing import Any
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +43,42 @@ def _inside(directory: Path, relative: str) -> Path:
 
 
 class Backend:
+    _JOURNAL_DOMAIN = b"paralean/p5/journal-hmac/v1\0"
+
+    @classmethod
+    def _journal_key(cls, task_id: str, env: dict) -> bytes:
+        secret = env.get("PARALEAN_P5_RECOVERY_SECRET")
+        deployment = env.get("PARALEAN_DEPLOYMENT")
+        if not secret or not deployment:
+            raise BackendError("deployment recovery secret is required for task journal authentication")
+        return HKDF(algorithm=hashes.SHA256(), length=32,
+                    salt=(deployment + "\0" + task_id).encode(),
+                    info=cls._JOURNAL_DOMAIN).derive(secret.encode())
+
+    @classmethod
+    def _sign_journal(cls, payload: dict, task_id: str, env: dict) -> dict:
+        unsigned = {k: v for k, v in payload.items() if k != "journal_hmac"}
+        if unsigned.get("task") != task_id:
+            raise BackendError("task journal names another task")
+        mac = hmac.new(cls._journal_key(task_id, env),
+                       cls._JOURNAL_DOMAIN + _canonical(unsigned), hashlib.sha256).hexdigest()
+        return {**unsigned, "journal_hmac": "v1:" + mac}
+
+    @classmethod
+    def _verify_journal(cls, payload: object, task_id: str, env: dict,
+                        sequence: int) -> dict:
+        if not isinstance(payload, dict) or payload.get("task") != task_id:
+            raise BackendError("task journal is malformed or names another task")
+        claimed = payload.get("journal_hmac")
+        if not isinstance(claimed, str) or not claimed.startswith("v1:"):
+            raise BackendError("task journal has no supported authentication tag")
+        expected = cls._sign_journal(payload, task_id, env)["journal_hmac"]
+        if not hmac.compare_digest(claimed, expected):
+            raise BackendError("task journal authentication failed")
+        if payload.get("journal_sequence") != sequence:
+            raise BackendError("task journal sequence does not match the durable head")
+        return payload
+
     def __init__(self, task: dict, state_dir: Path, env: dict | None = None):
         self.task = task
         self.task_id = str(task["id"])
@@ -94,7 +133,8 @@ class Backend:
             result = json.loads(proc.stdout)
             if not result.get("found"):
                 raise BackendError(f"no durable task: {task_id}")
-            payload = json.loads(path.read_text())
+            payload = cls._verify_journal(json.loads(path.read_text()), task_id, source_env,
+                                          int(result["sequence"]))
             task = payload["spec"]
             backend = cls(task, state_dir, env)
             backend.sequence = int(result["sequence"])
@@ -186,7 +226,8 @@ class Backend:
             result = self._bridge("get", "--task", self.task_id, "--out", str(out))
             if not result.get("found"):
                 return None
-            data = json.loads(out.read_text())
+            data = self._verify_journal(json.loads(out.read_text()), self.task_id, self.env,
+                                        int(result["sequence"]))
             if data.get("task") != self.task_id or data.get("contract_hash") != self.contract_hash:
                 raise BackendError("stored task differs from the supplied frozen task")
             self.sequence = int(result["sequence"])
@@ -202,6 +243,8 @@ class Backend:
             data["keys"] = {name: self._seal(self._open(encrypted))
                             for name, encrypted in data["keys"].items()}
             data["format"] = 2
+        data = self._sign_journal({**data, "journal_sequence": self.sequence + 1},
+                                  self.task_id, self.env)
         with tempfile.NamedTemporaryFile(mode="wb", dir=self.state_dir, delete=False) as tmp:
             path = Path(tmp.name)
             tmp.write(_canonical(data))
@@ -620,6 +663,39 @@ class Backend:
                 out[name] = {"ok": False, "group": None, "reason": reason}
         return {"ok": all(v["ok"] for v in out.values()), "targets": out}
 
+    @staticmethod
+    def _attest_stock_build(out: Path, stock_lake: str, mathlib: str | None) -> dict:
+        """Keep the real, clean stock build log named by the P2 build receipt."""
+        stock_env = {k: v for k, v in os.environ.items()
+                     if not k.startswith("PARALEAN_") and k != "LEAN_PATH"}
+        stock_env["LEAN_NUM_THREADS"] = "1"
+        log_path = out / "build.log"
+        started = time.monotonic()
+        with log_path.open("wb") as handle:
+            proc = subprocess.run([stock_lake, "build"], cwd=out, env=stock_env,
+                                  stdout=handle, stderr=subprocess.STDOUT)
+        build_ms = round((time.monotonic() - started) * 1000, 3)
+        if proc.returncode:
+            raise BackendError(f"stock attestation build failed (exit {proc.returncode}); see {log_path}")
+        lean_exe = str(Path(stock_lake).with_name("lean"))
+        version = subprocess.run([lean_exe, "--githash"], env=stock_env,
+                                 text=True, capture_output=True)
+        lean_commit = version.stdout.strip()
+        if version.returncode or len(lean_commit) != 40 or any(c not in "0123456789abcdef" for c in lean_commit):
+            raise BackendError("stock Lean did not report a valid git commit")
+        mathlib_commit = ""
+        if mathlib:
+            revision = subprocess.run(["git", "-C", mathlib, "rev-parse", "HEAD"],
+                                      env=stock_env, text=True, capture_output=True)
+            if revision.returncode:
+                raise BackendError("Mathlib import has no pinned git commit")
+            mathlib_commit = revision.stdout.strip()
+            if len(mathlib_commit) != 40 or any(c not in "0123456789abcdef" for c in mathlib_commit):
+                raise BackendError("Mathlib import has an invalid git commit")
+        return {"attestationBuildMs": build_ms,
+                "buildLogHash": hashlib.sha256(log_path.read_bytes()).hexdigest(),
+                "leanCommit": lean_commit, "mathlibCommit": mathlib_commit}
+
     def export(self, out: Path) -> dict:
         self._ensure_paths()
         if not self.paths:
@@ -654,34 +730,74 @@ class Backend:
                 handle.write("ws-export reported failure: " + text + "\n")
             log.chmod(0o600)
             raise BackendError(f"stock Lean export or replay verification failed; see {log}")
+        result.update(self._attest_stock_build(out, stock_lake, mathlib if uses_mathlib else None))
         if self.conflicts():
             raise BackendError("workspace conflict diagnostics prevent final checkpoint")
-        records = directory / "cache" / "p3" / "records"
+        # Ask the same P1 view and closure functions used by ws-export which
+        # published packages it built. Cached markers also contain superseded
+        # revisions and tombstones; scanning them would attest a different
+        # source graph from the stock-built project.
+        lean_exe = self.env.get("PARALEAN_P5_LEAN")
+        if not lean_exe:
+            fork = self.env.get("PARALEAN_FORK_PREFIX")
+            lean_exe = str(Path(fork) / "bin" / "lean") if fork else "lean"
+        library = self.env.get("PARALEAN_LIB")
+        if not library:
+            raise BackendError("PARALEAN_LIB is required to select the exact export snapshot")
+        path_env = library + (os.pathsep + self.env["LEAN_PATH"] if self.env.get("LEAN_PATH") else "")
+        selection = self._run([lean_exe, "--run", str(ROOT / "Snapshot.lean"), "--dir", str(directory)],
+                              env={"LEAN_PATH": path_env, "PARALEAN_STORE": str(directory / "cache")})
+        rows = selection.get("groups")
+        if not isinstance(rows, list) or len(rows) != result.get("groups"):
+            raise BackendError("export snapshot selection differs from stock-built group count")
         by_file: dict[str, set[str]] = {}
-        for record in records.glob("m-*.json"):
-            marker = json.loads(record.read_text())
-            by_file.setdefault(marker["file"], set()).update(marker["revisions"])
+        seen_groups = set()
+        for marker in rows:
+            if not isinstance(marker, dict) or not marker.get("current"):
+                raise BackendError("export closure contains a noncurrent published group")
+            group, file, rids = marker.get("group"), marker.get("file"), marker.get("revisions")
+            if (not isinstance(group, str) or len(group) != 64 or
+                    any(c not in "0123456789abcdef" for c in group) or group in seen_groups or
+                    not isinstance(file, str) or not file or not isinstance(rids, list) or not rids or
+                    any(not isinstance(rid, str) or len(rid) != 64 or
+                        any(c not in "0123456789abcdef" for c in rid) for rid in rids)):
+                raise BackendError("export snapshot selection is malformed or duplicated")
+            seen_groups.add(group)
+            by_file.setdefault(file, set()).update(rids)
         revisions = sorted({rid for ids in by_file.values() for rid in ids})
+        verified = self.validate(required)
+        if not verified["ok"]:
+            raise BackendError("required target head changed during stock export")
+        hashes = (self.payload or {}).get("contract_hashes", {})
+        checkpoint_spec = {
+            "revisions": revisions,
+            "files": {file: sorted(ids) for file, ids in sorted(by_file.items())},
+            "targets": [{"name": name, "group": verified["targets"][name]["group"],
+                         "statement_hash": hashes[name]} for name in required],
+            "build": {"exporter_bin": "paralean-p1-export",
+                      "lean_commit": result["leanCommit"],
+                      "mathlib_commit": result["mathlibCommit"],
+                      "build_log_hash": result["buildLogHash"]}}
         with tempfile.NamedTemporaryFile(mode="w", dir=self.state_dir, delete=False) as tmp:
-            files_path = Path(tmp.name)
-            json.dump([[file, sorted(ids)] for file, ids in sorted(by_file.items())], tmp)
+            spec_path = Path(tmp.name)
+            json.dump(checkpoint_spec, tmp)
         try:
-            args = [self.plr, "checkpoint", "--cache", str(directory / "cache"), "--ws", agent,
-                    "--revisions", ",".join(revisions), "--files", str(files_path),
-                    "--build-ok", "1", "--build-log-hash", hashlib.sha256(_canonical(result)).hexdigest()]
+            args = ["checkpoint-targets", "--spec", str(spec_path), "--ws", agent]
             if self.payload and self.payload.get("catalog"):
                 args += ["--predecessor", self.payload["catalog"]]
-            cp = self._run(args)
+            cp = self._bridge(*args)
         finally:
-            files_path.unlink(missing_ok=True)
+            spec_path.unlink(missing_ok=True)
         if self.payload is not None:
             data = dict(self.payload)
             data["catalog"] = cp["catalog"]
+            data["completion_targets"] = cp["completion_targets"]
             data["export"] = {"output": str(out), "result": result, "checkpoint": cp}
             self._commit(data)
         return {**result, "output": str(out), "checkpoint": cp,
                 "metrics": {"transfer_bytes": 0, "transfer_ms": 0,
-                            "check_ms": float(result.get("buildMs") or 0)}}
+                            "check_ms": float(result.get("buildMs") or 0) +
+                                        float(result.get("attestationBuildMs") or 0)}}
 
     def conflicts(self) -> list[dict]:
         issues = []

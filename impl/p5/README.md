@@ -33,6 +33,8 @@ do not put API secrets in task files or command arguments.
 The deployment recovery secret must be kept separately from worker credentials.
 The provided cluster environment derives it from the existing Garage
 administration credential and excludes it from worker environments.
+Task journal payloads are authenticated with that secret and bind their store
+sequence; recovery rejects tampering, replay and older unsigned prototype journals.
 
 `--workers N` selects logical workspaces. `--parallelism N` bounds simultaneous
 worker CLIs and defaults to at most four. On the shared box, budget for the store,
@@ -54,6 +56,8 @@ impl/p5/scripts/cluster-down.sh
 
 Each benchmark uses a fresh deployment and records 1, 2, 4 and 8 logical workers,
 the physical concurrency cap, completion time, transfer and checking costs.
+Workspace transfer totals include demand fetches by workers; validator RPC time,
+the export build and its final build attestation are reported separately.
 Command-worker replay is explicitly distinguished from actual coding-agent runs.
 The recovery gate kills the controller during a partial task and removes the
 desktop's state before resuming from the store.

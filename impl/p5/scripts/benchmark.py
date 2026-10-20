@@ -21,8 +21,53 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 CLI = ROOT / "impl/p5/paralean.py"
-TASK = ROOT / "impl/p5/tasks/add_comm_eight.toml"
+TASK = ROOT / "impl/p5/tasks/list_reverse_map_lengths.toml"
 COUNTS = (1, 2, 4, 8)
+METRIC_SCOPE = {
+    "transfer_bytes, transfer_ms": "Controller-recorded sync and successful publish calls; excludes CLI worker demand fetches and failed publish attempts.",
+    "check_ms": "Controller-recorded validator calls plus stock export buildMs and attestationBuildMs; failed publish attempts may be absent.",
+    "validator_rpc_ms": "check_ms minus stock export buildMs and attestationBuildMs; controller-recorded validator calls only.",
+    "working_copy_transfer_bytes, working_copy_transfer_ms": "Sum of all workspace cache/p3/transfer.jsonl rows except validate-target, including worker demand fetches and failed attempts; excludes validator downloads, P5 journal IO and protocol overhead; operation costs may overlap in wall time.",
+    "wall_s": "External monotonic time for the complete run command, including export.",
+}
+
+
+def workspace_transfer(state: Path) -> dict:
+    """Read every worker cache log, including demand fetches outside controller calls."""
+    by_kind: dict[str, dict[str, int | float]] = {}
+    files = sorted(state.rglob("cache/p3/transfer.jsonl"))
+    invalid = 0
+    for path in files:
+        for line in path.read_text().splitlines():
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                invalid += 1
+                continue
+            if not isinstance(row, dict):
+                invalid += 1
+                continue
+            kind, size, ms = row.get("kind"), row.get("bytes"), row.get("ms")
+            if (not isinstance(kind, str) or not kind or isinstance(size, bool) or
+                not isinstance(size, (int, float)) or size < 0 or isinstance(ms, bool) or
+                not isinstance(ms, (int, float)) or ms < 0):
+                invalid += 1
+                continue
+            item = by_kind.setdefault(kind, {"rows": 0, "bytes": 0, "ms": 0.0})
+            item["rows"] += 1
+            item["bytes"] += size
+            item["ms"] += ms
+    transfer = [value for kind, value in by_kind.items() if kind != "validate-target"]
+    return {"bytes": sum(x["bytes"] for x in transfer),
+            "ms": round(sum(x["ms"] for x in transfer), 6),
+            "rows": sum(x["rows"] for x in transfer), "files": len(files),
+            "invalid_rows": invalid, "by_kind": by_kind}
+
+
+def median_numeric(rows: list[dict], workers: int, key: str) -> float | None:
+    values = [row[key] for row in rows if row["workers"] == workers and
+              isinstance(row.get(key), (int, float))]
+    return statistics.median(values) if values else None
 
 
 def task_copy(original: Path, destination: Path, task_id: str, workers: int) -> None:
@@ -65,17 +110,33 @@ def trial(args: argparse.Namespace, workers: int, rep: int, series: str) -> dict
     targets = run.get("targets", {})
     metrics = run.get("metrics", {})
     export = run.get("export") or {}
+    transfer = workspace_transfer(state)
+    check_ms, export_build_ms = metrics.get("check_ms"), export.get("buildMs")
+    attestation_build_ms = export.get("attestationBuildMs", 0)
+    validator_rpc_ms = (max(0, check_ms - export_build_ms - attestation_build_ms)
+                        if isinstance(check_ms, (int, float)) and
+                        isinstance(export_build_ms, (int, float)) and
+                        isinstance(attestation_build_ms, (int, float)) else None)
     done = sum(v.get("status") == "done" for v in targets.values() if isinstance(v, dict))
     row = {"trial": name, "workers": workers, "parallelism": parallelism, "repeat": rep, "kind": args.worker,
            "provenance": "ordinary-agent-cli" if args.worker in ("codex", "claude") else "command-worker",
-           "deployment": name, "returncode": rc, "ok": rc == 0 and run.get("phase") == "complete"
+           "deployment": name, "returncode": rc, "ok": rc == 0 and transfer["invalid_rows"] == 0 and
+           run.get("phase") == "complete"
            and done == len(targets) and bool(targets) and bool(export.get("ok")),
            "targets_done": done, "targets_total": len(targets), "wall_s": elapsed,
            "controller_wall_s": metrics.get("wall_s"), "worker_wall_s": metrics.get("worker_wall_s"),
            "transfer_bytes": metrics.get("transfer_bytes"), "transfer_ms": metrics.get("transfer_ms"),
-           "check_ms": metrics.get("check_ms"),
-           "export_build_ms": export.get("buildMs"), "groups": export.get("groups"),
-           "state": str(state), "log": str(directory / "controller.log")}
+           "check_ms": check_ms, "validator_rpc_ms": validator_rpc_ms,
+           "working_copy_transfer_bytes": transfer["bytes"],
+           "working_copy_transfer_ms": transfer["ms"],
+           "working_copy_transfer_rows": transfer["rows"],
+           "working_copy_transfer_files": transfer["files"],
+           "working_copy_transfer_invalid_rows": transfer["invalid_rows"],
+           "working_copy_transfer_by_kind": transfer["by_kind"],
+           "export_build_ms": export_build_ms, "attestation_build_ms": attestation_build_ms,
+           "groups": export.get("groups"),
+           "state": str(state), "log": str(directory / "controller.log"),
+           "metric_scope": METRIC_SCOPE}
     (directory / "result.json").write_text(json.dumps(row, indent=2, sort_keys=True) + "\n")
     return row
 
@@ -108,29 +169,27 @@ def main() -> int:
             print(json.dumps(row), flush=True)
     fields = ["trial", "workers", "parallelism", "repeat", "kind", "provenance", "deployment", "returncode", "ok",
               "targets_done", "targets_total", "wall_s", "controller_wall_s", "worker_wall_s",
-              "transfer_bytes", "transfer_ms", "check_ms", "export_build_ms", "groups", "state", "log"]
+              "transfer_bytes", "transfer_ms", "check_ms", "validator_rpc_ms",
+              "working_copy_transfer_bytes", "working_copy_transfer_ms", "working_copy_transfer_rows",
+              "working_copy_transfer_files", "working_copy_transfer_invalid_rows",
+              "export_build_ms", "attestation_build_ms", "groups", "state", "log"]
     with (args.run_dir / f"{series}.csv").open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
+        writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
     result = {"series": series, "worker": args.worker, "repeats": args.repeats,
               "git": git_rev("HEAD"), "origin_main": git_rev("origin/main"),
               "counts": list(COUNTS), "max_parallel": args.max_parallel,
+              "metric_scope": METRIC_SCOPE,
               "summary": {str(n): {
                   "successful_trials": sum(r["ok"] for r in rows if r["workers"] == n),
-                  "wall_s_median": statistics.median(r["wall_s"] for r in rows if r["workers"] == n),
-                  "transfer_bytes_median": statistics.median(
-                      r["transfer_bytes"] for r in rows if r["workers"] == n and
-                      isinstance(r["transfer_bytes"], (int, float))) if any(
-                      isinstance(r["transfer_bytes"], (int, float)) for r in rows if r["workers"] == n) else None,
-                  "transfer_ms_median": statistics.median(
-                      r["transfer_ms"] for r in rows if r["workers"] == n and
-                      isinstance(r["transfer_ms"], (int, float))) if any(
-                      isinstance(r["transfer_ms"], (int, float)) for r in rows if r["workers"] == n) else None,
-                  "check_ms_median": statistics.median(
-                      r["check_ms"] for r in rows if r["workers"] == n and
-                      isinstance(r["check_ms"], (int, float))) if any(
-                      isinstance(r["check_ms"], (int, float)) for r in rows if r["workers"] == n) else None,
+                  "wall_s_median": median_numeric(rows, n, "wall_s"),
+                  "transfer_bytes_median": median_numeric(rows, n, "transfer_bytes"),
+                  "transfer_ms_median": median_numeric(rows, n, "transfer_ms"),
+                  "check_ms_median": median_numeric(rows, n, "check_ms"),
+                  "validator_rpc_ms_median": median_numeric(rows, n, "validator_rpc_ms"),
+                  "working_copy_transfer_bytes_median": median_numeric(rows, n, "working_copy_transfer_bytes"),
+                  "working_copy_transfer_ms_median": median_numeric(rows, n, "working_copy_transfer_ms"),
               } for n in COUNTS}, "results": rows}
     (args.run_dir / f"{series}.json").write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     return 0 if all(x["ok"] for x in rows) else 1
