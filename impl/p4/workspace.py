@@ -44,6 +44,26 @@ def safe_path(value):
     return p
 
 
+def name_components(value):
+    """Parse printed Lean name components, including escaped collision names."""
+    parts, current, quoted = [], "", False
+    for char in value:
+        if char == "«" and not quoted:
+            quoted = True
+        elif char == "»" and quoted:
+            quoted = False
+        elif char == "." and not quoted:
+            if not current:
+                raise ValueError("empty name component")
+            parts.append(current)
+            current = ""
+        else:
+            current += char
+    if quoted or not current:
+        raise ValueError("malformed Lean name")
+    return parts + [current]
+
+
 def records(cache):
     result = []
     for path in (cache / "p3/records").glob("*.json"):
@@ -75,7 +95,7 @@ def render(cache, selected, env):
             return {}
         output = root / "rendered"
         e = dict(env, PARALEAN_STORE=str(view))
-        run([e["PARALEAN_BIN"], "ws-hash", "--write", output, *files], env=e)
+        run([e["PARALEAN_BIN"], "ws-hash", "--source", "1", "--write", output, *files], env=e)
         return {f: (output / safe_path(f)).read_bytes() for f in files}
 
 
@@ -105,7 +125,7 @@ class Projection:
 
     def tree(self, files, ids):
         files = dict(files)
-        files[".paralean/projection.json"] = (json.dumps({"records": ids}, sort_keys=True) + "\n").encode()
+        files[".paralean/projection.json"] = (json.dumps({"records": sorted(ids)}, sort_keys=True) + "\n").encode()
         # Controller-provided build metadata is copied without including drafts.
         for name in ("lean-toolchain", "lakefile.toml"):
             p = self.work / name
@@ -203,15 +223,18 @@ def resolve(directory, file, name):
             raise RuntimeError("store returned a stale registry view; retry before resolving")
     pull()
     target = command_json([env["PARALEAN_BIN"], "ws-delete", "--dir", directory,
-                           "--file", file, "--name", name], env)
+                           "--file", file, "--name-json", json.dumps(name_components(name))], env)
     deleted = command_json([env["PARALEAN_PLR"], "tombstone", "--cache", cache,
                             "--ws", agent, "--file", file, "--target", target["target"],
                             "--lamport", str(target["lamport"])], env)
     pull()
     synced = command_json([env["PARALEAN_BIN"], "ws-sync", "--dir", directory], env)
+    heads = command_json([env["PARALEAN_BIN"], "ws-live"], env)
     return {"resolution": "tombstone", "target": target["target"], **deleted,
-            "sync": synced,
-            "next": "Publish any replacement under a new non-reserved name, then commit the checkpoint."}
+            "sync": synced, "revisions": heads["revisions"],
+            "checkpointArgs": ["checkpoint", "--cache", str(cache), "--ws", agent,
+                               "--revisions", ",".join(heads["revisions"])],
+            "next": "Revise affected drafts and check/export them. Use checkpointArgs with plr to commit these live heads. If you publish a replacement first, recompute heads with ws-live."}
 
 
 def main():

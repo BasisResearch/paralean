@@ -73,6 +73,8 @@ structure CmdResult where
   trees : Array InfoTree
   /-- Command state after the command (info trees cleared). -/
   stateAfter : Command.State
+  /-- Parser continuation for an incremental capture of the unchanged prefix. -/
+  parserAfter : Parser.ModuleParserState
 
 /-- Extensions whose entries change for bookkeeping reasons only. -/
 def noiseExtNames : List String :=
@@ -131,7 +133,7 @@ unsafe def runCommands (cmdState : Command.State) (inputCtx : Parser.InputContex
       let endPos := (stx.getTailPos? (canonicalOnly := true)).getD (← getParserState).pos |>.byteIdx
       k { stx, startPos, endPos, scopeBefore := st0.scopes.head!, scopesAfter := st1.scopes,
           envBefore := before, envAfter := after, newConsts, realizedNames, unchecked, msgs, touched, trees
-          stateAfter := st1' } >>= fun
+          stateAfter := st1', parserAfter := ← getParserState } >>= fun
         | some st => setCommandState st
         | none => pure ()
       unless done do loop fuel
@@ -372,6 +374,50 @@ def referencedConsts (trees : Array InfoTree) : NameSet := Id.run do
         | none => acc
       | _ => acc
   return acc
+
+/-- Exact dot-field identifier spans in one elaborated command. The shortest info
+node wins when a larger term's tree also covers a nested field token. -/
+partial def dotFieldIds (source : String) (cmdStart cmdEnd : Nat) (field : String)
+    (stx : Syntax) : Array (Nat × Nat) := Id.run do
+  let mut out := #[]
+  if stx.isIdent && stx.getId.getString! == field then
+    if let (some a, some z) := (stx.getPos?, stx.getTailPos?) then
+      let a := a.byteIdx
+      let z := z.byteIdx
+      let written := sliceBytes source a z
+      if cmdStart < a && z ≤ cmdEnd && sliceBytes source (a - 1) a == "." &&
+          (written == field || written == s!"«{field}»") then
+        out := out.push (a - cmdStart, z - cmdStart)
+  match stx with
+  | .node _ _ children =>
+    for child in children do out := out ++ dotFieldIds source cmdStart cmdEnd field child
+  | _ => pure ()
+  return out
+
+def resolvedFields (source : String) (r : CmdResult) : Array FieldRef := Id.run do
+  let mut candidates : Array (FieldRef × Nat × Nat) := #[]
+  for tree in r.trees do
+    candidates := tree.foldInfo (init := candidates) fun _ info acc => Id.run do
+      let some (target, stx, rank) := (match info with
+        | .ofFieldInfo fi => some (fi.projName, fi.stx, 0)
+        | .ofTermInfo ti => match ti.expr.getAppFn with
+          | .const n _ => some (n, ti.stx, 1)
+          | _ => none
+        | _ => none) | return acc
+      let .str _ field := target | return acc
+      let span := match (stx.getPos?, stx.getTailPos?) with
+        | (some a, some z) => z.byteIdx - a.byteIdx
+        | _ => r.endPos - r.startPos
+      let mut acc := acc
+      for (start, stop) in dotFieldIds source r.startPos r.endPos field stx do
+        acc := acc.push ({ start, stop, target }, span, rank)
+      return acc
+  let mut out := #[]
+  for (ref, _, _) in candidates.qsort (fun a b =>
+      if a.2.1 == b.2.1 then a.2.2 < b.2.2 else a.2.1 < b.2.1) do
+    unless out.any (fun x : FieldRef => x.start == ref.start && x.stop == ref.stop) do
+      out := out.push ref
+  return out.qsort (fun a b => a.start < b.start)
 
 /-- Map syntax kinds to the declarations implementing them (macros and elaborators). -/
 def implementors (env : Environment) (kinds : NameSet) : Array Name := Id.run do
@@ -736,6 +782,7 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     diags := diags.push (mkDiag "info" "scoped-not-relocated"
       "scoped command with only generated names keeps its spelling (no relocation)")
   let mut text := text
+  let mut fieldRefs := resolvedFields fc.input r
   -- start of the declaration value (for the `remote%` header form)
   let valueKinds := [``Lean.Parser.Command.declValSimple, ``Lean.Parser.Command.declValEqns,
     ``Lean.Parser.Command.whereStructInst]
@@ -775,6 +822,13 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
         | _ => diags := diags.push (mkDiag "unsupported" "anon-instance"
             "cannot identify the generated instance name to make it explicit")
     text := applyEdits text edits
+    -- Capture records refer to the original command. Preserve exact byte spans
+    -- after private-token deletion or an explicit anonymous-instance name.
+    fieldRefs := fieldRefs.filterMap fun ref => Id.run do
+      if edits.any (fun (a, z, _) => a < ref.stop && ref.start < z) then return none
+      let shift (p : Nat) (atEnd : Bool) := edits.foldl (fun acc (a, z, rep) =>
+        if a < p || (a == p && !atEnd) then acc + rep.utf8ByteSize - (z - a) else acc) p
+      return some { ref with start := shift ref.start false, stop := shift ref.stop true }
     if let some v := valueStart then
       valueStart := some (edits.foldl (fun acc (a, z, rep) =>
         if a < v then acc + rep.utf8ByteSize - (z - a) else acc) v)
@@ -800,7 +854,7 @@ def analyze (sess : Session) (fc : FileCtx) (r : CmdResult) (pidOverride? : Opti
     gid := pid, declId, kind := if isEffect then "effect" else "decl", cmdKind := kind
     members := memberRecs, realized, deps, feDeps, feDepsConservative := fc.effectGroups
     publicNames, anchor, touched := r.touched.filter fun (n, _) => !isNoiseExt n
-    axioms := axs, capsule, diags, encSize := bytes.size }
+    axioms := axs, capsule, fieldRefs := some fieldRefs, diags, encSize := bytes.size }
   -- Update the index.
   let mut index := sess.index
   for (m : MemberRec) in memberRecs do index := index.insert m.name (pid, m.local_)

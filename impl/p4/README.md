@@ -16,6 +16,16 @@ The P4 fork automatically imports `Paralean.Visibility` when Paralean mode and
 `PARALEAN_STORE` are enabled. Put the built P1 library on `LEAN_PATH`. The
 editor's source text and positions remain unchanged.
 
+For a local worker after sourcing the P1/P3 environment:
+
+```bash
+LEAN_PARALEAN=1 LEAN_PATH="$PARALEAN_LIB${LEAN_PATH:+:$LEAN_PATH}" \
+  python3 impl/p4/lsp.py --workspace alice=/path/to/alice
+```
+
+Include the pinned Mathlib library paths in `LEAN_PATH` when the copy imports
+Mathlib. A remote wrapper must set these variables on the worker host.
+
 The router supports ordinary LSP hover, goals, completion (including resolve),
 rename, diagnostics and cancellation. `paralean://NAME/path.lean` addresses a
 workspace without exposing its worker path. `workspace/symbol` and
@@ -51,12 +61,16 @@ pulls, advances the persisted Lamport clock, sends the signed tombstone, pulls
 again and updates the working copy. Publish a replacement under a new ordinary
 name if needed, then use the checkpoint workflow. A rendered collision name
 alone does not resolve the conflict.
+The result includes `checkpointArgs` with the exact live revision heads.
+After checking the revised drafts and export, pass those arguments to `plr`;
+recompute them with `paralean ws-live` if more records arrive or are published.
 
 `workspace.py project COPY` creates `paralean/projection` and
 `paralean/agents/<author>` branches using Git plumbing. Each new record adds a
 commit whose parents preserve both the previous projection and that author's
 history. A late record therefore never rewrites a published commit. Each tree is
-rendered by Lean's canonical RGA for the records applied so far. Commit history
+rendered from full capsule source by Lean's canonical RGA for the records applied so far,
+with each capsule's captured scope. Commit history
 reflects arrival order; the final Lean source bytes converge. The tool does not
 modify HEAD, the working files or the user's index.
 

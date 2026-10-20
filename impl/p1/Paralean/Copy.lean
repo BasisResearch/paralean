@@ -77,11 +77,13 @@ def init (dir : FilePath) (agent : String) : IO Unit := do
 
 /-! ## Capture -/
 
-unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit) : IO Json := do
+unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit)
+    (input? : Option String := none) (incrementalKey : Option String := none) : IO Json := do
   let st ← State.load dir
   let cache : Store := { root := dir / "cache" }
   let r ← captureFile cache st.agent file (dir / "work" / file) (moduleOf file) (log := log)
-    (remote := true) (materialize? := some (materialize cache))
+    (remote := true) (materialize? := some (materialize cache)) (input? := input?)
+    (incrementalKey := incrementalKey)
   let v ← Remote.view
   let published : Std.HashSet String := v.known.markers.foldl (·.insert ·.pid) {}
   let mut batch : Std.HashMap String (String × String) := {}
@@ -433,10 +435,19 @@ where
 
 /-! ## Hash, delete, check -/
 
-def hash (file : String) : IO (String × String) := do
+def hash (file : String) (source : Bool := false) : IO (String × String) := do
   let v ← Remote.view
-  let p := v.projection file
+  let p := if source then v.sourceProjection file else v.projection file
   return (Sha256.hashHex p.toUTF8, p)
+
+/-- Exact live revision heads for the next checkpoint after a guided resolution.
+Historical/tombstoned markers remain in the log but are not snapshot contents. -/
+def liveHeads : IO Json := do
+  let v ← Remote.view
+  let live := v.known.markers.filter fun m => v.live.contains m.group
+  let revisions := (live.flatMap (·.revisions)).toList.mergeSort (· < ·)
+  return Json.mkObj [("groups", toJson ((live.map (·.group)).qsort (· < ·))),
+    ("revisions", toJson revisions), ("files", toJson v.files)]
 
 def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   let mut st ← State.load dir
@@ -488,7 +499,7 @@ unsafe def check (dir : FilePath) (file : String) : IO Json := do
   let mut nLoaded : Nat := 0
   for ((m, _), ns) in (← Remote.verifiedCache.get).toList do
     if m != env.mainModule then continue
-    for (_, n) in ns do
+    for (_, n, _) in ns do
       nLoaded := nLoaded + 1
       for a in ← axiomsOf n do unless elemAxioms.contains a do elemAxioms := elemAxioms.push a
   return Json.mkObj [("file", file), ("errors", toJson (← errs.get)), ("constants", nConsts),

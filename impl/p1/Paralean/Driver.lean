@@ -173,11 +173,16 @@ unsafe def openSession (input : String) (fileName : String) (module : Name)
         (HeaderSyntax.isModule header) hostOptions messages inputCtx (mainModule := module) (arts := arts)
       unless messages'.hasErrors do baseEnvCache.modify (·.insert key env)
       pure (env, messages')
+  if extraImports.any (·.module == `Paralean.Remote) then
+    Fork.setBaseEnv env
   let mut diags := #[]
   for m in messages.toList do
     if m.severity == .error then
       diags := diags.push ({ severity := "reject", code := "header", msg := (← m.toString), file := fileName } : Diag)
   let cmdState := Command.mkState env messages hostOptions
+  if extraImports.any (·.module == `Paralean.Remote) then
+    Fork.setBaseScope cmdState.scopes.getLast!
+    Remote.setHostBase env cmdState.scopes.getLast!
   let cmdState := { cmdState with infoState := { cmdState.infoState with enabled := true } }
   modulePrefs.set (HeaderSyntax.isModule header, baseImports.map importSpec)
   return ({ cmdState, mainModule := module }, inputCtx, parserState, imports, diags, wsImports)
@@ -224,13 +229,35 @@ def preludeSelection (cat : Catalog) (imports : Array Name) (env : Environment)
     else sel := sel.push gid
   return (sel, deferred, diags)
 
-/-- Capture one workspace file into the store. -/
+/-- A capture continuation contains every accumulator that affects group identity. -/
+structure CaptureSnapshot where
+  parser : Parser.ModuleParserState
+  sess : Session
+  fc : FileCtx
+  groups : Array String
+  rejected : Array String
+  skipped : Array (Name × Nat)
+  diags : Array Diag
+  writes : Array (GroupRec × ByteArray)
+
+structure IncrementalCapture where
+  key : String
+  input : String
+  snapshots : Array CaptureSnapshot
+
+initialize incrementalCaptures : IO.Ref (Std.HashMap String IncrementalCapture) ← IO.mkRef {}
+initialize captureReusedCommands : IO.Ref Nat ← IO.mkRef 0
+initialize captureNewCommands : IO.Ref Nat ← IO.mkRef 0
+
+/-- Capture one workspace file into the store. `incrementalKey` is an immutable
+environment identity supplied by the persistent host; only remote mode reuses. -/
 unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : FilePath)
     (module : Name) (log : String → IO Unit := fun _ => pure ())
     (targets : Array TargetContract := #[]) (materialize? : Option Materializer := none)
-    (remote : Bool := false) : IO FileRec := do
+    (remote : Bool := false) (input? : Option String := none)
+    (incrementalKey : Option String := none) : IO FileRec := do
   store.init
-  let input ← IO.FS.readFile path
+  let input ← match input? with | some s => pure s | none => IO.FS.readFile path
   let allFiles ← store.currentFiles
   let wsModules := (allFiles.filter (·.workspace == ws)).map (·.module)
   let wsFiles := allFiles.filter (·.workspace == ws)
@@ -257,7 +284,7 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
   let own : Std.HashSet String := (allFiles.filter fun f => f.workspace == ws && f.file == relFile)
     |>.foldl (fun s f => f.groups.foldl (·.insert ·) s) {}
   let files := allFiles.filter fun f => !(f.workspace == ws && f.file == relFile)
-  let cat ← Catalog.load store (allFiles)
+  let cat ← if remote then pure ({} : Catalog) else Catalog.load store allFiles
   let (sel, deferred, selDiags) := if remote then (#[], #[], #[]) else
     preludeSelection cat imports sess0.cmdState.env own
   let _ := files
@@ -317,11 +344,40 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
   let pendingRef ← IO.mkRef deferred
   let writesRef ← IO.mkRef (#[] : Array (GroupRec × ByteArray))
   let availRef ← IO.mkRef (sel.foldl (·.insert ·) ({} : Std.HashSet String))
+  let cacheId := store.root.toString ++ ":" ++ ws ++ ":" ++ relFile
+  let snapshotsRef ← IO.mkRef (#[] : Array CaptureSnapshot)
+  let mut startState := sess.cmdState
+  let mut startParser := parserState
+  captureReusedCommands.set 0
+  captureNewCommands.set 0
+  if remote then
+    if let some key := incrementalKey then
+      if let some old := (← incrementalCaptures.get)[cacheId]? then
+        if old.key == key then
+          let a := old.input.toUTF8
+          let b := input.toUTF8
+          let mut same := 0
+          while same < min a.size b.size && a[same]! == b[same]! do same := same + 1
+          -- Strict inequality also invalidates a command whose last token was extended.
+          let reusable := old.snapshots.filter fun s => s.parser.pos.byteIdx < same
+          if let some snap := reusable.back? then
+            startState := snap.sess.cmdState
+            startParser := snap.parser
+            sessRef.set snap.sess
+            fcRef.set { snap.fc with input, fileMap := inputCtx.fileMap }
+            groupsRef.set snap.groups
+            rejectedRef.set snap.rejected
+            skippedRef.set snap.skipped
+            diagsRef.set snap.diags
+            writesRef.set snap.writes
+            snapshotsRef.set reusable
+            captureReusedCommands.set reusable.size
   -- test hook: cancel the capture after N commands (models a killed or cancelled worker)
   let cancelAfter := (← IO.getEnv "PARALEAN_CANCEL_AFTER").bind (·.toNat?)
   let nCmds ← IO.mkRef 0
-  let _ ← runCommands sess.cmdState inputCtx parserState fun r => do
+  let _ ← runCommands startState inputCtx startParser fun r => do
     nCmds.modify (· + 1)
+    captureNewCommands.modify (· + 1)
     if let some k := cancelAfter then
       if (← nCmds.get) > k then
         throw <| IO.userError s!"capture cancelled after {k} commands"
@@ -374,6 +430,13 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
           diagsRef.modify (· ++ res.diags)
           log s!"  prelude (deferred) {g.short} {if res.ok then "ok" else "MISMATCH"}"
           progress := true
+    if remote && incrementalKey.isSome && !Parser.isTerminalCommand r.stx then
+      let snapshot : CaptureSnapshot := {
+        parser := r.parserAfter
+        sess := { (← sessRef.get) with cmdState := st?.getD r.stateAfter }
+        fc := ← fcRef.get, groups := ← groupsRef.get, rejected := ← rejectedRef.get
+        skipped := ← skippedRef.get, diags := ← diagsRef.get, writes := ← writesRef.get }
+      snapshotsRef.modify (·.push snapshot)
     return st?
   for gid in ← pendingRef.get do
     let g := cat.get! gid
@@ -385,8 +448,10 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
   if nPre > 0 then
     log s!"prelude: {← okRef.get}/{nPre} groups replayed with identical declaration IDs"
   -- remote mode: earlier publications of this file are now `remote%` elements; keep them
-  let prev := if remote then (allFiles.filter fun f => f.workspace == ws && f.file == relFile).flatMap (·.groups)
-    else #[]
+  let prev ← if remote then do
+      let published := (← Remote.view).known.markers.map (·.pid)
+      pure <| ((allFiles.filter fun f => f.workspace == ws && f.file == relFile).flatMap (·.groups)).filter published.contains
+    else pure #[]
   let newGroups ← groupsRef.get
   let groups := (prev.filter (!newGroups.contains ·)) ++ newGroups
   let rec_ : FileRec := {
@@ -403,6 +468,14 @@ unsafe def captureFile (store : Store) (ws : String) (relFile : String) (path : 
     unless declId == g.declId do throw <| IO.userError "store: declaration ID mismatch"
     dst.putMeta g
   let _ ← store.putFileRec rec_
+  if remote then
+    if let some key := incrementalKey then
+      let snapshots ← snapshotsRef.get
+      incrementalCaptures.modify fun cache =>
+        -- A host normally owns one document. Bound retained environments for callers
+        -- that multiplex files; eviction changes cost, never the result.
+        let cache := if cache.size ≥ 8 && !cache.contains cacheId then {} else cache
+        cache.insert cacheId { key, input, snapshots }
   return rec_
 
 end Paralean

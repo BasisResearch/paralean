@@ -59,41 +59,147 @@ def isIdentChar (c : Char) : Bool :=
 
 /-- Rewrite identifier tokens that denote a renamed name (written fully qualified or
 relative to the namespace `ns`). -/
-def renameText (ns : Name) (m : Std.HashMap Name Name) (txt : String) : String := Id.run do
+def renameText (ns : Name) (m : Std.HashMap Name Name) (txt : String)
+    (rewriteFields : Bool := false) : String := Id.run do
   if m.isEmpty then return txt
   let mut forms : Array (String × String) := #[]
+  let mut fieldForms : Std.HashMap String String := {}
+  let mut ambiguousFields : Std.HashSet String := {}
   for (a, b) in m.toList do
     forms := forms.push (a.toString, nameSrc b)
     if ns.isPrefixOf a && ns != a then
       forms := forms.push ((a.replacePrefix ns .anonymous).toString, nameSrc (b.replacePrefix ns .anonymous))
+    -- Generalized field notation (`x.field` and `.field`) does not spell the
+    -- declaration's namespace. Rewrite it only when the dependency map gives
+    -- the field a unique new spelling; an ambiguous suffix is left for Lean to
+    -- diagnose instead of silently selecting a different declaration.
+    match a, b with
+    | .str _ old, .str _ newPart =>
+      let new := nameSrc (Name.mkSimple newPart)
+      if old != newPart then
+        if let some prior := fieldForms[old]? then
+          if prior != new then ambiguousFields := ambiguousFields.insert old
+        else fieldForms := fieldForms.insert old new
+    | _, _ => pure ()
+  forms := forms.qsort (fun a b => a.1.utf8ByteSize > b.1.utf8ByteSize)
   let rewrite (tok : String) : String := Id.run do
     for (f, r) in forms do
       if tok == f then return r
       if tok.startsWith (f ++ ".") then return r ++ (tok.drop f.length).toString
+    if rewriteFields then
+      for (f, r) in fieldForms.toList do
+        if ambiguousFields.contains f then continue
+        if tok == "." ++ f then return "." ++ r
+        if tok.endsWith ("." ++ f) then
+          let receiver := (tok.dropEnd (f.length + 1)).toString
+          -- Qualified namespace references are handled by `forms` above. A
+          -- remaining dotted token is field notation only for a simple local
+          -- receiver; rewriting another namespace's `.field` would be unsafe.
+          if !receiver.contains '.' && receiver.toList.head?.any (fun c => c.toLower == c && c.toUpper != c) then
+            return (tok.dropEnd f.length).toString ++ r
     return tok
   let mut out := ""
   let mut cur := ""
-  for c in txt.toList do
-    if isIdentChar c then cur := cur.push c
-    else
-      out := out ++ rewrite cur
-      cur := ""
+  let chars := txt.toList.toArray
+  let mut i := 0
+  let mut mode := 0 -- code, string, line comment, block comment
+  let mut blockDepth := 0
+  while i < chars.size do
+    let c := chars[i]!
+    let next := chars[i + 1]?
+    if mode == 0 then
+      if c == '"' then
+        out := out ++ rewrite cur
+        cur := ""
+        out := out.push c
+        mode := 1
+      else if c == '-' && next == some '-' then
+        out := out ++ rewrite cur ++ "--"
+        cur := ""
+        mode := 2
+        i := i + 1
+      else if c == '/' && next == some '-' then
+        out := out ++ rewrite cur ++ "/-"
+        cur := ""
+        mode := 3
+        blockDepth := 1
+        i := i + 1
+      else if isIdentChar c then
+        cur := cur.push c
+      else
+        out := out ++ rewrite cur
+        cur := ""
+        out := out.push c
+    else if mode == 1 then
       out := out.push c
+      if c == '\\' && next.isSome then
+        i := i + 1
+        out := out.push chars[i]!
+      else if c == '"' then mode := 0
+    else if mode == 2 then
+      out := out.push c
+      if c == '\n' then mode := 0
+    else
+      if c == '/' && next == some '-' then
+        out := out ++ "/-"
+        blockDepth := blockDepth + 1
+        i := i + 1
+      else if c == '-' && next == some '/' then
+        out := out ++ "-/"
+        blockDepth := blockDepth - 1
+        if blockDepth == 0 then mode := 0
+        i := i + 1
+      else out := out.push c
+    i := i + 1
   return out ++ rewrite cur
+
+/-- Rewrite only field tokens whose original elaboration resolved to a renamed
+declaration. `renameText` handles explicitly written names afterwards. -/
+def rewriteResolvedFields (m : Std.HashMap Name Name) (txt : String)
+    (refs : Array FieldRef) (valueStart : Option Nat) : String × Option Nat := Id.run do
+  let mut edits : Array (Nat × Nat × String) := #[]
+  for ref in refs do
+    let renamed := renameName m ref.target
+    if renamed == ref.target then continue
+    let .str _ oldField := ref.target | continue
+    let .str _ newField := renamed | continue
+    if ref.stop > txt.utf8ByteSize || ref.start > ref.stop then continue
+    let written := String.fromUTF8! (txt.toUTF8.extract ref.start ref.stop)
+    if written != oldField && written != s!"«{oldField}»" then continue
+    edits := edits.push (ref.start, ref.stop, nameSrc (Name.mkSimple newField))
+  let sortedEdits := edits.qsort (fun a b => a.1 < b.1)
+  let mut out := ByteArray.empty
+  let mut pos := 0
+  let mut v := valueStart
+  for (a, z, replacement) in sortedEdits do
+    if a < pos then continue
+    out := out ++ txt.toUTF8.extract pos a ++ replacement.toUTF8
+    if let some old := v then
+      if z ≤ old then v := some (old + replacement.utf8ByteSize - (z - a))
+    pos := z
+  out := out ++ txt.toUTF8.extract pos txt.utf8ByteSize
+  return (String.fromUTF8! out, v)
 
 /-- `g` with its rendered names: capsule text rewritten under the renames in force. -/
 def renamedGroup (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupRec) : GroupRec :=
   let m := textRenames ren g
   if m.isEmpty then g else
   let c := g.capsule
-  let text := renameText c.currNamespace m c.text
+  let legacyFieldRisk := g.fieldRefs.isNone &&
+    renameText c.currNamespace m c.text (rewriteFields := true) != renameText c.currNamespace m c.text
+  let (fieldText, fieldValueStart) := rewriteResolvedFields m c.text (g.fieldRefs.getD #[]) c.valueStart
+  let text := renameText c.currNamespace m fieldText
   -- the value offset moves by the length change of the header part
-  let vs := c.valueStart.map fun v =>
-    let hdr := String.fromUTF8! (c.text.toUTF8.extract 0 v)
+  let vs := fieldValueStart.map fun v =>
+    let hdr := String.fromUTF8! (fieldText.toUTF8.extract 0 v)
     (renameText c.currNamespace m hdr).utf8ByteSize
   let own := ren.getD g.gid {}
   { g with capsule := { c with text, valueStart := vs },
-           publicNames := g.publicNames.map (renameName own) }
+           publicNames := g.publicNames.map (renameName own),
+           diags := if legacyFieldRisk then g.diags.push {
+             severity := "reject", code := "legacy-field-recapture",
+             msg := "renamed dependency is used in field notation; recapture with OPEN-17 metadata" }
+             else g.diags }
 
 /-- Can the element be written as `<published header> := remote% "<pid>"` in place? -/
 def headerForm (g : GroupRec) : Bool :=

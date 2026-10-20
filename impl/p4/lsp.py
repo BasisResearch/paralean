@@ -42,6 +42,10 @@ def file_uri(path):
     return pathlib.Path(path).as_uri()
 
 
+class EnvironmentInvalid(ValueError):
+    pass
+
+
 class Workspace:
     def __init__(self, proxy, name, root, environment, env_overrides, env_file=None,
                  worker_command=None, worker_root=None):
@@ -113,7 +117,7 @@ class Workspace:
             self.environment = "invalid-configuration"
             self.stop_process()
             self.proxy.drop_sessions(self)
-            raise ValueError(f"Invalid environment for workspace {self.name}") from exc
+            raise EnvironmentInvalid(f"Invalid environment for workspace {self.name}") from exc
         if current != self.environment:
             self.environment = current
             return True
@@ -121,6 +125,32 @@ class Workspace:
 
     def stop_process(self):
         if self.process and self.process.returncode is None:
+            # Lean's watchdog launches file workers with setsid=true. They do
+            # not share the watchdog's process group, so collect only this
+            # watchdog's descendants before stopping the group.
+            descendants = []
+            stack = [self.process.pid]
+            seen = set(stack)
+            while stack:
+                pid = stack.pop()
+                try:
+                    children = pathlib.Path(f"/proc/{pid}/task/{pid}/children").read_text().split()
+                except OSError:
+                    children = []
+                for child in children:
+                    child_pid = int(child)
+                    if child_pid not in seen:
+                        seen.add(child_pid)
+                        descendants.append(child_pid)
+                        stack.append(child_pid)
+            for pid in reversed(descendants):
+                try:
+                    if os.getpgid(pid) == pid:
+                        os.killpg(pid, signal.SIGKILL)
+                    else:
+                        os.kill(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
             try:
                 os.killpg(self.process.pid, signal.SIGKILL)
             except ProcessLookupError:
@@ -225,6 +255,10 @@ class Workspace:
                 if generation != self.generation or self.active_environment != self.environment:
                     return
                 if message.get("id") == -1 and "method" not in message:
+                    if "error" in message or not isinstance(message.get("result"), dict) or not isinstance(message["result"].get("capabilities"), dict):
+                        self.proxy.debug("worker initialization failed", self.name, generation, message.get("error"))
+                        self.stop_process()
+                        return
                     self.proxy.debug("worker initialize reply", self.name, generation)
                     await self.write({"jsonrpc": "2.0", "method": "initialized", "params": {}})
                     for uri, state in list(self.open_documents.items()):
@@ -239,14 +273,14 @@ class Workspace:
                     await self.proxy.worker_message(self, message)
         except (EOFError, asyncio.IncompleteReadError, ConnectionError, BrokenPipeError):
             pass
+        except EnvironmentInvalid as exc:
+            self.proxy.debug("worker environment invalid", self.name, generation, exc)
         except (ValueError, json.JSONDecodeError):
             self.proxy.debug("malformed worker frame", self.name, generation)
             if process.returncode is None:
                 self.stop_process()
         finally:
             if generation == self.generation:
-                await process.wait()
-                self.proxy.debug("worker exited", self.name, generation, process.returncode)
                 self.ready.clear()
                 for item in self.pending.values():
                     future = item[5]
@@ -254,6 +288,10 @@ class Workspace:
                         future.set_result(None)
                 self.pending.clear()
                 self.proxy.drop_sessions(self)
+                self.stop_process()
+                self.process = None
+                asyncio.create_task(process.wait())
+                self.proxy.debug("worker exited", self.name, generation, process.returncode)
                 if not self.proxy.stopping:
                     self.restart_task = asyncio.create_task(self.restart())
 
@@ -497,6 +535,10 @@ class Proxy:
     def drop_sessions(self, ws):
         self.sessions = {k: v for k, v in self.sessions.items() if v[0] is not ws}
 
+    def drop_document_sessions(self, ws, uri):
+        self.sessions = {key: value for key, value in self.sessions.items()
+                         if not (value[0] is ws and value[3] == uri)}
+
     async def worker_response(self, ws, message):
         if ws.refresh_environment():
             await ws.replace_worker()
@@ -530,7 +572,7 @@ class Proxy:
                 session = session.get("sessionId")
             if session is not None:
                 self.next_session += 1
-                self.sessions[str(self.next_session)] = (ws, generation, environment, document, session)
+                self.sessions[str(self.next_session)] = (ws, generation, environment, document, session, version)
                 output["result"]["sessionId"] = self.next_session
         if not future.done():
             future.set_result(output)
@@ -575,7 +617,9 @@ class Proxy:
                 published_uri = message["params"].get("uri")
                 candidates = [(public, record) for public, record in self.sessions.items()
                               if record[0] is ws and record[1:3] == (ws.generation, ws.environment)
-                              and record[4] == session and (published_uri is None or record[3] == published_uri)]
+                              and record[4] == session and (published_uri is None or record[3] == published_uri)
+                              and record[3] in ws.open_documents
+                              and ws.open_documents[record[3]]["version"] == record[5]]
                 if len(candidates) != 1:
                     return
                 message["params"]["sessionId"] = int(candidates[0][0])
@@ -654,8 +698,6 @@ class Proxy:
             ws, uri = self.document(params)
             if ws is None:
                 return
-            if ws.refresh_environment():
-                await ws.replace_worker()
             wire = copy.deepcopy(message)
             wire["params"] = self.map_in(params, ws)
             doc = wire["params"]["textDocument"]
@@ -674,11 +716,15 @@ class Proxy:
                     else:
                         text = apply_change(text, change)
                 state.update(version=doc["version"], text=text)
+                self.drop_document_sessions(ws, uri)
             elif method == "textDocument/didClose":
                 closed = ws.open_documents.pop(uri, None)
                 ws.file_workers_seen.discard(uri)
+                self.drop_document_sessions(ws, uri)
                 if closed:
                     await self.send({"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": {"uri": closed["public_uri"], "diagnostics": []}})
+            if ws.refresh_environment():
+                await ws.replace_worker()
             asyncio.create_task(self.deliver_change(ws, wire, uri, method))
             return
         if method in ("workspace/symbol", "paralean/search"):
@@ -703,7 +749,7 @@ class Proxy:
             return
         if method.startswith("$/lean/rpc/") and "sessionId" in params:
             session = self.sessions.get(str(params["sessionId"]))
-            if session is None or session[1:3] != (session[0].generation, session[0].environment):
+            if session is None or session[1:3] != (session[0].generation, session[0].environment) or session[3] not in session[0].open_documents or session[5] != session[0].open_documents[session[3]]["version"]:
                 if client_id is not None:
                     await self.error(client_id, -32002, "RPC session expired")
                 return
@@ -755,6 +801,9 @@ class Proxy:
             return
         try:
             worker_id, future = await ws.request(message, client_id, document, expected_version=expected_version)
+        except EnvironmentInvalid:
+            await self.error(client_id, -32001, "Workspace environment invalid")
+            return
         except ValueError:
             await self.error(client_id, -32800, "Document changed before request dispatch")
             return
@@ -780,12 +829,12 @@ class Proxy:
             await self.error(client_id, -32800, "Request cancelled")
             return
         for ws in self.workspaces.values():
-            if ws.refresh_environment():
-                try:
+            try:
+                if ws.refresh_environment():
                     await ws.replace_worker()
-                except (OSError, ConnectionError, asyncio.TimeoutError):
-                    await self.error(client_id, -32001, "Workspace index worker unavailable")
-                    return
+            except (OSError, ValueError, ConnectionError, asyncio.TimeoutError):
+                await self.error(client_id, -32001, "Workspace index worker unavailable")
+                return
         snapshot = {ws.name: (ws.environment, ws.generation,
                               {uri: state["version"] for uri, state in ws.open_documents.items()})
                     for ws in self.workspaces.values()}
@@ -797,6 +846,9 @@ class Proxy:
                 worker_id, future = await ws.request(search, client_id)
                 self.requests.setdefault(client_id, []).append((ws, worker_id))
                 jobs.append((ws, worker_id, future))
+            except EnvironmentInvalid:
+                await self.error(client_id, -32001, "Workspace index environment invalid")
+                return
             except (OSError, ConnectionError, BrokenPipeError, asyncio.TimeoutError, ValueError):
                 pass
         combined = []
@@ -840,7 +892,7 @@ class Proxy:
                 if state:
                     state["sent_generation"] = ws.generation
                     state["sent_version"] = state["version"]
-        except (OSError, ConnectionError, BrokenPipeError, asyncio.TimeoutError):
+        except (OSError, ValueError, ConnectionError, BrokenPipeError, asyncio.TimeoutError):
             self.debug("change queued for worker replay", ws.name, method, uri)
 
     async def error(self, client_id, code, reason):

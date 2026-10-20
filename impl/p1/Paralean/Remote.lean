@@ -9,6 +9,7 @@ public meta import Paralean.Render
 public meta import Paralean.Crdt
 public meta import Paralean.P3
 public meta import Paralean.Rga
+public meta import Paralean.Fork
 
 public meta section
 
@@ -85,8 +86,10 @@ initialize loadLog : IO.Ref (Array String) ← IO.mkRef #[]
 /-- pid ↦ (group, capsule): from known records and from loaded capsules' dependency lists. -/
 initialize pkgIndex : IO.Ref (Std.HashMap String (String × String)) ← IO.mkRef {}
 initialize metaCache : IO.Ref (Std.HashMap String GroupRec) ← IO.mkRef {}
-/-- (module, package) ↦ member names verified in that module's environment. -/
-initialize verifiedCache : IO.Ref (Std.HashMap (Name × String) (Array (Name × Name))) ← IO.mkRef {}
+/-- (module, package) ↦ resolved member names and the exact constant infos that
+were verified. A rolled-back server snapshot may reuse names with different bodies. -/
+initialize verifiedCache : IO.Ref (Std.HashMap (Name × String)
+  (Array (Name × Name × ConstantInfo))) ← IO.mkRef {}
 /-- The copy's view (records count, view), recomputed when records arrive. -/
 initialize viewCache : IO.Ref (Nat × Option Rga.View) ← IO.mkRef (0, none)
 /-- (module, package) ↦ the member names `remote_value%` gave the members it added. -/
@@ -96,11 +99,35 @@ proofs are the fetched ones. -/
 initialize fetchedAdded : IO.Ref NameSet ← IO.mkRef {}
 /-- Decoded payloads per package (immutable). -/
 initialize payloadCache : IO.Ref (Std.HashMap String ByteArray) ← IO.mkRef {}
+/-- Dependency closures cache immutable metadata but are rebuilt when the registry changes. -/
+initialize closureCache : IO.Ref (Std.HashMap String (Array GroupRec)) ← IO.mkRef {}
+
+/-- Host captures can save their imported base directly, including on stock Lean.
+The fork's file worker supplies the same snapshot through `Lean.Paralean`. -/
+initialize hostBase : IO.Ref (Option (Environment × Command.Scope)) ← IO.mkRef none
+
+def setHostBase (env : Environment) (scope : Command.Scope) : IO Unit :=
+  hostBase.set (some (env, scope))
 
 /-- Records reach the cache from other processes only between commands (`plr pull`); within
 this process only through `remote%`'s own `plr fetch-pkg`, which bumps this version. The
 caches below are keyed by it (offset by one, so 0 means "not loaded"). -/
 initialize recordsVersion : IO.Ref Nat ← IO.mkRef 1
+
+/-- Start a new working-file session after a cache pull or an editor snapshot reset.
+Package bytes and metadata are immutable, but a previous module's verified names and
+the rendered registry view must not be reused in a different command environment. -/
+def resetSessionCaches : IO Unit := do
+  recordsVersion.modify (· + 1)
+  pkgIndex.set {}
+  metaCache.set {}
+  closureCache.set {}
+  payloadCache.set {}
+  verifiedCache.set {}
+  fetchedNames.set {}
+  fetchedAdded.set {}
+  loadLog.set #[]
+  viewCache.set (0, none)
 
 def countRecords (_root : System.FilePath) : IO Nat := recordsVersion.get
 
@@ -192,6 +219,15 @@ def checkReceipt (g : GroupRec) : IO Unit := do
   let root ← storeRoot
   match ← P3.checkReceipt root m with
   | .ok job =>
+    -- A signature is not sufficient after publication: the validator key may have
+    -- been revoked (or the job cancelled). Ask the store's consumer guard on every
+    -- load, including an already cached package in a long-lived server.
+    let live ← plr #["check-receipt", g.declId]
+    unless (live.getObjValAs? Bool "admits").toOption == some true do
+      let why := (live.getObjValAs? String "reason").toOption.getD "consumer check refused"
+      throw <| IO.userError s!"remote%: receipt of {g.short} is no longer valid: {why}"
+    unless (live.getObjValAs? String "receipt").toOption == some m.receipt do
+      throw <| IO.userError s!"remote%: receipt of {g.short} changed since this copy fetched it"
     -- the job pins the capsules of the exact dependency closure: index their packages
     for c in job.deps do
       if (← metaOfCapsuleOpt root c).isNone then
@@ -242,9 +278,6 @@ def memberNames (g : GroupRec) : CommandElabM (Std.HashMap Name Name) := do
     if !out.contains m.local_ && env.contains nm then out := out.insert m.local_ nm
   return out
 
-/-- Closures are immutable (packages pin exact dependencies): computed once per package. -/
-initialize closureCache : IO.Ref (Std.HashMap String (Array GroupRec)) ← IO.mkRef {}
-
 /-- Dependency closure of `g` (dependencies first). -/
 partial def closureOf (g : GroupRec) : CommandElabM (Array GroupRec) := do
   if let some c := (← closureCache.get)[g.gid]? then return c
@@ -265,8 +298,31 @@ where closureOfCore (g : GroupRec) : CommandElabM (Array GroupRec) := do
 /-- Elaborate Lean source (several commands) at the root scope of the current file. -/
 def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := do
   let saved ← get
-  let root := saved.scopes.getLast!
-  modify fun s => { s with scopes := [root] }
+  let host ← hostBase.get
+  let baseScope? ← Fork.getBaseScope
+  let root := baseScope?.getD ((host.map (·.2)).getD saved.scopes.getLast!)
+  -- `scopes := [root]` alone leaves root-level `local instance`, local simp
+  -- attributes, and other scoped extension entries in the environment. A
+  -- published capsule must see the imported base and its pinned dependencies,
+  -- but none of the caller's local scoped state.
+  let base? := (← Fork.getBaseEnv) <|> host.map (·.1)
+  let exts ← scopedEnvExtensionsRef.get
+  if let some base := base? then
+    let mut isolated := saved.env
+    for ext in exts do
+      let initial := ext.ext.getState (asyncMode := .local) base
+      let current := ext.ext.getState (asyncMode := .local) saved.env
+      isolated := ext.ext.modifyState (asyncMode := .local) (bumpGen := false) isolated fun current =>
+        { current with stateStack := initial.stateStack, scopedEntries := initial.scopedEntries,
+                       newEntries := initial.newEntries }
+      -- Reapply global and namespace-scoped entries introduced since imports.
+      -- They include already loaded pinned dependencies; local entries are held
+      -- only in `stateStack` and therefore stay out of the capsule.
+      let added := (current.newEntries.take (current.newEntries.length - initial.newEntries.length)).reverse
+      for entry in added do isolated := ext.ext.addEntry isolated entry
+    modify fun s => { s with env := isolated, scopes := [root] }
+  else
+    modify fun s => { s with scopes := [root] }
   let inputCtx := Parser.mkInputContext src fileName
   let mut pstate : Parser.ModuleParserState := {}
   try
@@ -282,7 +338,19 @@ def elabSourceAtRoot (src : String) (fileName : String) : CommandElabM Unit := d
       withReader (fun ctx => { ctx with fileName, fileMap := inputCtx.fileMap }) do
         elabCommand cmd
   finally
-    modify fun s => { s with scopes := saved.scopes }
+    let mut current := (← get).env
+    if base?.isSome then
+      for ext in exts do
+        let before := ext.ext.getState (asyncMode := .local) saved.env
+        let after := ext.ext.getState (asyncMode := .local) current
+        -- Global and scoped entries from the capsule must enter the caller's
+        -- environment; local entries remain scoped to the capsule.
+        let added := (after.newEntries.take (after.newEntries.length - before.newEntries.length)).reverse
+        current := ext.ext.modifyState (asyncMode := .local) (bumpGen := false) current fun s =>
+          { s with stateStack := before.stateStack, scopedEntries := before.scopedEntries,
+                   newEntries := before.newEntries }
+        for entry in added do current := ext.ext.addEntry current entry
+    modify fun s => { s with env := current, scopes := saved.scopes }
 
 /-- Is the group's declared value a theorem (so its proof is taken from the payload)? -/
 def proofFetched (g : GroupRec) : Bool :=
@@ -310,7 +378,7 @@ def capsuleSource (ren : Std.HashMap String (Std.HashMap Name Name)) (g : GroupR
 /-- Lean name of a dependency member in this module (verified earlier). -/
 def depName (mm : Name) (pid : String) (l : Name) : IO (Option Name) := do
   match (← verifiedCache.get)[(mm, pid)]? with
-  | some ps => return (ps.find? (·.1 == l)).map (·.2)
+  | some ps => return (ps.find? (·.1 == l)).map (·.2.1)
   | none => return none
 
 def fetchPayload (g : GroupRec) : IO ByteArray := do
@@ -431,6 +499,7 @@ def elabRemoteValue : TermElab := fun stx expected? => do
   let ty ← instantiateMVars ty
   let some declName ← Term.getDeclName? | throwError "remote_value%: not inside a declaration"
   let g ← getMetaIO pid
+  if (← loadingDepth.get) == 0 then checkReceipt g
   let env ← getEnv
   let mm := env.mainModule
   let own := (← renames).getD g.gid {}
@@ -542,14 +611,29 @@ def checkInvalidated (g : GroupRec) (closure : Array GroupRec) : CommandElabM Un
 def isVerified (g : GroupRec) : CommandElabM Bool := do
   let env ← getEnv
   match (← verifiedCache.get)[(env.mainModule, g.gid)]? with
-  | some ns => return ns.all (fun p => env.contains p.2)
+  | some ns => return ns.all (fun (_, n, ci) => env.find? n == some ci)
   | none => return false
+
+def rememberVerified (g : GroupRec) : CommandElabM Unit := do
+  let env ← getEnv
+  let names ← memberNames g
+  let infos := names.toArray.filterMap fun (localName, actual) =>
+    (env.find? actual).map fun ci => (localName, actual, ci)
+  verifiedCache.modify (·.insert (env.mainModule, g.gid) infos)
 
 /-- Load `g` (dependencies first) unless already present. On failure the environment is
 restored: a group that does not load leaves no constant behind (in particular none that
 Lean's error recovery completed with `sorryAx`). -/
 partial def ensureLoaded (g : GroupRec) : CommandElabM Unit := do
-  if ← isVerified g then return
+  if ← isVerified g then
+    let closure ← closureOf g
+    checkInvalidated g closure
+    let activeRenames ← renames
+    for d in closure do
+      if (renamedGroup activeRenames d).diags.any (·.code == "legacy-field-recapture") then
+        throwError "remote%: {d.short} needs recapture: renamed dependency is used in field notation without resolved-field metadata"
+      checkReceipt d
+    return
   loadingDepth.modify (· + 1)
   let env0 ← getEnv
   try ensureLoadedCore g
@@ -559,8 +643,13 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
   let closure ← closureOf g
   let mm := (← getEnv).mainModule
   checkInvalidated g closure
+  let activeRenames ← renames
   for d in closure do
-    if ← isVerified d then continue
+    if (renamedGroup activeRenames d).diags.any (·.code == "legacy-field-recapture") then
+      throwError "remote%: {d.short} needs recapture: renamed dependency is used in field notation without resolved-field metadata"
+    if ← isVerified d then
+      checkReceipt d
+      continue
     checkReceipt d
     -- a capsule that disables or weakens checking is never elaborated here, whatever its receipt
     for o in [`debug.skipKernelTC, `debug.byAsSorry, `debug.terminalTacticsAsSorry, `debug.proofAsSorry] do
@@ -574,7 +663,7 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
       continue
     match ← payloadCheck d closure (proofs := false) with
     | some #[] =>
-      verifiedCache.modify (·.insert (mm, d.gid) (← memberNames d).toArray)
+      rememberVerified d
     | some problems =>
       throwError "remote%: version conflict for {d.short} ({d.publicNames}): {problems}"
     | none =>
@@ -589,7 +678,7 @@ where ensureLoadedCore (g : GroupRec) : CommandElabM Unit := do
         throwError "remote%: {d.short} ({d.publicNames}) does not load: {errs.take 3}"
       match ← payloadCheck d closure (proofs := fetch) with
       | some #[] =>
-        verifiedCache.modify (·.insert (mm, d.gid) (← memberNames d).toArray)
+        rememberVerified d
       | some problems => throwError "remote%: {d.short} does not reproduce its published content: {problems}"
       | none => throwError "remote%: {d.short} produced none of its members"
       logEvent s!"load {d.declId} {if fetch then "fetched-proof" else "elaborated"} {t1 - t0}ms check {(← IO.monoMsNow) - t1}ms"
@@ -671,7 +760,6 @@ def elabRemoteDecl : CommandElab := fun stx => do
   let some (lit, _) := remoteValue? stx | throwUnsupportedSyntax
   let t0 ← IO.monoMsNow
   let g ← getMeta (← pidOfGroup lit)
-  checkReceipt g
   let ta ← IO.monoMsNow
   let gr := renamedGroup (← renames) g
   if gr.capsule.valueStart.isNone then
@@ -696,7 +784,6 @@ def elabRemoteCmd : CommandElab := fun stx => do
   let some lit := stx[1].isStrLit? | throwUnsupportedSyntax
   let t0 ← IO.monoMsNow
   let g ← getMeta (← pidOfGroup lit)
-  checkReceipt g
   ensureLoaded g
   logEvent s!"command {g.declId} total {(← IO.monoMsNow) - t0}ms"
 
