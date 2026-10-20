@@ -158,3 +158,54 @@ passed.
   `docs/w3-log.md`.”
 - `README.md`: “Store/registry feature evidence and OPEN-19/OPEN-20 decisions:
   `docs/w3-log.md`.”
+
+## Final summary
+
+Implementation and archived evidence commit:
+`d0821ffd8db1dc7642cdbec2cfaef75db7530abc`, based on `origin/main` at
+`fee94d9be23d9e9902cb006b1e8cdfaa3bcf809c` (rechecked before committing).
+
+1. **Checkpoint conflict guard:** T5/catalogue commit rejects unresolved name
+   collisions, including direct commit entry points, incomplete groups and
+   omitted dependency groups. Finite TLA checks, guard-removal tests, a universal
+   Lean rejection theorem over protocol commit steps, and the real P4 collision
+   workflow pass.
+2. **Tombstones:** models preserve registry objects and historical snapshots
+   while removing positions from live views. Tombstones require certificates
+   at each receiving replica. Legacy group deletion and exact-position deletion
+   have explicit, tested semantics.
+3. **Controller deletion:** signed authorization binds the tombstone and source
+   fence; receive and audit retain and authenticate its original controller.
+   Foreign-controller and stale-fence mutations are detected. OPEN-19's decision
+   is recorded above.
+4. **Moves and names:** same-file delete/reinsert preserves lineage and immutable
+   group contents; working copies support retry after interrupted moves.
+   Deterministic position selection and full-ID rendered names converge,
+   including derived names. OPEN-20's decision is recorded above.
+5. **Agent keys:** publication checks controller-registered agent keys;
+   rotation retains verification history and revocation blocks fresh admissions.
+   Cross-controller registration and historical-key admission attacks are tested.
+6. **Anti-entropy:** the existing network catalogue exchange now has a finite
+   model and adversarial/mutation evidence. Compatible marker variants converge,
+   and relays preserve original source proofs.
+
+Evidence: 123 P2/workspace tests pass, plus 37 exercised controller tests and the
+final 11-test position regression suite (which overlaps the main suite).
+All 49 Rust guard-removal mutations are detected; the final anchor mutation was
+also rerun after its retry fix. Both real working-copy gates pass. TLC has 25
+default positive, 101 negative/expected-outcome and 29 hardened cases with
+expected results; four unchanged wide results retain valid provenance. W3 adds
+15 TLA mutations and one relay witness. All 30 Lean modules compile, and the
+7,264-declaration axiom audit passes. TLA-only re-archiving, full re-archiving and
+`scripts/archive-verification.sh --verify` pass; evidence is under `results/w3`
+and `verification/results`.
+
+Not done: cross-file moves and target-name deletion require additional authority
+and target-state rules; agent grants/history require deployment configuration
+rather than a new registry exchange protocol or administration CLI. Large or
+offloaded registry metadata remains a fail-closed T5 availability limit. No
+machine-checked Rust refinement is claimed. The optional stock-core export
+failed on initializer/generated-name mismatches, the optional fork test lacked
+configuration, and benchmark tests were not run. These limits do not prevent
+the six implemented feature paths and their stated verification from passing.
+Only W3's own clusters were used and both were stopped.
