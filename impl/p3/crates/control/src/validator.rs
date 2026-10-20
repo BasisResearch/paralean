@@ -94,7 +94,8 @@ impl Validator {
     pub fn serve(self: &Arc<Self>, listener: TcpListener) -> JoinHandle<()> {
         let v = self.clone();
         let ring = self.cfg.store.ring.clone();
-        crate::server::serve_authenticated(listener, self.cfg.signer.clone(), move |req: &ValidatorRequest, key: &[u8;32]| {
+        let privileged = ring.authority;
+        crate::server::serve_authenticated(listener, self.cfg.signer.clone(), privileged, move |req: &ValidatorRequest, key: &[u8;32]| {
             if key == &ring.authority { return true; }
             if !ring.job_issuers.contains(key) { return false; }
             let issued = |encoded: &String| {

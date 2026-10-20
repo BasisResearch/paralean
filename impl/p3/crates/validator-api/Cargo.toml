@@ -20,3 +20,4 @@ rand = "0.8"
 [features]
 mutate-oversized-frame = []
 mutate-relaxed-rpc-sig = []
+mutate-unbound-rpc-peer = []

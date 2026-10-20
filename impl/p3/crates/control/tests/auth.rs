@@ -12,14 +12,15 @@ use paralean_store::Signer;
 use paralean_validator_api::{rpc, ValidatorRequest, ValidatorResponse};
 use tokio::net::TcpStream;
 
-async fn replayed_request_is_rejected<Q: serde::Serialize + Clone>(
+async fn replayed_request_is_rejected<Q: serde::Serialize + Clone + rpc::Service>(
     addr: &str,
     request: Q,
     signer: &Signer,
+    server: &[u8; 32],
 ) {
     let mut first = TcpStream::connect(addr).await.unwrap();
     let challenge: rpc::Challenge = rpc::read_frame(&mut first).await.unwrap();
-    let captured = rpc::signed_request(request, signer, &challenge.nonce).unwrap();
+    let captured = rpc::signed_request(request, signer, server, &challenge.nonce).unwrap();
     rpc::write_frame(&mut first, &captured).await.unwrap();
     let _: rpc::SignedResponse<serde_json::Value> = rpc::read_frame(&mut first).await.unwrap();
 
@@ -79,7 +80,7 @@ async fn controller_rejects_unsigned_unknown_and_replayed_rpc() {
         "caller impersonated a registered worker: {spoof:?}"
     );
 
-    replayed_request_is_rejected(&c.ctl_addr, status, &authority).await;
+    replayed_request_is_rejected(&c.ctl_addr, status, &authority, &authority.public()).await;
     assert!(matches!(
         c.call(ControlRequest::Status).await,
         ControlResponse::Status { .. }
@@ -111,7 +112,7 @@ async fn validator_rejects_unsigned_unknown_and_replayed_rpc() {
     .await;
     assert!(result.is_err(), "unknown signer received {result:?}");
 
-    replayed_request_is_rejected(&c.vaddrs[0], status, &authority).await;
+    replayed_request_is_rejected(&c.vaddrs[0], status, &authority, &c.vsigners[0].public()).await;
     let answer: ValidatorResponse = rpc::call_authenticated(
         &c.vaddrs[0],
         &ValidatorRequest::Status,

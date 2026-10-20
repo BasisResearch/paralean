@@ -43,6 +43,10 @@ pub enum ValidatorRequest {
     Status,
 }
 
+impl rpc::Service for ValidatorRequest {
+    const NAME: &'static str = "paralean/validator";
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "result", rename_all = "snake_case")]
 pub enum ValidatorResponse {

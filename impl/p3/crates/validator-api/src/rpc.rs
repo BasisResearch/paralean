@@ -38,45 +38,76 @@ pub struct SignedResponse<A> {
     pub signature: Vec<u8>,
 }
 
-/// Domain separation and the connection nonce bind a signature to one exchange. A
-/// captured request cannot be replayed on the next connection's fresh challenge.
-pub fn auth_id<T: Serialize>(domain: &[u8], nonce: &[u8; 32], payload: &T) -> std::io::Result<Id> {
+/// The service a request type is for. It is part of every signature of an exchange, so
+/// a request signed for one service (a validator) is not valid at another (the
+/// controller), even where the two request encodings coincide.
+pub trait Service {
+    const NAME: &'static str;
+}
+
+impl<T: Service + ?Sized> Service for &T {
+    const NAME: &'static str = T::NAME;
+}
+
+/// What a signature of one exchange binds: domain (challenge, request or response), the
+/// service, the server's public key, the connection nonce and the payload. The nonce
+/// stops a captured request from being replayed on the next connection's challenge;
+/// the server key and service stop a server (a malicious validator) from relaying a
+/// request it was sent, with a nonce it chose, to another server.
+pub fn auth_id<T: Serialize>(domain: &[u8], service: &str, server: &[u8; 32], nonce: &[u8; 32], payload: &T) -> std::io::Result<Id> {
     let bytes = serde_json::to_vec(payload).map_err(std::io::Error::other)?;
-    let mut preimage = Vec::with_capacity(domain.len() + nonce.len() + bytes.len());
+    let mut preimage = Vec::with_capacity(domain.len() + 4 + service.len() + 64 + bytes.len());
     preimage.extend_from_slice(domain);
+    if !cfg!(feature = "mutate-unbound-rpc-peer") {
+        preimage.extend_from_slice(&(service.len() as u32).to_be_bytes());
+        preimage.extend_from_slice(service.as_bytes());
+        preimage.extend_from_slice(server);
+    }
     preimage.extend_from_slice(nonce);
     preimage.extend_from_slice(&bytes);
     Ok(Id(sha256(&preimage)))
 }
 
-pub fn challenge(signer: &Signer) -> Challenge {
+const CHALLENGE: &[u8] = b"paralean/rpc/challenge/v2";
+const REQUEST: &[u8] = b"paralean/rpc/request/v2";
+const RESPONSE: &[u8] = b"paralean/rpc/response/v2";
+
+pub fn challenge(signer: &Signer, service: &str) -> Challenge {
     let nonce = rand::random();
-    let signature = signer.sign(&auth_id(b"paralean/rpc/challenge/v1", &nonce, &()).expect("unit encodes")).to_vec();
+    let signature = signer.sign(&auth_id(CHALLENGE, service, &signer.public(), &nonce, &()).expect("unit encodes")).to_vec();
     Challenge { nonce, signature }
 }
 
-pub fn verify_challenge(c: &Challenge, public: &[u8; 32]) -> bool {
-    auth_id(b"paralean/rpc/challenge/v1", &c.nonce, &())
+pub fn verify_challenge(c: &Challenge, service: &str, public: &[u8; 32]) -> bool {
+    auth_id(CHALLENGE, service, public, &c.nonce, &())
         .is_ok_and(|id| verify(public, &id, &c.signature))
 }
 
-pub fn signed_request<Q: Serialize>(payload: Q, signer: &Signer, nonce: &[u8; 32]) -> std::io::Result<SignedRequest<Q>> {
-    let signature = signer.sign(&auth_id(b"paralean/rpc/request/v1", nonce, &payload)?).to_vec();
+/// A request for the server with key `server`, on the connection whose challenge carried
+/// `nonce`.
+pub fn signed_request<Q: Serialize + Service>(payload: Q, signer: &Signer, server: &[u8; 32], nonce: &[u8; 32]) -> std::io::Result<SignedRequest<Q>> {
+    let signature = signer.sign(&auth_id(REQUEST, Q::NAME, server, nonce, &payload)?).to_vec();
     Ok(SignedRequest { public: signer.public(), payload, signature })
 }
 
-pub fn verify_request<Q: Serialize>(r: &SignedRequest<Q>, nonce: &[u8; 32]) -> bool {
-    auth_id(b"paralean/rpc/request/v1", nonce, &r.payload)
+/// The server with key `server` checks a request on its connection (challenge `nonce`).
+pub fn verify_request<Q: Serialize + Service>(r: &SignedRequest<Q>, server: &[u8; 32], nonce: &[u8; 32]) -> bool {
+    auth_id(REQUEST, Q::NAME, server, nonce, &r.payload)
         .is_ok_and(|id| verify(&r.public, &id, &r.signature))
 }
 
-pub fn signed_response<A: Serialize>(payload: A, signer: &Signer, nonce: &[u8; 32]) -> std::io::Result<SignedResponse<A>> {
-    let signature = signer.sign(&auth_id(b"paralean/rpc/response/v1", nonce, &payload)?).to_vec();
+pub fn signed_response<A: Serialize>(payload: A, signer: &Signer, service: &str, nonce: &[u8; 32]) -> std::io::Result<SignedResponse<A>> {
+    let signature = signer.sign(&auth_id(RESPONSE, service, &signer.public(), nonce, &payload)?).to_vec();
     Ok(SignedResponse { payload, signature })
 }
 
+pub fn verify_response<A: Serialize>(r: &SignedResponse<A>, service: &str, server: &[u8; 32], nonce: &[u8; 32]) -> bool {
+    auth_id(RESPONSE, service, server, nonce, &r.payload)
+        .is_ok_and(|id| verify(server, &id, &r.signature))
+}
+
 /// Authenticate both peers, the request, and the response on this connection.
-pub async fn call_authenticated<Q: Serialize, A: DeserializeOwned + Serialize>(
+pub async fn call_authenticated<Q: Serialize + Service, A: DeserializeOwned + Serialize>(
     addr: &str, req: &Q, signer: &Signer, server_public: &[u8; 32], timeout: Duration,
 ) -> std::io::Result<A> {
     let fut = async {
@@ -84,13 +115,12 @@ pub async fn call_authenticated<Q: Serialize, A: DeserializeOwned + Serialize>(
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "RPC connect timed out"))??;
         s.set_nodelay(true)?;
         let c: Challenge = read_frame(&mut s).await?;
-        if !verify_challenge(&c, server_public) {
+        if !verify_challenge(&c, Q::NAME, server_public) {
             return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "server authentication failed"));
         }
-        write_frame(&mut s, &signed_request(req, signer, &c.nonce)?).await?;
+        write_frame(&mut s, &signed_request(req, signer, server_public, &c.nonce)?).await?;
         let resp: SignedResponse<A> = read_frame(&mut s).await?;
-        let id = auth_id(b"paralean/rpc/response/v1", &c.nonce, &resp.payload)?;
-        if !verify(server_public, &id, &resp.signature) {
+        if !verify_response(&resp, Q::NAME, server_public, &c.nonce) {
             return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "response authentication failed"));
         }
         Ok(resp.payload)
@@ -100,7 +130,7 @@ pub async fn call_authenticated<Q: Serialize, A: DeserializeOwned + Serialize>(
 
 /// Accept a server signed by any currently configured validator key. The key that
 /// signed the challenge must also sign the response.
-pub async fn call_authenticated_any<Q: Serialize, A: DeserializeOwned + Serialize>(
+pub async fn call_authenticated_any<Q: Serialize + Service, A: DeserializeOwned + Serialize>(
     addr: &str, req: &Q, signer: &Signer, server_keys: &[[u8; 32]], timeout: Duration,
 ) -> std::io::Result<A> {
     let fut = async {
@@ -108,13 +138,12 @@ pub async fn call_authenticated_any<Q: Serialize, A: DeserializeOwned + Serializ
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut, "RPC connect timed out"))??;
         s.set_nodelay(true)?;
         let c: Challenge = read_frame(&mut s).await?;
-        let Some(public) = server_keys.iter().find(|key| verify_challenge(&c, key)) else {
+        let Some(public) = server_keys.iter().find(|key| verify_challenge(&c, Q::NAME, key)) else {
             return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "validator authentication failed"));
         };
-        write_frame(&mut s, &signed_request(req, signer, &c.nonce)?).await?;
+        write_frame(&mut s, &signed_request(req, signer, public, &c.nonce)?).await?;
         let resp: SignedResponse<A> = read_frame(&mut s).await?;
-        let id = auth_id(b"paralean/rpc/response/v1", &c.nonce, &resp.payload)?;
-        if !verify(public, &id, &resp.signature) {
+        if !verify_response(&resp, Q::NAME, public, &c.nonce) {
             return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "validator response authentication failed"));
         }
         Ok(resp.payload)
@@ -157,6 +186,37 @@ mod tests {
         sender.write_all(&((MAX_FRAME + 1) as u32).to_be_bytes()).await.unwrap();
         let result = tokio::time::timeout(Duration::from_millis(100), read_frame::<serde_json::Value>(&mut receiver)).await;
         assert!(matches!(result, Ok(Err(_))), "oversized frame waited for attacker body");
+    }
+
+    /// Another service whose request encodes exactly like the validator's `Status`.
+    #[derive(Serialize)]
+    #[serde(tag = "op", rename_all = "snake_case")]
+    enum Other { Status }
+    impl Service for Other { const NAME: &'static str = "paralean/test-other"; }
+
+    #[test]
+    fn request_signature_binds_server_key_and_service() {
+        // A malicious validator chooses the nonce of its own challenge: it can copy the
+        // controller's challenge nonce and have the authority sign a request with it.
+        let authority = Signer::derive("rpc-binding-authority");
+        let validator = Signer::derive("rpc-binding-validator");
+        let controller = Signer::derive("rpc-binding-controller");
+        let nonce = challenge(&controller, "paralean/controller").nonce;
+        let sent = signed_request(crate::ValidatorRequest::Status, &authority, &validator.public(), &nonce).unwrap();
+        assert!(verify_request(&sent, &validator.public(), &nonce), "genuine request refused");
+        // Relayed to another server on that nonce: refused.
+        assert!(!verify_request(&sent, &controller.public(), &nonce), "request valid at another server");
+        // Read as another service's request with the same encoding: refused.
+        let relabelled = SignedRequest { public: sent.public, payload: Other::Status, signature: sent.signature.clone() };
+        assert_eq!(serde_json::to_vec(&relabelled.payload).unwrap(), serde_json::to_vec(&sent.payload).unwrap());
+        assert!(!verify_request(&relabelled, &validator.public(), &nonce), "request valid for another service");
+        // Challenges and responses are bound the same way.
+        let c = challenge(&validator, "paralean/validator");
+        assert!(verify_challenge(&c, "paralean/validator", &validator.public()));
+        assert!(!verify_challenge(&c, "paralean/controller", &validator.public()));
+        let r = signed_response(1u32, &validator, "paralean/validator", &c.nonce).unwrap();
+        assert!(verify_response(&r, "paralean/validator", &validator.public(), &c.nonce));
+        assert!(!verify_response(&r, "paralean/controller", &validator.public(), &c.nonce));
     }
 }
 

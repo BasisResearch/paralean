@@ -108,6 +108,10 @@ pub enum ControlRequest {
     Status,
 }
 
+impl rpc::Service for ControlRequest {
+    const NAME: &'static str = "paralean/controller";
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "result", rename_all = "snake_case")]
 pub enum ControlResponse {
@@ -398,7 +402,8 @@ impl ControlPlane {
     pub fn serve(self: &Arc<Self>, listener: TcpListener) -> JoinHandle<()> {
         let me = self.clone();
         let ring = self.cfg.store.ring.clone();
-        let server = crate::server::serve_authenticated(listener, self.cfg.authority.clone(), move |req: &ControlRequest, public| {
+        let privileged = ring.authority;
+        let server = crate::server::serve_authenticated(listener, self.cfg.authority.clone(), privileged, move |req: &ControlRequest, public| {
             match req {
                 ControlRequest::Register { worker, .. }
                 | ControlRequest::Heartbeat { worker }
