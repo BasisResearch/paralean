@@ -313,7 +313,7 @@ pub fn fork_checker() -> Option<CheckerConfig> {
             ("LEAN_NUM_THREADS".into(), "2".into()),
         ],
         default_memory_mb: 4096,
-        sandbox: true,
+        ..CheckerConfig::sandboxed(PathBuf::new(), "")
     })
 }
 

@@ -28,11 +28,14 @@ impl FakeChecker {
     }
 
     fn config(&self, warm: bool) -> CheckerConfig {
+        // The framing rules, not the sandbox, are under test here.
         CheckerConfig {
-            bin: self.script.clone(), mode: "fork".into(), lean_githash: "fixture".into(),
+            mode: "fork".into(),
             env: if warm { vec![("PARALEAN_P3_WARM_BIN".into(), self.script.display().to_string())] } else { vec![] },
             default_memory_mb: 256,
             sandbox: false,
+            cgroup: false,
+            ..CheckerConfig::sandboxed(self.script.clone(), "fixture")
         }
     }
 }
@@ -102,7 +105,6 @@ sys.exit(3)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "W2 output-related subtask handed off after automated review restriction"]
 async fn cold_output_flood_cannot_fill_validator_memory() {
     let fake = FakeChecker::new("cold-flood", r#"
 import json, sys

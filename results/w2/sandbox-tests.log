@@ -1,0 +1,30 @@
+     Running tests/checker_protocol.rs (/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/target/debug/deps/checker_protocol-2a9fc0ea3367aa5a)
+
+running 5 tests
+test cold_malformed_axiom_cannot_be_silently_dropped ... ok
+test cold_nonzero_exit_never_accepts_printed_check ... ok
+test cold_output_flood_cannot_fill_validator_memory ... ok
+test warm_ignores_spoofed_and_replayed_frames ... ok
+test cold_uses_last_check_line ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/sandbox.rs (/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/302072b8-89b8-493e-a2f1-8133890a9de0/scratchpad/target/debug/deps/sandbox-1f8909d478af3f90)
+
+running 13 tests
+test checker_cannot_read_secrets_write_outside_or_use_network ... ok
+test checker_io_uring_is_blocked ... ok
+test checker_disk_budget_is_tmpfs_enospc_and_rlimit_fsize ... ok
+test checker_cpu_budget_kills_busy_loop ... ok
+test checker_memory_cgroup_hard_limit_kills_fast_burst ... ok
+test checker_memory_rss_poll_catches_sustained_hog_without_cgroup ... ok
+test production_config_enables_the_sandbox ... ok
+test checker_process_count_is_hard_limited ... ok
+test real_plain_theorem_passes_inside_and_outside_the_sandbox ... ok
+test sandbox_configuration_enforces_kernel_limits ... ok
+test sandbox_fails_closed_when_bwrap_is_missing ... ok
+test native_lean_tactic_cannot_reach_host ... ok
+test real_initializer_materializes_in_private_scratch ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.93s
+

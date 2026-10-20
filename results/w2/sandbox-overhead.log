@@ -1,0 +1,24 @@
+
+
+=== cold check latency (ms), 12 runs each ===
+fixture            mode      p50      p90      min
+plain            direct      292      332      251
+plain        sandbox+cg      503      575      425
+plain        sandbox-nocg      396      453      374
+test measure_sandbox_overhead has been running for over 60 seconds
+initializer      direct    11423    12771    10517
+initializer  sandbox+cg     8916     9989     8661
+initializer  sandbox-nocg     8517     9930     8087
+
+=== scope startup cost (ms), trivial checker, 12 runs ===
+sandbox+cg     p50=    80 p90=   103
+sandbox-nocg   p50=    62 p90=    66
+
+=== warm path latency (ms), plain fixture ===
+warm-direct        first_spawn=   337  reuse p50=    13 p90=    14  spawned=1
+warm-sandbox       single-use p50=   308 p90=   349  spawned=12 (one per job)
+
+test measure_sandbox_overhead ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 334.01s
+

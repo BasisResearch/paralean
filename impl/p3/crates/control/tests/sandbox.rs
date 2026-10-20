@@ -1,7 +1,10 @@
-//! Execute a stand-in checker inside the same OS sandbox as Lean. Its attempted
-//! side effects are observations made by the untrusted process itself.
+//! Execute a stand-in checker, and the real `paralean check-group`, inside the production
+//! OS sandbox. A stand-in's attempted side effects are observations the untrusted process
+//! makes about its own confinement; the real-Lean cases build their own P1 fixtures with
+//! `PARALEAN_BIN` and show legitimate checks pass and a hostile package is contained.
 
 use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use paralean_control::checker::{self, CheckerConfig, NoVerdict};
@@ -14,25 +17,36 @@ fn require_lean() {
         String::from_utf8_lossy(&output.stderr));
 }
 
+fn script(root: &Path, name: &str, body: &str) -> PathBuf {
+    let p = root.join(name);
+    std::fs::write(&p, body).unwrap();
+    std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o700)).unwrap();
+    p
+}
+
+fn tmp(tag: &str) -> PathBuf {
+    let root = std::env::temp_dir().join(format!("paralean-sandbox-{tag}-{}-{}", std::process::id(), rand::random::<u64>()));
+    std::fs::create_dir_all(&root).unwrap();
+    root
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sandbox_configuration_enforces_kernel_limits() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-config-{}-{}", std::process::id(), rand::random::<u64>()));
-    std::fs::create_dir_all(&root).unwrap();
-    let script = root.join("configuration.py");
-    std::fs::write(&script, r#"#!/usr/bin/env python3
+    let root = tmp("config");
+    let s = script(&root, "configuration.py", r#"#!/usr/bin/env python3
 import json, os, resource
-expected = [(resource.RLIMIT_AS, 16 << 30), (resource.RLIMIT_FSIZE, 512 << 20),
+expected = [(resource.RLIMIT_FSIZE, 128 << 20),
             (resource.RLIMIT_NOFILE, 256), (resource.RLIMIT_CORE, 0),
             (resource.RLIMIT_NPROC, 64), (resource.RLIMIT_CPU, 12)]
 errors = [str(key) for key, value in expected if resource.getrlimit(key) != (value, value)]
-if any(k in os.environ for k in ['PARALEAN_KEYS', 'PARALEAN_S3_SECRET_KEY', 'PARALEAN_FDB_CLUSTER']):
+# RLIMIT_AS is a 16 GiB backstop, not the job's memory limit (the cgroup is).
+if resource.getrlimit(resource.RLIMIT_AS) != (16 << 30, 16 << 30): errors.append('RLIMIT_AS')
+if any(k in os.environ for k in ['PARALEAN_KEYS', 'PARALEAN_S3_SECRET_KEY', 'PARALEAN_FDB_CLUSTER', 'PARALEAN_GARAGE_ADMIN_TOKEN']):
     errors.append('credential environment')
 print('CHECK ' + json.dumps({'ok': not errors, 'diags': errors}), flush=True)
-"#).unwrap();
-    std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 256, sandbox: true };
+"#);
+    let cfg = CheckerConfig { default_memory_mb: 256, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
     let out = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 256, cancel).await.unwrap();
     assert!(out.ok, "sandbox configuration: {:?}", out.diags);
@@ -42,15 +56,14 @@ print('CHECK ' + json.dumps({'ok': not errors, 'diags': errors}), flush=True)
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn checker_cannot_read_secrets_write_outside_or_use_network() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-{}-{}", std::process::id(), rand::random::<u64>()));
+    let root = tmp("escape");
     let store = root.join("store");
     std::fs::create_dir_all(&store).unwrap();
     let secret = root.join("validator.key");
     let outside = root.join("outside");
     std::fs::write(&secret, b"secret validator key").unwrap();
-    let script = root.join("malicious.py");
     let source = format!(r#"#!/usr/bin/env python3
-import json, socket
+import json, socket, os
 blocked = []
 try:
     open({secret:?}).read()
@@ -67,7 +80,6 @@ try:
     blocked.append('socket escaped')
 except OSError:
     pass
-import os
 try:
     os.setsid()
     blocked.append('setsid escaped')
@@ -77,12 +89,8 @@ scratch = '/work' if os.path.isdir('/work') else {store:?}
 open(os.path.join(scratch, 'legitimate'), 'w').write('okay')
 print('CHECK ' + json.dumps({{'ok': not blocked, 'diags': blocked}}), flush=True)
 "#, secret = secret.display().to_string(), outside = outside.display().to_string(), store = store.display().to_string());
-    std::fs::write(&script, source).unwrap();
-    let mut perms = std::fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o700);
-    std::fs::set_permissions(&script, perms).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 256, sandbox: true };
+    let s = script(&root, "malicious.py", &source);
+    let cfg = CheckerConfig { default_memory_mb: 256, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
     let out = checker::run(&cfg, &store, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 256, cancel).await.unwrap();
     assert!(out.ok, "sandbox escaped: {:?}", out.diags);
@@ -94,118 +102,254 @@ print('CHECK ' + json.dumps({{'ok': not blocked, 'diags': blocked}}), flush=True
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn checker_cpu_budget_kills_busy_loop() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-cpu-{}-{}", std::process::id(), rand::random::<u64>()));
-    std::fs::create_dir_all(&root).unwrap();
-    let script = root.join("busy.py");
-    std::fs::write(&script, "#!/usr/bin/env python3\nimport time, json\nstart=time.monotonic()\nwhile time.monotonic()-start < 1: pass\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n").unwrap();
-    let mut perms = std::fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o700); std::fs::set_permissions(&script, perms).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 256, sandbox: true };
+    let root = tmp("cpu");
+    let s = script(&root, "busy.py", "#!/usr/bin/env python3\nimport time, json\nstart=time.monotonic()\nwhile time.monotonic()-start < 1: pass\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n");
+    let cfg = CheckerConfig { default_memory_mb: 256, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
     let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_millis(300), 256, cancel).await;
     assert!(matches!(result, Err(NoVerdict::Timeout)), "busy checker: {result:?}");
     std::fs::remove_dir_all(&root).unwrap();
 }
 
+/// The disk limit is the /work tmpfs size (ENOSPC) and RLIMIT_FSIZE, not a host-directory
+/// scan: the host input store is read-only and never grows.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn checker_disk_budget_rejects_even_successful_exit() {
+async fn checker_disk_budget_is_tmpfs_enospc_and_rlimit_fsize() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-disk-{}-{}", std::process::id(), rand::random::<u64>()));
-    std::fs::create_dir_all(&root).unwrap();
-    let script = root.join("disk.py");
-    let source = format!("#!/usr/bin/env python3\nimport json, os\nscratch = '/work' if os.path.isdir('/work') else {root:?}\ntry:\n    with open(os.path.join(scratch, 'large'), 'wb') as f:\n        for _ in range(300): f.write(b'x' * (1 << 20))\n    ok = True\nexcept OSError:\n    ok = False\nprint('CHECK ' + json.dumps({{'ok': ok}}), flush=True)\n", root = root.display().to_string());
-    std::fs::write(&script, source).unwrap();
-    let mut perms = std::fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o700); std::fs::set_permissions(&script, perms).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 256, sandbox: true };
+    let root = tmp("disk");
+    let s = script(&root, "disk.py", r#"#!/usr/bin/env python3
+import json, os, signal, resource, errno
+scratch = '/work' if os.path.isdir('/work') else os.getcwd()
+diags = []
+# 1) filling the tmpfs past its --size cap must raise ENOSPC. Each file is well under
+#    RLIMIT_FSIZE so it is the tmpfs cap, not the per-file cap, that stops us.
+signal.signal(signal.SIGXFSZ, signal.SIG_IGN)
+enospc = False
+for i in range(32):
+    try:
+        with open(os.path.join(scratch, 'fill%d' % i), 'wb') as f:
+            for _ in range(32): f.write(b'x' * (1 << 20))
+            f.flush(); os.fsync(f.fileno())
+    except OSError as e:
+        enospc = e.errno == errno.ENOSPC
+        break
+if not enospc: diags.append('tmpfs did not ENOSPC')
+for i in range(32):
+    try: os.unlink(os.path.join(scratch, 'fill%d' % i))
+    except OSError: pass
+# 2) a single file past RLIMIT_FSIZE must be refused (SIGXFSZ ignored -> EFBIG), before the
+#    tmpfs fills, so the per-file cap is what stops it.
+soft, _ = resource.getrlimit(resource.RLIMIT_FSIZE)
+if soft >= (1 << 40): diags.append('RLIMIT_FSIZE unset')
+try:
+    with open(os.path.join(scratch, 'big'), 'wb') as f:
+        while True: f.write(b'x' * (1 << 20))
+    diags.append('RLIMIT_FSIZE not enforced')
+except OSError as e:
+    if e.errno != errno.EFBIG: diags.append('fsize errno %d' % e.errno)
+    elif os.path.getsize(os.path.join(scratch, 'big')) > soft: diags.append('fsize cap overshot')
+try: os.unlink(os.path.join(scratch, 'big'))
+except OSError: pass
+print('CHECK ' + json.dumps({'ok': not diags, 'diags': diags}), flush=True)
+"#);
+    let cfg = CheckerConfig { default_memory_mb: 512, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
-    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 256, cancel).await;
+    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(20), 512, cancel).await;
     std::fs::remove_dir_all(&root).unwrap();
-    assert!(matches!(&result, Ok(o) if !o.ok) || matches!(&result, Err(NoVerdict::Disk)), "oversized scratch: {result:?}");
+    match result {
+        Ok(o) => assert!(o.ok, "disk limits not enforced: {:?}", o.diags),
+        other => panic!("disk budget: {other:?}"),
+    }
 }
 
+/// The cgroup is a hard memory limit: a fast allocator that overshoots the job's limit and
+/// exits between RSS polls (printing a forged acceptance) is still stopped, because the
+/// scope is OOM-killed mid-burst and that maps to `NoVerdict::Memory`. This is exactly the
+/// overshoot the 50 ms RSS poll alone cannot catch.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn checker_memory_budget_kills_allocation() {
+async fn checker_memory_cgroup_hard_limit_kills_fast_burst() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-memory-{}-{}", std::process::id(), rand::random::<u64>()));
-    std::fs::create_dir_all(&root).unwrap();
-    let script = root.join("memory.py");
-    std::fs::write(&script, "#!/usr/bin/env python3\nimport time\nx = bytearray(128 << 20)\nwhile True: time.sleep(1)\n").unwrap();
-    let mut perms = std::fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o700); std::fs::set_permissions(&script, perms).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 64, sandbox: true };
+    let root = tmp("memory-burst");
+    // memset ~96 MiB (> the 64 MiB limit) as one fast burst, then exit at once with a forged
+    // CHECK. The whole process lives well under a poll interval's worth of resident memory.
+    let s = script(&root, "burst.py", "#!/usr/bin/env python3\nimport json, ctypes, mmap\nn = 96 << 20\nbuf = mmap.mmap(-1, n)\nctypes.memset((ctypes.c_char * n).from_buffer(buf), 1, n)\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n");
+    let cfg = CheckerConfig { default_memory_mb: 64, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
-    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(5), 64, cancel).await;
-    assert!(matches!(result, Err(NoVerdict::Memory { .. })), "oversized memory: {result:?}");
+    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
+    assert!(matches!(result, Err(NoVerdict::Memory { .. })), "fast burst escaped the cgroup: {result:?}");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// The RSS poll is the second layer, for hosts without cgroups: with the cgroup disabled, a
+/// sustained over-limit resident set is still caught and mapped to `NoVerdict::Memory`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn checker_memory_rss_poll_catches_sustained_hog_without_cgroup() {
+    require_lean();
+    let root = tmp("memory-rss");
+    let s = script(&root, "hog.py", "#!/usr/bin/env python3\nx = bytearray(256 << 20)\nfor i in range(0, len(x), 4096): x[i] = 1\nimport time\nwhile True: time.sleep(1)\n");
+    let cfg = CheckerConfig { default_memory_mb: 64, cgroup: false, ..CheckerConfig::sandboxed(s, "test") };
+    let (_tx, cancel) = watch::channel(false);
+    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
+    assert!(matches!(result, Err(NoVerdict::Memory { .. })), "RSS poll missed a sustained hog: {result:?}");
     std::fs::remove_dir_all(&root).unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn checker_process_count_is_hard_limited() {
     require_lean();
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-fork-{}-{}", std::process::id(), rand::random::<u64>()));
-    std::fs::create_dir_all(&root).unwrap();
-    let script = root.join("fork.py");
-    std::fs::write(&script, "#!/usr/bin/env python3\nimport json, subprocess\nchildren=[]\nblocked=False\nfor _ in range(80):\n    try: children.append(subprocess.Popen(['/bin/sleep','1']))\n    except OSError:\n        blocked=True\n        break\nprint('CHECK ' + json.dumps({'ok': blocked}), flush=True)\n").unwrap();
-    let mut perms = std::fs::metadata(&script).unwrap().permissions();
-    perms.set_mode(0o700); std::fs::set_permissions(&script, perms).unwrap();
-    let cfg = CheckerConfig { bin: script, mode: "stock".into(), lean_githash: "test".into(),
-        env: vec![], default_memory_mb: 512, sandbox: true };
+    let root = tmp("fork");
+    // 75 is between RLIMIT_NPROC (64) and the scope's TasksMax (96), so prlimit is what must
+    // stop the fork bomb; its removal lets all 75 start.
+    let s = script(&root, "fork.py", "#!/usr/bin/env python3\nimport json, subprocess\nchildren=[]\nblocked=False\nfor _ in range(75):\n    try: children.append(subprocess.Popen(['/bin/sleep','3']))\n    except OSError:\n        blocked=True\n        break\nprint('CHECK ' + json.dumps({'ok': blocked}), flush=True)\n");
+    let cfg = CheckerConfig { default_memory_mb: 512, ..CheckerConfig::sandboxed(s, "test") };
     let (_tx, cancel) = watch::channel(false);
-    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(5), 512, cancel).await;
+    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 512, cancel).await;
     assert!(matches!(&result, Ok(o) if o.ok), "fork bomb escaped: {result:?}");
     std::fs::remove_dir_all(&root).unwrap();
 }
 
+/// io_uring is a well-known seccomp-bypass surface (async file and socket ops that skip the
+/// syscalls the filter denies); `io_uring_setup` must be refused with EPERM.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires PARALEAN_W2_REAL_* private P1 fixture"]
-async fn real_lean_check_passes_inside_sandbox_when_fixture_is_available() {
-    let store = std::env::var("PARALEAN_W2_REAL_STORE").expect("PARALEAN_W2_REAL_STORE");
-    let gid = std::env::var("PARALEAN_W2_REAL_GID").expect("PARALEAN_W2_REAL_GID");
-    let decl = std::env::var("PARALEAN_W2_REAL_DECL").expect("PARALEAN_W2_REAL_DECL");
+async fn checker_io_uring_is_blocked() {
+    require_lean();
+    let root = tmp("io-uring");
+    let s = script(&root, "iouring.py", r#"#!/usr/bin/env python3
+import ctypes, json, os
+libc = ctypes.CDLL(None, use_errno=True)
+params = (ctypes.c_byte * 120)()
+ctypes.set_errno(0)
+r = libc.syscall(425, 1, ctypes.byref(params))  # io_uring_setup(entries=1, params)
+e = ctypes.get_errno()
+if r >= 0:
+    try: os.close(r)
+    except OSError: pass
+blocked = r < 0 and e == 1  # EPERM from the seccomp filter
+print('CHECK ' + json.dumps({'ok': blocked, 'diags': [] if blocked else ['io_uring reachable r=%d errno=%d' % (r, e)]}), flush=True)
+"#);
+    let cfg = CheckerConfig { default_memory_mb: 256, ..CheckerConfig::sandboxed(s, "test") };
+    let (_tx, cancel) = watch::channel(false);
+    let out = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 256, cancel).await.unwrap();
+    assert!(out.ok, "io_uring not blocked: {:?}", out.diags);
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// A missing Bubblewrap is a sandbox setup failure that yields no verdict; there is never
+/// an unsandboxed run of untrusted code.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sandbox_fails_closed_when_bwrap_is_missing() {
+    require_lean();
+    let root = tmp("fail-closed");
+    let marker = root.join("ran");
+    let s = script(&root, "witness.py", &format!("#!/usr/bin/env python3\nimport json\nopen({:?}, 'w').write('ran')\nprint('CHECK ' + json.dumps({{'ok': True}}), flush=True)\n", marker.display().to_string()));
+    let mut cfg = CheckerConfig { default_memory_mb: 256, ..CheckerConfig::sandboxed(s, "test") };
+    cfg.bwrap = PathBuf::from("/nonexistent/bwrap");
+    let (_tx, cancel) = watch::channel(false);
+    let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 256, cancel).await;
+    assert!(matches!(result, Err(NoVerdict::Crashed(_))), "missing bwrap must fail closed: {result:?}");
+    assert!(!marker.exists(), "the checker must not have run outside the sandbox");
+    std::fs::remove_dir_all(&root).unwrap();
+}
+
+/// Production configuration enables both sandbox layers and is never silently unsandboxed.
+#[test]
+fn production_config_enables_the_sandbox() {
+    if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
+    let cfg = CheckerConfig::from_env().unwrap();
+    assert!(cfg.sandbox, "production config must sandbox");
+    assert!(cfg.cgroup, "production config must use the cgroup layer unless PARALEAN_CHECKER_CGROUP=off");
+    assert_eq!(cfg.bwrap, PathBuf::from("/usr/bin/bwrap"));
+}
+
+// ---- Real Lean checks under the sandbox (build their own P1 fixtures) ----
+
+/// Capture `files` (relative to `corpus/fixtures`) into a fresh store, with `extra_env`
+/// overriding the capture process environment (e.g. unsetting PARALEAN_MATHLIB). Returns
+/// the store path and, for the group declaring `want_member`, its (gid, declId).
+fn capture(tag: &str, files: &[&str], want_member: &str, extra_env: &[(&str, Option<&str>)]) -> (PathBuf, String, String) {
+    let bin = std::env::var("PARALEAN_BIN").unwrap();
+    let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../..").canonicalize().unwrap();
+    let root = tmp(tag);
+    let store = root.join("store");
+    for f in files {
+        let mut cmd = std::process::Command::new(&bin);
+        cmd.args(["capture", "--store"]).arg(&store)
+            .args(["--ws", "A", "--root"]).arg(repo.join("corpus/fixtures")).arg(f);
+        for (k, v) in extra_env { match v { Some(v) => { cmd.env(k, v); }, None => { cmd.env_remove(k); } } }
+        let out = cmd.output().unwrap();
+        assert!(out.status.success(), "capture {f}: {}", String::from_utf8_lossy(&out.stderr));
+    }
+    let (mut gid, mut decl) = (None, None);
+    for e in std::fs::read_dir(store.join("meta")).unwrap() {
+        let meta: serde_json::Value = serde_json::from_slice(&std::fs::read(e.unwrap().path()).unwrap()).unwrap();
+        let declares = meta["members"].as_array().map(|ms| ms.iter().any(|m| {
+            m.get("name").and_then(|n| n.as_array()).map(|parts|
+                parts.iter().filter_map(|p| p.as_str()).collect::<Vec<_>>().join(".") == want_member).unwrap_or(false)
+        })).unwrap_or(false);
+        if declares {
+            gid = Some(meta["gid"].as_str().unwrap().to_string());
+            decl = Some(meta["declId"].as_str().unwrap().to_string());
+        }
+    }
+    (store, gid.expect("gid for member"), decl.expect("decl for member"))
+}
+
+/// All the group IDs of a store, as the checker is given them.
+fn all_gids(store: &Path) -> Vec<String> {
+    std::fs::read_dir(store.join("meta")).unwrap().map(|e|
+        e.unwrap().file_name().to_str().unwrap().trim_end_matches(".json").to_string()).collect()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_plain_theorem_passes_inside_and_outside_the_sandbox() {
+    if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
+    require_lean();
+    let (store, _gid, decl) = capture("plain", &["Fixtures/F01Theorem.lean"], "F01.two_eq", &[]);
+    let gids = all_gids(&store);
     let cfg = CheckerConfig::from_env().unwrap();
     assert!(cfg.sandbox);
-    let mut timings = [Vec::new(), Vec::new()];
-    for (index, isolated) in [false, true].into_iter().enumerate() {
-        let mut run_cfg = cfg.clone();
-        run_cfg.sandbox = isolated;
-        for _ in 0..5 {
-            let (_tx, cancel) = watch::channel(false);
-            let start = std::time::Instant::now();
-            let out = checker::run(&run_cfg, std::path::Path::new(&store), std::slice::from_ref(&gid), &decl, &[],
-                Duration::from_secs(30), 1024, cancel).await.unwrap();
-            assert!(out.ok, "real Lean rejected: {:?}", out.diags);
-            timings[index].push(start.elapsed().as_millis());
-        }
-        timings[index].sort_unstable();
+    for isolated in [false, true] {
+        let mut c = cfg.clone();
+        c.sandbox = isolated;
+        let (_tx, cancel) = watch::channel(false);
+        let out = checker::run(&c, &store, &gids, &decl, &[], Duration::from_secs(60), 2048, cancel).await.unwrap();
+        assert!(out.ok, "plain theorem rejected (sandbox={isolated}): {:?}", out.diags);
     }
-    eprintln!("real Lean check p50: direct={}ms sandbox={}ms", timings[0][2], timings[1][2]);
+    std::fs::remove_dir_all(store.parent().unwrap()).unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires PARALEAN_W2_INIT_* private initializer fixture"]
-async fn real_initializer_materializes_in_private_scratch_when_fixture_is_available() {
-    let store = std::env::var("PARALEAN_W2_INIT_STORE").expect("PARALEAN_W2_INIT_STORE");
-    let gid = std::env::var("PARALEAN_W2_INIT_GID").expect("PARALEAN_W2_INIT_GID");
-    let decl = std::env::var("PARALEAN_W2_INIT_DECL").expect("PARALEAN_W2_INIT_DECL");
-    let cfg = CheckerConfig::from_env().unwrap();
+async fn real_initializer_materializes_in_private_scratch() {
+    if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
+    require_lean();
+    // The export package the initializer group materializes has no Mathlib dependency.
+    let (store, _gid, decl) = capture("init", &["Fixtures/F13InitDecl.lean", "Fixtures/F13InitUse.lean"],
+        "f13Counter", &[("PARALEAN_MATHLIB", None)]);
+    let gids = all_gids(&store);
+    // Capture materializes on the host as a cache; remove it so a surviving host directory
+    // after the sandboxed check can only mean the sandbox leaked.
+    let _ = std::fs::remove_dir_all(store.join("materialized"));
+    let mut cfg = CheckerConfig::from_env().unwrap();
+    cfg.env.retain(|(k, _)| k != "PARALEAN_MATHLIB");
     let (_tx, cancel) = watch::channel(false);
-    let out = checker::run(&cfg, std::path::Path::new(&store), &[gid], &decl, &[],
-        Duration::from_secs(45), 2048, cancel).await.unwrap();
-    assert!(out.ok, "initializer check: {:?}", out.diags);
-    assert!(!std::path::Path::new(&store).join("materialized").exists(),
-        "materialization must remain inside the sandbox tmpfs");
+    let out = checker::run(&cfg, &store, &gids, &decl, &[], Duration::from_secs(120), 2048, cancel).await.unwrap();
+    assert!(out.ok, "initializer check rejected: {:?}", out.diags);
+    // Materialization happens in the sandbox tmpfs copy of the store, never in the host store.
+    assert!(!store.join("materialized").exists(), "materialization must stay inside the sandbox tmpfs");
+    std::fs::remove_dir_all(store.parent().unwrap()).unwrap();
 }
 
+/// A package whose `run_tac` native tactic tries to read a key, write outside scratch, open
+/// the network, and exhaust memory/CPU/processes/disk. The legitimate theorem it also
+/// declares must still check; none of the host effects may happen.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires PARALEAN_BIN and PARALEAN_LIB for a real P1 capture"]
-async fn native_lean_tactic_cannot_reach_host_when_fixture_is_available() {
-    let root = std::env::temp_dir().join(format!("paralean-native-attack-{}-{}", std::process::id(), rand::random::<u64>()));
+async fn native_lean_tactic_cannot_reach_host() {
+    if std::env::var_os("PARALEAN_BIN").is_none() { eprintln!("skip: PARALEAN_BIN not set"); return; }
+    require_lean();
+    let bin = std::env::var("PARALEAN_BIN").unwrap();
+    let root = tmp("native-attack");
     let store = root.join("store");
-    std::fs::create_dir_all(&root).unwrap();
+    // A host TCP listener the tactic will try to reach.
     let reserve = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = reserve.local_addr().unwrap().port();
     drop(reserve);
@@ -213,8 +357,9 @@ async fn native_lean_tactic_cannot_reach_host_when_fixture_is_available() {
         .replace("__ROOT__", &root.display().to_string())
         .replace("__PORT__", &port.to_string());
     std::fs::write(root.join("Attack.lean"), source).unwrap();
-    let cfg = CheckerConfig::from_env().unwrap();
-    let capture = std::process::Command::new(&cfg.bin)
+    // Capture runs the tactic on the host; the targets must not exist yet, or capture itself
+    // would see them and reject. They are created only for the sandboxed check below.
+    let capture = std::process::Command::new(&bin)
         .args(["capture", "--store"]).arg(&store)
         .args(["--ws", "A", "--root"]).arg(&root).arg("Attack.lean")
         .output().unwrap();
@@ -227,9 +372,10 @@ async fn native_lean_tactic_cannot_reach_host_when_fixture_is_available() {
     std::fs::write(root.join("secret"), "validator key").unwrap();
     let listener = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap();
     listener.set_nonblocking(true).unwrap();
+    let cfg = CheckerConfig::from_env().unwrap();
+    assert!(cfg.sandbox);
     let (_tx, cancel) = watch::channel(false);
-    let out = checker::run(&cfg, &store, &[gid], &decl, &[],
-        Duration::from_secs(30), 2048, cancel).await.unwrap();
+    let out = checker::run(&cfg, &store, &[gid], &decl, &[], Duration::from_secs(60), 2048, cancel).await.unwrap();
     assert!(out.ok, "native tactic escaped sandbox: {:?}", out.diags);
     assert!(!root.join("protected/outside").exists());
     assert!(listener.accept().is_err(), "native tactic reached host network");

@@ -16,8 +16,8 @@ async fn validator_envelope_strict_signature_vectors() {
     let (writer, _) = kf.workspace("w0").unwrap();
     let p = fixture::package_by(&authority, "strict", writer, &validator,
         &Name::parse("Strict.fixture"), vec![], None, 1);
-    let checker = CheckerConfig { bin: std::env::current_exe().unwrap(), mode: "stock".into(),
-        lean_githash: "strict-test".into(), env: vec![], default_memory_mb: 256, sandbox: true };
+    let checker = CheckerConfig { default_memory_mb: 256,
+        ..CheckerConfig::sandboxed(std::env::current_exe().unwrap(), "strict-test") };
     let dir = common::scratch("strict-validator");
     for case in vectors::cases(authority.public(), p.job.sig) {
         let mut ring = kf.ring();

@@ -56,7 +56,7 @@ private network or confidential transport. No seeds belong in those payloads.
 | W2-08 | Medium | Relaxed Ed25519 verification accepted weak-key identity signatures if a weak key entered trust configuration. Strict verification rejects small-order keys/points; identity forgery regression and mutation. Correctly generated signatures still verify. |
 | W2-09 | Medium | PCE count checks bounded wire bytes but allowed much larger container allocation; S3 body collection was unbounded. Decoder container/string budget is 64 MiB; S3 reads are bounded to 65 MiB and 60 seconds per body. Lean varints have a ten-byte canonical u64 bound. Boundary regressions/mutations cover rejection. This does not bound total memory of arbitrary caller code. |
 | W2-10 | High | Garage's loopback S3 port bypassed delete denial for other local clients with an S3 key; encoded query keys bypassed gateway classification. Instance/default/P3 launch configs use owner-private Unix sockets; startup checks reject the legacy TCP path. Decoded write-query allowlist denies deletion/configuration changes. Tests retain legitimate signed PUT/GET and checksum rejection. |
-| W2-11 | High | Untrusted checker had host filesystem/network/process access. Rootless sandbox work is described below; final evidence and resource limitations must be read before treating this as closed. |
+| W2-11 | High | Untrusted checker had host filesystem/network/process access. Now contained in a rootless Bubblewrap sandbox inside a transient systemd cgroup scope: no network, read-only host except a size-capped scratch tmpfs, x86_64 seccomp allowlist (io_uring and TIOCSTI/TIOCLINUX closed), hard cgroup memory/task limits plus rlimit/RSS second layers, fail-closed with no unsandboxed fallback, single-use processes. Evidence, mutation results and overhead in the section below and w2-sandbox-notes.md. This closes the host/key-containment part of W2-11; it does **not** close W2-13 (verdict provenance inside the checker process). |
 | W2-12 | High, OPEN | P5 CLI workers share the controller UID, can read outside workspaces and hold raw store access. A sentinel reproduction confirms filesystem reach. Needs narrowly mounted worker isolation plus authenticated brokered storage operations; current direct FDB access cannot be made safe by client-side guards. |
 | W2-13 | High, OPEN | Package source/native execution and trusted replay share a checker address space. The signer trusts checker stdout. Namespace isolation and response nonces do not authenticate results against code in that same process. A separate trusted verifier must consume independently checked immutable kernel inputs and execute no package code. Static review only; no exploit demonstrated. |
 
@@ -115,10 +115,24 @@ No new proof-level theorem is claimed.
 
 See [w2-sandbox-notes.md](w2-sandbox-notes.md) for the exact launch profile,
 adversarial results, legitimate Lean/initializer checks, mutation evidence,
-overhead and memory/process limitations. The host supports Bubblewrap even
-though a direct user-namespace probe fails. Unsupported sandbox startup must
-fail closed. Production configuration enables the sandbox; mock checker tests
-explicitly choose their test configuration.
+overhead and the precise limits of the boundary. Each checker runs under
+Bubblewrap (new user/PID/net/IPC/UTS namespaces, all capabilities dropped,
+read-only root but a size-capped scratch tmpfs, an x86_64 seccomp allowlist
+including the io_uring and terminal-injection surfaces) inside a transient
+systemd user scope that applies hard `MemoryMax`/`MemorySwapMax`/`TasksMax`
+limits; an OOM kill maps to a no-verdict memory outcome, with the resident-set
+poll kept as a second layer. Memory and process limits therefore each have a
+hard cgroup layer and a soft/rlimit layer. The host supports Bubblewrap even
+though a direct user-namespace probe fails. Unsupported sandbox startup, a
+missing Bubblewrap, or a cgroup whose controllers are not delegated all fail
+closed with no verdict; there is no unsandboxed fallback, and the cgroup layer
+is required in production (`PARALEAN_CHECKER_CGROUP=off` is an explicit opt-out
+for hosts without delegated controllers). Sandboxed checker processes are
+single-use: a process that ran one package's code never judges another's.
+Production configuration (`CheckerConfig::from_env`) enables the sandbox and the
+cgroup layer; mock checker tests explicitly choose their test configuration.
+All sandbox and protocol tests pass with none ignored, and every checker guard
+has a detecting mutation case.
 
 The sandbox does not close W2-13. Nor does it sandbox P5's networked CLI
 workers. Completion of the remaining hostile-code boundary requires both a

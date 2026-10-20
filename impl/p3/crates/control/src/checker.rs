@@ -1,11 +1,21 @@
 //! The Lean side of a validator: impl/p1's `paralean check-group`, run as a subprocess with
 //! a deadline, a memory limit and cancellation.
 //!
-//! The memory limit is a resident-set watchdog over the checker's process group, not
-//! `RLIMIT_AS`: Lean reserves far more address space than it uses (a check of a fixture
-//! group peaks at 0.5 GB resident but cannot even create its threads under a 4 GB
-//! address-space limit). Exceeding the limit, passing the deadline, crashing or being
-//! cancelled all kill the process group and give no verdict.
+//! In production (`CheckerConfig::from_env`) every checker runs in a rootless Bubblewrap
+//! sandbox inside a transient systemd scope (see docs/w2-sandbox-notes.md):
+//!
+//! - memory: the scope's `MemoryMax` (the job's limit, no swap, `OOMPolicy=kill`) is the
+//!   hard limit; an OOM kill gives `NoVerdict::Memory`. A resident-set poll over the
+//!   checker's process group every 50 ms is a second, soft layer, and the only one when
+//!   cgroups are explicitly disabled (`PARALEAN_CHECKER_CGROUP=off`). `RLIMIT_AS` is not
+//!   the job limit: Lean reserves far more address space than it uses.
+//! - processes: the scope's `TasksMax` and, inside the sandbox, `RLIMIT_NPROC`.
+//! - disk: size-capped private tmpfs mounts on /work and /tmp (ENOSPC) and `RLIMIT_FSIZE`
+//!   per file. Nothing outside the sandbox is writable, so nothing outside is measured.
+//! - CPU: `RLIMIT_CPU` and the job deadline.
+//!
+//! Exceeding a limit, passing the deadline, crashing, being cancelled or failing to set
+//! up any part of the sandbox gives no verdict; there is no unsandboxed fallback.
 
 use std::path::{Path, PathBuf};
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -21,6 +31,17 @@ use tokio::sync::watch;
 
 use crate::p1::name_of;
 
+/// Size of each private tmpfs (/work, /tmp) in the sandbox, in bytes.
+pub const SCRATCH_BYTES: u64 = 256 << 20;
+/// `RLIMIT_FSIZE`: the largest file a sandboxed checker may write, in bytes.
+pub const MAX_FILE_BYTES: u64 = 128 << 20;
+/// `RLIMIT_NPROC` inside the sandbox (processes and threads of the sandbox's user).
+pub const MAX_PROCS: u64 = 64;
+/// Default `TasksMax` of the checker's scope (processes and threads, including Bubblewrap).
+pub const DEFAULT_MAX_TASKS: u64 = 96;
+/// Captured checker stdout and stderr, each.
+pub const MAX_OUTPUT_BYTES: usize = 1 << 20;
+
 /// How to run the checker.
 #[derive(Clone, Debug)]
 pub struct CheckerConfig {
@@ -34,16 +55,33 @@ pub struct CheckerConfig {
     pub env: Vec<(String, String)>,
     /// Memory limit when the job names none, in MiB.
     pub default_memory_mb: u64,
-    /// Run the checker in a restricted Bubblewrap mount and network namespace.
+    /// Run the checker in a restricted Bubblewrap user, mount, PID, IPC, UTS and network
+    /// namespace. Production configuration always sets it.
     pub sandbox: bool,
+    /// With `sandbox`: also run it in a transient systemd user scope with hard memory and
+    /// task limits. Required (fail closed) unless explicitly disabled.
+    pub cgroup: bool,
+    /// The scope's `TasksMax`.
+    pub max_tasks: u64,
+    /// The Bubblewrap binary.
+    pub bwrap: PathBuf,
+    /// `systemd-run`, which creates the scope.
+    pub systemd_run: PathBuf,
 }
 
 impl CheckerConfig {
     /// From `PARALEAN_BIN` (impl/p1/scripts/env.sh), `lean --githash` on `PATH` and
-    /// `PARALEAN_LEAN` (`fork` selects fork mode).
+    /// `PARALEAN_LEAN` (`fork` selects fork mode). The sandbox is always on.
+    /// `PARALEAN_CHECKER_CGROUP=off` is the explicit opt-out of the cgroup layer for hosts
+    /// without delegated cgroup v2 controllers; any value other than `on`/`off` is an error.
     pub fn from_env() -> Result<CheckerConfig, String> {
         let bin = PathBuf::from(std::env::var("PARALEAN_BIN").map_err(|_| "PARALEAN_BIN not set (source impl/p3/scripts/env.sh)")?);
         let mode = if std::env::var("PARALEAN_LEAN").as_deref() == Ok("fork") { "fork" } else { "stock" };
+        let cgroup = match std::env::var("PARALEAN_CHECKER_CGROUP").as_deref() {
+            Err(_) | Ok("on") => true,
+            Ok("off") => false,
+            Ok(other) => return Err(format!("PARALEAN_CHECKER_CGROUP must be on or off, not {other:?}")),
+        };
         Ok(CheckerConfig {
             bin,
             mode: mode.into(),
@@ -56,8 +94,21 @@ impl CheckerConfig {
                 env
             },
             default_memory_mb: 4096,
-            sandbox: true,
+            sandbox: !cfg!(feature = "mutate-checker-config-unsandboxed"),
+            cgroup,
+            max_tasks: DEFAULT_MAX_TASKS,
+            bwrap: PathBuf::from("/usr/bin/bwrap"),
+            systemd_run: PathBuf::from("/usr/bin/systemd-run"),
         })
+    }
+
+    /// A sandboxed configuration for `bin` with the production limits (tests, tools).
+    pub fn sandboxed(bin: PathBuf, lean_githash: &str) -> CheckerConfig {
+        CheckerConfig {
+            bin, mode: "stock".into(), lean_githash: lean_githash.into(), env: vec![],
+            default_memory_mb: 4096, sandbox: true, cgroup: true, max_tasks: DEFAULT_MAX_TASKS,
+            bwrap: PathBuf::from("/usr/bin/bwrap"), systemd_run: PathBuf::from("/usr/bin/systemd-run"),
+        }
     }
 
     /// The checker version this configuration produces (its ID goes into receipts).
@@ -79,13 +130,33 @@ impl CheckerConfig {
     }
 }
 
+/// A prepared checker process: the command, the seccomp program it must inherit and the
+/// transient scope it runs in.
+struct Launch {
+    cmd: Command,
+    seccomp: Option<OwnedFd>,
+    scope: Option<String>,
+}
+
+/// Runs in the new scope before Bubblewrap: refuse to start the checker unless the scope's
+/// memory, swap and task limits are the requested ones. systemd silently ignores limits
+/// whose controller is not delegated; this makes that a setup failure, not an unlimited run.
+const SCOPE_PREAMBLE: &str = r#"p=; while IFS= read -r l; do case $l in 0::*) p=${l#0::};; esac; done < /proc/self/cgroup
+d=/sys/fs/cgroup$p; m=; s=; t=
+read -r m < "$d/memory.max" && read -r s < "$d/memory.swap.max" && read -r t < "$d/pids.max" || { echo "paralean-scope: cannot read cgroup limits of $d" >&2; exit 125; }
+[ "$m" = "$1" ] && [ "$s" = 0 ] && [ "$t" = "$2" ] || { echo "paralean-scope: cgroup limits not applied ($m $s $t)" >&2; exit 125; }
+shift 2; exec "$@""#;
+
 /// Construct a process with an empty mount tree. Only the toolchain, checker,
-/// declared Lean imports, system runtime and this job's scratch store are visible.
+/// declared Lean imports, system runtime and this job's input store are visible.
 /// The caller supplies checker arguments after this function returns.
-fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path) -> Result<(Command, Option<OwnedFd>), NoVerdict> {
-    if !sandbox_active(cfg) { return Ok((Command::new(bin), None)); }
-    let store = store.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox scratch: {e}")))?;
-    if !store.is_dir() { return Err(NoVerdict::Crashed("sandbox scratch is not a directory".into())); }
+fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path, memory_mb: u64) -> Result<Launch, NoVerdict> {
+    if !sandbox_active(cfg) { return Ok(Launch { cmd: Command::new(bin), seccomp: None, scope: None }); }
+    if cfg!(feature = "mutate-checker-fallback-unsandboxed") && !cfg.bwrap.is_file() {
+        return Ok(Launch { cmd: Command::new(bin), seccomp: None, scope: None });
+    }
+    let store = store.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox input store: {e}")))?;
+    if !store.is_dir() { return Err(NoVerdict::Crashed("sandbox input store is not a directory".into())); }
     let bin = bin.canonicalize().map_err(|e| NoVerdict::Crashed(format!("sandbox checker: {e}")))?;
     let prefix = std::env::var("PARALEAN_SYSROOT").ok().map(PathBuf::from).unwrap_or_else(|| {
         std::process::Command::new("lean").arg("--print-prefix").output()
@@ -95,21 +166,39 @@ fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path) -> Result<(Com
     if !prefix.join("bin/lean").is_file() || !prefix.join("bin/lake").is_file() {
         return Err(NoVerdict::Crashed("sandbox Lean sysroot has no lean/lake".into()));
     }
-    let mut cmd = Command::new("/usr/bin/bwrap");
+    let scope = sandbox_scope(cfg).then(|| format!("paralean-checker-{}", hex::encode(rand::random::<[u8; 8]>())));
+    let mut cmd = match &scope {
+        Some(unit) => {
+            let memory = memory_mb.max(1).saturating_mul(1 << 20);
+            let mut cmd = Command::new(&cfg.systemd_run);
+            cmd.args(["--user", "--scope", "--quiet", "--unit", unit])
+                .arg("-p").arg(format!("MemoryMax={memory}"))
+                .args(["-p", "MemorySwapMax=0", "-p", "OOMPolicy=kill"])
+                .arg("-p").arg(format!("TasksMax={}", cfg.max_tasks))
+                .args(["--", "/bin/sh", "-c", SCOPE_PREAMBLE, "paralean-scope"])
+                .arg(memory.to_string()).arg(cfg.max_tasks.to_string())
+                .arg(&cfg.bwrap);
+            if std::env::var_os("XDG_RUNTIME_DIR").is_none() {
+                cmd.env("XDG_RUNTIME_DIR", format!("/run/user/{}", unsafe { libc::getuid() }));
+            }
+            cmd
+        }
+        None => Command::new(&cfg.bwrap),
+    };
+    let scratch = if cfg!(feature = "mutate-no-checker-disk-limit") { 1u64 << 30 } else { SCRATCH_BYTES }.to_string();
     cmd.args(["--unshare-user", "--unshare-pid", "--unshare-net", "--unshare-ipc", "--unshare-uts",
         "--cap-drop", "ALL",
         "--disable-userns", "--die-with-parent", "--clearenv", "--proc", "/proc", "--dev", "/dev",
-        "--size", "268435456", "--tmpfs", "/tmp"]);
+        "--size", &scratch, "--tmpfs", "/tmp"]);
     let seccomp = if cfg!(feature = "mutate-no-checker-seccomp") { None } else { Some(seccomp_filter()?) };
     if let Some(fd) = &seccomp { cmd.arg("--seccomp").arg(fd.as_raw_fd().to_string()); }
     for path in ["/usr", "/bin", "/lib", "/lib64"] {
         if Path::new(path).exists() { cmd.args(["--ro-bind", path, path]); }
     }
     if Path::new("/etc/ld.so.cache").is_file() { cmd.args(["--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache"]); }
-    // Copy the small, verified input store into a size-capped private tmpfs.
-    // Native initializers may write under /work, but never into host scratch.
-    cmd.args(["--ro-bind", store.to_str().unwrap(), "/input",
-        "--size", if cfg!(feature = "mutate-no-checker-disk-limit") { "1073741824" } else { "268435456" }, "--tmpfs", "/work"]);
+    // The verified input store is read-only; the checker works on a copy in a size-capped
+    // private tmpfs. Native initializers may write under /work, never into host files.
+    cmd.args(["--ro-bind", store.to_str().unwrap(), "/input", "--size", &scratch, "--tmpfs", "/work"]);
     let mut mounts = vec![prefix.clone()];
     mounts.push(bin.clone());
     for key in ["PARALEAN_LIB", "PARALEAN_MATHLIB"] {
@@ -140,42 +229,66 @@ fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path) -> Result<(Com
     for (key, value) in &cfg.env {
         if key == "LEAN_NUM_THREADS" { cmd.args(["--setenv", key, value]); }
     }
+    let nproc = format!("cp -R /input/. /work/ && exec /usr/bin/prlimit --nproc={MAX_PROCS}:{MAX_PROCS} -- \"$@\"");
     cmd.args(["--chdir", "/work", "--", "/bin/sh", "-c",
-        if cfg!(feature = "mutate-no-checker-process-limit") {
-            "cp -R /input/. /work/ && exec \"$@\""
-        } else {
-            "cp -R /input/. /work/ && exec /usr/bin/prlimit --nproc=64:64 -- \"$@\""
-        }, "sandbox-checker"]);
+        if cfg!(feature = "mutate-no-checker-process-limit") { "cp -R /input/. /work/ && exec \"$@\"" } else { &nproc },
+        "sandbox-checker"]);
     cmd.arg(bin);
-    Ok((cmd, seccomp))
+    Ok(Launch { cmd, seccomp, scope })
 }
 
+/// The seccomp program (x86_64 only; other architectures fail closed). Denied with EPERM:
+/// sockets and network calls, mounts (old and new API), namespaces, tracing and
+/// cross-process memory access, BPF/perf, kernel keyrings, file handles, session/process
+/// group changes (the validator kills the checker by process group), pidfds, io_uring,
+/// userfaultfd, module/kexec/reboot/swap/accounting/quota/port-I/O and `syslog`, and the
+/// terminal-injection ioctls TIOCSTI and TIOCLINUX. Non-x86_64 syscall ABIs kill the process.
+/// `clone`/`clone3` are allowed (threads need them); new namespaces are prevented by
+/// `--cap-drop ALL` and `--disable-userns` instead, since `clone3` flags are behind a
+/// pointer a filter cannot read.
 #[cfg(target_arch = "x86_64")]
 fn seccomp_filter() -> Result<OwnedFd, NoVerdict> {
     use libc::sock_filter as F;
     let stmt = |code, k| F { code, jt: 0, jf: 0, k };
     let jump = |k| F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 0, jf: 1, k };
     let deny = stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_ERRNO | libc::EPERM as u32);
+    let allow = stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_ALLOW);
+    let load = |offset| stmt((libc::BPF_LD | libc::BPF_W | libc::BPF_ABS) as u16, offset);
     let mut rules = vec![
-        stmt((libc::BPF_LD | libc::BPF_W | libc::BPF_ABS) as u16, 4),
+        load(4),
         F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 1, jf: 0, k: 0xc000003e },
         stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_KILL_PROCESS),
-        stmt((libc::BPF_LD | libc::BPF_W | libc::BPF_ABS) as u16, 0),
+        load(0),
         F { code: (libc::BPF_JMP | libc::BPF_JSET | libc::BPF_K) as u16, jt: 0, jf: 1, k: 0x40000000 },
         deny,
     ];
-    for syscall in [libc::SYS_socket, libc::SYS_connect, libc::SYS_bind, libc::SYS_listen,
+    let mut denied = vec![libc::SYS_socket, libc::SYS_socketpair, libc::SYS_connect, libc::SYS_bind, libc::SYS_listen,
         libc::SYS_accept, libc::SYS_accept4, libc::SYS_sendto, libc::SYS_mount,
-        libc::SYS_umount2, libc::SYS_pivot_root, libc::SYS_ptrace, libc::SYS_process_vm_readv,
+        libc::SYS_umount2, libc::SYS_pivot_root, libc::SYS_chroot, libc::SYS_ptrace, libc::SYS_process_vm_readv,
         libc::SYS_process_vm_writev, libc::SYS_bpf, libc::SYS_perf_event_open,
         libc::SYS_keyctl, libc::SYS_add_key, libc::SYS_request_key, libc::SYS_setns,
-        libc::SYS_unshare, libc::SYS_open_by_handle_at, libc::SYS_setsid,
+        libc::SYS_unshare, libc::SYS_open_by_handle_at, libc::SYS_name_to_handle_at, libc::SYS_setsid,
         libc::SYS_setpgid, libc::SYS_pidfd_open, libc::SYS_pidfd_getfd,
-        libc::SYS_pidfd_send_signal] {
+        libc::SYS_pidfd_send_signal, libc::SYS_open_tree, libc::SYS_move_mount, libc::SYS_fsopen,
+        libc::SYS_fsconfig, libc::SYS_fsmount, libc::SYS_fspick, libc::SYS_mount_setattr,
+        libc::SYS_userfaultfd, libc::SYS_init_module, libc::SYS_finit_module, libc::SYS_delete_module,
+        libc::SYS_kexec_load, libc::SYS_kexec_file_load, libc::SYS_reboot, libc::SYS_swapon,
+        libc::SYS_swapoff, libc::SYS_acct, libc::SYS_quotactl, libc::SYS_iopl, libc::SYS_ioperm,
+        libc::SYS_syslog];
+    if !cfg!(feature = "mutate-checker-seccomp-allows-io-uring") {
+        denied.extend([libc::SYS_io_uring_setup, libc::SYS_io_uring_enter, libc::SYS_io_uring_register]);
+    }
+    for syscall in denied {
         rules.push(jump(syscall as u32));
         rules.push(deny);
     }
-    rules.push(stmt((libc::BPF_RET | libc::BPF_K) as u16, libc::SECCOMP_RET_ALLOW));
+    // ioctl(fd, TIOCSTI | TIOCLINUX, ...): compare the low word of the request argument.
+    rules.push(F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 0, jf: 4, k: libc::SYS_ioctl as u32 });
+    rules.push(load(24));
+    rules.push(F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 1, jf: 0, k: libc::TIOCSTI as u32 });
+    rules.push(F { code: (libc::BPF_JMP | libc::BPF_JEQ | libc::BPF_K) as u16, jt: 0, jf: 1, k: libc::TIOCLINUX as u32 });
+    rules.push(deny);
+    rules.push(allow);
     let name = b"paralean-seccomp\0";
     let fd = unsafe { libc::memfd_create(name.as_ptr().cast(), 0) };
     if fd < 0 { return Err(NoVerdict::Crashed(format!("seccomp memfd: {}", std::io::Error::last_os_error()))); }
@@ -197,15 +310,49 @@ fn sandbox_active(cfg: &CheckerConfig) -> bool {
     cfg.sandbox && !cfg!(feature = "mutate-no-checker-sandbox")
 }
 
+fn sandbox_scope(cfg: &CheckerConfig) -> bool {
+    sandbox_active(cfg) && cfg.cgroup && !cfg!(feature = "mutate-no-checker-cgroup")
+}
+
+/// After a checker ended without a verdict: whether its scope was OOM-killed. Also clears
+/// the failed unit so systemd does not keep it. systemd finalises the scope's `Result`
+/// slightly after the child dies, so this polls briefly for a definite outcome.
+fn scope_oom_killed(unit: &str) -> bool {
+    let unit = format!("{unit}.scope");
+    // `Result` is only final once the scope has deactivated, so gate on `ActiveState`.
+    let query = || -> (String, String) {
+        let out = std::process::Command::new("systemctl").args(["--user", "show", "-p", "ActiveState", "-p", "Result", &unit])
+            .stdin(Stdio::null()).stderr(Stdio::null()).output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned()).unwrap_or_default();
+        let field = |k: &str| out.lines().find_map(|l| l.strip_prefix(k)).unwrap_or("").to_string();
+        (field("ActiveState="), field("Result="))
+    };
+    let mut result = String::new();
+    for _ in 0..80 {
+        let (state, r) = query();
+        result = r;
+        // A missing or deactivated unit has a final Result; active/deactivating does not.
+        if state.is_empty() || state == "inactive" || state == "failed" { break; }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    if !result.is_empty() && result != "success" {
+        let _ = std::process::Command::new("systemctl").args(["--user", "reset-failed", &unit])
+            .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+    }
+    result == "oom-kill"
+}
+
 fn limit_child(cmd: &mut Command, deadline: Duration, seccomp_fd: Option<i32>) {
     let cpu = deadline.as_secs().saturating_add(2).max(2);
+    let fsize = if cfg!(feature = "mutate-no-checker-fsize-limit") { libc::RLIM_INFINITY } else { MAX_FILE_BYTES };
     unsafe {
         cmd.pre_exec(move || {
             for (resource, value) in [
                 (libc::RLIMIT_CPU, if cfg!(feature = "mutate-no-checker-cpu-limit") { libc::RLIM_INFINITY } else { cpu }),
-                (libc::RLIMIT_FSIZE, 512 * 1024 * 1024),
+                (libc::RLIMIT_FSIZE, fsize),
                 (libc::RLIMIT_NOFILE, 256),
                 (libc::RLIMIT_CORE, 0),
+                // A backstop only; see the module comment.
                 (libc::RLIMIT_AS, 16 * 1024 * 1024 * 1024),
             ] {
                 let lim = libc::rlimit { rlim_cur: value, rlim_max: value };
@@ -298,6 +445,7 @@ struct WarmProcess {
     input: tokio::process::ChildStdin,
     output: tokio::io::BufReader<tokio::process::ChildStdout>,
     pgid: i32,
+    scope: Option<String>,
 }
 
 impl Drop for WarmProcess {
@@ -320,17 +468,18 @@ impl WarmPool {
             Some(p) => p,
             None => {
                 let bin = cfg.warm_bin().ok_or_else(|| NoVerdict::Crashed("no warm checker configured".into()))?;
-                let (mut command, _seccomp) = checker_command(cfg, store, Path::new(bin))?;
+                let Launch { cmd: mut command, seccomp, scope } = checker_command(cfg, store, Path::new(bin), memory_mb)?;
                 command.envs(cfg.env.iter().cloned())
                     .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::null())
                     .process_group(0).kill_on_drop(true);
-                limit_child(&mut command, deadline, _seccomp.as_ref().map(AsRawFd::as_raw_fd));
+                limit_child(&mut command, deadline, seccomp.as_ref().map(AsRawFd::as_raw_fd));
                 let mut child = command.spawn()
                     .map_err(|e| NoVerdict::Crashed(format!("spawn {bin}: {e}")))?;
+                drop(seccomp);
                 let pgid = child.id().unwrap_or(0) as i32;
                 self.spawned.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 WarmProcess { input: child.stdin.take().unwrap(),
-                    output: tokio::io::BufReader::new(child.stdout.take().unwrap()), child, pgid }
+                    output: tokio::io::BufReader::new(child.stdout.take().unwrap()), child, pgid, scope }
             }
         };
         // stdout also contains output from checked Lean commands. Bind the transport
@@ -346,7 +495,7 @@ impl WarmPool {
         let mut bytes = serde_json::to_vec(&request).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
         bytes.push(b'\n');
         let pgid = proc.pgid;
-        let initial_bytes = if sandbox_active(cfg) { scratch_bytes(store) } else { 0 };
+        let mut peak_kb = 0u64;
         let result = {
         let operation = async {
             proc.input.write_all(&bytes).await.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
@@ -380,28 +529,29 @@ impl WarmPool {
                 _ = tick.tick() => {
                     if !cfg!(feature = "mutate-no-checker-cpu-limit") && start.elapsed() >= deadline { break Err(NoVerdict::Timeout); }
                     let rss = group_rss_kb(pgid);
+                    peak_kb = peak_kb.max(rss);
                     self.peak_rss_kb.fetch_max(rss, std::sync::atomic::Ordering::Relaxed);
                     if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > memory_mb.max(1).saturating_mul(1024) {
                         break Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 });
-                    }
-                    if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
-                        break Err(NoVerdict::Disk);
                     }
                 },
                 r = cancel.changed() => if r.is_err() || *cancel.borrow() { break Err(NoVerdict::Cancelled); }
             }
         }
         };
-        let result = if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
-            Err(NoVerdict::Disk)
-        } else { result };
+        // A sandboxed process is single-use: once it has run one package's code it must not
+        // judge another package. Only unsandboxed (test) processes return to the pool.
         if result.is_ok() && !sandbox_active(cfg) {
             self.idle.lock().unwrap().push(proc);
-        } else {
-            kill_group(pgid);
-            let _ = proc.child.wait().await;
+            return result;
         }
-        result
+        kill_group(pgid);
+        let _ = proc.child.wait().await;
+        match proc.scope.take() {
+            Some(unit) if scope_oom_killed(&unit) && result.is_err() && !matches!(result, Err(NoVerdict::Cancelled)) =>
+                Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024 }),
+            _ => result,
+        }
     }
 }
 
@@ -411,7 +561,6 @@ pub enum NoVerdict {
     Timeout,
     Memory { limit_mb: u64, peak_mb: u64 },
     Cancelled,
-    Disk,
     Output,
     Crashed(String),
 }
@@ -422,7 +571,6 @@ impl std::fmt::Display for NoVerdict {
             NoVerdict::Timeout => write!(f, "deadline passed"),
             NoVerdict::Memory { limit_mb, peak_mb } => write!(f, "memory limit {limit_mb} MiB exceeded ({peak_mb} MiB resident)"),
             NoVerdict::Cancelled => write!(f, "cancelled"),
-            NoVerdict::Disk => write!(f, "checker scratch disk limit exceeded"),
             NoVerdict::Output => write!(f, "checker output limit exceeded"),
             NoVerdict::Crashed(s) => write!(f, "checker crashed: {s}"),
         }
@@ -447,7 +595,7 @@ pub async fn run(
     mut cancel: watch::Receiver<bool>,
 ) -> Result<CheckOutcome, NoVerdict> {
     let targets_arg: Vec<String> = targets.iter().map(|t| format!("{}={}", t.name, t.statement)).collect();
-    let (mut cmd, _seccomp) = checker_command(cfg, store, &cfg.bin)?;
+    let Launch { mut cmd, seccomp, scope } = checker_command(cfg, store, &cfg.bin, memory_mb)?;
     cmd.arg("check-group").arg("--store").arg(if sandbox_active(cfg) { Path::new("/work") } else { store }).arg("--gids").arg(gids.join(",")).arg("--decl").arg(decl);
     if !targets_arg.is_empty() {
         cmd.arg("--targets").arg(targets_arg.join(","));
@@ -458,25 +606,26 @@ pub async fn run(
         .stderr(Stdio::piped())
         .process_group(0)
         .kill_on_drop(true);
-    limit_child(&mut cmd, deadline, _seccomp.as_ref().map(AsRawFd::as_raw_fd));
-    let mut child = cmd.spawn().map_err(|e| NoVerdict::Crashed(format!("spawn {}: {e}", cfg.bin.display())))?;
+    limit_child(&mut cmd, deadline, seccomp.as_ref().map(AsRawFd::as_raw_fd));
+    // A missing or failing sandbox is a setup failure; there is no direct fallback.
+    let mut child = cmd.spawn().map_err(|e| NoVerdict::Crashed(format!("spawn checker {}: {e}", cfg.bin.display())))?;
+    drop(seccomp);
     let pgid = child.id().unwrap_or(0) as i32;
     let mut stdout = child.stdout.take().expect("piped");
     let mut stderr = child.stderr.take().expect("piped");
     let mut out_task = tokio::spawn(async move {
         let mut bytes = Vec::new();
-        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { (1 << 20) + 1 };
+        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { MAX_OUTPUT_BYTES as u64 + 1 };
         let _ = (&mut stdout).take(cap).read_to_end(&mut bytes).await;
         bytes
     });
     let mut err_task = tokio::spawn(async move {
         let mut bytes = Vec::new();
-        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { (1 << 20) + 1 };
+        let cap = if cfg!(feature = "mutate-unbounded-checker-output") { u64::MAX } else { MAX_OUTPUT_BYTES as u64 + 1 };
         let _ = (&mut stderr).take(cap).read_to_end(&mut bytes).await;
         bytes
     });
     let limit_kb = memory_mb.max(1).saturating_mul(1024);
-    let initial_bytes = if sandbox_active(cfg) { scratch_bytes(store) } else { 0 };
     let start = Instant::now();
     let mut peak_kb = 0u64;
     let mut tick = tokio::time::interval(Duration::from_millis(50));
@@ -486,14 +635,21 @@ pub async fn run(
         tokio::select! {
             st = child.wait() => {
                 let st = st.map_err(|e| NoVerdict::Crashed(e.to_string()))?;
+                if !st.success() {
+                    if let Some(unit) = &scope {
+                        // OOMPolicy=kill: an OOM kill takes the whole scope, so a checker
+                        // that exited successfully was never OOM-killed.
+                        if scope_oom_killed(unit) {
+                            kill_group(pgid);
+                            return Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024 });
+                        }
+                    }
+                }
                 let out = match captured_out { Some(bytes) => bytes, None => out_task.await.unwrap_or_default() };
                 let err = match captured_err { Some(bytes) => bytes, None => err_task.await.unwrap_or_default() };
-                if !cfg!(feature = "mutate-unbounded-checker-output") && (out.len() > 1 << 20 || err.len() > 1 << 20) { return Err(NoVerdict::Output); }
+                if !cfg!(feature = "mutate-unbounded-checker-output") && (out.len() > MAX_OUTPUT_BYTES || err.len() > MAX_OUTPUT_BYTES) { return Err(NoVerdict::Output); }
                 let out = String::from_utf8_lossy(&out);
                 let err = String::from_utf8_lossy(&err);
-                if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
-                    return Err(NoVerdict::Disk);
-                }
                 let Some(line) = out.lines().rev().find_map(|l| l.strip_prefix("CHECK ")) else {
                     return Err(NoVerdict::Crashed(format!("{st}: {}", err.lines().last().unwrap_or(""))));
                 };
@@ -505,12 +661,12 @@ pub async fn run(
             }
             bytes = &mut out_task, if captured_out.is_none() => {
                 let bytes = bytes.unwrap_or_default();
-                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > 1 << 20 { break NoVerdict::Output; }
+                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > MAX_OUTPUT_BYTES { break NoVerdict::Output; }
                 captured_out = Some(bytes);
             }
             bytes = &mut err_task, if captured_err.is_none() => {
                 let bytes = bytes.unwrap_or_default();
-                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > 1 << 20 { break NoVerdict::Output; }
+                if !cfg!(feature = "mutate-unbounded-checker-output") && bytes.len() > MAX_OUTPUT_BYTES { break NoVerdict::Output; }
                 captured_err = Some(bytes);
             }
             _ = tick.tick() => {
@@ -522,9 +678,6 @@ pub async fn run(
                 if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > limit_kb {
                     break NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 };
                 }
-                if sandbox_active(cfg) && scratch_bytes(store).saturating_sub(initial_bytes) > 256 << 20 {
-                    break NoVerdict::Disk;
-                }
             }
             r = cancel.changed() => {
                 if r.is_err() || *cancel.borrow() {
@@ -535,21 +688,9 @@ pub async fn run(
     };
     kill_group(pgid);
     let _ = child.wait().await;
+    // The reason is already known; this clears a failed scope unit.
+    if let Some(unit) = &scope { scope_oom_killed(unit); }
     Err(fail)
-}
-
-fn scratch_bytes(path: &Path) -> u64 {
-    let mut total: u64 = 0;
-    let mut dirs = vec![path.to_path_buf()];
-    while let Some(dir) = dirs.pop() {
-        let Ok(entries) = std::fs::read_dir(dir) else { continue };
-        for entry in entries.flatten() {
-            let Ok(meta) = entry.path().symlink_metadata() else { continue };
-            if meta.is_dir() { dirs.push(entry.path()); }
-            else { total = total.saturating_add(meta.len()); }
-        }
-    }
-    total
 }
 
 fn kill_group(pgid: i32) {
