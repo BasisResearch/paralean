@@ -7,13 +7,16 @@ mod common;
 
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use ae_wire::{Identity, Limits, Peer};
 use ed25519_dalek::SigningKey;
 use paralean_ae_service::protocol::{Request, Response};
 use paralean_ae_service::{schedule, serve, Endpoint, Puller};
-use paralean_store::ae::{AeKind, AePart, AePending, PendingState};
+use paralean_store::ae::{AeEvent, AeKind, AePart, AePending, PendingState};
+use paralean_store::antientropy::Outcome;
 use paralean_store::antientropy::published_set;
 use paralean_store::pce::Pce;
 use paralean_store::*;
@@ -1329,4 +1332,208 @@ async fn chunked_group_fetches_deduplicated_chunk_and_retries_missing_source() {
         a.w[0].publish(&invalid).await.is_err(),
         "declared chunk length must be checked before T1"
     );
+}
+
+// ---------------------------------------------------------------------------------------
+// W2 A-2 and A-12: a malicious but authenticated federation member.
+
+/// W2 A-2, federated: the pinned local member's controller signed a job and then
+/// cancelled its request. A group item hand-built from the worker's receipt and the
+/// worker's own certificate on the local replica is rejected by T9 at that deployment.
+#[tokio::test]
+async fn federated_import_rejects_a_cancelled_local_request() {
+    let net = Net::new("net-cancelled", None).await;
+    let a = &net.envs[0];
+    let p = a.plain_package(0, "Net.cancelled", "cancelled");
+    assert!(a.store.meta.cancel_job(&p.job.body.request).await.unwrap());
+    assert!(a.w[0].publish(&p).await.is_err(), "T1 reads the cancellation");
+    let cert = Cert::sign(
+        CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[0].id },
+        a.w[0].signer(),
+    );
+    let item = paralean_store::antientropy::Item::Group {
+        marker: p.marker.preimage(),
+        revisions: p.revisions.iter().map(|r| r.preimage()).collect(),
+        receipt: p.receipt.to_bytes(),
+        job: p.job.to_bytes(),
+        certs: vec![cert.to_bytes()],
+    };
+    let o = paralean_store::antientropy::import(&a.w[SYNC], &item).await.unwrap();
+    assert!(matches!(&o, Outcome::Rejected(why) if why.contains("cancelled")), "{o:?}");
+    assert!(a.store.marker(&p.group.id()).await.unwrap().is_none());
+}
+
+#[derive(Clone, Copy)]
+enum Hostile {
+    /// One event whose materialization never completes.
+    EndlessParts,
+    /// One complete event listing `refs` ObjectRefs of 64 MiB each.
+    HugeRefs { refs: u64 },
+    /// `events` events of 64 such references each (4 GiB, within the per-event cap).
+    ManyEvents { events: u8 },
+}
+
+const HUGE: u64 = 64 * 1024 * 1024;
+
+fn hostile_event(i: u8) -> AeEvent {
+    AeEvent {
+        key: vec![0x42, i],
+        kind: AeKind::GroupVariant { group: Id([i; 32]), marker: Id([i ^ 0x80; 32]), cert: Id([0x55; 32]) },
+    }
+}
+
+/// Serve as deployment 0 (its pinned transport key and real Hello), but with fabricated
+/// events. Returns the address and the number of object fetches it was asked for.
+async fn hostile_peer(net: &Net, mode: Hostile) -> (SocketAddr, Arc<AtomicUsize>) {
+    let hello = net.envs[0].store.ae_identity().await.unwrap();
+    let fetches = Arc::new(AtomicUsize::new(0));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let peers: std::collections::HashMap<_, _> = net
+        .identities
+        .iter()
+        .map(|i| (i.deployment.clone(), i.signing_key.verifying_key()))
+        .collect();
+    let counter = fetches.clone();
+    let events: Vec<AeEvent> = match mode {
+        Hostile::ManyEvents { events } => (1..=events).map(hostile_event).collect(),
+        _ => vec![hostile_event(1)],
+    };
+    tokio::spawn(ae_wire::serve(listener, net.identities[0].clone(), peers, Limits::default(), move |_, payload| {
+        let (hello, counter, events) = (hello.clone(), counter.clone(), events.clone());
+        async move {
+            let response = match Request::from_pce(&payload.metadata).unwrap() {
+                Request::Hello => Response::Hello(hello.clone()),
+                Request::Changes { after, .. } => {
+                    let fresh: Vec<_> = events.iter().filter(|e| after.as_ref().is_none_or(|a| e.key > *a)).cloned().collect();
+                    let next = fresh.last().map(|e| e.key.clone()).or(after);
+                    Response::Changes(paralean_store::ae::AePage { generation: hello.generation, events: fresh, next, more: false })
+                }
+                Request::Materialize { event, after_part, .. } => {
+                    let first = after_part.map_or(0, |n| n + 1);
+                    let (parts, complete): (Vec<(u64, AePart)>, bool) = match mode {
+                        Hostile::EndlessParts => ((first..first + 127)
+                            .map(|seq| (seq, AePart::MetaFragment { kind: "marker".into(), id: Id([1; 32]), offset: 0, total: 1 << 30, bytes: vec![7; 16] }))
+                            .collect(), false),
+                        Hostile::HugeRefs { refs } => ((0..refs)
+                            .map(|seq| (seq, AePart::ObjectRef { kind: Kind::Capsule, id: Id(paralean_store::id::sha256(&seq.to_be_bytes())), length: HUGE }))
+                            .collect(), true),
+                        Hostile::ManyEvents { .. } => ((0..64u64)
+                            .map(|seq| (seq, AePart::ObjectRef { kind: Kind::Capsule, id: Id(paralean_store::id::sha256(&[&event.key[..], &seq.to_be_bytes()].concat())), length: HUGE }))
+                            .collect(), true),
+                    };
+                    let next_part = parts.last().map(|(seq, _)| *seq).or(after_part);
+                    Response::Materialize(paralean_store::ae::AeBundlePage { event_key: event.key, after_part, parts, next_part, complete })
+                }
+                Request::Fetch { kind, id, .. } => {
+                    counter.fetch_add(1, Ordering::SeqCst);
+                    Response::Missing { kind, id }
+                }
+            };
+            ae_wire::Payload { metadata: response.to_pce(), object: Vec::new() }
+        }
+    }));
+    (address, fetches)
+}
+
+async fn hostile_puller(net: &Net, address: SocketAddr) -> Puller {
+    Puller::new(
+        net.envs[1].w[SYNC].clone(),
+        net.identities[1].clone(),
+        Endpoint {
+            address,
+            peer: Peer {
+                deployment: net.identities[0].deployment.clone(),
+                verifying_key: net.identities[0].signing_key.verifying_key(),
+            },
+        },
+        Limits { timeout: Duration::from_secs(15), max_connections: 2 },
+    )
+    .await
+    .unwrap()
+}
+
+async fn staged_parts(env: &Env, source: &str, event: &AeEvent) -> usize {
+    let st = &env.store;
+    st.meta.scan(&st.meta.keys.ae_parts(source, &event.key), 1000, |_| None).await.unwrap().len()
+}
+
+/// W2 A-12. A peer that never completes an event cannot grow the receiver's FDB past
+/// the per-event part cap: the part that would pass it archives the event as terminal
+/// and clears what was staged.
+#[tokio::test]
+async fn endless_event_parts_are_capped_and_archived() {
+    let net = Net::new("net-endless-parts", None).await;
+    let source = net.identities[0].deployment.clone();
+    let (address, fetches) = hostile_peer(&net, Hostile::EndlessParts).await;
+    let mut puller = hostile_puller(&net, address).await;
+    let b = &net.envs[1];
+    let event = hostile_event(1);
+    // 8 pages of 127 parts per turn: 8192 parts are passed in the ninth turn.
+    for _ in 0..12 {
+        puller.round().await.unwrap();
+        assert!(staged_parts(b, &source, &event).await as u64 <= paralean_store::ae::MAX_EVENT_PARTS);
+    }
+    let terminal = b.store.ae_terminal_page(&source, None, 10).await.unwrap().entries;
+    assert!(
+        terminal.len() == 1 && matches!(&terminal[0].state, PendingState::Terminal(why) if why.contains("8192 parts")),
+        "{terminal:?}"
+    );
+    assert_eq!(staged_parts(b, &source, &event).await, 0, "terminal event's parts are cleared");
+    assert!(b.store.ae_pending_page(&source, None, 10).await.unwrap().entries.is_empty());
+    assert_eq!(b.store.ae_active_pending_count(&source).await.unwrap(), 0);
+    assert_eq!(fetches.load(Ordering::SeqCst), 0);
+}
+
+/// W2 A-12. Object references are capped before anything is fetched: an event whose
+/// references declare more than the per-event object cap is terminal on staging, and
+/// the receiver never asks for (or stores) any of its objects.
+#[tokio::test]
+async fn oversized_declared_objects_are_terminal_before_fetch() {
+    let net = Net::new("net-huge-refs", None).await;
+    let source = net.identities[0].deployment.clone();
+    let refs = paralean_store::ae::MAX_EVENT_OBJECT_BYTES / HUGE + 1;
+    let (address, fetches) = hostile_peer(&net, Hostile::HugeRefs { refs }).await;
+    let mut puller = hostile_puller(&net, address).await;
+    let b = &net.envs[1];
+    for _ in 0..3 {
+        puller.round().await.unwrap();
+    }
+    assert_eq!(fetches.load(Ordering::SeqCst), 0, "no object of an over-cap event is fetched");
+    let terminal = b.store.ae_terminal_page(&source, None, 10).await.unwrap().entries;
+    assert!(
+        terminal.len() == 1 && matches!(&terminal[0].state, PendingState::Terminal(why) if why.contains("GiB cap")),
+        "{terminal:?}"
+    );
+    assert_eq!(staged_parts(b, &source, &hostile_event(1)).await, 0);
+}
+
+/// W2 A-12. Events within the per-event cap are bounded per source: once the active events
+/// of one source declare `MAX_SOURCE_OBJECT_BYTES`, further references wait (retryable,
+/// nothing staged) instead of being fetched.
+#[tokio::test]
+async fn declared_objects_are_bounded_per_source() {
+    let net = Net::new("net-source-cap", None).await;
+    let source = net.identities[0].deployment.clone();
+    let per_event = 64 * HUGE;
+    let admitted = paralean_store::ae::MAX_SOURCE_OBJECT_BYTES / per_event;
+    let (address, _) = hostile_peer(&net, Hostile::ManyEvents { events: admitted as u8 + 1 }).await;
+    let mut puller = hostile_puller(&net, address).await;
+    let b = &net.envs[1];
+    for _ in 0..2 {
+        puller.round().await.unwrap();
+    }
+    let mut staged = 0u64;
+    let mut waiting = Vec::new();
+    for i in 1..=admitted as u8 + 1 {
+        let n = staged_parts(b, &source, &hostile_event(i)).await as u64;
+        staged += n * HUGE;
+        if n == 0 { waiting.push(i); }
+    }
+    assert!(staged <= paralean_store::ae::MAX_SOURCE_OBJECT_BYTES, "{staged} bytes of references staged");
+    assert_eq!(waiting.len(), 1, "exactly one event waits for the source budget: {waiting:?}");
+    let pending = b.store.ae_pending_page(&source, None, 100).await.unwrap().entries;
+    let blocked = pending.iter().find(|p| p.event.key == hostile_event(waiting[0]).key).unwrap();
+    assert!(blocked.last_error.as_deref().is_some_and(|e| e.contains("pending objects")), "{blocked:?}");
+    assert!(b.store.ae_terminal_page(&source, None, 10).await.unwrap().entries.is_empty());
 }

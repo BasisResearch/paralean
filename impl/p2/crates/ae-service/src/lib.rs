@@ -290,7 +290,9 @@ impl Puller {
         cursor: Option<Vec<u8>>,
         p: &AePending,
         parts: &[(Vec<u8>, u64, paralean_store::ae::AePart)],
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        // True when the store archived the event as terminal because a part would pass
+        // its per-event caps: nothing it names is fetched.
         self.writer
             .store
             .ae_save_progress(
@@ -302,6 +304,7 @@ impl Puller {
                 parts,
             )
             .await
+            .map(|capped| capped.contains(&p.event.key))
             .map_err(|e| e.to_string())
     }
 
@@ -357,8 +360,17 @@ impl Puller {
                     .into_iter()
                     .map(|(seq, part)| (p.event.key.clone(), seq, part))
                     .collect();
-                self.save_pending(p.generation, cursor.clone(), &p, &parts)
-                    .await?;
+                if self
+                    .save_pending(p.generation, cursor.clone(), &p, &parts)
+                    .await?
+                {
+                    eprintln!(
+                        "anti-entropy {source} event {}: over the per-event caps; archived",
+                        hex_key(&p.event.key)
+                    );
+                    stats.terminal += 1;
+                    return Ok(());
+                }
                 if page.complete {
                     break;
                 }

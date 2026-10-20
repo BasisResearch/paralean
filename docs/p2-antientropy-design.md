@@ -167,6 +167,18 @@ object cap. Chunk references have
 a 64 MiB stored-preimage limit. Inline event metadata has an 8 MiB cap and
 each materialization page emits at most 127 parts.
 
+The receiver enforces its caps when a part is first persisted, before any
+object it names is fetched (W2 A-12): at most 8,192 parts, 64 KiB per
+fragment, 8 MiB of inline metadata and 4 GiB of declared ObjectRef lengths per
+event (`ae::MAX_EVENT_*`). A part that would pass one archives the event as
+terminal in the same transaction and clears its staged parts. Declared object
+bytes of one source's active events are also capped at 32 GiB
+(`MAX_SOURCE_OBJECT_BYTES`); a part that would pass that is refused without
+effect and retried once other events of the source drain. Objects of an
+event that is later rejected stay in append-only S3; the caps bound how much
+one active event or source can cause to be fetched, not what a sequence of
+rejected events leaves behind.
+
 The Rust API boundary for the service is:
 
 ```
@@ -179,7 +191,8 @@ Store::ae_terminal_page(source, after, max_items) -> Result<AeTerminalPage>
 Store::ae_active_pending_count(source) -> Result<u64>
 Store::ae_missing_objects(source, event, after, max_items) -> Result<AeObjectPage>
 Store::ae_save_progress(source, generation, cursor,
-                        pending_upserts, pending_deletes, part_upserts) -> Result<()>
+                        pending_upserts, pending_deletes, part_upserts)
+    -> Result<Vec<eventKey>>   // events archived as terminal by the per-event caps
 Store::ae_note_error(source, event, reason) -> Result<()>
 Store::foreign_record(source, record_id) -> Result<Option<SignedRecord>>
 Store::foreign_catalogue_page(source, after, max_items) -> Result<ForeignCataloguePage>

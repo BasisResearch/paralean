@@ -74,6 +74,11 @@ mutate-unbounded-s3-read = []
 # W2 A-2: T9 omits the issuer's cancellation read / T1's dependency guard.
 mutate-receive-no-cancel-check = []
 mutate-receive-no-dep-check = []
+# W2 A-12: ae_save_progress admits parts without the per-event part/inline caps, or
+# without the per-event declared object caps, or without the per-source one.
+mutate-ae-unbounded-parts = []
+mutate-ae-unbounded-objects = []
+mutate-ae-unbounded-source = []
 
 [dev-dependencies]
 proptest = "1"

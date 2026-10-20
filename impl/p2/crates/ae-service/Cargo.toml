@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# W2 A-12 guard-removal mutations (scripts/check-w2-security.sh); never enable otherwise.
+mutate-ae-unbounded-parts = ["paralean-store/mutate-ae-unbounded-parts"]
+mutate-ae-unbounded-objects = ["paralean-store/mutate-ae-unbounded-objects"]
+mutate-ae-unbounded-source = ["paralean-store/mutate-ae-unbounded-source"]
+
 [dependencies]
 paralean-store = { path = "../store" }
 ae-wire = { path = "../ae-wire" }

@@ -25,6 +25,63 @@ const MAX_PAGE_ITEMS: usize = 128;
 const MAX_PAGE_BYTES: usize = 1024 * 1024;
 const PART_FRAGMENT: usize = 64 * 1024;
 const MAX_WIRE_OBJECT: u64 = 64 * 1024 * 1024;
+/// Per-event receiver caps, enforced when a part is first persisted (`ae_save_progress`),
+/// so before any object it names is fetched (W2 A-12). An event that would pass one is
+/// archived as terminal in the same transaction. The part and inline caps are the ones
+/// `ae_import_staged` re-checks.
+pub const MAX_EVENT_PARTS: u64 = 8192;
+pub const MAX_EVENT_INLINE_BYTES: u64 = 8 * 1024 * 1024;
+/// Total stored-preimage length of the objects one event's ObjectRefs name.
+pub const MAX_EVENT_OBJECT_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+/// Total declared object bytes of one source's active (not yet applied or archived) events.
+/// A part that would pass it is refused without effect and retried after others drain.
+pub const MAX_SOURCE_OBJECT_BYTES: u64 = 32 * 1024 * 1024 * 1024;
+
+/// Running totals of one active event's staged parts (`aepartstat/<source>/<event>`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct PartStats { parts: u64, inline: u64, objects: u64 }
+impl PartStats {
+    fn decode(v: &[u8]) -> Result<Self> {
+        let n = |i: usize| -> Result<u64> {
+            Ok(u64::from_be_bytes(v.get(i * 8..i * 8 + 8).and_then(|s| s.try_into().ok())
+                .ok_or_else(|| StoreError::Invalid("bad anti-entropy part statistics".into()))?))
+        };
+        if v.len() != 24 { return Err(StoreError::Invalid("bad anti-entropy part statistics".into())); }
+        Ok(Self { parts: n(0)?, inline: n(1)?, objects: n(2)? })
+    }
+    fn encode(&self) -> Vec<u8> {
+        [self.parts, self.inline, self.objects].iter().flat_map(|n| n.to_be_bytes()).collect()
+    }
+    /// The cap a new part `seq` would pass, if any; otherwise the totals including it.
+    fn admit(&self, seq: u64, part: &AePart) -> std::result::Result<Self, String> {
+        let mut next = *self;
+        next.parts += 1;
+        if !cfg!(feature = "mutate-ae-unbounded-parts") {
+            if seq >= MAX_EVENT_PARTS || next.parts > MAX_EVENT_PARTS {
+                return Err(format!("anti-entropy event exceeds {MAX_EVENT_PARTS} parts"));
+            }
+        }
+        match part {
+            AePart::MetaFragment { bytes, .. } | AePart::CertificateFragment { bytes, .. } => {
+                next.inline += bytes.len() as u64;
+                if !cfg!(feature = "mutate-ae-unbounded-parts") {
+                    if bytes.len() > PART_FRAGMENT { return Err("anti-entropy fragment exceeds 64 KiB".into()); }
+                    if next.inline > MAX_EVENT_INLINE_BYTES { return Err("anti-entropy event exceeds 8 MiB metadata cap".into()); }
+                }
+            }
+            AePart::ObjectRef { length, .. } => {
+                next.objects = next.objects.saturating_add(*length);
+                if !cfg!(feature = "mutate-ae-unbounded-objects") {
+                    if *length > MAX_WIRE_OBJECT { return Err("anti-entropy object reference exceeds the 64 MiB wire object cap".into()); }
+                    if next.objects > MAX_EVENT_OBJECT_BYTES {
+                        return Err(format!("anti-entropy event objects exceed the {} GiB cap", MAX_EVENT_OBJECT_BYTES >> 30));
+                    }
+                }
+            }
+        }
+        Ok(next)
+    }
+}
 
 fn format(e: &mut Enc) { e.uvarint(FORMAT); }
 fn check_format(d: &mut Dec<'_>) -> DResult<()> {
@@ -238,6 +295,8 @@ impl Keys {
     pub fn ae_count(&self, source: &str) -> Vec<u8> { self.root.pack(&("aecount", source)) }
     pub fn ae_parts(&self, source: &str, event: &[u8]) -> foundationdb::tuple::Subspace { self.root.subspace(&("aepart", source, Bytes::from(event))) }
     pub fn ae_part(&self, source: &str, event: &[u8], seq: u64) -> Vec<u8> { self.ae_parts(source, event).pack(&(seq,)) }
+    pub fn ae_part_stats(&self, source: &str, event: &[u8]) -> Vec<u8> { self.root.pack(&("aepartstat", source, Bytes::from(event))) }
+    pub fn ae_source_bytes(&self, source: &str) -> Vec<u8> { self.root.pack(&("aesourcebytes", source)) }
     pub fn xcertv(&self, kind: &str, object: &Id, cert: &Id) -> Vec<u8> { self.root.pack(&("xcertv", kind, Bytes::from(&object.0[..]), Bytes::from(&cert.0[..]))) }
     pub fn xcertvs_of(&self, kind: &str, object: &Id) -> foundationdb::tuple::Subspace { self.root.subspace(&("xcertv", kind, Bytes::from(&object.0[..]))) }
     pub fn xcatalog(&self, source: &str, id: &Id) -> Vec<u8> { self.root.pack(&("xcatalog", source, Bytes::from(&id.0[..]))) }
@@ -584,11 +643,17 @@ impl Store {
     /// Atomically persist a bounded receiver batch. The cursor never moves backwards and the
     /// generation is immutable for this peer. Terminal upserts move to a durable diagnostic
     /// archive while freeing their active pending slot and staged fragments in this transaction.
+    ///
+    /// A new part is admitted only within its event's caps (`MAX_EVENT_*`): an event that
+    /// would pass one is archived as terminal here, its staged parts cleared, and its key is
+    /// returned; nothing it names is fetched afterwards. Its pending row must be in this batch
+    /// or already stored. A part that would pass the source's `MAX_SOURCE_OBJECT_BYTES`
+    /// refuses the whole batch (retryable once other events of the source drain).
     pub async fn ae_save_progress(
         &self, source: &str, generation: Id, cursor: Option<Vec<u8>>,
         pending_upserts: &[AePending], pending_deletes: &[Vec<u8>],
         part_upserts: &[(Vec<u8>, u64, AePart)],
-    ) -> Result<()> {
+    ) -> Result<Vec<Vec<u8>>> {
         self.ae_check_source(source).await?;
         if pending_upserts.len() + pending_deletes.len() + part_upserts.len() > MAX_PAGE_ITEMS {
             return Err(StoreError::Invalid("anti-entropy progress batch too large".into()));
@@ -612,6 +677,17 @@ impl Store {
                 }
                 let count_key = keys.ae_count(&source);
                 let mut count = get(trx, &count_key).await?.map(|v| u64::from_be_bytes(v.try_into().unwrap_or([0; 8]))).unwrap_or(0);
+                let source_key = keys.ae_source_bytes(&source);
+                let mut source_bytes = get(trx, &source_key).await?.map(|v| u64::from_be_bytes(v.try_into().unwrap_or([0; 8]))).unwrap_or(0);
+                // Freeing an event's staged parts also frees its share of the source budget.
+                let release = |event: Vec<u8>| {
+                    let stats_key = keys.ae_part_stats(&source, &event);
+                    async move {
+                        let freed = get(trx, &stats_key).await?.map(|v| PartStats::decode(&v)).transpose()?.unwrap_or_default().objects;
+                        trx.clear(&stats_key);
+                        Ok::<u64, StoreError>(freed)
+                    }
+                };
                 for p in upserts.iter() {
                     let key = keys.ae_pending(&source, &p.event.key);
                     let terminal_key = keys.ae_terminal(&source, &p.event.key);
@@ -625,6 +701,7 @@ impl Store {
                         }
                         let (start, end) = keys.ae_parts(&source, &p.event.key).range();
                         trx.clear_range(&start, &end);
+                        source_bytes = source_bytes.saturating_sub(release(p.event.key.clone()).await?);
                         continue;
                     }
                     // A stale worker must not resurrect an event already archived by
@@ -641,9 +718,12 @@ impl Store {
                     if get(trx, &key).await?.is_some() { count = count.saturating_sub(1); trx.clear(&key); }
                     let (start, end) = keys.ae_parts(&source, event).range();
                     trx.clear_range(&start, &end);
+                    source_bytes = source_bytes.saturating_sub(release(event.clone()).await?);
                 }
+                let mut stats: BTreeMap<Vec<u8>, PartStats> = BTreeMap::new();
+                let mut capped: Vec<Vec<u8>> = Vec::new();
                 for (event, seq, part) in parts.iter() {
-                    if get(trx, &keys.ae_terminal(&source, event)).await?.is_some()
+                    if capped.contains(event) || get(trx, &keys.ae_terminal(&source, event)).await?.is_some()
                         || deletes.iter().any(|deleted| deleted == event) {
                         continue;
                     }
@@ -651,11 +731,53 @@ impl Store {
                     let value = part.to_pce();
                     if let Some(old) = get(trx, &key).await? {
                         if old != value { return Err(StoreError::Invalid("anti-entropy part changed during replay".into())); }
-                    } else { trx.set(&key, &value); }
+                        continue;
+                    }
+                    let current = match stats.get(event) {
+                        Some(s) => *s,
+                        None => get(trx, &keys.ae_part_stats(&source, event)).await?.map(|v| PartStats::decode(&v)).transpose()?.unwrap_or_default(),
+                    };
+                    match current.admit(*seq, part) {
+                        Ok(next) => {
+                            source_bytes = source_bytes.saturating_add(next.objects - current.objects);
+                            if source_bytes > MAX_SOURCE_OBJECT_BYTES && !cfg!(feature = "mutate-ae-unbounded-source") {
+                                return Err(StoreError::Invalid(format!(
+                                    "anti-entropy source {source} has {} GiB of pending objects; retry after its events drain",
+                                    MAX_SOURCE_OBJECT_BYTES >> 30)));
+                            }
+                            stats.insert(event.clone(), next);
+                            trx.set(&key, &value);
+                        }
+                        Err(why) => {
+                            // Archive the event as terminal now: its parts are cleared and
+                            // nothing it names is fetched.
+                            let pending_key = keys.ae_pending(&source, event);
+                            let mut entry = match upserts.iter().rev().find(|p| &p.event.key == event) {
+                                Some(p) => p.clone(),
+                                None => AePending::from_pce(&get(trx, &pending_key).await?.ok_or_else(||
+                                    StoreError::Invalid("anti-entropy parts for an event that is not pending".into()))?)?,
+                            };
+                            entry.state = PendingState::Terminal(why);
+                            let terminal_key = keys.ae_terminal(&source, event);
+                            if get(trx, &terminal_key).await?.is_none() { trx.set(&terminal_key, &entry.to_pce()); }
+                            if get(trx, &pending_key).await?.is_some() { count = count.saturating_sub(1); trx.clear(&pending_key); }
+                            let (start, end) = keys.ae_parts(&source, event).range();
+                            trx.clear_range(&start, &end);
+                            // The cached totals include the stored ones and this batch's.
+                            let stored = release(event.clone()).await?;
+                            let total = stats.remove(event).map_or(stored, |s| s.objects);
+                            source_bytes = source_bytes.saturating_sub(total);
+                            capped.push(event.clone());
+                        }
+                    }
+                }
+                for (event, s) in &stats {
+                    trx.set(&keys.ae_part_stats(&source, event), &s.encode());
                 }
                 trx.set(&count_key, &count.to_be_bytes());
+                trx.set(&source_key, &source_bytes.to_be_bytes());
                 trx.set(&ckey, &AeProgress { generation, cursor }.to_pce());
-                Ok(Step::Commit(()))
+                Ok(Step::Commit(capped))
             })
         })).await
     }
