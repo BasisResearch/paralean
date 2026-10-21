@@ -24,6 +24,13 @@
 # STRESS_WORKERS=1 there to keep at most eight active data/workload processes.
 # SKIP_BUILD=1 uses an existing debug CLI. Scoped fixtures log explicit skips
 # for anti-entropy peers and multiprocess tests when they need a separate wave.
+# CORE_DUMPS=1 (stress and beyond phases): unlimited core size, the CLI's opt-in fault
+# reporter (PARALEAN_SEGV_REPORT=1, written to w<i>.log), and a copy of each signalled
+# worker's core from $CORE_DIR (default /var/lib/apport/coredump, where this host's apport
+# keeps cores of unpackaged binaries) into $out/cores, at most $MAX_CORES.
+# PHASE=fixtures: FAST_SUITE_ARGS replaces the repeated suites' test.sh arguments (default
+# `-p paralean-store --test fixtures --test guards --test tombstones`); SLOW_SUITES lists
+# the once-run store suites (default `faults property`; empty skips them).
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
@@ -59,7 +66,7 @@ if [ -e "$out/events.log" ]; then echo "refusing to overwrite previous run at $o
 mkdir -p "$out"; rm -f "$out/stop" "$out/stop-probe" "$out/fault-command-failed"
 cd "$here/.."
 if [ "${SKIP_BUILD:-0}" != 1 ]; then cargo build -q -j 1 -p paralean-cli || exit 1; fi
-bin="$PWD/target/debug/paralean-p2"
+bin="${CLI_BIN:-$PWD/target/debug/paralean-p2}" # CLI_BIN pins a prebuilt binary (with SKIP_BUILD=1)
 [ -x "$bin" ] || { echo "missing $bin; build CLI first" >&2; exit 2; }
 proc() {
   "$here/proc.sh" "$@" >> "$out/events.log" 2>&1 && return 0
@@ -70,6 +77,21 @@ proc() {
 fdbcli() { "$PARALEAN_P2_PREFIX/bin/fdbcli" -C "$PARALEAN_FDB_CLUSTER" "$@"; }
 log() { echo "[$(date +%T)] $*" | tee -a "$out/events.log"; }
 log "phase=$phase scope=$scope fdb=$PARALEAN_FDB_PROCS garage=$PARALEAN_GARAGE_NODES workers=${STRESS_WORKERS:-6} skip_build=${SKIP_BUILD:-0} result_dir=$out"
+log "cli sha256 $(sha256sum "$bin" | cut -d' ' -f1)"
+if [ "${CORE_DUMPS:-0}" = 1 ]; then
+  ulimit -c unlimited
+  export PARALEAN_SEGV_REPORT=1
+  log "core dumps: ulimit -c $(ulimit -c), cores from ${CORE_DIR:-/var/lib/apport/coredump}"
+fi
+save_core() { # pid of a worker killed by a signal
+  [ "${CORE_DUMPS:-0}" = 1 ] || return 0
+  local core dir="${CORE_DIR:-/var/lib/apport/coredump}"
+  mkdir -p "$out/cores"
+  [ "$(ls "$out/cores" | wc -l)" -lt "${MAX_CORES:-5}" ] || return 0
+  for _ in $(seq 1 30); do core="$(ls "$dir"/core.*."$1".* 2>/dev/null | head -1)"; [ -n "$core" ] && break; sleep 1; done
+  if [ -n "$core" ]; then cp "$core" "$out/cores/core.$1" && echo "$(date +%T) core of pid $1 saved as cores/core.$1 ($core)" >> "$out/cores.log"
+  else echo "$(date +%T) no core for pid $1 in $dir" >> "$out/cores.log"; fi
+}
 export PARALEAN_DEPLOYMENT="faults-$phase-$(date +%s)"
 export PARALEAN_KEYS="$out/keys.json"
 "$bin" keys init "$PARALEAN_KEYS" --demo --workspaces 6 >/dev/null
@@ -107,8 +129,13 @@ workers() { # n ops-per-round fault-p
   for w in $(seq 0 $(($1 - 1))); do
     ( seed=$((w * 1000 + 1))
       while [ ! -f "$out/stop" ]; do
-        "$bin" stress --worker "$w" --ops "$2" --seed "$seed" --fault-p "$3" --ack-log "$out/acks-$w.log" >> "$out/w$w.log" 2>&1
-        rc=$?; [ $rc -eq 0 ] || echo "$(date +%T) round seed $seed exit $rc" >> "$out/w$w.err"
+        "$bin" stress --worker "$w" --ops "$2" --seed "$seed" --fault-p "$3" --ack-log "$out/acks-$w.log" >> "$out/w$w.log" 2>&1 &
+        cpid=$!; wait "$cpid"; rc=$?
+        echo "$(date +%T) seed $seed pid $cpid exit $rc" >> "$out/w$w.rounds"
+        if [ $rc -ne 0 ]; then
+          echo "$(date +%T) round seed $seed exit $rc (pid $cpid)" >> "$out/w$w.err"
+          [ $rc -lt 128 ] || save_core "$cpid"
+        fi
         seed=$((seed + 1))
       done ) &
     wpids+=($!)
@@ -260,11 +287,12 @@ fixtures)
   # The fixture, guard and tombstone suites take seconds; repeat them so faults land inside.
   rounds="${FIXTURE_ROUNDS:-20}"
   for r in $(seq 1 "$rounds"); do
-    "$here/test.sh" -p paralean-store --test fixtures --test guards --test tombstones >> "$out/tests.log" 2>&1 \
+    # shellcheck disable=SC2086
+    "$here/test.sh" ${FAST_SUITE_ARGS:--p paralean-store --test fixtures --test guards --test tombstones} >> "$out/tests.log" 2>&1 \
       || { rc=1; log "fast suites round $r FAILED"; }
   done
   log "fast suites: $rounds rounds done"
-  store_tests=(faults property)
+  read -r -a store_tests <<< "${SLOW_SUITES-faults property}"
   if [ "${SKIP_AE:-0}" = 1 ] || [ "$scope" = fdb ]; then
     log 'SKIP antientropy test during this fault scope; run separately with a bounded peer'
   else
@@ -272,8 +300,12 @@ fixtures)
   fi
   test_args=()
   for t in "${store_tests[@]}"; do test_args+=(--test "$t"); done
-  PROPTEST_CASES="${PROPTEST_CASES:-8}" "$here/test.sh" -p paralean-store "${test_args[@]}" \
-    >> "$out/tests.log" 2>&1 || rc=1
+  if [ "${#test_args[@]}" -gt 0 ]; then
+    PROPTEST_CASES="${PROPTEST_CASES:-8}" "$here/test.sh" -p paralean-store "${test_args[@]}" \
+      >> "$out/tests.log" 2>&1 || rc=1
+  else
+    log 'SKIP once-run store suites (SLOW_SUITES empty)'
+  fi
   if [ "${SKIP_MULTIPROCESS:-0}" = 1 ] || [ "$scope" != combined ]; then
     log 'SKIP multiprocess test during this fault scope; run separately with a bounded wave'
   else

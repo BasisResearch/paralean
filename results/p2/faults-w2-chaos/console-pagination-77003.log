@@ -1,0 +1,1534 @@
+== start 2026-10-20T23:29:58Z
+HEAD 6f5cfe346ba8ea7c821cf9059b203166e0771bbf
+diff e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+untracked e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+cli 548712d0673056cadd13d95c63c944b665ba47ea9a094ad490fd61e7762cda5f
+test fixtures-5c0980e580d550d5 1e36c485f9be873b668aa93f3726f588543fa17db1aced5619a4231ab552a9b0
+test guards-b1b1242a46c4aba8 78738649b5b402e9a1e0ae764078496cff44cc8ea86188f72d4190179dc8e296
+test tombstones-7cc30b530e4c3159 cfae6a00b5a55a169933ad7735ef1251e63a81addfae544f178606e4f246c488
+test faults-b89115c960f2686b c59f5767b0931b4bac7ad2fc8f868ba00cfb0ce695376fe32285d73294eb9a7e
+test property-fa9e5090d37057ce d02bd1fe358e378d620201db923dd157e3de6ae3ac86c7f1a432920c8beaee25
+[23:29:59] phase=fixtures scope=fdb fdb=6 garage=1 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/scripts/../../../results/p2/faults-w2-chaos/fdb/fixtures/20261020T232959Z-1106477
+[23:29:59] cli sha256 548712d0673056cadd13d95c63c944b665ba47ea9a094ad490fd61e7762cda5f
+[23:29:59] writes ok and fault tolerance >= 2 after 0 s
+[23:30:04] garage nodes up: 1 of 1
+[23:30:04] fixture chaos seed=77003
+[23:30:04] FAULT kill fdbserver-2
+[23:30:04] running the test suite under chaos
+[23:30:15] writes ok and fault tolerance >= 2 after 3 s
+[23:30:15] FAULT pause fdbserver-1
+[23:30:24] writes ok and fault tolerance >= 2 after 1 s
+[23:30:24] FAULT partition fdbserver-5
+[23:30:33] writes ok and fault tolerance >= 2 after 1 s
+[23:30:33] FAULT kill fdbserver-5, partition fdbserver-3
+[23:31:10] writes ok and fault tolerance >= 2 after 29 s
+[23:31:10] FAULT pause fdbserver-5 and fdbserver-4
+[23:31:19] writes ok and fault tolerance >= 2 after 1 s
+[23:31:19] FAULT kill fdbserver-1
+[23:31:30] writes ok and fault tolerance >= 2 after 3 s
+[23:31:30] FAULT pause fdbserver-4
+[23:31:39] writes ok and fault tolerance >= 2 after 1 s
+[23:31:39] FAULT partition fdbserver-2
+[23:31:48] writes ok and fault tolerance >= 2 after 1 s
+[23:31:48] FAULT kill fdbserver-0, partition fdbserver-4
+[23:32:25] writes ok and fault tolerance >= 2 after 29 s
+[23:32:25] FAULT pause fdbserver-2 and fdbserver-1
+[23:32:33] writes ok and fault tolerance >= 2 after 0 s
+[23:32:33] FAULT kill fdbserver-0
+[23:32:44] writes ok and fault tolerance >= 2 after 3 s
+[23:32:44] FAULT pause fdbserver-2
+[23:32:54] writes ok and fault tolerance >= 2 after 1 s
+[23:32:54] FAULT partition fdbserver-4
+[23:33:02] writes ok and fault tolerance >= 2 after 0 s
+[23:33:02] FAULT kill fdbserver-1, partition fdbserver-3
+[23:33:12] writes ok and fault tolerance >= 2 after 2 s
+[23:33:12] FAULT pause fdbserver-2 and fdbserver-5
+[23:33:40] writes ok and fault tolerance >= 2 after 20 s
+[23:33:40] FAULT kill fdbserver-1
+[23:33:51] writes ok and fault tolerance >= 2 after 3 s
+[23:33:51] FAULT pause fdbserver-3
+[23:34:00] writes ok and fault tolerance >= 2 after 0 s
+[23:34:00] FAULT partition fdbserver-1
+[23:34:08] writes ok and fault tolerance >= 2 after 0 s
+[23:34:08] FAULT kill fdbserver-2, partition fdbserver-5
+[23:34:45] writes ok and fault tolerance >= 2 after 29 s
+[23:34:45] FAULT pause fdbserver-0 and fdbserver-3
+[23:34:53] writes ok and fault tolerance >= 2 after 0 s
+[23:34:53] FAULT kill fdbserver-1
+[23:35:05] writes ok and fault tolerance >= 2 after 3 s
+[23:35:05] FAULT pause fdbserver-1
+[23:35:13] writes ok and fault tolerance >= 2 after 0 s
+[23:35:13] FAULT partition fdbserver-2
+[23:35:22] writes ok and fault tolerance >= 2 after 1 s
+[23:35:22] FAULT kill fdbserver-3, partition fdbserver-1
+[23:35:32] writes ok and fault tolerance >= 2 after 2 s
+[23:35:32] FAULT pause fdbserver-4 and fdbserver-2
+[23:35:40] writes ok and fault tolerance >= 2 after 0 s
+[23:35:40] FAULT kill fdbserver-2
+[23:36:17] writes ok and fault tolerance >= 2 after 29 s
+[23:36:17] FAULT pause fdbserver-4
+[23:36:26] writes ok and fault tolerance >= 2 after 1 s
+[23:36:26] FAULT partition fdbserver-2
+[23:36:36] writes ok and fault tolerance >= 2 after 2 s
+[23:36:36] FAULT kill fdbserver-3, partition fdbserver-0
+[23:36:45] writes ok and fault tolerance >= 2 after 1 s
+[23:36:45] FAULT pause fdbserver-4 and fdbserver-1
+[23:37:13] writes ok and fault tolerance >= 2 after 20 s
+[23:37:13] FAULT kill fdbserver-0
+[23:37:25] writes ok and fault tolerance >= 2 after 3 s
+[23:37:25] FAULT pause fdbserver-4
+[23:37:49] writes ok and fault tolerance >= 2 after 16 s
+[23:37:49] FAULT partition fdbserver-3
+[23:37:58] writes ok and fault tolerance >= 2 after 1 s
+[23:37:59] FAULT kill fdbserver-2, partition fdbserver-3
+[23:38:07] writes ok and fault tolerance >= 2 after 0 s
+[23:38:07] FAULT pause fdbserver-5 and fdbserver-0
+[23:38:15] writes ok and fault tolerance >= 2 after 0 s
+[23:38:15] FAULT kill fdbserver-2
+[23:38:24] writes ok and fault tolerance >= 2 after 1 s
+[23:38:24] FAULT pause fdbserver-4
+[23:38:53] writes ok and fault tolerance >= 2 after 21 s
+[23:38:53] FAULT partition fdbserver-5
+[23:39:02] writes ok and fault tolerance >= 2 after 1 s
+[23:39:02] FAULT kill fdbserver-5, partition fdbserver-3
+[23:39:11] writes ok and fault tolerance >= 2 after 1 s
+[23:39:11] FAULT pause fdbserver-2 and fdbserver-1
+[23:39:19] writes ok and fault tolerance >= 2 after 0 s
+[23:39:19] FAULT kill fdbserver-2
+[23:39:56] writes ok and fault tolerance >= 2 after 29 s
+[23:39:56] FAULT pause fdbserver-4
+[23:40:04] writes ok and fault tolerance >= 2 after 0 s
+[23:40:04] FAULT partition fdbserver-3
+[23:40:13] writes ok and fault tolerance >= 2 after 1 s
+[23:40:13] FAULT kill fdbserver-1, partition fdbserver-0
+[23:40:22] writes ok and fault tolerance >= 2 after 0 s
+[23:40:22] FAULT pause fdbserver-3 and fdbserver-0
+[23:40:50] writes ok and fault tolerance >= 2 after 20 s
+[23:40:50] FAULT kill fdbserver-4
+[23:40:59] writes ok and fault tolerance >= 2 after 0 s
+[23:40:59] FAULT pause fdbserver-1
+[23:41:07] writes ok and fault tolerance >= 2 after 0 s
+[23:41:07] FAULT partition fdbserver-3
+[23:41:17] writes ok and fault tolerance >= 2 after 2 s
+[23:41:17] FAULT kill fdbserver-1, partition fdbserver-2
+[23:41:28] writes ok and fault tolerance >= 2 after 3 s
+[23:41:28] FAULT pause fdbserver-5 and fdbserver-1
+[23:41:37] writes ok and fault tolerance >= 2 after 1 s
+[23:41:37] FAULT kill fdbserver-3
+[23:42:13] writes ok and fault tolerance >= 2 after 28 s
+[23:42:14] FAULT pause fdbserver-3
+[23:42:23] writes ok and fault tolerance >= 2 after 1 s
+[23:42:23] FAULT partition fdbserver-2
+[23:42:32] writes ok and fault tolerance >= 2 after 1 s
+[23:42:32] FAULT kill fdbserver-4, partition fdbserver-1
+[23:42:42] writes ok and fault tolerance >= 2 after 2 s
+[23:42:42] FAULT pause fdbserver-0 and fdbserver-5
+[23:43:12] writes ok and fault tolerance >= 2 after 22 s
+[23:43:12] FAULT kill fdbserver-2
+[23:43:23] writes ok and fault tolerance >= 2 after 3 s
+[23:43:23] FAULT pause fdbserver-3
+[23:43:50] writes ok and fault tolerance >= 2 after 19 s
+[23:43:50] FAULT partition fdbserver-4
+[23:43:59] writes ok and fault tolerance >= 2 after 1 s
+[23:43:59] FAULT kill fdbserver-3, partition fdbserver-4
+[23:44:09] writes ok and fault tolerance >= 2 after 2 s
+[23:44:09] FAULT pause fdbserver-1 and fdbserver-0
+[23:44:36] writes ok and fault tolerance >= 2 after 19 s
+[23:44:36] FAULT kill fdbserver-0
+[23:44:48] writes ok and fault tolerance >= 2 after 4 s
+[23:44:48] FAULT pause fdbserver-2
+[23:44:57] writes ok and fault tolerance >= 2 after 1 s
+[23:44:57] FAULT partition fdbserver-2
+[23:45:07] writes ok and fault tolerance >= 2 after 2 s
+[23:45:07] FAULT kill fdbserver-2, partition fdbserver-3
+[23:45:15] writes ok and fault tolerance >= 2 after 0 s
+[23:45:15] FAULT pause fdbserver-1 and fdbserver-0
+[23:45:23] writes ok and fault tolerance >= 2 after 0 s
+[23:45:23] FAULT kill fdbserver-4
+[23:45:33] writes ok and fault tolerance >= 2 after 2 s
+[23:45:33] FAULT pause fdbserver-1
+[23:45:41] writes ok and fault tolerance >= 2 after 0 s
+[23:45:41] FAULT partition fdbserver-4
+[23:45:51] writes ok and fault tolerance >= 2 after 2 s
+[23:45:51] FAULT kill fdbserver-0, partition fdbserver-1
+[23:46:28] writes ok and fault tolerance >= 2 after 29 s
+[23:46:28] FAULT pause fdbserver-4 and fdbserver-5
+[23:46:37] writes ok and fault tolerance >= 2 after 1 s
+[23:46:37] FAULT kill fdbserver-5
+[23:46:46] writes ok and fault tolerance >= 2 after 1 s
+[23:46:46] FAULT pause fdbserver-0
+[23:46:54] writes ok and fault tolerance >= 2 after 0 s
+[23:46:54] FAULT partition fdbserver-1
+[23:47:04] writes ok and fault tolerance >= 2 after 2 s
+[23:47:04] FAULT kill fdbserver-4, partition fdbserver-1
+[23:47:41] writes ok and fault tolerance >= 2 after 29 s
+[23:47:41] FAULT pause fdbserver-0 and fdbserver-5
+[23:47:49] writes ok and fault tolerance >= 2 after 0 s
+[23:47:49] FAULT kill fdbserver-3
+[23:47:57] writes ok and fault tolerance >= 2 after 0 s
+[23:47:57] FAULT pause fdbserver-2
+[23:48:26] writes ok and fault tolerance >= 2 after 20 s
+[23:48:26] FAULT partition fdbserver-1
+[23:48:35] writes ok and fault tolerance >= 2 after 1 s
+[23:48:35] FAULT kill fdbserver-3, partition fdbserver-5
+[23:48:44] writes ok and fault tolerance >= 2 after 1 s
+[23:48:44] FAULT pause fdbserver-4 and fdbserver-0
+[23:48:53] writes ok and fault tolerance >= 2 after 1 s
+[23:48:53] FAULT kill fdbserver-5
+[23:49:29] writes ok and fault tolerance >= 2 after 28 s
+[23:49:29] FAULT pause fdbserver-5
+[23:49:37] writes ok and fault tolerance >= 2 after 0 s
+[23:49:38] FAULT partition fdbserver-1
+[23:49:47] writes ok and fault tolerance >= 2 after 1 s
+[23:49:47] FAULT kill fdbserver-2, partition fdbserver-5
+[23:49:57] writes ok and fault tolerance >= 2 after 2 s
+[23:49:57] FAULT pause fdbserver-1 and fdbserver-2
+[23:50:26] writes ok and fault tolerance >= 2 after 21 s
+[23:50:26] FAULT kill fdbserver-3
+[23:50:36] writes ok and fault tolerance >= 2 after 1 s
+[23:50:36] FAULT pause fdbserver-3
+[23:50:44] writes ok and fault tolerance >= 2 after 0 s
+[23:50:44] FAULT partition fdbserver-5
+[23:50:54] writes ok and fault tolerance >= 2 after 2 s
+[23:50:54] FAULT kill fdbserver-2, partition fdbserver-5
+[23:51:30] writes ok and fault tolerance >= 2 after 28 s
+[23:51:30] FAULT pause fdbserver-4 and fdbserver-5
+[23:51:39] writes ok and fault tolerance >= 2 after 0 s
+[23:51:39] FAULT kill fdbserver-1
+[23:51:50] writes ok and fault tolerance >= 2 after 3 s
+[23:51:50] FAULT pause fdbserver-1
+[23:51:59] writes ok and fault tolerance >= 2 after 1 s
+[23:51:59] FAULT partition fdbserver-3
+[23:52:08] writes ok and fault tolerance >= 2 after 1 s
+[23:52:08] FAULT kill fdbserver-0, partition fdbserver-5
+[23:52:45] writes ok and fault tolerance >= 2 after 29 s
+[23:52:45] FAULT pause fdbserver-0 and fdbserver-3
+[23:52:53] writes ok and fault tolerance >= 2 after 0 s
+[23:52:53] FAULT kill fdbserver-5
+[23:53:02] writes ok and fault tolerance >= 2 after 1 s
+[23:53:02] FAULT pause fdbserver-3
+[23:53:25] writes ok and fault tolerance >= 2 after 15 s
+[23:53:25] FAULT partition fdbserver-1
+[23:53:33] writes ok and fault tolerance >= 2 after 0 s
+[23:53:33] FAULT kill fdbserver-2, partition fdbserver-4
+[23:53:45] writes ok and fault tolerance >= 2 after 4 s
+[23:53:45] FAULT pause fdbserver-5 and fdbserver-3
+[23:54:10] writes ok and fault tolerance >= 2 after 17 s
+[23:54:10] FAULT kill fdbserver-1
+[23:54:20] writes ok and fault tolerance >= 2 after 2 s
+[23:54:20] FAULT pause fdbserver-1
+[23:54:29] writes ok and fault tolerance >= 2 after 1 s
+[23:54:29] FAULT partition fdbserver-5
+[23:54:38] writes ok and fault tolerance >= 2 after 1 s
+[23:54:38] FAULT kill fdbserver-0, partition fdbserver-2
+[23:54:47] writes ok and fault tolerance >= 2 after 1 s
+[23:54:47] FAULT pause fdbserver-2 and fdbserver-0
+[23:54:55] writes ok and fault tolerance >= 2 after 0 s
+[23:54:55] FAULT kill fdbserver-0
+[23:55:07] writes ok and fault tolerance >= 2 after 4 s
+[23:55:07] FAULT pause fdbserver-1
+[23:55:15] writes ok and fault tolerance >= 2 after 0 s
+[23:55:15] FAULT partition fdbserver-1
+[23:55:23] writes ok and fault tolerance >= 2 after 0 s
+[23:55:23] FAULT kill fdbserver-3, partition fdbserver-2
+[23:56:00] writes ok and fault tolerance >= 2 after 29 s
+[23:56:00] FAULT pause fdbserver-1 and fdbserver-5
+[23:56:09] writes ok and fault tolerance >= 2 after 1 s
+[23:56:09] FAULT kill fdbserver-3
+[23:56:19] writes ok and fault tolerance >= 2 after 1 s
+[23:56:19] FAULT pause fdbserver-4
+[23:56:28] writes ok and fault tolerance >= 2 after 1 s
+[23:56:28] FAULT partition fdbserver-4
+[23:56:56] writes ok and fault tolerance >= 2 after 20 s
+[23:56:56] FAULT kill fdbserver-4, partition fdbserver-3
+[23:57:06] writes ok and fault tolerance >= 2 after 2 s
+[23:57:06] FAULT pause fdbserver-5 and fdbserver-2
+[23:57:15] writes ok and fault tolerance >= 2 after 1 s
+[23:57:15] FAULT kill fdbserver-2
+[23:57:53] writes ok and fault tolerance >= 2 after 30 s
+[23:57:53] FAULT pause fdbserver-0
+[23:58:02] writes ok and fault tolerance >= 2 after 1 s
+[23:58:02] FAULT partition fdbserver-3
+[23:58:11] writes ok and fault tolerance >= 2 after 1 s
+[23:58:11] FAULT kill fdbserver-1, partition fdbserver-3
+[23:58:22] writes ok and fault tolerance >= 2 after 3 s
+[23:58:22] FAULT pause fdbserver-5 and fdbserver-2
+[23:58:47] writes ok and fault tolerance >= 2 after 16 s
+[23:58:47] FAULT kill fdbserver-3
+[23:58:57] writes ok and fault tolerance >= 2 after 1 s
+[23:58:57] FAULT pause fdbserver-1
+[23:59:25] writes ok and fault tolerance >= 2 after 20 s
+[23:59:25] FAULT partition fdbserver-3
+[23:59:34] writes ok and fault tolerance >= 2 after 1 s
+[23:59:34] FAULT kill fdbserver-1, partition fdbserver-5
+[23:59:44] writes ok and fault tolerance >= 2 after 2 s
+[23:59:44] FAULT pause fdbserver-4 and fdbserver-5
+[23:59:52] writes ok and fault tolerance >= 2 after 0 s
+[23:59:52] FAULT kill fdbserver-0
+[00:00:29] writes ok and fault tolerance >= 2 after 28 s
+[00:00:29] FAULT pause fdbserver-0
+[00:00:37] writes ok and fault tolerance >= 2 after 0 s
+[00:00:37] FAULT partition fdbserver-5
+[00:00:47] writes ok and fault tolerance >= 2 after 1 s
+[00:00:47] FAULT kill fdbserver-4, partition fdbserver-2
+[00:00:55] writes ok and fault tolerance >= 2 after 0 s
+[00:00:55] FAULT pause fdbserver-1 and fdbserver-2
+[00:01:04] writes ok and fault tolerance >= 2 after 1 s
+[00:01:04] FAULT kill fdbserver-4
+[00:01:12] writes ok and fault tolerance >= 2 after 0 s
+[00:01:12] FAULT pause fdbserver-4
+[00:01:20] writes ok and fault tolerance >= 2 after 0 s
+[00:01:20] FAULT partition fdbserver-3
+[00:01:42] writes ok and fault tolerance >= 2 after 14 s
+[00:01:42] FAULT kill fdbserver-3, partition fdbserver-1
+[00:01:52] writes ok and fault tolerance >= 2 after 2 s
+[00:01:52] FAULT pause fdbserver-0 and fdbserver-5
+[00:02:20] writes ok and fault tolerance >= 2 after 20 s
+[00:02:20] FAULT kill fdbserver-5
+[00:02:29] writes ok and fault tolerance >= 2 after 1 s
+[00:02:29] FAULT pause fdbserver-1
+[00:02:37] writes ok and fault tolerance >= 2 after 0 s
+[00:02:37] FAULT partition fdbserver-5
+[00:02:48] writes ok and fault tolerance >= 2 after 3 s
+[00:02:48] FAULT kill fdbserver-2, partition fdbserver-4
+[00:03:26] writes ok and fault tolerance >= 2 after 30 s
+[00:03:26] FAULT pause fdbserver-0 and fdbserver-4
+[00:03:36] writes ok and fault tolerance >= 2 after 2 s
+[00:03:36] FAULT kill fdbserver-5
+[00:03:45] writes ok and fault tolerance >= 2 after 1 s
+[00:03:45] FAULT pause fdbserver-5
+[00:03:53] writes ok and fault tolerance >= 2 after 0 s
+[00:03:53] FAULT partition fdbserver-5
+[00:04:02] writes ok and fault tolerance >= 2 after 0 s
+[00:04:02] FAULT kill fdbserver-1, partition fdbserver-2
+[00:04:14] writes ok and fault tolerance >= 2 after 4 s
+[00:04:14] FAULT pause fdbserver-3 and fdbserver-0
+[00:04:39] writes ok and fault tolerance >= 2 after 17 s
+[00:04:39] FAULT kill fdbserver-2
+[00:04:49] writes ok and fault tolerance >= 2 after 2 s
+[00:04:49] FAULT pause fdbserver-3
+[00:04:59] writes ok and fault tolerance >= 2 after 1 s
+[00:04:59] FAULT partition fdbserver-1
+[00:05:07] writes ok and fault tolerance >= 2 after 0 s
+[00:05:07] FAULT kill fdbserver-5, partition fdbserver-4
+[00:05:44] writes ok and fault tolerance >= 2 after 29 s
+[00:05:44] FAULT pause fdbserver-2 and fdbserver-3
+[00:05:52] writes ok and fault tolerance >= 2 after 0 s
+[00:05:52] FAULT kill fdbserver-0
+[00:06:02] writes ok and fault tolerance >= 2 after 2 s
+[00:06:02] FAULT pause fdbserver-2
+[00:06:29] writes ok and fault tolerance >= 2 after 19 s
+[00:06:29] FAULT partition fdbserver-0
+[00:06:37] writes ok and fault tolerance >= 2 after 0 s
+[00:06:37] FAULT kill fdbserver-0, partition fdbserver-2
+[00:06:47] writes ok and fault tolerance >= 2 after 2 s
+[00:06:47] FAULT pause fdbserver-3 and fdbserver-2
+[00:07:16] writes ok and fault tolerance >= 2 after 21 s
+[00:07:16] FAULT kill fdbserver-1
+[00:07:25] writes ok and fault tolerance >= 2 after 1 s
+[00:07:25] FAULT pause fdbserver-4
+[00:07:35] writes ok and fault tolerance >= 2 after 2 s
+[00:07:35] FAULT partition fdbserver-3
+[00:07:44] writes ok and fault tolerance >= 2 after 1 s
+[00:07:44] FAULT kill fdbserver-4, partition fdbserver-0
+[00:08:20] writes ok and fault tolerance >= 2 after 28 s
+[00:08:20] FAULT pause fdbserver-0 and fdbserver-2
+[00:08:29] writes ok and fault tolerance >= 2 after 1 s
+[00:08:29] FAULT kill fdbserver-2
+[00:08:38] writes ok and fault tolerance >= 2 after 1 s
+[00:08:38] FAULT pause fdbserver-1
+[00:09:06] writes ok and fault tolerance >= 2 after 20 s
+[00:09:06] FAULT partition fdbserver-2
+[00:09:16] writes ok and fault tolerance >= 2 after 2 s
+[00:09:16] FAULT kill fdbserver-0, partition fdbserver-1
+[00:09:25] writes ok and fault tolerance >= 2 after 1 s
+[00:09:25] FAULT pause fdbserver-3 and fdbserver-2
+[00:09:53] writes ok and fault tolerance >= 2 after 19 s
+[00:09:53] FAULT kill fdbserver-5
+[00:10:02] writes ok and fault tolerance >= 2 after 1 s
+[00:10:02] FAULT pause fdbserver-1
+[00:10:25] writes ok and fault tolerance >= 2 after 15 s
+[00:10:25] FAULT partition fdbserver-5
+[00:10:34] writes ok and fault tolerance >= 2 after 1 s
+[00:10:34] FAULT kill fdbserver-2, partition fdbserver-0
+[00:10:43] writes ok and fault tolerance >= 2 after 1 s
+[00:10:43] FAULT pause fdbserver-5 and fdbserver-3
+[00:10:52] writes ok and fault tolerance >= 2 after 1 s
+[00:10:52] FAULT kill fdbserver-5
+[00:11:23] writes ok and fault tolerance >= 2 after 23 s
+[00:11:23] FAULT pause fdbserver-4
+[00:11:33] writes ok and fault tolerance >= 2 after 2 s
+[00:11:33] FAULT partition fdbserver-5
+[00:11:42] writes ok and fault tolerance >= 2 after 1 s
+[00:11:42] FAULT kill fdbserver-5, partition fdbserver-4
+[00:11:50] writes ok and fault tolerance >= 2 after 0 s
+[00:11:50] FAULT pause fdbserver-3 and fdbserver-4
+[00:11:59] writes ok and fault tolerance >= 2 after 0 s
+[00:11:59] FAULT kill fdbserver-0
+[00:12:37] writes ok and fault tolerance >= 2 after 30 s
+[00:12:37] FAULT pause fdbserver-0
+[00:12:45] writes ok and fault tolerance >= 2 after 0 s
+[00:12:45] FAULT partition fdbserver-4
+[00:12:55] writes ok and fault tolerance >= 2 after 1 s
+[00:12:55] FAULT kill fdbserver-5, partition fdbserver-4
+[00:13:04] writes ok and fault tolerance >= 2 after 1 s
+[00:13:04] FAULT pause fdbserver-4 and fdbserver-3
+[00:13:13] writes ok and fault tolerance >= 2 after 1 s
+[00:13:13] FAULT kill fdbserver-1
+[00:13:23] writes ok and fault tolerance >= 2 after 2 s
+[00:13:23] FAULT pause fdbserver-5
+[00:13:49] writes ok and fault tolerance >= 2 after 18 s
+[00:13:49] FAULT partition fdbserver-4
+[00:13:58] writes ok and fault tolerance >= 2 after 1 s
+[00:13:58] FAULT kill fdbserver-2, partition fdbserver-3
+[00:14:07] writes ok and fault tolerance >= 2 after 0 s
+[00:14:07] FAULT pause fdbserver-1 and fdbserver-0
+[00:14:35] writes ok and fault tolerance >= 2 after 20 s
+[00:14:35] FAULT kill fdbserver-2
+[00:14:45] writes ok and fault tolerance >= 2 after 2 s
+[00:14:45] FAULT pause fdbserver-4
+[00:14:53] writes ok and fault tolerance >= 2 after 0 s
+[00:14:53] FAULT partition fdbserver-1
+[00:15:02] writes ok and fault tolerance >= 2 after 1 s
+[00:15:02] FAULT kill fdbserver-4, partition fdbserver-1
+[00:15:39] writes ok and fault tolerance >= 2 after 28 s
+[00:15:39] FAULT pause fdbserver-0 and fdbserver-3
+[00:15:47] writes ok and fault tolerance >= 2 after 0 s
+[00:15:47] FAULT kill fdbserver-3
+[00:15:56] writes ok and fault tolerance >= 2 after 1 s
+[00:15:56] FAULT pause fdbserver-1
+[00:16:06] writes ok and fault tolerance >= 2 after 2 s
+[00:16:06] FAULT partition fdbserver-5
+[00:16:15] writes ok and fault tolerance >= 2 after 1 s
+[00:16:15] FAULT kill fdbserver-2, partition fdbserver-5
+[00:16:52] writes ok and fault tolerance >= 2 after 29 s
+[00:16:52] FAULT pause fdbserver-5 and fdbserver-4
+[00:17:00] writes ok and fault tolerance >= 2 after 0 s
+[00:17:00] FAULT kill fdbserver-0
+[00:17:10] writes ok and fault tolerance >= 2 after 2 s
+[00:17:10] FAULT pause fdbserver-0
+[00:17:19] writes ok and fault tolerance >= 2 after 0 s
+[00:17:19] FAULT partition fdbserver-3
+[00:17:39] writes ok and fault tolerance >= 2 after 12 s
+[00:17:39] FAULT kill fdbserver-4, partition fdbserver-1
+[00:17:50] writes ok and fault tolerance >= 2 after 3 s
+[00:17:50] FAULT pause fdbserver-3 and fdbserver-0
+[00:17:59] writes ok and fault tolerance >= 2 after 1 s
+[00:17:59] FAULT kill fdbserver-5
+[00:18:33] writes ok and fault tolerance >= 2 after 26 s
+[00:18:33] FAULT pause fdbserver-3
+[00:18:41] writes ok and fault tolerance >= 2 after 0 s
+[00:18:41] FAULT partition fdbserver-0
+[00:18:50] writes ok and fault tolerance >= 2 after 1 s
+[00:18:50] FAULT kill fdbserver-5, partition fdbserver-2
+[00:18:58] writes ok and fault tolerance >= 2 after 0 s
+[00:18:58] FAULT pause fdbserver-1 and fdbserver-0
+[00:19:23] writes ok and fault tolerance >= 2 after 17 s
+[00:19:23] FAULT kill fdbserver-5
+[00:19:33] writes ok and fault tolerance >= 2 after 1 s
+[00:19:33] FAULT pause fdbserver-0
+[00:19:42] writes ok and fault tolerance >= 2 after 1 s
+[00:19:42] FAULT partition fdbserver-3
+[00:19:51] writes ok and fault tolerance >= 2 after 1 s
+[00:19:51] FAULT kill fdbserver-5, partition fdbserver-1
+[00:20:00] writes ok and fault tolerance >= 2 after 0 s
+[00:20:00] FAULT pause fdbserver-5 and fdbserver-2
+[00:20:08] writes ok and fault tolerance >= 2 after 0 s
+[00:20:08] FAULT kill fdbserver-0
+[00:20:45] writes ok and fault tolerance >= 2 after 29 s
+[00:20:45] FAULT pause fdbserver-1
+[00:20:53] writes ok and fault tolerance >= 2 after 0 s
+[00:20:53] FAULT partition fdbserver-1
+[00:21:02] writes ok and fault tolerance >= 2 after 1 s
+[00:21:02] FAULT kill fdbserver-3, partition fdbserver-1
+[00:21:11] writes ok and fault tolerance >= 2 after 1 s
+[00:21:11] FAULT pause fdbserver-4 and fdbserver-1
+[00:21:21] writes ok and fault tolerance >= 2 after 2 s
+[00:21:21] FAULT kill fdbserver-4
+[00:21:57] writes ok and fault tolerance >= 2 after 28 s
+[00:21:57] FAULT pause fdbserver-5
+[00:22:05] writes ok and fault tolerance >= 2 after 0 s
+[00:22:05] FAULT partition fdbserver-2
+[00:22:15] writes ok and fault tolerance >= 2 after 2 s
+[00:22:15] FAULT kill fdbserver-4, partition fdbserver-2
+[00:22:51] writes ok and fault tolerance >= 2 after 28 s
+[00:22:51] FAULT pause fdbserver-5 and fdbserver-0
+[00:23:12] writes ok and fault tolerance >= 2 after 13 s
+[00:23:12] FAULT kill fdbserver-1
+[00:23:21] writes ok and fault tolerance >= 2 after 1 s
+[00:23:21] FAULT pause fdbserver-0
+[00:23:48] writes ok and fault tolerance >= 2 after 19 s
+[00:23:48] FAULT partition fdbserver-4
+[00:23:57] writes ok and fault tolerance >= 2 after 1 s
+[00:23:57] FAULT kill fdbserver-3, partition fdbserver-2
+[00:24:05] writes ok and fault tolerance >= 2 after 0 s
+[00:24:05] FAULT pause fdbserver-0 and fdbserver-4
+[00:24:14] writes ok and fault tolerance >= 2 after 0 s
+[00:24:14] FAULT kill fdbserver-1
+[00:24:50] writes ok and fault tolerance >= 2 after 28 s
+[00:24:50] FAULT pause fdbserver-5
+[00:24:59] writes ok and fault tolerance >= 2 after 1 s
+[00:24:59] FAULT partition fdbserver-3
+[00:25:07] writes ok and fault tolerance >= 2 after 0 s
+[00:25:07] FAULT kill fdbserver-4, partition fdbserver-2
+[00:25:43] writes ok and fault tolerance >= 2 after 28 s
+[00:25:43] FAULT pause fdbserver-4 and fdbserver-3
+[00:25:53] writes ok and fault tolerance >= 2 after 1 s
+[00:25:53] FAULT kill fdbserver-4
+[00:26:02] writes ok and fault tolerance >= 2 after 1 s
+[00:26:02] FAULT pause fdbserver-0
+[00:26:11] writes ok and fault tolerance >= 2 after 1 s
+[00:26:11] FAULT partition fdbserver-3
+[00:26:31] writes ok and fault tolerance >= 2 after 12 s
+[00:26:31] FAULT kill fdbserver-5, partition fdbserver-0
+[00:26:39] writes ok and fault tolerance >= 2 after 0 s
+[00:26:39] FAULT pause fdbserver-2 and fdbserver-5
+[00:26:48] writes ok and fault tolerance >= 2 after 0 s
+[00:26:48] FAULT kill fdbserver-0
+[00:27:25] writes ok and fault tolerance >= 2 after 29 s
+[00:27:25] FAULT pause fdbserver-5
+[00:27:34] writes ok and fault tolerance >= 2 after 1 s
+[00:27:34] FAULT partition fdbserver-0
+[00:27:42] writes ok and fault tolerance >= 2 after 0 s
+[00:27:42] FAULT kill fdbserver-3, partition fdbserver-1
+[00:28:21] writes ok and fault tolerance >= 2 after 30 s
+[00:28:21] FAULT pause fdbserver-5 and fdbserver-2
+[00:28:29] writes ok and fault tolerance >= 2 after 0 s
+[00:28:29] FAULT kill fdbserver-5
+[00:28:39] writes ok and fault tolerance >= 2 after 1 s
+[00:28:39] FAULT pause fdbserver-4
+[00:28:48] writes ok and fault tolerance >= 2 after 1 s
+[00:28:48] FAULT partition fdbserver-0
+[00:29:01] writes ok and fault tolerance >= 2 after 5 s
+[00:29:01] FAULT kill fdbserver-3, partition fdbserver-5
+[00:29:37] writes ok and fault tolerance >= 2 after 28 s
+[00:29:37] FAULT pause fdbserver-0 and fdbserver-4
+[00:29:47] writes ok and fault tolerance >= 2 after 2 s
+[00:29:47] FAULT kill fdbserver-0
+[00:29:56] writes ok and fault tolerance >= 2 after 1 s
+[00:29:56] FAULT pause fdbserver-0
+[00:30:04] writes ok and fault tolerance >= 2 after 0 s
+[00:30:04] FAULT partition fdbserver-0
+[00:30:13] writes ok and fault tolerance >= 2 after 0 s
+[00:30:13] FAULT kill fdbserver-3, partition fdbserver-1
+[00:30:49] writes ok and fault tolerance >= 2 after 28 s
+[00:30:49] FAULT pause fdbserver-2 and fdbserver-5
+[00:30:59] writes ok and fault tolerance >= 2 after 1 s
+[00:30:59] FAULT kill fdbserver-3
+[00:31:08] writes ok and fault tolerance >= 2 after 1 s
+[00:31:08] FAULT pause fdbserver-2
+[00:31:35] writes ok and fault tolerance >= 2 after 19 s
+[00:31:35] FAULT partition fdbserver-4
+[00:31:45] writes ok and fault tolerance >= 2 after 2 s
+[00:31:45] FAULT kill fdbserver-5, partition fdbserver-2
+[00:31:54] writes ok and fault tolerance >= 2 after 1 s
+[00:31:54] FAULT pause fdbserver-1 and fdbserver-0
+[00:32:21] writes ok and fault tolerance >= 2 after 19 s
+[00:32:21] FAULT kill fdbserver-0
+[00:32:30] writes ok and fault tolerance >= 2 after 1 s
+[00:32:30] FAULT pause fdbserver-0
+[00:32:38] writes ok and fault tolerance >= 2 after 0 s
+[00:32:38] FAULT partition fdbserver-4
+[00:32:47] writes ok and fault tolerance >= 2 after 1 s
+[00:32:47] FAULT kill fdbserver-3, partition fdbserver-2
+[00:33:26] writes ok and fault tolerance >= 2 after 31 s
+[00:33:26] FAULT pause fdbserver-4 and fdbserver-1
+[00:33:34] writes ok and fault tolerance >= 2 after 0 s
+[00:33:34] FAULT kill fdbserver-0
+[00:33:44] writes ok and fault tolerance >= 2 after 2 s
+[00:33:44] FAULT pause fdbserver-2
+[00:33:52] writes ok and fault tolerance >= 2 after 0 s
+[00:33:52] FAULT partition fdbserver-5
+[00:34:00] writes ok and fault tolerance >= 2 after 0 s
+[00:34:00] FAULT kill fdbserver-5, partition fdbserver-2
+[00:34:37] writes ok and fault tolerance >= 2 after 28 s
+[00:34:37] FAULT pause fdbserver-0 and fdbserver-4
+[00:34:46] writes ok and fault tolerance >= 2 after 1 s
+[00:34:46] FAULT kill fdbserver-0
+[00:34:56] writes ok and fault tolerance >= 2 after 2 s
+[00:34:56] FAULT pause fdbserver-4
+[00:35:23] writes ok and fault tolerance >= 2 after 19 s
+[00:35:23] FAULT partition fdbserver-1
+[00:35:33] writes ok and fault tolerance >= 2 after 2 s
+[00:35:33] FAULT kill fdbserver-4, partition fdbserver-3
+[00:35:41] writes ok and fault tolerance >= 2 after 0 s
+[00:35:41] FAULT pause fdbserver-5 and fdbserver-1
+[00:35:49] writes ok and fault tolerance >= 2 after 0 s
+[00:35:49] FAULT kill fdbserver-1
+[00:36:26] writes ok and fault tolerance >= 2 after 28 s
+[00:36:26] FAULT pause fdbserver-4
+[00:36:35] writes ok and fault tolerance >= 2 after 1 s
+[00:36:35] FAULT partition fdbserver-4
+[00:36:44] writes ok and fault tolerance >= 2 after 1 s
+[00:36:44] FAULT kill fdbserver-5, partition fdbserver-2
+[00:37:20] writes ok and fault tolerance >= 2 after 28 s
+[00:37:20] FAULT pause fdbserver-3 and fdbserver-0
+[00:37:29] writes ok and fault tolerance >= 2 after 0 s
+[00:37:29] FAULT kill fdbserver-4
+[00:37:38] writes ok and fault tolerance >= 2 after 1 s
+[00:37:38] FAULT pause fdbserver-2
+[00:37:48] writes ok and fault tolerance >= 2 after 1 s
+[00:37:48] FAULT partition fdbserver-5
+[00:37:57] writes ok and fault tolerance >= 2 after 1 s
+[00:37:57] FAULT kill fdbserver-1, partition fdbserver-2
+[00:38:10] writes ok and fault tolerance >= 2 after 4 s
+[00:38:10] FAULT pause fdbserver-2 and fdbserver-1
+[00:38:18] writes ok and fault tolerance >= 2 after 0 s
+[00:38:18] FAULT kill fdbserver-0
+[00:38:55] writes ok and fault tolerance >= 2 after 29 s
+[00:38:56] FAULT pause fdbserver-1
+[00:39:04] writes ok and fault tolerance >= 2 after 0 s
+[00:39:04] FAULT partition fdbserver-1
+[00:39:13] writes ok and fault tolerance >= 2 after 1 s
+[00:39:13] FAULT kill fdbserver-1, partition fdbserver-2
+[00:39:25] writes ok and fault tolerance >= 2 after 4 s
+[00:39:25] FAULT pause fdbserver-4 and fdbserver-5
+[00:39:34] writes ok and fault tolerance >= 2 after 1 s
+[00:39:34] FAULT kill fdbserver-2
+[00:40:11] writes ok and fault tolerance >= 2 after 28 s
+[00:40:11] FAULT pause fdbserver-1
+[00:40:19] writes ok and fault tolerance >= 2 after 0 s
+[00:40:19] FAULT partition fdbserver-1
+[00:40:28] writes ok and fault tolerance >= 2 after 1 s
+[00:40:28] FAULT kill fdbserver-0, partition fdbserver-3
+[00:40:36] writes ok and fault tolerance >= 2 after 0 s
+[00:40:36] FAULT pause fdbserver-4 and fdbserver-1
+[00:41:09] writes ok and fault tolerance >= 2 after 25 s
+[00:41:09] FAULT kill fdbserver-4
+[00:41:17] writes ok and fault tolerance >= 2 after 0 s
+[00:41:17] FAULT pause fdbserver-0
+[00:41:27] writes ok and fault tolerance >= 2 after 2 s
+[00:41:27] FAULT partition fdbserver-0
+[00:41:36] writes ok and fault tolerance >= 2 after 1 s
+[00:41:36] FAULT kill fdbserver-4, partition fdbserver-5
+[00:41:46] writes ok and fault tolerance >= 2 after 2 s
+[00:41:46] FAULT pause fdbserver-2 and fdbserver-3
+[00:42:13] writes ok and fault tolerance >= 2 after 19 s
+[00:42:13] FAULT kill fdbserver-3
+[00:42:23] writes ok and fault tolerance >= 2 after 1 s
+[00:42:23] FAULT pause fdbserver-2
+[00:42:50] writes ok and fault tolerance >= 2 after 19 s
+[00:42:50] FAULT partition fdbserver-3
+[00:43:00] writes ok and fault tolerance >= 2 after 1 s
+[00:43:00] FAULT kill fdbserver-3, partition fdbserver-5
+[00:43:08] writes ok and fault tolerance >= 2 after 0 s
+[00:43:08] FAULT pause fdbserver-0 and fdbserver-5
+[00:43:37] writes ok and fault tolerance >= 2 after 21 s
+[00:43:37] FAULT kill fdbserver-0
+[00:43:46] writes ok and fault tolerance >= 2 after 1 s
+[00:43:46] FAULT pause fdbserver-3
+[00:43:56] writes ok and fault tolerance >= 2 after 1 s
+[00:43:56] FAULT partition fdbserver-3
+[00:44:25] writes ok and fault tolerance >= 2 after 21 s
+[00:44:25] FAULT kill fdbserver-4, partition fdbserver-1
+[00:44:35] writes ok and fault tolerance >= 2 after 1 s
+[00:44:35] FAULT pause fdbserver-5 and fdbserver-3
+[00:44:43] writes ok and fault tolerance >= 2 after 0 s
+[00:44:43] FAULT kill fdbserver-0
+[00:45:20] writes ok and fault tolerance >= 2 after 29 s
+[00:45:20] FAULT pause fdbserver-5
+[00:45:29] writes ok and fault tolerance >= 2 after 1 s
+[00:45:29] FAULT partition fdbserver-3
+[00:45:39] writes ok and fault tolerance >= 2 after 2 s
+[00:45:39] FAULT kill fdbserver-5, partition fdbserver-1
+[00:45:48] writes ok and fault tolerance >= 2 after 1 s
+[00:45:48] FAULT pause fdbserver-5 and fdbserver-0
+[00:45:57] writes ok and fault tolerance >= 2 after 1 s
+[00:45:57] FAULT kill fdbserver-2
+[00:46:34] writes ok and fault tolerance >= 2 after 29 s
+[00:46:34] FAULT pause fdbserver-3
+[00:46:54] writes ok and fault tolerance >= 2 after 12 s
+[00:46:54] FAULT partition fdbserver-4
+[00:47:04] writes ok and fault tolerance >= 2 after 2 s
+[00:47:04] FAULT kill fdbserver-5, partition fdbserver-0
+[00:47:12] writes ok and fault tolerance >= 2 after 0 s
+[00:47:12] FAULT pause fdbserver-5 and fdbserver-4
+[00:47:20] writes ok and fault tolerance >= 2 after 0 s
+[00:47:20] FAULT kill fdbserver-3
+[00:47:57] writes ok and fault tolerance >= 2 after 28 s
+[00:47:57] FAULT pause fdbserver-2
+[00:48:05] writes ok and fault tolerance >= 2 after 0 s
+[00:48:05] FAULT partition fdbserver-3
+[00:48:15] writes ok and fault tolerance >= 2 after 2 s
+[00:48:15] FAULT kill fdbserver-1, partition fdbserver-2
+[00:48:23] writes ok and fault tolerance >= 2 after 0 s
+[00:48:23] FAULT pause fdbserver-5 and fdbserver-4
+[00:48:33] writes ok and fault tolerance >= 2 after 2 s
+[00:48:33] FAULT kill fdbserver-0
+[00:49:10] writes ok and fault tolerance >= 2 after 29 s
+[00:49:10] FAULT pause fdbserver-1
+[00:49:18] writes ok and fault tolerance >= 2 after 0 s
+[00:49:18] FAULT partition fdbserver-0
+[00:49:28] writes ok and fault tolerance >= 2 after 1 s
+[00:49:28] FAULT kill fdbserver-3, partition fdbserver-2
+[00:49:36] writes ok and fault tolerance >= 2 after 0 s
+[00:49:36] FAULT pause fdbserver-4 and fdbserver-0
+[00:50:04] writes ok and fault tolerance >= 2 after 20 s
+[00:50:04] FAULT kill fdbserver-4
+[00:50:15] writes ok and fault tolerance >= 2 after 3 s
+[00:50:15] FAULT pause fdbserver-4
+[00:50:24] writes ok and fault tolerance >= 2 after 1 s
+[00:50:24] FAULT partition fdbserver-2
+[00:50:33] writes ok and fault tolerance >= 2 after 1 s
+[00:50:33] FAULT kill fdbserver-4, partition fdbserver-0
+[00:50:41] writes ok and fault tolerance >= 2 after 0 s
+[00:50:41] FAULT pause fdbserver-2 and fdbserver-5
+[00:51:10] writes ok and fault tolerance >= 2 after 20 s
+[00:51:10] FAULT kill fdbserver-1
+[00:51:20] writes ok and fault tolerance >= 2 after 1 s
+[00:51:20] FAULT pause fdbserver-3
+[00:51:48] writes ok and fault tolerance >= 2 after 20 s
+[00:51:48] FAULT partition fdbserver-5
+[00:51:57] writes ok and fault tolerance >= 2 after 1 s
+[00:51:57] FAULT kill fdbserver-5, partition fdbserver-2
+[00:52:06] writes ok and fault tolerance >= 2 after 0 s
+[00:52:06] FAULT pause fdbserver-0 and fdbserver-2
+[00:52:15] writes ok and fault tolerance >= 2 after 1 s
+[00:52:15] FAULT kill fdbserver-4
+[00:52:54] writes ok and fault tolerance >= 2 after 30 s
+[00:52:54] FAULT pause fdbserver-4
+[00:53:02] writes ok and fault tolerance >= 2 after 0 s
+[00:53:02] FAULT partition fdbserver-2
+[00:53:11] writes ok and fault tolerance >= 2 after 1 s
+[00:53:11] FAULT kill fdbserver-2, partition fdbserver-5
+[00:53:22] writes ok and fault tolerance >= 2 after 3 s
+[00:53:22] FAULT pause fdbserver-3 and fdbserver-1
+[00:53:49] writes ok and fault tolerance >= 2 after 19 s
+[00:53:49] FAULT kill fdbserver-1
+[00:54:00] writes ok and fault tolerance >= 2 after 3 s
+[00:54:00] FAULT pause fdbserver-3
+[00:54:27] writes ok and fault tolerance >= 2 after 19 s
+[00:54:27] FAULT partition fdbserver-1
+[00:54:36] writes ok and fault tolerance >= 2 after 1 s
+[00:54:36] FAULT kill fdbserver-5, partition fdbserver-1
+[00:55:14] writes ok and fault tolerance >= 2 after 30 s
+[00:55:14] FAULT pause fdbserver-5 and fdbserver-4
+[00:55:24] writes ok and fault tolerance >= 2 after 1 s
+[00:55:24] FAULT kill fdbserver-0
+[00:55:35] writes ok and fault tolerance >= 2 after 3 s
+[00:55:35] FAULT pause fdbserver-2
+[00:55:44] writes ok and fault tolerance >= 2 after 1 s
+[00:55:44] FAULT partition fdbserver-0
+[00:55:52] writes ok and fault tolerance >= 2 after 0 s
+[00:55:52] FAULT kill fdbserver-3, partition fdbserver-1
+[00:56:29] writes ok and fault tolerance >= 2 after 29 s
+[00:56:29] FAULT pause fdbserver-3 and fdbserver-2
+[00:56:37] writes ok and fault tolerance >= 2 after 0 s
+[00:56:37] FAULT kill fdbserver-1
+[00:56:47] writes ok and fault tolerance >= 2 after 2 s
+[00:56:47] FAULT pause fdbserver-3
+[00:56:55] writes ok and fault tolerance >= 2 after 0 s
+[00:56:55] FAULT partition fdbserver-4
+[00:57:18] writes ok and fault tolerance >= 2 after 15 s
+[00:57:18] FAULT kill fdbserver-3, partition fdbserver-1
+[00:57:26] writes ok and fault tolerance >= 2 after 0 s
+[00:57:26] FAULT pause fdbserver-2 and fdbserver-4
+[00:57:35] writes ok and fault tolerance >= 2 after 1 s
+[00:57:35] FAULT kill fdbserver-5
+[00:58:12] writes ok and fault tolerance >= 2 after 29 s
+[00:58:12] FAULT pause fdbserver-3
+[00:58:21] writes ok and fault tolerance >= 2 after 1 s
+[00:58:21] FAULT partition fdbserver-3
+[00:58:30] writes ok and fault tolerance >= 2 after 1 s
+[00:58:30] FAULT kill fdbserver-5, partition fdbserver-0
+[00:59:07] writes ok and fault tolerance >= 2 after 28 s
+[00:59:07] FAULT pause fdbserver-4 and fdbserver-3
+[00:59:15] writes ok and fault tolerance >= 2 after 0 s
+[00:59:15] FAULT kill fdbserver-0
+[00:59:25] writes ok and fault tolerance >= 2 after 2 s
+[00:59:25] FAULT pause fdbserver-5
+[00:59:34] writes ok and fault tolerance >= 2 after 1 s
+[00:59:34] FAULT partition fdbserver-2
+[00:59:44] writes ok and fault tolerance >= 2 after 2 s
+[00:59:44] FAULT kill fdbserver-0, partition fdbserver-2
+[00:59:52] writes ok and fault tolerance >= 2 after 0 s
+[00:59:52] FAULT pause fdbserver-3 and fdbserver-0
+[01:00:01] writes ok and fault tolerance >= 2 after 1 s
+[01:00:01] FAULT kill fdbserver-2
+[01:00:10] writes ok and fault tolerance >= 2 after 0 s
+[01:00:10] FAULT pause fdbserver-4
+[01:00:19] writes ok and fault tolerance >= 2 after 1 s
+[01:00:19] FAULT partition fdbserver-2
+[01:00:27] writes ok and fault tolerance >= 2 after 0 s
+[01:00:27] FAULT kill fdbserver-2, partition fdbserver-0
+[01:00:35] writes ok and fault tolerance >= 2 after 0 s
+[01:00:35] FAULT pause fdbserver-5 and fdbserver-4
+[01:01:04] writes ok and fault tolerance >= 2 after 21 s
+[01:01:05] FAULT kill fdbserver-4
+[01:01:14] writes ok and fault tolerance >= 2 after 1 s
+[01:01:14] FAULT pause fdbserver-4
+[01:01:22] writes ok and fault tolerance >= 2 after 0 s
+[01:01:22] FAULT partition fdbserver-0
+[01:01:32] writes ok and fault tolerance >= 2 after 2 s
+[01:01:32] FAULT kill fdbserver-1, partition fdbserver-4
+[01:01:40] writes ok and fault tolerance >= 2 after 0 s
+[01:01:40] FAULT pause fdbserver-3 and fdbserver-2
+[01:02:09] writes ok and fault tolerance >= 2 after 21 s
+[01:02:09] FAULT kill fdbserver-3
+[01:02:19] writes ok and fault tolerance >= 2 after 2 s
+[01:02:19] FAULT pause fdbserver-4
+[01:02:28] writes ok and fault tolerance >= 2 after 1 s
+[01:02:28] FAULT partition fdbserver-1
+[01:02:37] writes ok and fault tolerance >= 2 after 1 s
+[01:02:37] FAULT kill fdbserver-4, partition fdbserver-3
+[01:02:46] writes ok and fault tolerance >= 2 after 1 s
+[01:02:46] FAULT pause fdbserver-0 and fdbserver-1
+[01:03:15] writes ok and fault tolerance >= 2 after 21 s
+[01:03:15] FAULT kill fdbserver-4
+[01:03:24] writes ok and fault tolerance >= 2 after 1 s
+[01:03:24] FAULT pause fdbserver-0
+[01:03:34] writes ok and fault tolerance >= 2 after 2 s
+[01:03:34] FAULT partition fdbserver-1
+[01:03:43] writes ok and fault tolerance >= 2 after 1 s
+[01:03:43] FAULT kill fdbserver-2, partition fdbserver-1
+[01:03:53] writes ok and fault tolerance >= 2 after 2 s
+[01:03:53] FAULT pause fdbserver-2 and fdbserver-4
+[01:04:19] writes ok and fault tolerance >= 2 after 18 s
+[01:04:19] FAULT kill fdbserver-1
+[01:04:30] writes ok and fault tolerance >= 2 after 3 s
+[01:04:30] FAULT pause fdbserver-4
+[01:04:41] writes ok and fault tolerance >= 2 after 3 s
+[01:04:41] FAULT partition fdbserver-0
+[01:04:50] writes ok and fault tolerance >= 2 after 1 s
+[01:04:50] FAULT kill fdbserver-1, partition fdbserver-3
+[01:05:27] writes ok and fault tolerance >= 2 after 29 s
+[01:05:27] FAULT pause fdbserver-3 and fdbserver-1
+[01:05:35] writes ok and fault tolerance >= 2 after 0 s
+[01:05:35] FAULT kill fdbserver-5
+[01:05:43] writes ok and fault tolerance >= 2 after 0 s
+[01:05:43] FAULT pause fdbserver-5
+[01:05:51] writes ok and fault tolerance >= 2 after 0 s
+[01:05:51] FAULT partition fdbserver-1
+[01:06:00] writes ok and fault tolerance >= 2 after 1 s
+[01:06:00] FAULT kill fdbserver-5, partition fdbserver-0
+[01:06:09] writes ok and fault tolerance >= 2 after 0 s
+[01:06:09] FAULT pause fdbserver-0 and fdbserver-3
+[01:06:17] writes ok and fault tolerance >= 2 after 0 s
+[01:06:17] FAULT kill fdbserver-5
+[01:06:25] writes ok and fault tolerance >= 2 after 0 s
+[01:06:25] FAULT pause fdbserver-1
+[01:06:34] writes ok and fault tolerance >= 2 after 0 s
+[01:06:34] FAULT partition fdbserver-3
+[01:06:43] writes ok and fault tolerance >= 2 after 1 s
+[01:06:43] FAULT kill fdbserver-3, partition fdbserver-5
+[01:06:52] writes ok and fault tolerance >= 2 after 1 s
+[01:06:52] FAULT pause fdbserver-3 and fdbserver-2
+[01:07:00] writes ok and fault tolerance >= 2 after 0 s
+[01:07:00] FAULT kill fdbserver-1
+[01:07:37] writes ok and fault tolerance >= 2 after 28 s
+[01:07:37] FAULT pause fdbserver-4
+[01:07:48] writes ok and fault tolerance >= 2 after 3 s
+[01:07:48] FAULT partition fdbserver-5
+[01:07:56] writes ok and fault tolerance >= 2 after 0 s
+[01:07:56] FAULT kill fdbserver-4, partition fdbserver-2
+[01:08:06] writes ok and fault tolerance >= 2 after 1 s
+[01:08:06] FAULT pause fdbserver-5 and fdbserver-3
+[01:08:33] writes ok and fault tolerance >= 2 after 19 s
+[01:08:33] FAULT kill fdbserver-0
+[01:08:45] writes ok and fault tolerance >= 2 after 4 s
+[01:08:45] FAULT pause fdbserver-2
+[01:08:54] writes ok and fault tolerance >= 2 after 1 s
+[01:08:54] FAULT partition fdbserver-5
+[01:09:03] writes ok and fault tolerance >= 2 after 1 s
+[01:09:03] FAULT kill fdbserver-0, partition fdbserver-4
+[01:09:13] writes ok and fault tolerance >= 2 after 2 s
+[01:09:13] FAULT pause fdbserver-0 and fdbserver-4
+[01:09:23] writes ok and fault tolerance >= 2 after 2 s
+[01:09:23] FAULT kill fdbserver-4
+[01:09:31] writes ok and fault tolerance >= 2 after 0 s
+[01:09:31] FAULT pause fdbserver-4
+[01:09:39] writes ok and fault tolerance >= 2 after 0 s
+[01:09:39] FAULT partition fdbserver-2
+[01:10:01] writes ok and fault tolerance >= 2 after 14 s
+[01:10:01] FAULT kill fdbserver-2, partition fdbserver-0
+[01:10:10] writes ok and fault tolerance >= 2 after 1 s
+[01:10:10] FAULT pause fdbserver-4 and fdbserver-1
+[01:10:19] writes ok and fault tolerance >= 2 after 1 s
+[01:10:19] FAULT kill fdbserver-0
+[01:10:55] writes ok and fault tolerance >= 2 after 28 s
+[01:10:55] FAULT pause fdbserver-2
+[01:11:03] writes ok and fault tolerance >= 2 after 0 s
+[01:11:03] FAULT partition fdbserver-4
+[01:11:13] writes ok and fault tolerance >= 2 after 2 s
+[01:11:13] FAULT kill fdbserver-1, partition fdbserver-3
+[01:11:21] writes ok and fault tolerance >= 2 after 0 s
+[01:11:21] FAULT pause fdbserver-0 and fdbserver-1
+[01:11:51] writes ok and fault tolerance >= 2 after 22 s
+[01:11:51] FAULT kill fdbserver-5
+[01:12:00] writes ok and fault tolerance >= 2 after 1 s
+[01:12:00] FAULT pause fdbserver-3
+[01:12:09] writes ok and fault tolerance >= 2 after 1 s
+[01:12:09] FAULT partition fdbserver-5
+[01:12:17] writes ok and fault tolerance >= 2 after 0 s
+[01:12:17] FAULT kill fdbserver-0, partition fdbserver-4
+[01:12:30] writes ok and fault tolerance >= 2 after 5 s
+[01:12:30] FAULT pause fdbserver-2 and fdbserver-3
+[01:12:54] writes ok and fault tolerance >= 2 after 16 s
+[01:12:54] FAULT kill fdbserver-1
+[01:13:06] writes ok and fault tolerance >= 2 after 3 s
+[01:13:06] FAULT pause fdbserver-0
+[01:13:14] writes ok and fault tolerance >= 2 after 0 s
+[01:13:14] FAULT partition fdbserver-1
+[01:13:14] fast suites: 150 rounds done
+[01:13:14] SKIP antientropy test during this fault scope; run separately with a bounded peer
+[01:13:14] SKIP once-run store suites (SLOW_SUITES empty)
+[01:13:14] SKIP multiprocess test during this fault scope; run separately with a bounded wave
+[01:13:22] writes ok and fault tolerance >= 2 after 0 s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.44s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.45s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.46s
+      7 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.47s
+      7 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.48s
+      3 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.49s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.50s
+      6 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.51s
+      4 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.52s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.53s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.54s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.55s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.57s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.60s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.61s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.62s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.70s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.75s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.77s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.79s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.82s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.85s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.86s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.87s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.91s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.96s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.97s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 10.11s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.02s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 10.39s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.08s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.09s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.14s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.15s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.16s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.18s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.19s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 12.95s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.29s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.34s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.37s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.38s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.44s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.46s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.47s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.50s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.55s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.62s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.65s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.66s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.70s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.89s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.07s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.27s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.50s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.52s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 27.18s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.75s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.85s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 28.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 29.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 2.93s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 31.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 33.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.42s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.89s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 3.93s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 40.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 43.74s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 46.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 4.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.25s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 53.96s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.42s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 56.15s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.83s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.92s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 6.52s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.61s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.69s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.80s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 8.91s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.11s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.14s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.25s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.28s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.32s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.41s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.49s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 9.62s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 101.29s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 102.52s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 10.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 10.36s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 10.49s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 11.46s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 11.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 11.84s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 11.85s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 120.17s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 12.02s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 12.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 13.46s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 13.52s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 14.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 16.33s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 16.98s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 17.04s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 17.92s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 18.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 18.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 18.95s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 19.64s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 19.74s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.14s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.15s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.16s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.17s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.20s
+      4 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.25s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.27s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.30s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.32s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.34s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.35s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.36s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.39s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.42s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.45s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.47s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 25.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.77s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.82s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 2.84s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 30.10s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.04s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.08s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.11s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.13s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 31.48s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 31.57s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.15s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 31.60s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.18s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.21s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 32.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 32.32s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.24s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 32.63s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.28s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.30s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.33s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.34s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.37s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.38s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.39s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 34.16s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.43s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.46s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.64s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 37.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.70s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.74s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 37.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.80s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.82s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 38.69s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 38.98s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.89s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.91s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 3.93s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 40.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.04s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.11s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.17s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 42.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 44.49s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 47.88s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 48.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 49.16s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 49.40s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 50.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.06s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.14s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.19s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 52.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 55.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 55.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 55.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 55.93s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 56.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 56.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 56.82s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 57.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 5.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 60.86s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.13s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 63.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 64.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.45s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 64.80s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 65.21s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 65.81s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.73s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 68.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.91s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 7.07s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 72.74s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 7.29s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 8.39s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 8.55s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 8.62s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 88.77s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 9.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 9.24s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 10.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 10.21s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 10.37s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 10.74s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 10.84s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 11.09s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 11.20s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 11.33s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 13.16s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 13.26s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 15.34s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 15.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.77s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 18.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.82s
+      4 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.83s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.84s
+      3 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.85s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.86s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 18.76s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.87s
+      3 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.88s
+      3 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.89s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 19.25s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.93s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.96s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.98s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.99s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.01s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.02s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.04s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.06s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.09s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.10s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.11s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.14s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.19s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.22s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 23.15s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 23.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.36s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 24.24s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.44s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.55s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.64s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.65s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.67s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 27.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 27.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.80s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.85s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.90s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.95s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.96s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 29.72s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.97s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.98s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 2.99s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.02s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.03s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.04s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 30.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 30.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 30.71s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 30.75s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.07s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.08s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 31.12s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 31.16s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.12s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.20s
+      3 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.26s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.27s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.28s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.31s
+      2 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.32s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.44s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.54s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.56s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 36.63s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.67s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 36.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 38.60s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 3.90s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 40.62s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 41.03s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 41.59s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 4.18s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 42.51s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 42.78s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 43.18s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 45.23s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 45.72s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 46.50s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 46.97s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 47.65s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 47.94s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 48.52s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 48.80s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.09s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 52.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 54.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 55.29s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.68s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.69s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 57.31s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.86s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.90s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 5.96s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 6.05s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 61.83s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 6.26s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 63.54s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 64.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 6.71s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 6.87s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 69.37s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 69.53s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 7.29s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 7.58s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 78.27s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 7.95s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 80.00s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 84.66s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 97.74s
+[01:13:22] faults injected during the tests: 428
+probe: 1932 probes, 1111 ok (57.5%), longest failed run 12 probes; latency ok p50 70 ms, max 4955 ms
+  unavailable from 23:30:21 for about 3 s (sampled until next success)
+  unavailable from 23:30:30 for about 3 s (sampled until next success)
+  unavailable from 23:30:39 for about 40 s (sampled until next success)
+  unavailable from 23:31:23 for about 1 s (sampled until next success)
+  unavailable from 23:31:36 for about 3 s (sampled until next success)
+  unavailable from 23:31:45 for about 3 s (sampled until next success)
+  unavailable from 23:31:54 for about 41 s (sampled until next success)
+  unavailable from 23:32:51 for about 3 s (sampled until next success)
+  unavailable from 23:33:00 for about 11 s (sampled until next success)
+  unavailable from 23:33:18 for about 22 s (sampled until next success)
+  unavailable from 23:33:57 for about 3 s (sampled until next success)
+  unavailable from 23:34:14 for about 40 s (sampled until next success)
+  unavailable from 23:35:19 for about 2 s (sampled until next success)
+  unavailable from 23:35:37 for about 3 s (sampled until next success)
+  unavailable from 23:35:46 for about 40 s (sampled until next success)
+  unavailable from 23:36:32 for about 4 s (sampled until next success)
+  unavailable from 23:36:42 for about 1 s (sampled until next success)
+  unavailable from 23:36:51 for about 22 s (sampled until next success)
+  unavailable from 23:37:30 for about 19 s (sampled until next success)
+  unavailable from 23:37:55 for about 3 s (sampled until next success)
+  unavailable from 23:38:05 for about 1 s (sampled until next success)
+  unavailable from 23:38:13 for about 2 s (sampled until next success)
+  unavailable from 23:38:29 for about 24 s (sampled until next success)
+  unavailable from 23:38:59 for about 3 s (sampled until next success)
+  unavailable from 23:39:08 for about 3 s (sampled until next success)
+  unavailable from 23:39:17 for about 1 s (sampled until next success)
+  unavailable from 23:39:29 for about 27 s (sampled until next success)
+  unavailable from 23:40:02 for about 2 s (sampled until next success)
+  unavailable from 23:40:10 for about 3 s (sampled until next success)
+  unavailable from 23:40:28 for about 22 s (sampled until next success)
+  unavailable from 23:40:51 for about 4 s (sampled until next success)
+  unavailable from 23:41:04 for about 4 s (sampled until next success)
+  unavailable from 23:41:23 for about 2 s (sampled until next success)
+  unavailable from 23:41:34 for about 48 s (sampled until next success)
+  unavailable from 23:42:29 for about 3 s (sampled until next success)
+  unavailable from 23:42:47 for about 24 s (sampled until next success)
+  unavailable from 23:43:29 for about 20 s (sampled until next success)
+  unavailable from 23:43:55 for about 4 s (sampled until next success)
+  unavailable from 23:44:14 for about 22 s (sampled until next success)
+  unavailable from 23:44:53 for about 4 s (sampled until next success)
+  unavailable from 23:45:03 for about 3 s (sampled until next success)
+  unavailable from 23:45:39 for about 2 s (sampled until next success)
+  unavailable from 23:45:56 for about 32 s (sampled until next success)
+  unavailable from 23:46:34 for about 2 s (sampled until next success)
+  unavailable from 23:46:51 for about 13 s (sampled until next success)
+  unavailable from 23:47:10 for about 39 s (sampled until next success)
+  unavailable from 23:48:03 for about 23 s (sampled until next success)
+  unavailable from 23:48:32 for about 11 s (sampled until next success)
+  unavailable from 23:48:50 for about 57 s (sampled until next success)
+  unavailable from 23:50:02 for about 24 s (sampled until next success)
+  unavailable from 23:50:50 for about 3 s (sampled until next success)
+  unavailable from 23:51:00 for about 39 s (sampled until next success)
+  unavailable from 23:52:04 for about 4 s (sampled until next success)
+  unavailable from 23:52:14 for about 39 s (sampled until next success)
+  unavailable from 23:53:08 for about 16 s (sampled until next success)
+  unavailable from 23:53:39 for about 2 s (sampled until next success)
+  unavailable from 23:53:51 for about 22 s (sampled until next success)
+  unavailable from 23:54:34 for about 4 s (sampled until next success)
+  unavailable from 23:54:44 for about 1 s (sampled until next success)
+  unavailable from 23:54:52 for about 3 s (sampled until next success)
+  unavailable from 23:55:11 for about 1 s (sampled until next success)
+  unavailable from 23:55:29 for about 40 s (sampled until next success)
+  unavailable from 23:56:24 for about 4 s (sampled until next success)
+  unavailable from 23:56:34 for about 22 s (sampled until next success)
+  unavailable from 23:57:02 for about 3 s (sampled until next success)
+  unavailable from 23:57:11 for about 4 s (sampled until next success)
+  unavailable from 23:57:21 for about 31 s (sampled until next success)
+  unavailable from 23:57:58 for about 1 s (sampled until next success)
+  unavailable from 23:58:08 for about 3 s (sampled until next success)
+  unavailable from 23:58:17 for about 1 s (sampled until next success)
+  unavailable from 23:58:28 for about 23 s (sampled until next success)
+  unavailable from 23:59:03 for about 22 s (sampled until next success)
+  unavailable from 23:59:31 for about 3 s (sampled until next success)
+  unavailable from 23:59:50 for about 2 s (sampled until next success)
+  unavailable from 23:59:58 for about 39 s (sampled until next success)
+  unavailable from 00:00:43 for about 4 s (sampled until next success)
+  unavailable from 00:00:53 for about 2 s (sampled until next success)
+  unavailable from 00:01:01 for about 2 s (sampled until next success)
+  unavailable from 00:01:26 for about 16 s (sampled until next success)
+  unavailable from 00:01:48 for about 4 s (sampled until next success)
+  unavailable from 00:01:58 for about 22 s (sampled until next success)
+  unavailable from 00:02:34 for about 4 s (sampled until next success)
+  unavailable from 00:02:53 for about 32 s (sampled until next success)
+  unavailable from 00:03:32 for about 4 s (sampled until next success)
+  unavailable from 00:04:08 for about 1 s (sampled until next success)
+  unavailable from 00:04:17 for about 22 s (sampled until next success)
+  unavailable from 00:04:55 for about 4 s (sampled until next success)
+  unavailable from 00:05:05 for about 2 s (sampled until next success)
+  unavailable from 00:05:13 for about 39 s (sampled until next success)
+  unavailable from 00:06:08 for about 21 s (sampled until next success)
+  unavailable from 00:06:35 for about 12 s (sampled until next success)
+  unavailable from 00:06:53 for about 23 s (sampled until next success)
+  unavailable from 00:07:31 for about 4 s (sampled until next success)
+  unavailable from 00:07:41 for about 3 s (sampled until next success)
+  unavailable from 00:07:50 for about 40 s (sampled until next success)
+  unavailable from 00:08:44 for about 22 s (sampled until next success)
+  unavailable from 00:09:12 for about 4 s (sampled until next success)
+  unavailable from 00:09:31 for about 22 s (sampled until next success)
+  unavailable from 00:10:08 for about 17 s (sampled until next success)
+  unavailable from 00:10:31 for about 3 s (sampled until next success)
+  unavailable from 00:10:40 for about 3 s (sampled until next success)
+  unavailable from 00:10:49 for about 3 s (sampled until next success)
+  unavailable from 00:10:58 for about 25 s (sampled until next success)
+  unavailable from 00:11:29 for about 4 s (sampled until next success)
+  unavailable from 00:11:39 for about 3 s (sampled until next success)
+  unavailable from 00:11:56 for about 3 s (sampled until next success)
+  unavailable from 00:12:05 for about 31 s (sampled until next success)
+  unavailable from 00:12:42 for about 13 s (sampled until next success)
+  unavailable from 00:13:01 for about 1 s (sampled until next success)
+  unavailable from 00:13:10 for about 3 s (sampled until next success)
+  unavailable from 00:13:32 for about 17 s (sampled until next success)
+  unavailable from 00:13:55 for about 3 s (sampled until next success)
+  unavailable from 00:14:04 for about 3 s (sampled until next success)
+  unavailable from 00:14:13 for about 22 s (sampled until next success)
+  unavailable from 00:14:50 for about 3 s (sampled until next success)
+  unavailable from 00:14:59 for about 3 s (sampled until next success)
+  unavailable from 00:15:08 for about 38 s (sampled until next success)
+  unavailable from 00:16:02 for about 4 s (sampled until next success)
+  unavailable from 00:16:12 for about 3 s (sampled until next success)
+  unavailable from 00:16:21 for about 45 s (sampled until next success)
+  unavailable from 00:17:25 for about 13 s (sampled until next success)
+  unavailable from 00:17:44 for about 3 s (sampled until next success)
+  unavailable from 00:17:56 for about 3 s (sampled until next success)
+  unavailable from 00:18:05 for about 27 s (sampled until next success)
+  unavailable from 00:18:36 for about 5 s (sampled until next success)
+  unavailable from 00:18:47 for about 3 s (sampled until next success)
+  unavailable from 00:18:56 for about 2 s (sampled until next success)
+  unavailable from 00:19:04 for about 19 s (sampled until next success)
+  unavailable from 00:19:38 for about 4 s (sampled until next success)
+  unavailable from 00:19:48 for about 3 s (sampled until next success)
+  unavailable from 00:19:56 for about 1 s (sampled until next success)
+  unavailable from 00:20:06 for about 47 s (sampled until next success)
+  unavailable from 00:20:59 for about 3 s (sampled until next success)
+  unavailable from 00:21:17 for about 4 s (sampled until next success)
+  unavailable from 00:21:27 for about 37 s (sampled until next success)
+  unavailable from 00:22:11 for about 4 s (sampled until next success)
+  unavailable from 00:22:21 for about 38 s (sampled until next success)
+  unavailable from 00:23:30 for about 18 s (sampled until next success)
+  unavailable from 00:23:54 for about 7 s (sampled until next success)
+  unavailable from 00:24:11 for about 2 s (sampled until next success)
+  unavailable from 00:24:19 for about 39 s (sampled until next success)
+  unavailable from 00:25:05 for about 42 s (sampled until next success)
+  unavailable from 00:26:08 for about 22 s (sampled until next success)
+  unavailable from 00:26:36 for about 3 s (sampled until next success)
+  unavailable from 00:26:45 for about 49 s (sampled until next success)
+  unavailable from 00:27:40 for about 40 s (sampled until next success)
+  unavailable from 00:28:27 for about 2 s (sampled until next success)
+  unavailable from 00:28:44 for about 17 s (sampled until next success)
+  unavailable from 00:29:07 for about 40 s (sampled until next success)
+  unavailable from 00:30:04 for about 4 s (sampled until next success)
+  unavailable from 00:30:18 for about 31 s (sampled until next success)
+  unavailable from 00:31:14 for about 21 s (sampled until next success)
+  unavailable from 00:31:41 for about 4 s (sampled until next success)
+  unavailable from 00:31:51 for about 2 s (sampled until next success)
+  unavailable from 00:31:59 for about 22 s (sampled until next success)
+  unavailable from 00:32:43 for about 4 s (sampled until next success)
+  unavailable from 00:32:53 for about 32 s (sampled until next success)
+  unavailable from 00:33:49 for about 11 s (sampled until next success)
+  unavailable from 00:34:06 for about 40 s (sampled until next success)
+  unavailable from 00:35:01 for about 22 s (sampled until next success)
+  unavailable from 00:35:31 for about 1 s (sampled until next success)
+  unavailable from 00:35:46 for about 3 s (sampled until next success)
+  unavailable from 00:35:55 for about 40 s (sampled until next success)
+  unavailable from 00:36:41 for about 1 s (sampled until next success)
+  unavailable from 00:36:50 for about 36 s (sampled until next success)
+  unavailable from 00:37:44 for about 4 s (sampled until next success)
+  unavailable from 00:37:54 for about 3 s (sampled until next success)
+  unavailable from 00:38:03 for about 2 s (sampled until next success)
+  unavailable from 00:38:24 for about 31 s (sampled until next success)
+  unavailable from 00:39:31 for about 1 s (sampled until next success)
+  unavailable from 00:39:40 for about 36 s (sampled until next success)
+  unavailable from 00:40:34 for about 2 s (sampled until next success)
+  unavailable from 00:40:42 for about 26 s (sampled until next success)
+  unavailable from 00:41:23 for about 4 s (sampled until next success)
+  unavailable from 00:41:33 for about 3 s (sampled until next success)
+  unavailable from 00:41:42 for about 4 s (sampled until next success)
+  unavailable from 00:41:52 for about 21 s (sampled until next success)
+  unavailable from 00:42:28 for about 22 s (sampled until next success)
+  unavailable from 00:42:56 for about 4 s (sampled until next success)
+  unavailable from 00:43:14 for about 23 s (sampled until next success)
+  unavailable from 00:43:52 for about 4 s (sampled until next success)
+  unavailable from 00:44:02 for about 23 s (sampled until next success)
+  unavailable from 00:44:31 for about 3 s (sampled until next success)
+  unavailable from 00:44:40 for about 3 s (sampled until next success)
+  unavailable from 00:44:49 for about 40 s (sampled until next success)
+  unavailable from 00:45:35 for about 3 s (sampled until next success)
+  unavailable from 00:45:45 for about 2 s (sampled until next success)
+  unavailable from 00:45:54 for about 40 s (sampled until next success)
+  unavailable from 00:47:00 for about 4 s (sampled until next success)
+  unavailable from 00:47:08 for about 1 s (sampled until next success)
+  unavailable from 00:47:16 for about 4 s (sampled until next success)
+  unavailable from 00:47:26 for about 39 s (sampled until next success)
+  unavailable from 00:48:11 for about 4 s (sampled until next success)
+  unavailable from 00:48:21 for about 1 s (sampled until next success)
+  unavailable from 00:48:29 for about 4 s (sampled until next success)
+  unavailable from 00:48:39 for about 49 s (sampled until next success)
+  unavailable from 00:49:34 for about 2 s (sampled until next success)
+  unavailable from 00:49:42 for about 22 s (sampled until next success)
+  unavailable from 00:50:29 for about 4 s (sampled until next success)
+  unavailable from 00:50:39 for about 31 s (sampled until next success)
+  unavailable from 00:51:26 for about 22 s (sampled until next success)
+  unavailable from 00:51:54 for about 3 s (sampled until next success)
+  unavailable from 00:52:03 for about 3 s (sampled until next success)
+  unavailable from 00:52:12 for about 3 s (sampled until next success)
+  unavailable from 00:52:21 for about 32 s (sampled until next success)
+  unavailable from 00:53:00 for about 2 s (sampled until next success)
+  unavailable from 00:53:08 for about 2 s (sampled until next success)
+  unavailable from 00:53:17 for about 2 s (sampled until next success)
+  unavailable from 00:53:28 for about 22 s (sampled until next success)
+  unavailable from 00:54:06 for about 20 s (sampled until next success)
+  unavailable from 00:54:32 for about 4 s (sampled until next success)
+  unavailable from 00:54:42 for about 31 s (sampled until next success)
+  unavailable from 00:55:20 for about 4 s (sampled until next success)
+  unavailable from 00:55:40 for about 1 s (sampled until next success)
+  unavailable from 00:55:50 for about 1 s (sampled until next success)
+  unavailable from 00:55:58 for about 39 s (sampled until next success)
+  unavailable from 00:56:53 for about 24 s (sampled until next success)
+  unavailable from 00:57:41 for about 36 s (sampled until next success)
+  unavailable from 00:58:36 for about 40 s (sampled until next success)
+  unavailable from 00:59:31 for about 3 s (sampled until next success)
+  unavailable from 00:59:40 for about 4 s (sampled until next success)
+  unavailable from 00:59:58 for about 3 s (sampled until next success)
+  unavailable from 01:00:15 for about 4 s (sampled until next success)
+  unavailable from 01:00:33 for about 31 s (sampled until next success)
+  unavailable from 01:01:28 for about 4 s (sampled until next success)
+  unavailable from 01:01:37 for about 3 s (sampled until next success)
+  unavailable from 01:01:46 for about 23 s (sampled until next success)
+  unavailable from 01:02:25 for about 3 s (sampled until next success)
+  unavailable from 01:02:34 for about 3 s (sampled until next success)
+  unavailable from 01:02:52 for about 23 s (sampled until next success)
+  unavailable from 01:03:30 for about 1 s (sampled until next success)
+  unavailable from 01:03:49 for about 2 s (sampled until next success)
+  unavailable from 01:03:58 for about 21 s (sampled until next success)
+  unavailable from 01:04:46 for about 4 s (sampled until next success)
+  unavailable from 01:04:56 for about 39 s (sampled until next success)
+  unavailable from 01:05:57 for about 3 s (sampled until next success)
+  unavailable from 01:06:06 for about 3 s (sampled until next success)
+  unavailable from 01:06:15 for about 3 s (sampled until next success)
+  unavailable from 01:06:30 for about 3 s (sampled until next success)
+  unavailable from 01:06:39 for about 4 s (sampled until next success)
+  unavailable from 01:06:57 for about 3 s (sampled until next success)
+  unavailable from 01:07:06 for about 32 s (sampled until next success)
+  unavailable from 01:08:02 for about 3 s (sampled until next success)
+  unavailable from 01:08:11 for about 22 s (sampled until next success)
+  unavailable from 01:08:50 for about 4 s (sampled until next success)
+  unavailable from 01:09:00 for about 3 s (sampled until next success)
+  unavailable from 01:09:09 for about 2 s (sampled until next success)
+  unavailable from 01:09:19 for about 3 s (sampled until next success)
+  unavailable from 01:09:45 for about 16 s (sampled until next success)
+  unavailable from 01:10:07 for about 3 s (sampled until next success)
+  unavailable from 01:10:16 for about 1 s (sampled until next success)
+  unavailable from 01:10:25 for about 43 s (sampled until next success)
+  unavailable from 01:11:19 for about 2 s (sampled until next success)
+  unavailable from 01:11:27 for about 23 s (sampled until next success)
+  unavailable from 01:12:06 for about 3 s (sampled until next success)
+  unavailable from 01:12:23 for about 2 s (sampled until next success)
+  unavailable from 01:12:33 for about 21 s (sampled until next success)
+  unavailable from 01:12:59 for about 1 s (sampled until next success)
+  unavailable from 01:13:11 for about 4 s (sampled until next success)
+[01:13:23] phase fixtures: PASS
+== end 2026-10-21T01:13:23Z rc=0
+HEAD 6f5cfe346ba8ea7c821cf9059b203166e0771bbf
+diff e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+untracked e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+cli 548712d0673056cadd13d95c63c944b665ba47ea9a094ad490fd61e7762cda5f
+test fixtures-5c0980e580d550d5 1e36c485f9be873b668aa93f3726f588543fa17db1aced5619a4231ab552a9b0
+test guards-b1b1242a46c4aba8 78738649b5b402e9a1e0ae764078496cff44cc8ea86188f72d4190179dc8e296
+test tombstones-7cc30b530e4c3159 cfae6a00b5a55a169933ad7735ef1251e63a81addfae544f178606e4f246c488
+test faults-b89115c960f2686b c59f5767b0931b4bac7ad2fc8f868ba00cfb0ce695376fe32285d73294eb9a7e
+test property-fa9e5090d37057ce d02bd1fe358e378d620201db923dd157e3de6ae3ac86c7f1a432920c8beaee25

@@ -1,0 +1,3 @@
+[21:22:33] bin=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/target/w2-bins/paralean-p2-no-shutdown sha256=baf18eb3cec2f91b6fdb33e472d776043ffdc1ae050bbaf2d521b6e37c72fa63 runs=100 lanes=4 chaos=0 ops=3 fault_p=0.02 seed_base=1 deployment=exit-race-1792531353
+healed
+[21:23:01] runs 400; killed by a signal 0; other nonzero exits 0; FDB faults 0

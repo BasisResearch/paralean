@@ -123,3 +123,30 @@ Ed25519 checkpoint validation: both Rust verifier regressions passed and both
 strict-to-relaxed mutations were detected; P3Security passed with genuine signed
 fixtures and all six Lean guard mutations were detected. Full output is under
 `results/w2/ed25519` and `results/w2/p1-security-mutation-logs`.
+
+## Finish pass: salvage checkpoint (2026-10-21)
+
+Reviewed all 17 worktree commits. Store worktree commits 33765e0, efb9eb8,
+3a48635, 7e563a2, 71173e9, 308b4b8 and 1f0e77e are already integrated as
+92236ff, 774e98f, 205c232, 107fe38, 86b13f5, 4e3c664 and 4de6210.
+Control worktree commits f2076c7, 2ac3a0c, 40bcc53, 2218715, 0d6d493,
+9e6dac8, 28ecac3 and 9d8f50f are already integrated as 42aeea0, 5ebcc35,
+ef4c75c, 62543e5, dc3c77a, 7152ff5, 5ee85f9 and 8717b6a. Their nonidentical
+patches preserve later statement-pinning, cancellation, sandbox and log-redaction
+fixes. No implementation was dropped; replaying their older trees was unnecessary.
+
+Salvaged the two genuinely missing chaos commits e73c13e and 6f5cfe3:
+runtime-before-FDB teardown on return/unwind, opt-in crash reporting and capture,
+exit smoke regression, and the explicit admission that the no-shutdown A/B arm
+is not a detected mutation. Preserved all 100 untracked result files from the
+chaos worktree, redacting any FDB connection credentials. No cores or keys were
+among these untracked files. Stopped the two orphan worktree services (PIDs
+337555 and 339061) and abandoned sandbox process 2031770 after inspection.
+Other instances are untouched; new runs use only w2b-* instances.
+
+The retained 61/62 failure is a tombstone freshness assertion after an ambiguous
+commit, and the pagination failure is an ambiguous setup commit. Existing fixes
+check durable effects and retry idempotent setup. The newly recovered evidence
+includes a 150-round pagination run with seed 77003 and 428 faults, plus six-worker
+stress and 12,000 faulted process exits without a reproduced crash. These are
+historical results, not new verification of this integrated revision.

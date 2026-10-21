@@ -1,0 +1,12 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/crates/ae-service)
+   Compiling paralean-cli v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/crates/cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.87s
+     Running tests/exit.rs (target/debug/deps/exit-a99f81f0cb533c34)
+
+running 1 test
+wrote /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/target/tmp/t-exit-1057902-951902068-keys.json (6 workspaces)
+test cli_processes_exit_without_a_signal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.39s
+

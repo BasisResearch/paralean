@@ -1,0 +1,100 @@
+worker 0: {"publish-free": 1, "publish-target": 1, "reassign": 1} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 1, "skip": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"checkpoint": 1, "publish-free": 1, "tombstone": 1} faults {"commit:T3Rotate:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {"commit:T4Reassign:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"publish-free": 2, "tombstone": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 2, "reassign": 1} faults {}
+worker 0: {"skip": 3} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "publish-target": 1} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"checkpoint": 1, "guard:NotOwner": 1, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 2} faults {}
+worker 0: {"publish-free": 1, "skip": 2} faults {}
+worker 0: {"publish-free": 1, "skip": 2} faults {"put:TimeoutNotLanded": 1}
+worker 0: {"publish-free": 2, "tombstone": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "tombstone": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"guard:StaleToken": 2, "publish-free": 1} faults {"put:TimeoutLanded": 1, "put:TimeoutNotLanded": 1}
+worker 0: {"guard:NotOwner": 1, "guard:StaleToken": 1, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "tombstone": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {"put:TimeoutLanded": 1, "put:TimeoutNotLanded": 1}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"publish-free": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"publish-free": 1, "skip": 2} faults {"put:TimeoutLanded": 1}
+worker 0: {"checkpoint": 2, "publish-free": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"publish-free": 2, "skip": 1} faults {}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 2} faults {"put:TimeoutLanded": 1}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "reassign": 1} faults {}
+worker 0: {"reassign": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"publish-free": 3} faults {}
+worker 0: {"guard:NotOwner": 1, "guard:StaleToken": 1, "publish-free": 1} faults {"commit:T1Publish:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:StaleToken": 1, "publish-free": 2} faults {"commit:T6ObjectCert:UnknownCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "reassign": 1} faults {"put:TimeoutNotLanded": 1}
+worker 0: {"publish-free": 1, "reassign": 2} faults {"commit:T4Reassign:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:NotOwner": 1, "publish-free": 2} faults {"fdb-retry": 1}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 3} faults {}
+worker 0: {"guard:NotOwner": 1, "guard:StaleToken": 1, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "reassign": 1} faults {}
+worker 0: {"publish-free": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"publish-free": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"reassign": 2, "skip": 1} faults {}
+worker 0: {"skip": 3} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 1, "skip": 1} faults {"commit:T6ObjectCert:UnknownCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:NotOwner": 1, "publish-free": 2} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"publish-target": 1, "reassign": 1, "skip": 1} faults {"put:TimeoutLanded": 2}
+worker 0: {"publish-target": 1, "skip": 2} faults {"commit:T1Publish:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"checkpoint": 1, "publish-free": 1, "publish-target": 1} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 1, "reassign": 1} faults {"commit:T6ObjectCert:UnknownCommitted": 1, "put:TimeoutNotLanded": 1, "unknown-result-resolved": 1}
+worker 0: {"guard:NotOwner": 1, "publish-free": 2} faults {}
+worker 0: {"checkpoint": 1, "guard:NotOwner": 1, "publish-free": 1} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {"commit:T1Publish:UnknownNotCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"publish-free": 1, "skip": 1, "tombstone": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {}
+worker 0: {"reassign": 2, "skip": 1} faults {}
+worker 0: {"publish-free": 3} faults {}
+worker 0: {"publish-free": 2, "publish-target": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "guard:StaleToken": 1, "publish-free": 1} faults {"put:TimeoutNotLanded": 2}
+worker 0: {"guard:NotOwner": 1, "reassign": 1, "skip": 1} faults {"commit:T4Reassign:UnknownCommitted": 1, "unknown-result-resolved": 1}
+worker 0: {"publish-free": 1, "reassign": 2} faults {}
+worker 0: {"publish-free": 1, "reassign": 1, "tombstone": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "skip": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "tombstone": 1} faults {"put:TimeoutNotLanded": 1}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"guard:NotOwner": 2, "publish-free": 1} faults {}
+worker 0: {"checkpoint": 1, "publish-free": 2} faults {}
+worker 0: {"guard:NotOwner": 1, "publish-free": 1, "skip": 1} faults {"put:TimeoutLanded": 1}
+worker 0: {"publish-free": 1, "skip": 1, "tombstone": 1} faults {}

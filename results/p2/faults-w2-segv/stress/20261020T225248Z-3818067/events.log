@@ -1,0 +1,80 @@
+[22:52:48] phase=stress scope=combined fdb=6 garage=3 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/scripts/../../../results/p2/faults-w2-segv/stress/20261020T225248Z-3818067
+[22:52:48] cli sha256 842c8a33f0d9dbd664eb6b2d27b99c1bde1e38587e54be9fba514281c9e3c00f
+[22:52:48] core dumps: ulimit -c unlimited, cores from /var/lib/apport/coredump
+[22:52:48] writes ok and fault tolerance >= 2 after 0 s
+[22:52:53] garage nodes up: 3 of 3
+[22:53:03] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29501)
+[22:53:16] writes ok and fault tolerance >= 2 after 3 s
+[22:53:16] FAULT pause fdbserver-2 (SIGSTOP)
+STOP fdbserver-2
+CONT fdbserver-2
+[22:53:31] writes ok and fault tolerance >= 2 after 0 s
+[22:53:31] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[22:53:46] writes ok and fault tolerance >= 2 after 0 s
+[22:53:46] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+KILL fdbserver-0
+KILL fdbserver-4
+started fdbserver-0 (127.0.0.1:29500)
+started fdbserver-4 (127.0.0.1:29504)
+[22:54:30] writes ok and fault tolerance >= 2 after 28 s
+[22:54:30] FAULT pause fdbserver-1 and partition fdbserver-5
+STOP fdbserver-1
+isolated fdbservers: 5
+CONT fdbserver-1
+healed
+[22:55:04] writes ok and fault tolerance >= 2 after 19 s
+[22:55:04] FAULT partition fdbservers 2 and 3 together (a minority side)
+isolated fdbservers: 2 3
+healed
+[22:55:19] writes ok and fault tolerance >= 2 after 0 s
+[22:55:19] FAULT kill and wipe fdbserver-2 (disk loss)
+KILL fdbserver-2
+wiped fdbserver-2 data
+started fdbserver-2 (127.0.0.1:29502)
+[22:55:25] writes ok and fault tolerance >= 2 after 0 s
+[22:55:25] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+KILL fdbserver-3
+KILL fdbserver-5
+wiped fdbserver-3 data
+wiped fdbserver-5 data
+started fdbserver-3 (127.0.0.1:29503)
+started fdbserver-5 (127.0.0.1:29505)
+[22:57:01] writes ok and fault tolerance >= 2 after 91 s
+[22:57:01] FAULT kill garage-0 (the gateway's first upstream)
+KILL garage-0
+started garage-0
+[22:57:26] garage nodes up: 3
+[22:57:26] FAULT pause garage-1 (SIGSTOP)
+STOP garage-1
+CONT garage-1
+[22:57:52] garage nodes up: 3
+[22:57:52] FAULT kill and wipe garage-2 (disk loss), resync blocks
+KILL garage-2
+wiped garage-2 data blocks (empty replacement disk)
+started garage-2
+b05315b0d8e20ecf  Repair launched
+[22:58:03] block resync launched on garage-2
+[22:58:23] garage nodes up: 3
+[22:58:23] faults done; stopping workers
+[22:58:28] acknowledged effects logged: 3088
+acknowledged effects present: {"assign": 429, "group": 1325, "rank": 983, "record": 65, "tombstone": 286}; lost: 0
+certified groups   1325
+committed records  65
+markers            1325
+object certs       4370
+received evidence  0
+records            65
+targets            3
+tombstones         286
+uncertified markers 0
+audit ok
+probe: 375 probes, 353 ok (94.1%), longest failed run 13 probes; latency ok p50 59 ms, max 3475 ms
+  unavailable from 22:53:21 for about 69 s (sampled until next success)
+  unavailable from 22:54:36 for about 1 s (sampled until next success)
+  unavailable from 22:54:51 for about 28 s (sampled until next success)
+  unavailable from 22:55:46 for about 13 s (sampled until next success)
+[23:01:28] phase stress: PASS

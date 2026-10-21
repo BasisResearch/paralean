@@ -1,0 +1,411 @@
+[21:23:09] bin=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/target/w2-bins/paralean-p2-no-shutdown sha256=baf18eb3cec2f91b6fdb33e472d776043ffdc1ae050bbaf2d521b6e37c72fa63 runs=1500 lanes=4 chaos=1 ops=3 fault_p=0.02 seed_base=3045 deployment=exit-race-1792531389
+[21:23:09] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:23:17] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:23:25] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:23:35] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:23:43] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:24:11] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:24:20] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:24:29] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:24:54] FAULT partition fdbserver-0
+isolated fdbservers: 0
+healed
+[21:25:03] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:25:13] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:25:21] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:25:40] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:26:16] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:26:25] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:26:34] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:26:43] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:26:51] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:26:59] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:27:36] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[21:27:44] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:27:53] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:28:01] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:28:10] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:28:29] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:28:39] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:28:48] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:28:57] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:29:06] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:29:34] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:29:44] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:29:52] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:30:01] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:30:10] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:30:18] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:30:47] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:30:56] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:31:06] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:31:14] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:31:24] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:32:00] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[21:32:08] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:32:17] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:32:25] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:32:35] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:32:45] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:32:56] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:33:22] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:33:31] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:33:40] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:33:50] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:33:58] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:29404)
+[21:34:34] FAULT pause fdbserver-2
+STOP fdbserver-2
+CONT fdbserver-2
+[21:34:43] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:34:52] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:35:04] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:35:12] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:35:20] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:29404)
+[21:35:30] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:35:57] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:36:06] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:36:15] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:36:23] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:36:32] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:37:09] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:37:18] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:37:27] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:37:36] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:37:46] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:37:54] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:38:02] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:38:11] FAULT partition fdbserver-0
+isolated fdbservers: 0
+healed
+[21:38:30] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:38:42] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:38:51] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:39:00] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:39:37] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:39:45] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:39:54] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:40:03] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:40:13] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:40:21] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:40:30] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:40:38] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:40:46] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:29404)
+[21:41:23] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:41:32] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:41:41] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:41:51] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[21:42:00] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:42:18] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:42:28] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:42:55] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:43:05] FAULT kill fdbserver-2
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:29402)
+[21:43:14] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:43:22] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:43:31] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:44:08] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:44:16] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:44:24] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:44:34] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[21:44:43] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:44:52] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:45:30] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:45:39] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:45:49] FAULT kill fdbserver-5
+KILL fdbserver-5
+started fdbserver-5 (127.0.0.1:29405)
+[21:45:58] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:46:06] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[21:46:14] FAULT kill fdbserver-4
+KILL fdbserver-4
+started fdbserver-4 (127.0.0.1:29404)
+[21:46:51] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:46:59] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:47:08] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:47:19] FAULT pause fdbserver-2
+STOP fdbserver-2
+CONT fdbserver-2
+[21:47:28] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:47:37] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:47:46] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:47:54] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:48:04] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:48:42] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[21:48:50] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:49:00] FAULT kill fdbserver-3
+KILL fdbserver-3
+started fdbserver-3 (127.0.0.1:29403)
+[21:49:09] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:49:18] FAULT partition fdbserver-2
+isolated fdbservers: 2
+healed
+[21:49:28] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:50:05] FAULT pause fdbserver-3
+STOP fdbserver-3
+CONT fdbserver-3
+[21:50:14] FAULT partition fdbserver-3
+isolated fdbservers: 3
+healed
+[21:50:23] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:50:35] FAULT pause fdbserver-4
+STOP fdbserver-4
+CONT fdbserver-4
+[21:50:44] FAULT partition fdbserver-1
+isolated fdbservers: 1
+healed
+[21:50:53] FAULT kill fdbserver-1
+KILL fdbserver-1
+started fdbserver-1 (127.0.0.1:29401)
+[21:51:03] FAULT pause fdbserver-5
+STOP fdbserver-5
+CONT fdbserver-5
+[21:51:11] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:51:19] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+[21:51:56] FAULT pause fdbserver-0
+STOP fdbserver-0
+CONT fdbserver-0
+[21:52:04] FAULT partition fdbserver-4
+isolated fdbservers: 4
+healed
+[21:52:13] FAULT kill fdbserver-0
+KILL fdbserver-0
+started fdbserver-0 (127.0.0.1:29400)
+healed
+[21:52:22] runs 6000; killed by a signal 0; other nonzero exits 0; FDB faults 136

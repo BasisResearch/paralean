@@ -1,0 +1,67 @@
+== start 2026-10-20T22:52:47Z
+HEAD e73c13e45622bfcf38304026460a0f23390024f7
+diff e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+untracked e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+cli 842c8a33f0d9dbd664eb6b2d27b99c1bde1e38587e54be9fba514281c9e3c00f
+test fixtures-5c0980e580d550d5 1e36c485f9be873b668aa93f3726f588543fa17db1aced5619a4231ab552a9b0
+test guards-b1b1242a46c4aba8 78738649b5b402e9a1e0ae764078496cff44cc8ea86188f72d4190179dc8e296
+test tombstones-7cc30b530e4c3159 cfae6a00b5a55a169933ad7735ef1251e63a81addfae544f178606e4f246c488
+test faults-b89115c960f2686b c59f5767b0931b4bac7ad2fc8f868ba00cfb0ce695376fe32285d73294eb9a7e
+test property-fa9e5090d37057ce d02bd1fe358e378d620201db923dd157e3de6ae3ac86c7f1a432920c8beaee25
+[22:52:48] phase=stress scope=combined fdb=6 garage=3 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/scripts/../../../results/p2/faults-w2-segv/stress/20261020T225248Z-3818067
+[22:52:48] cli sha256 842c8a33f0d9dbd664eb6b2d27b99c1bde1e38587e54be9fba514281c9e3c00f
+[22:52:48] core dumps: ulimit -c unlimited, cores from /var/lib/apport/coredump
+[22:52:48] writes ok and fault tolerance >= 2 after 0 s
+[22:52:53] garage nodes up: 3 of 3
+[22:53:03] FAULT kill fdbserver-1
+[22:53:16] writes ok and fault tolerance >= 2 after 3 s
+[22:53:16] FAULT pause fdbserver-2 (SIGSTOP)
+[22:53:31] writes ok and fault tolerance >= 2 after 0 s
+[22:53:31] FAULT partition fdbserver-3
+[22:53:46] writes ok and fault tolerance >= 2 after 0 s
+[22:53:46] FAULT kill fdbserver-0 and fdbserver-4 (two coordinators)
+[22:54:30] writes ok and fault tolerance >= 2 after 28 s
+[22:54:30] FAULT pause fdbserver-1 and partition fdbserver-5
+[22:55:04] writes ok and fault tolerance >= 2 after 19 s
+[22:55:04] FAULT partition fdbservers 2 and 3 together (a minority side)
+[22:55:19] writes ok and fault tolerance >= 2 after 0 s
+[22:55:19] FAULT kill and wipe fdbserver-2 (disk loss)
+[22:55:25] writes ok and fault tolerance >= 2 after 0 s
+[22:55:25] FAULT kill and wipe fdbserver-3 and fdbserver-5 (two disk losses)
+[22:57:01] writes ok and fault tolerance >= 2 after 91 s
+[22:57:01] FAULT kill garage-0 (the gateway's first upstream)
+[22:57:26] garage nodes up: 3
+[22:57:26] FAULT pause garage-1 (SIGSTOP)
+[22:57:52] garage nodes up: 3
+[22:57:52] FAULT kill and wipe garage-2 (disk loss), resync blocks
+[22:58:03] block resync launched on garage-2
+[22:58:23] garage nodes up: 3
+[22:58:23] faults done; stopping workers
+[22:58:28] acknowledged effects logged: 3088
+acknowledged effects present: {"assign": 429, "group": 1325, "rank": 983, "record": 65, "tombstone": 286}; lost: 0
+certified groups   1325
+committed records  65
+markers            1325
+object certs       4370
+received evidence  0
+records            65
+targets            3
+tombstones         286
+uncertified markers 0
+audit ok
+probe: 375 probes, 353 ok (94.1%), longest failed run 13 probes; latency ok p50 59 ms, max 3475 ms
+  unavailable from 22:53:21 for about 69 s (sampled until next success)
+  unavailable from 22:54:36 for about 1 s (sampled until next success)
+  unavailable from 22:54:51 for about 28 s (sampled until next success)
+  unavailable from 22:55:46 for about 13 s (sampled until next success)
+[23:01:28] phase stress: PASS
+== end 2026-10-20T23:01:28Z rc=0
+HEAD e73c13e45622bfcf38304026460a0f23390024f7
+diff e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+untracked e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+cli 842c8a33f0d9dbd664eb6b2d27b99c1bde1e38587e54be9fba514281c9e3c00f
+test fixtures-5c0980e580d550d5 1e36c485f9be873b668aa93f3726f588543fa17db1aced5619a4231ab552a9b0
+test guards-b1b1242a46c4aba8 78738649b5b402e9a1e0ae764078496cff44cc8ea86188f72d4190179dc8e296
+test tombstones-7cc30b530e4c3159 cfae6a00b5a55a169933ad7735ef1251e63a81addfae544f178606e4f246c488
+test faults-b89115c960f2686b c59f5767b0931b4bac7ad2fc8f868ba00cfb0ce695376fe32285d73294eb9a7e
+test property-fa9e5090d37057ce d02bd1fe358e378d620201db923dd157e3de6ae3ac86c7f1a432920c8beaee25

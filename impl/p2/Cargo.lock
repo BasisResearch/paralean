@@ -1533,6 +1533,7 @@ dependencies = [
  "ae-wire",
  "ed25519-dalek",
  "hex",
+ "libc",
  "paralean-ae-service",
  "paralean-store",
  "rand 0.8.8",

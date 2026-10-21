@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running tests/exit.rs (target/debug/deps/exit-b1b6ce6d2dab74a0)
+
+running 1 test
+wrote /data/home/kirancodes/Documents/code/paralean-w2-security/.claude/worktrees/agent-a8189e5e0a321664a/impl/p2/target/tmp/t-exit-1027357-438980886-keys.json (6 workspaces)
+test cli_processes_exit_without_a_signal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.59s
+

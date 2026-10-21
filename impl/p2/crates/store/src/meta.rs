@@ -49,11 +49,17 @@ pub fn boot() {
 
 /// Stop the FDB network thread and join it (before process exit; the client library's
 /// thread must not run while the process tears down). FDB cannot be used afterwards.
+#[cfg(not(feature = "mutate-no-network-shutdown"))]
 pub fn shutdown() {
     if let Some(m) = NETWORK.get() {
-        drop(m.lock().unwrap().take());
+        drop(m.lock().unwrap_or_else(|p| p.into_inner()).take());
     }
 }
+
+/// Mutation support only (`mutate-no-network-shutdown`): leave the network thread running
+/// into process exit, as the CLI did before it stopped the thread explicitly.
+#[cfg(feature = "mutate-no-network-shutdown")]
+pub fn shutdown() {}
 
 // ---------------------------------------------------------------- keys
 

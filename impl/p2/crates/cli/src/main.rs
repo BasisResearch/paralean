@@ -17,6 +17,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 mod ae;
+mod crash;
 
 const USAGE: &str = "usage: paralean-p2 <command> [args]
   keys init <path> [--workspaces N] [--demo]   write a key file (random seeds unless --demo)
@@ -125,11 +126,17 @@ fn kind(s: &str) -> R<Kind> {
     Kind::from_name(s).ok_or(format!("unknown kind {s}"))
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
+    crash::install_from_env();
+    // Declared first, so dropped last: after the runtime below, on return and on unwinding.
+    // The FDB network thread must never be left running into process exit.
+    let _teardown = crash::Teardown;
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let r = run(args).await;
-    paralean_store::meta::shutdown();
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("start the Tokio runtime");
+    let r = rt.block_on(run(args));
+    // Tasks, FDB databases and futures owned by the runtime go before the network stops.
+    drop(rt);
+    crash::stage(crash::Stage::RuntimeDropped);
     match r {
         Ok(code) => code,
         Err(e) => {
