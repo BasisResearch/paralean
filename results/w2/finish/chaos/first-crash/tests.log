@@ -1,0 +1,81 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.75s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-96c3e3c0ccddc299)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.95s
+
+error: test failed, to rerun pass `-p paralean-store --test fixtures`
+
+Caused by:
+  process didn't exit successfully: `/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/target/debug/deps/fixtures-96c3e3c0ccddc299` (signal: 11, SIGSEGV: invalid memory reference)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-96c3e3c0ccddc299)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 50.31s
+
+     Running tests/guards.rs (target/debug/deps/guards-79bc30a9302f7c04)
+
+running 14 tests
+test t6_object_certificate_follows_acknowledgement ... ok
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t1_requires_the_pinned_target_statement ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_head_compare_and_swap ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test paginated_scan_follows_partial_batches ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.16s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-d2aedab12ad1e57b)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test t8_tombstone_guards ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test tombstone_faults_resolve ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.57s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-96c3e3c0ccddc299)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
