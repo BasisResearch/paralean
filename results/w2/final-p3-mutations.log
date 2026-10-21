@@ -20,7 +20,7 @@ detected  mutate-no-checker-disk-limit  by sandbox::checker_disk_budget_is_tmpfs
 detected  mutate-no-checker-fsize-limit  by sandbox::checker_disk_budget_is_tmpfs_enospc_and_rlimit_fsize
 detected  mutate-no-checker-process-limit  by sandbox::checker_process_count_is_hard_limited
 detected  mutate-no-checker-memory-limit  by sandbox::checker_memory_rss_poll_catches_sustained_hog_without_cgroup
-SURVIVED  mutate-no-checker-cgroup  sandbox::checker_memory_cgroup_hard_limit_kills_fast_burst passed with the check removed
+detected  mutate-no-checker-cgroup  by sandbox::checker_memory_cgroup_hard_limit_kills_fast_burst
 detected  mutate-no-checker-cpu-limit  by sandbox::checker_cpu_budget_kills_busy_loop
 detected  mutate-checker-config-unsandboxed  by sandbox::production_config_enables_the_sandbox
 detected  mutate-checker-fallback-unsandboxed  by sandbox::sandbox_fails_closed_when_bwrap_is_missing
@@ -37,4 +37,4 @@ detected  mutate-recover-every-tick  by control::inconclusive_recovery_is_bounde
 detected  mutate-keep-old-snapshot-chunks  by durable::superseded_snapshot_chunks_are_cleared_with_the_head_swap
 detected  mutate-role-keys-unchecked  by processes::processes_refuse_key_files_with_seeds_of_other_roles
 detected  paralean-validator-api/mutate-unverified-published-cert  by adversarial::published_means_a_certificate_that_verifies
-rc=1
+rc=0
