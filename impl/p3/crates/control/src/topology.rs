@@ -764,7 +764,8 @@ impl Durable {
             if total > limit {
                 return Ok(MoveOutcome::TooLarge(format!("export of {total} bytes exceeds the {limit}-byte move limit; split the move")));
             }
-            let dest = trx.get(&shard_state_key(&self.store, record.to), false).await.map_err(|e| e.to_string())?
+            // A size bound only: a snapshot read, so the destination's saves do not conflict.
+            let dest = trx.get(&shard_state_key(&self.store, record.to), true).await.map_err(|e| e.to_string())?
                 .map(|v| serde_json::from_slice::<SnapshotHead>(&v).map_err(|e| e.to_string())).transpose()?;
             if dest.as_ref().map_or(0, |h| h.len) + handoff.len() > MAX_SHARD_SNAPSHOT {
                 return Ok(MoveOutcome::TooLarge("destination snapshot would exceed 8 MiB; split the move".into()));

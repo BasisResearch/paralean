@@ -504,8 +504,8 @@ async fn second_import_does_not_resurrect_work() {
     }
     assert!(work_of(&b).await.is_empty(), "not compacted");
     let again = b.import_move_now(91).await;
-    assert!(matches!(again, Ok(false)), "{again:?}");
     assert!(work_of(&b).await.is_empty(), "second import resurrected work");
+    assert!(matches!(again, Ok(false)), "{again:?}");
     assert_eq!(submit(&b, "reimport/1", &target).await, ControlResponse::Duplicate { state: "Done".into() });
 }
 
@@ -735,8 +735,10 @@ async fn reshard_benchmark() {
     let f = fixture("w4r-reshard", 2).await;
     let planes: Arc<std::sync::Mutex<BTreeMap<u32, Arc<ControlPlane>>>> = Arc::new(std::sync::Mutex::new(BTreeMap::new()));
     let monitors = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let mut bench_cfg = f.cfg.clone();
+    bench_cfg.max_work_queue = 1_000_000;
     let start_shard = |n: u32| {
-        let cp = f.plane(n);
+        let cp = ControlPlane::new_dynamic(bench_cfg.clone(), n, GcConfig::default());
         planes.lock().unwrap().insert(n, cp.clone());
         let monitor = tokio::spawn(async move {
             loop {
