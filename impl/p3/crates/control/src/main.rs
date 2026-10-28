@@ -17,6 +17,7 @@ use paralean_control::gc::GcConfig;
 use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_control::worker::WorkerNode;
 use paralean_control::keys::{self, Role};
+use paralean_control::topology;
 use paralean_store::receipt::{Policy, Revocation, SignedRevocation};
 use paralean_store::*;
 
@@ -34,7 +35,7 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
                                    R1: revoke a validator key in the store (needs the authority seed)
   checker-version                  this machine's checker version and its ID
   validator --listen ADDR --key NAME [--max-running N] [--max-queued N] [--workdir DIR]
-  controller --listen ADDR --validators A,B [--shard N --shards K] [--lease-ms N] [--max-work-queue N]
+  controller --listen ADDR --validators A,B [--shard N --shards K | --shard N --dynamic] [--lease-ms N] [--max-work-queue N]
              [--no-gc] [--gc-grace-ticks N --gc-scan-limit N]
              [--max-validations N] [--deadline-ms N] [--memory-mb N] [--attempts N]
   worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
@@ -43,7 +44,16 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   assign-group --controller ADDR --targets NAME,NAME --worker W
   cancel --controller ADDR --request R [--worker W]
                                    J3 for W's request R, or for every workspace's R
-  status --controller ADDR";
+  status --controller ADDR
+  topology init --shards K         make a fresh deployment's controller topology dynamic
+                                   (256 buckets in contiguous ranges over shards 0..K)
+  topology add-shard [--shard N]   add an active shard that owns no bucket yet
+  topology move --buckets A-B,C --from S --to T [--id N] [--wait-secs N]
+                                   begin moving buckets; the shards' leaders export and import
+  topology abort-move --id N       abort a move that has not been exported
+  topology remove-shard --shard N  retire a shard that owns no bucket and no move
+  topology status                  members, bucket ownership and active moves
+                                   (topology commands need the authority seed: W2 administration)";
 
 type R<T> = std::result::Result<T, String>;
 
@@ -207,8 +217,10 @@ async fn run(args: Vec<String>) -> R<()> {
             let checker = CheckerConfig::from_env()?;
             let shard = u32::try_from(num(&f, "shard", 0)?).map_err(|_| "--shard exceeds u32")?;
             let shards = u32::try_from(num(&f, "shards", 1)?).map_err(|_| "--shards exceeds u32")?;
-            if shards == 0 || shard >= shards { return Err("--shard must be less than positive --shards".into()) }
-            let cp = ControlPlane::new_shard_with_gc(ControllerConfig {
+            let dynamic = f.contains_key("dynamic");
+            if dynamic && f.contains_key("shards") { return Err("--dynamic takes its shards from the topology, not --shards".into()) }
+            if !dynamic && (shards == 0 || shard >= shards) { return Err("--shard must be less than positive --shards".into()) }
+            let cfg = ControllerConfig {
                 store: open_store(&kf)?,
                 authority: kf.authority_signer().ok_or("the key file holds no authority seed")?,
                 validators: f.get("validators").ok_or("--validators A,B")?.split(',').map(String::from).collect(),
@@ -221,10 +233,13 @@ async fn run(args: Vec<String>) -> R<()> {
                 validation_deadline: Duration::from_millis(num(&f, "deadline-ms", 600_000)?),
                 validation_memory_mb: num(&f, "memory-mb", 4096)?,
                 validator_attempts: num(&f, "attempts", 4)? as usize,
-            }, shard, shards, controller_gc(&f)?);
+            };
+            let cp = if dynamic { ControlPlane::new_dynamic(cfg, shard, controller_gc(&f)?) }
+                else { ControlPlane::new_shard_with_gc(cfg, shard, shards, controller_gc(&f)?) };
             cp.verify_topology().await?;
             let l = tokio::net::TcpListener::bind(f.get("listen").ok_or("--listen ADDR")?).await.map_err(|e| e.to_string())?;
-            println!("controller shard {shard}/{shards} on {}", l.local_addr().unwrap());
+            if dynamic { println!("controller shard {shard} (dynamic topology) on {}", l.local_addr().unwrap()) }
+            else { println!("controller shard {shard}/{shards} on {}", l.local_addr().unwrap()) }
             cp.serve(l).await.map_err(|e| e.to_string())?;
         }
         ["worker", ..] => {
@@ -290,9 +305,74 @@ async fn run(args: Vec<String>) -> R<()> {
             let r = ctl_call(&f, ControlRequest::Status).await?;
             println!("{}", serde_json::to_string_pretty(&r).unwrap());
         }
+        ["topology", command, ..] => {
+            let kf = keyfile()?;
+            // W2: administrative operations require the authority.
+            kf.authority_signer().ok_or("topology commands need a key file holding the authority seed")?;
+            let store = open_store(&kf)?;
+            let shard_flag = |k: &str| -> R<u32> {
+                u32::try_from(num(&f, k, u64::MAX)?).map_err(|_| format!("--{k} N"))
+            };
+            match *command {
+                "init" => {
+                    let record = topology::init_dynamic(&store, shard_flag("shards")?).await?;
+                    println!("{}", serde_json::to_string(&record).unwrap());
+                }
+                "add-shard" => {
+                    let n = if f.contains_key("shard") { Some(shard_flag("shard")?) } else { None };
+                    println!("added shard {}", topology::add_shard(&store, n).await?);
+                }
+                "remove-shard" => {
+                    let n = shard_flag("shard")?;
+                    topology::remove_shard(&store, n).await?;
+                    println!("retired shard {n}");
+                }
+                "move" => {
+                    let buckets = parse_buckets(f.get("buckets").ok_or("--buckets A-B,C")?)?;
+                    let id = match f.get("id") { Some(v) => v.parse().map_err(|e| format!("--id: {e}"))?, None => rand::random::<u64>() >> 1 };
+                    let record = topology::begin_move(&store, id, &buckets, shard_flag("from")?, shard_flag("to")?).await?;
+                    println!("{}", serde_json::to_string(&record).unwrap());
+                    let wait = num(&f, "wait-secs", 0)?;
+                    if wait > 0 {
+                        let deadline = std::time::Instant::now() + Duration::from_secs(wait);
+                        loop {
+                            let current = topology::read_move(&store, id).await?.ok_or("move disappeared")?;
+                            if matches!(current.state, topology::MoveState::Done | topology::MoveState::Aborted) {
+                                println!("{}", serde_json::to_string(&current).unwrap());
+                                if current.state == topology::MoveState::Aborted { return Err(format!("move {id} aborted: {}", current.reason)) }
+                                break;
+                            }
+                            if std::time::Instant::now() >= deadline { return Err(format!("move {id} still {:?}", current.state)) }
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
+                    }
+                }
+                "abort-move" => {
+                    let id: u64 = f.get("id").ok_or("--id N")?.parse().map_err(|e| format!("--id: {e}"))?;
+                    let record = topology::abort_move(&store, id, "aborted by the operator").await?;
+                    println!("{}", serde_json::to_string(&record).unwrap());
+                }
+                "status" => println!("{}", serde_json::to_string_pretty(&topology::status(&store).await?).unwrap()),
+                _ => return Err(USAGE.into()),
+            }
+        }
         _ => return Err(USAGE.into()),
     }
     Ok(())
+}
+
+/// `0-15,20` as buckets 0..=15 and 20.
+fn parse_buckets(spec: &str) -> R<Vec<u16>> {
+    let mut out = Vec::new();
+    for part in spec.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+        let bad = || format!("--buckets: bad range {part}");
+        let (a, b) = part.split_once('-').unwrap_or((part, part));
+        let (a, b): (u16, u16) = (a.parse().map_err(|_| bad())?, b.parse().map_err(|_| bad())?);
+        if a > b || b >= topology::NB { return Err(bad()) }
+        out.extend(a..=b);
+    }
+    if out.is_empty() { return Err("--buckets: no bucket".into()) }
+    Ok(out)
 }
 
 fn main() -> ExitCode {
