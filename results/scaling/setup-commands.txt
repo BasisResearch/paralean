@@ -7,3 +7,9 @@ CARGO_TARGET_DIR="$PWD/impl/p2/target" RUSTC_WRAPPER= cargo build --offline --re
 # Network sandbox initially refused localhost bind; retried with approved escalation.
 impl/p5/scripts/cluster-up.sh > .runs/scaling/cluster-up-escalated.log 2>&1
 # Individual measured commands are in each result.json; no credentials archived.
+# Overlarge pilot (failed heartbeat checks; exact remaining PID tree stopped):
+python3 scripts/scaling/study.py --pilot --workload synthetic --n 8 --work 20000
+python3 scripts/scaling/stop-pilot.py
+# Corrected suite, automatically load-gated before each subprocess:
+bash scripts/scaling/run.sh
+# Production uses --work 100; the prior 20,000-iteration pilot is excluded.

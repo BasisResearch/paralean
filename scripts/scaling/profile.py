@@ -30,7 +30,7 @@ for label,cmd in [
 # Profile the exact validator check-group path using a staged cache with its dependency closure.
 caps={json.loads(p.read_text())['gid']:json.loads(p.read_text()) for p in (ws/'cache/meta').glob('*.json')}
 if caps:
- root=next((g for g in caps.values() if 'P5List.reverse_map_lengths' in str(g.get('publicNames',[]))),None)
+ root=next((g for g in caps.values() if ['P5List', 'reverse_map_lengths'] in g.get('publicNames',[])),None)
  if root:
   gids=','.join(caps)
   rows.append({'label':'check-group',**command([env['PARALEAN_BIN'],'check-group','--store',str(ws/'cache'),'--gids',gids,'--decl',root['declId']],out/'check-group.log',env)})

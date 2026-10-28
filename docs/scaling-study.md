@@ -31,7 +31,8 @@ failed attempts. Use three blocks, alternating order across blocks to reduce
 host drift. Fresh deployments/workspaces; shared compiler and OS caches warm
 (no cache dropping on this shared host). Report every sample, arithmetic mean,
 standard deviation, and Student-t 95% CI of mean (df=2 with three samples).
-Speedup ratio intervals use conservative endpoint ratios of positive mean CIs;
+Speedup ratio intervals use endpoint ratios of positive 97.5% mean CIs
+(Bonferroni joint coverage at least 95%, assuming normal sampling);
 if those intervals are nonpositive, report ratio uncertainty as unbounded.
 These intervals reflect observed run variability, not generalization to tasks.
 Do not silently exclude outliers or mix pilot and confirmatory results.

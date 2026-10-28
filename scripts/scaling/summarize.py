@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Summaries retain failures; t intervals require three successful samples."""
 import json
+import math
 from pathlib import Path
 import re
 import statistics
@@ -49,10 +50,14 @@ for item in summary:
  for label,b in [('stock_speedup',base),('paralean_speedup',one)]:
   if b['wall_s'] and item['wall_s']:
    a,z=b['wall_s'],item['wall_s'];ci=None
-   if a['ci95'] and z['ci95'] and min(a['ci95']+z['ci95'])>0:
-    ci=[a['ci95'][0]/z['ci95'][1],a['ci95'][1]/z['ci95'][0]]
+   if a['ci95'] and z['ci95']:
+    t975 = math.sqrt(2*0.975**2/(1-0.975**2))
+    alo,ahi = a['mean']-t975*a['sd']/math.sqrt(3),a['mean']+t975*a['sd']/math.sqrt(3)
+    zlo,zhi = z['mean']-t975*z['sd']/math.sqrt(3),z['mean']+t975*z['sd']/math.sqrt(3)
+    if min(alo,zlo)>0: ci=[alo/zhi,ahi/zlo]
+    if b is item: ci=[1,1]
    item[label]={'ratio':a['mean']/z['mean'],'endpoint_interval':ci}
-result={'method':'Mean; t(2) 95% CI for exactly three successes; conservative endpoint ratios, not a jointly calibrated ratio CI.',
+result={'method':'Mean; t(2) 95% CI for exactly three successes; ratio endpoints use Bonferroni 97.5% t intervals for a joint at-least-95% bound (normal sampling assumption).',
         'summary':summary,'all_successful':len(rows)==36 and all(r['ok'] for r in rows)}
 (RAW/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
 for r in summary:
