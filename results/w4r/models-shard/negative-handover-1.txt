@@ -1,0 +1,25 @@
+$ TLC_NEG_WORKERS=1 bash scripts/check-tla-negative.sh handover_move_done handover_src_killed handover_dst_killed handover_finish_after_move handover_move_to_added handover_removed handover_receipt_while_moving handover_export_keeps_source handover_import_keeps_handoff handover_flip_without_handoff handover_dest_serves_moving handover_stale_answer handover_submit_no_fence handover_submit_while_moving handover_no_drain handover_no_drain_no_receipt_owner handover_export_no_lease handover_remove_owner handover_remove_during_move handover_no_sentinel handover_no_cas handover_import_no_state_check
+# Wed Oct 28 10:37:49 PM UTC 2026
+handover_move_done: expected counterexample found
+handover_src_killed: expected counterexample found
+handover_dst_killed: expected counterexample found
+handover_finish_after_move: expected counterexample found
+handover_move_to_added: expected counterexample found
+handover_removed: expected counterexample found
+handover_receipt_while_moving: expected counterexample found
+handover_export_keeps_source: expected counterexample found
+handover_import_keeps_handoff: expected counterexample found
+handover_flip_without_handoff: expected counterexample found
+handover_dest_serves_moving: expected counterexample found
+handover_stale_answer: expected counterexample found
+handover_submit_no_fence: expected counterexample found
+handover_submit_while_moving: expected counterexample found
+handover_no_drain: expected counterexample found
+handover_no_drain_no_receipt_owner: expected counterexample found
+handover_export_no_lease: expected counterexample found
+handover_remove_owner: expected counterexample found
+handover_remove_during_move: expected counterexample found
+handover_no_sentinel: expected counterexample found
+handover_no_cas: expected pass (redundant guard) confirmed
+handover_import_no_state_check: expected pass (redundant guard) confirmed
+exit 0

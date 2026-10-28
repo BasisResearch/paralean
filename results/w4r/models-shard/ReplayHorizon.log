@@ -1,0 +1,31 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 3 and seed -1287518198977655090 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1562421] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ReplayHorizon/ReplayHorizon.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ReplayHorizon-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ReplayHorizon-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ReplayHorizon-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ReplayHorizon
+Starting... (2026-10-28 22:35:25)
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-10-28 22:35:25.
+Progress(14) at 2026-10-28 22:35:28: 922,993 states generated (922,993 s/min), 185,416 distinct states found (185,416 ds/min), 79,942 states left on queue.
+Progress(22) at 2026-10-28 22:36:28: 22,308,001 states generated (21,385,008 s/min), 3,170,404 distinct states found (2,984,988 ds/min), 606,095 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 9.3E-6
+  based on the actual fingerprints:  val = 9.2E-7
+39999514 states generated, 4861494 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 32.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 01min 56s at (2026-10-28 22:37:21)
+==== Paralean TLC provenance ====
+module ReplayHorizon
+config ReplayHorizon.cfg
+expect pass
+checked 889a367f306b8004634f9a659104c291a53819d335e18add92fd8503d23917cb  ReplayHorizon.tla
+checked 133b8d94dc08210a40cc105d19f3b606ddc7b0593f5709ba31386878093d5a25  ReplayHorizon.cfg
+==== end provenance ====

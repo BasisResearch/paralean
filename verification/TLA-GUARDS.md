@@ -379,6 +379,202 @@ The handover publication is a reachability witness, not a temporal liveness
 proof. It does not establish a real-time takeover bound, arbitrary dependency
 depth, safe deletion of P2 objects, or a global production GC root inventory.
 
+### W4-rest shard handover
+
+`ShardHandover.tla` models Design 2 of [w4-rest-log.md](../docs/w4-rest-log.md):
+bucket records `{shard, epoch, moving}`, the three-step move (Begin by the
+authority, Export by the source leader, Import by the destination leader),
+add and remove. Shards `A` and `B` start active with two candidate leader
+processes each; `C` can be added and has one. Bucket `b1` (job `j1`, the
+validation) starts at `A`; `b2` starts at `B` with job `j2` already queued, so a
+move into `B` must merge without losing `j2`. One move is allowed; it may move
+either bucket between any two active shards. A client submits `j1` and retries
+arbitrarily; one worker polls and finishes it. Routing is adversarial: any
+request may reach any shard's leader, which subsumes every stale bucket map.
+Leader processes may be killed at any point, and a lease may lapse and be taken
+over (term + 1) at any point, including in the middle of an operation. An
+operation records its term at Load and commits under the lease and the
+head-generation CAS; Export also holds the operation lock and drains its
+in-flight validations. A validation is admitted under the operation lock and
+then runs outside it: J1 issue and J2 receipt are separate fenced transactions.
+
+The positive instance explores 6,538,594 distinct states (depth 34) and checks
+`NoLoss` and `NoDup` (every submitted job lives in exactly one snapshot or
+handoff record, and is admitted once), `Placement` (where a bucket's jobs and
+validation index may live in each move state), `OwnerOnlyWrites` (an
+independent observer: every committed job change, J1 and J2 is by the current
+lease holder and term of the bucket's owner), `FinishApplies` (a finish is
+either applied once or definitely refused only when the job is not running),
+`ReceiptOnce` (held by J2's write-once key, not by any one fence),
+`NoOrphanValidation` (a live validation past J1 runs at the
+owner), `LoadedCurrent` (any process that can still pass the lease fence loaded
+the current head) and `RemovedShardInert` (a retired shard owns nothing,
+holds no jobs, is no move's destination and never writes again).
+
+Witnesses (each `Never*` must be violated): `handover_move_done`;
+`handover_src_killed` (the source leader is killed while the move is
+`Prepared`, a leader of a later term exports and the move completes);
+`handover_dst_killed` (the destination leader is killed while `Exported`, a
+leader of a later term imports); `handover_finish_after_move` (a job running when exported
+is finished at the destination); `handover_move_to_added` (add `C`, move to
+it); `handover_removed` (an initial shard is emptied and removed);
+`handover_receipt_while_moving` (a validation in flight at Begin records J2
+while the move is `Prepared`, which is what the drain waits for).
+
+| Check | Mutation | Required failure |
+|---|---|---|
+| Export removes the bucket's entries from the source snapshot | `handover_export_keeps_source` | `NoDup` |
+| Import consumes the handoff record | `handover_import_keeps_handoff` | `NoDup` |
+| Ownership changes only through Export (Begin sets `moving` only) | `handover_flip_without_handoff` | `Placement` |
+| Definite answers refused while the bucket is moving (destination before import) | `handover_dest_serves_moving` | `FinishApplies` |
+| Definite answers require ownership, read in the commit transaction | `handover_stale_answer` | `FinishApplies` |
+| Work-route reservation requires owner and no move | `handover_submit_no_fence` | `NoDup` |
+| ... including no move in progress | `handover_submit_while_moving` | `NoDup` |
+| Export drains the source's in-flight validations | `handover_no_drain` | `NoOrphanValidation` |
+| Drain and the J2 ownership check both removed | `handover_no_drain_no_receipt_owner` | `OwnerOnlyWrites` |
+| Export under the source's lease and term | `handover_export_no_lease` | `OwnerOnlyWrites` |
+| Remove requires owning no bucket | `handover_remove_owner` | `RemovedShardInert` |
+| Remove requires no move in flight | `handover_remove_during_move` | `RemovedShardInert` |
+| Remove sets the lease to a sentinel | `handover_no_sentinel` | `RemovedShardInert` |
+
+Redundant checks (each deletion must leave every invariant intact):
+
+- **Head-generation CAS on saves** (`handover_no_cas`). Every snapshot writer of
+  a shard, including Export and Import, is that shard's leader under its
+  operation lock, and a different process can only save under a newer term,
+  which fails the older operation's term fence. `LoadedCurrent` checks the
+  consequence directly. The CAS stays as defence in depth (for example against
+  a future writer that does not take the operation lock).
+- **J2 ownership check** (`handover_no_receipt_owner`). J1 is fenced by
+  ownership and no move, so no validation enters a moving bucket; the drain
+  waits for those admitted before Begin; a superseded leader's J2 fails the
+  term fence. The check is the backstop for the drain:
+  `handover_no_drain_no_receipt_owner` violates `OwnerOnlyWrites`.
+- **T4 claim fence on assignment** (`handover_no_t4_fence`). Only the shard
+  holding a job can assign it, and `Placement` keeps a job at its owner (or at
+  the source while `Prepared`, where an assignment is carried by the export).
+- **Import's move-state check** (`handover_import_no_state_check`). Import
+  consumes the handoff, so a repeated import merges nothing, and a premature
+  one (while `Prepared`) merges nothing and only ends the move with the bucket
+  still at the source. The check stays so that a move record's state is
+  monotone.
+
+Design findings, with the fixes applied in the model:
+
+1. **The J2 fence as written defeats the drain.** The design requires every
+   bucket-keyed write, J2 included, to see no move in progress, and also has
+   Export wait for in-flight validations. With both, a validation in flight at
+   Begin can never record its receipt: the drain only waits for it to fail.
+   `handover_literal_receipt_fence` restores the written fence and the
+   `NeverReceiptWhileMoving` witness becomes unreachable (an expected pass).
+   Fix: J2 requires `shard = self` only. J1 issue, reservation and T4 keep
+   `shard = self` and no move in progress.
+2. **Stale-routed definite answers drop finishes.** Requests are routed before
+   the operation lock, so a finish can reach the source after Export (or the
+   destination before Import). Answering from the snapshot, as today's
+   `finish` does (`unknown work request`), gives a definite refusal for a job
+   that is running in the handoff or at the destination; the worker ignores the
+   answer and the result is lost until its lease expires. `handover_stale_answer`
+   (the shortest trace sends the finish to a non-owner) and
+   `handover_dest_serves_moving` violate `FinishApplies`. Fix: in dynamic
+   mode a definite answer about a bucket's job (refusal or duplicate result) is
+   given only if the operation's save transaction reads the bucket record with
+   `shard = self` and no move; otherwise the answer is retryable (`moving` or
+   `not controller shard`).
+
+Scope limits. One move, one validation, one worker and one client job; `j2`
+is passive. Lease expiry is abstracted to an immediate takeover with term + 1
+(W4Scale checks the expiry fence). The process's in-memory copy is not stored;
+`LoadedCurrent` justifies that for every commit that can pass the lease fence,
+and mutations that remove a lease fence are caught at the commit by the
+`OwnerOnlyWrites` observer. The reservation/T4 transaction and the save are one
+commit here; in the implementation they are two transactions of one operation,
+and a Begin between them is equivalent to a Begin after the commit because
+Export needs the same operation lock or a newer term. Not modelled: the
+takeover recovery pass that re-dispatches J1 envelopes (its dispatches must be
+covered by the drain), worker leases and expiry re-queueing, cancellation
+(J3), groups spanning buckets, handoff size limits, replay rows of compacted
+work (see `ReplayHorizonShards`), and `controller/topology` epochs (no guard
+reads them). FDB serializability is assumed.
+
+### W4-rest replay horizons
+
+`ReplayHorizon.tla` models Design 3 for one shard: generations 0 (legacy) to 3,
+request IDs `r1` and `r2` (so a request is `(g, id)`), two leader processes, a
+logical clock to 3 ticks with `H = 1` and `Grace = 1`, and at most three
+distinct executed requests. Clients are adversarial: any `(g, id)` may be sent,
+retried, delayed, duplicated or replayed at any time. A submission loads with
+the snapshot and commits under the lease and term; the commit refuses
+(`Expired`), deduplicates from the snapshot or a replay row, or executes.
+Terminal work moves to a replay row in one transaction (W4History's step). The
+advance is a separate leader task (read, then save under the lease and term);
+the collector deletes rows under the lease. `--require-replay-generation` may be
+switched on or off at any time.
+
+The positive instance explores 4,861,494 distinct states (depth 32) and
+checks `AtMostOnce` (no `(g, id)` executes twice), `RetiredRefused` (a retired
+row's generation is refused), `ActiveNotLost` (executed unfinished work stays
+running in the snapshot), `AnswerConsistent` (a duplicate is answered from its
+own entry or row) and `LegacyKept` (no generation-0 row is ever deleted).
+Witnesses: `horizon_advanced`, `horizon_retired`, `horizon_deduped` (a
+duplicate answered from a replay row within the window) and
+`horizon_refused_after_retire` (a retry of a retired request is refused).
+
+| Check | Mutation | Required failure |
+|---|---|---|
+| Accept only `G` and `G - 1` (and 0) | `horizon_accept_old` | `AtMostOnce` |
+| Retire only generations at most `G - 2` | `horizon_retire_previous` | `AtMostOnce` |
+| Advance under the lease and term | `horizon_advance_no_fence` | `AtMostOnce` |
+| Never retire generation 0 | `horizon_retire_legacy` | `LegacyKept` |
+| Dedupe by the exact `(g, id)` | `horizon_dedupe_by_id` | `AnswerConsistent` |
+| Only terminal work leaves the snapshot | `horizon_compact_active` | `ActiveNotLost` |
+| Commit re-reads the generation in its transaction | `horizon_loaded_generation` | `AtMostOnce` |
+
+`horizon_advance_no_fence` needs the advance's read-then-save: a superseded
+leader writes `G = 2` after a newer leader reached `G = 3` and retired
+generation 1, so generation 1 is accepted again.
+
+Redundant check: **Grace** (`horizon_no_grace`). With the generation checked in
+the commit transaction and `G` monotone, an accepted generation's rows are
+never retirable, whatever the timing. Grace cannot replace the in-transaction
+check either: logical ticks do not bound how long an operation takes.
+
+Design findings, with the fixes applied in the models:
+
+1. **Grace does not close the load-to-commit window.** As written, an
+   operation decides with the generation it loaded. The advance runs under the
+   lease and term but not the operation lock, so it, `Grace` ticks and a
+   retirement can all land between Load and commit of a retry of a compacted
+   request, which then executes again (`horizon_loaded_generation`,
+   `AtMostOnce`, with Grace in place). Fix: the committing transaction reads
+   `replay-gen` and refuses a generation no longer accepted (or the advance
+   takes the operation lock).
+2. **Per-shard generations break cross-shard replay reads.**
+   `ReplayHorizonShards.tla` (562,556 distinct states; shards `A`, `B` and an
+   addable `C`, one ID, generations 0 to 3) combines Design 3 with Design 2's
+   rule that replay rows are read across every shard in the topology. As
+   written, a shard retires its rows by its own `G`. Counterexample
+   (`horizon_shard_local_retire`, `AtMostOnce`): `(1, r1)` executes and is
+   compacted at `A`; `A` advances to `G = 3`; the bucket moves to `B`, still at
+   `G = 1`; `A` retires the row after grace; the retry reaches `B`, which
+   accepts generation 1, finds no row anywhere and executes again. Fix: retire
+   a row of generation `g` only when every shard in the topology has refused
+   `g` for `Grace` (read in the collector's transaction), and start an added
+   shard at the topology's largest generation (`horizon_added_shard_low_gen`
+   starts it at 1 and violates `AtMostOnce`). A single deployment-wide
+   generation would also satisfy both. Witnesses: `horizon_shards_retired`,
+   `horizon_shards_cross_dedupe` (a duplicate at `B` answered from `A`'s row).
+
+Scope limits. Work requests only (poll tokens, group and validation request IDs
+follow the same rule and are not modelled); one shard in `ReplayHorizon`;
+leases abstracted as in `ShardHandover`; the collector's deletion is one
+transaction and the advance is a read followed by a fenced save;
+`ReplayHorizonShards` treats each action as
+one fenced transaction of the current leader and abstracts the move to a route
+change carrying active work. The `Expired` answer to a duplicate of still-running
+old-generation work is definite but says nothing about execution: clients must
+read it as "outcome unknown, too old", not "not executed".
+
 ## Liveness
 
 | Scenario | Property | Fairness | Model |

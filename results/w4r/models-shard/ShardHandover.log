@@ -1,0 +1,35 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 82 and seed -6483646826028766827 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1462037] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ShardHandover/ShardHandover.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ShardHandover-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ShardHandover-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w4r-models-shard/.runs/tla/run/ShardHandover-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module ShardHandover
+Starting... (2026-10-28 22:30:04)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:30:04.
+Progress(11) at 2026-10-28 22:30:07: 623,651 states generated (623,651 s/min), 99,809 distinct states found (99,809 ds/min), 47,477 states left on queue.
+Progress(18) at 2026-10-28 22:31:07: 15,749,884 states generated (15,126,233 s/min), 1,763,621 distinct states found (1,663,812 ds/min), 475,650 states left on queue.
+Progress(20) at 2026-10-28 22:32:07: 30,799,382 states generated (15,049,498 s/min), 3,104,106 distinct states found (1,340,485 ds/min), 631,379 states left on queue.
+Progress(22) at 2026-10-28 22:33:07: 46,401,065 states generated (15,601,683 s/min), 4,321,473 distinct states found (1,217,367 ds/min), 637,494 states left on queue.
+Progress(24) at 2026-10-28 22:34:07: 63,555,347 states generated (17,154,282 s/min), 5,488,614 distinct states found (1,167,141 ds/min), 500,087 states left on queue.
+Progress(27) at 2026-10-28 22:35:07: 80,098,568 states generated (16,543,221 s/min), 6,368,051 distinct states found (879,437 ds/min), 162,817 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 2.8E-5
+  based on the actual fingerprints:  val = 1.0E-6
+84802245 states generated, 6538594 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 34.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
+Finished in 05min 20s at (2026-10-28 22:35:24)
+==== Paralean TLC provenance ====
+module ShardHandover
+config ShardHandover.cfg
+expect pass
+checked b1799a046e160e3194e87e710aaf72ea51cbf015c2189471b377e1eae7a44d6a  ShardHandover.tla
+checked 3720f5948b38df44889afe06f9fc7fdac58ebe0485863ab98959361b4602a2f0  ShardHandover.cfg
+==== end provenance ====

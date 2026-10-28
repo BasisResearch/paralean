@@ -228,6 +228,19 @@ witness_items=(
   'history_replay_gc_off W4History NeverReplayWithGcOff'
   'history_handover W4History NeverHandover'
   'history_cancelled_replay W4History NeverCancelledReplay'
+  'handover_move_done ShardHandover NeverMoveDone'
+  'handover_src_killed ShardHandover NeverSrcKilledMoveDone'
+  'handover_dst_killed ShardHandover NeverDstKilledMoveDone'
+  'handover_finish_after_move ShardHandover NeverFinishAfterMove'
+  'handover_move_to_added ShardHandover NeverMovedToAdded'
+  'handover_removed ShardHandover NeverRemoved'
+  'handover_receipt_while_moving ShardHandover NeverReceiptWhileMoving'
+  'horizon_advanced ReplayHorizon NeverAdvanced'
+  'horizon_retired ReplayHorizon NeverRetired'
+  'horizon_deduped ReplayHorizon NeverDedupedFromRow'
+  'horizon_refused_after_retire ReplayHorizon NeverRefusedAfterRetire'
+  'horizon_shards_retired ReplayHorizonShards NeverRetired'
+  'horizon_shards_cross_dedupe ReplayHorizonShards NeverCrossShardDedupe'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -441,6 +454,203 @@ case_history_no_cancel_overlay() {
     'DuplicateResult == IF cancelled THEN "cancelled" ELSE "done"' \
     'DuplicateResult == "done"'
   run_expected_failure history_no_cancel_overlay W4History 'Invariant CancelOverlay is violated'
+}
+
+# W4-rest dynamic shards (Design 2). Each mutation checks only its named
+# invariant, so the reported violation is unambiguous; the observers are
+# independent of the guard each mutation removes.
+only_invariant() {
+  python3 - "$1" "$2" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+lines = [line for line in p.read_text().splitlines()
+         if not line.startswith(('INVARIANT ', 'INVARIANTS '))]
+lines.append('INVARIANT ' + sys.argv[2])
+p.write_text('\n'.join(lines) + '\n')
+PY
+}
+# model_mutation label module invariant old new [old new ...]
+model_mutation() {
+  local label="$1" module="$2" invariant="$3"
+  shift 3
+  prepare_case "$label"
+  while [[ $# -gt 0 ]]; do
+    edit_once "$neg/$label/$module.tla" "$1" "$2"
+    shift 2
+  done
+  only_invariant "$neg/$label/$module.cfg" "$invariant"
+  run_expected_failure "$label" "$module" "Invariant $invariant is violated"
+}
+# model_redundant label module old new: every invariant survives the deletion.
+model_redundant() {
+  local label="$1" module="$2"
+  prepare_case "$label"
+  edit_once "$neg/$label/$module.tla" "$3" "$4"
+  run_expected_pass "$label" "$module" "redundant guard"
+}
+
+defcase handover_export_keeps_source
+case_handover_export_keeps_source() {
+  model_mutation handover_export_keeps_source ShardHandover NoDup \
+    '  /\ Save(p, kept)' '  /\ Save(p, snap[S(p)])'
+}
+defcase handover_import_keeps_handoff
+case_handover_import_keeps_handoff() {
+  model_mutation handover_import_keeps_handoff ShardHandover NoDup \
+    "  /\\ handoff' = [handoff EXCEPT ![m] = Empty]" "  /\\ handoff' = handoff"
+}
+defcase handover_flip_without_handoff
+case_handover_flip_without_handoff() {
+  model_mutation handover_flip_without_handoff ShardHandover Placement \
+    "  /\\ bucket' = [bucket EXCEPT ![b].moving = m]" \
+    "  /\\ bucket' = [bucket EXCEPT ![b] = [shard |-> dst, epoch |-> @.epoch + 1, moving |-> 0]]"
+}
+defcase handover_dest_serves_moving
+case_handover_dest_serves_moving() {
+  model_mutation handover_dest_serves_moving ShardHandover FinishApplies \
+    'AnswerOK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0' \
+    'AnswerOK(s, b) == bucket[b].shard = s'
+}
+defcase handover_stale_answer
+case_handover_stale_answer() {
+  model_mutation handover_stale_answer ShardHandover FinishApplies \
+    'AnswerOK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0' \
+    'AnswerOK(s, b) == TRUE'
+}
+defcase handover_submit_no_fence
+case_handover_submit_no_fence() {
+  model_mutation handover_submit_no_fence ShardHandover NoDup \
+    'ReserveOK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0' \
+    'ReserveOK(s, b) == TRUE'
+}
+defcase handover_submit_while_moving
+case_handover_submit_while_moving() {
+  model_mutation handover_submit_while_moving ShardHandover NoDup \
+    'ReserveOK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0' \
+    'ReserveOK(s, b) == bucket[b].shard = s'
+}
+defcase handover_no_drain
+case_handover_no_drain() {
+  model_mutation handover_no_drain ShardHandover NoOrphanValidation \
+    'Drained(p, b) == ~(vrun[p] \in {"admitted", "issued"} /\ VBucket = b)' \
+    'Drained(p, b) == TRUE'
+}
+defcase handover_no_drain_no_receipt_owner
+case_handover_no_drain_no_receipt_owner() {
+  model_mutation handover_no_drain_no_receipt_owner ShardHandover OwnerOnlyWrites \
+    'Drained(p, b) == ~(vrun[p] \in {"admitted", "issued"} /\ VBucket = b)' \
+    'Drained(p, b) == TRUE' \
+    'ReceiptOK(s, b) == bucket[b].shard = s' 'ReceiptOK(s, b) == TRUE'
+}
+defcase handover_export_no_lease
+case_handover_export_no_lease() {
+  model_mutation handover_export_no_lease ShardHandover OwnerOnlyWrites \
+    'ExportFence(p) == LeaseFence(p)' 'ExportFence(p) == TRUE'
+}
+defcase handover_remove_owner
+case_handover_remove_owner() {
+  model_mutation handover_remove_owner ShardHandover RemovedShardInert \
+    'RemoveOwnsNothing(s) == \A b \in Buckets : bucket[b].shard # s' \
+    'RemoveOwnsNothing(s) == TRUE'
+}
+defcase handover_remove_during_move
+case_handover_remove_during_move() {
+  model_mutation handover_remove_during_move ShardHandover RemovedShardInert \
+    'RemoveNoMove(s) == \A m \in Moves :' 'RemoveNoMove(s) == TRUE \/ \A m \in Moves :'
+}
+defcase handover_no_sentinel
+case_handover_no_sentinel() {
+  model_mutation handover_no_sentinel ShardHandover RemovedShardInert \
+    "  /\\ holder' = [holder EXCEPT ![s] = Sentinel]" "  /\\ holder' = holder"
+}
+# Redundant in this model (verification/TLA-GUARDS.md): every invariant holds.
+defcase handover_no_cas
+case_handover_no_cas() {
+  model_redundant handover_no_cas ShardHandover 'CasOK(p) == ~headChanged[p]' 'CasOK(p) == TRUE'
+}
+defcase handover_no_receipt_owner
+case_handover_no_receipt_owner() {
+  model_redundant handover_no_receipt_owner ShardHandover \
+    'ReceiptOK(s, b) == bucket[b].shard = s' 'ReceiptOK(s, b) == TRUE'
+}
+defcase handover_no_t4_fence
+case_handover_no_t4_fence() {
+  model_redundant handover_no_t4_fence ShardHandover \
+    'T4OK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0' 'T4OK(s, b) == TRUE'
+}
+defcase handover_import_no_state_check
+case_handover_import_no_state_check() {
+  model_redundant handover_import_no_state_check ShardHandover \
+    'HandoffOK(m) == moveState[m] = "Exported"' 'HandoffOK(m) == TRUE'
+}
+# The design text as written: J2 also requires no move in progress. The
+# validations the export drain waits for can then never record a receipt.
+defcase handover_literal_receipt_fence
+case_handover_literal_receipt_fence() {
+  local d="$neg/handover_literal_receipt_fence"
+  prepare_case handover_literal_receipt_fence
+  edit_once "$d/ShardHandover.tla" 'ReceiptOK(s, b) == bucket[b].shard = s' \
+    'ReceiptOK(s, b) == bucket[b].shard = s /\ bucket[b].moving = 0'
+  finite_witness_config "$d/ShardHandover.cfg" NeverReceiptWhileMoving
+  run_expected_missing_witness handover_literal_receipt_fence ShardHandover
+}
+
+# W4-rest replay horizons (Design 3).
+defcase horizon_accept_old
+case_horizon_accept_old() {
+  model_mutation horizon_accept_old ReplayHorizon AtMostOnce \
+    'Accepted(gen) == {x \in Gens : x = gen \/ x + 1 = gen}' \
+    'Accepted(gen) == {x \in Gens : x = gen \/ x + 1 = gen \/ x + 2 = gen}'
+}
+defcase horizon_retire_previous
+case_horizon_retire_previous() {
+  model_mutation horizon_retire_previous ReplayHorizon AtMostOnce \
+    'RetireGen(g) == g + 2 <= G' 'RetireGen(g) == g + 1 <= G'
+}
+defcase horizon_advance_no_fence
+case_horizon_advance_no_fence() {
+  model_mutation horizon_advance_no_fence ReplayHorizon AtMostOnce \
+    'AdvanceFence(p) == holder = p /\ term = advTerm[p]' 'AdvanceFence(p) == TRUE'
+}
+defcase horizon_retire_legacy
+case_horizon_retire_legacy() {
+  model_mutation horizon_retire_legacy ReplayHorizon LegacyKept \
+    'RetireLegacy(g) == g # 0' 'RetireLegacy(g) == TRUE'
+}
+defcase horizon_dedupe_by_id
+case_horizon_dedupe_by_id() {
+  model_mutation horizon_dedupe_by_id ReplayHorizon AnswerConsistent \
+    'Lookup(k) == {k}' 'Lookup(k) == {x \in Keys : x[2] = k[2]}'
+}
+defcase horizon_compact_active
+case_horizon_compact_active() {
+  model_mutation horizon_compact_active ReplayHorizon ActiveNotLost \
+    'TerminalOK(k) == snapshot[k] = "D"' 'TerminalOK(k) == TRUE'
+}
+# The design text as written leaves the generation check to the value an
+# operation loaded; an advance between load and commit defeats Grace.
+defcase horizon_loaded_generation
+case_horizon_loaded_generation() {
+  model_mutation horizon_loaded_generation ReplayHorizon AtMostOnce \
+    'CommitGen(p) == G' 'CommitGen(p) == memG[p]'
+}
+defcase horizon_no_grace
+case_horizon_no_grace() {
+  model_redundant horizon_no_grace ReplayHorizon \
+    'RetireGrace == tick >= started + Grace' 'RetireGrace == TRUE'
+}
+# Per-shard generations with rows read across shards (Designs 2 and 3).
+defcase horizon_shard_local_retire
+case_horizon_shard_local_retire() {
+  model_mutation horizon_shard_local_retire ReplayHorizonShards AtMostOnce \
+    'RetireOK(s, g) == \A t \in Topology : RefusedLongEnough(t, g)' \
+    'RetireOK(s, g) == RefusedLongEnough(s, g)'
+}
+defcase horizon_added_shard_low_gen
+case_horizon_added_shard_low_gen() {
+  model_mutation horizon_added_shard_low_gen ReplayHorizonShards AtMostOnce \
+    "  /\\ G' = [G EXCEPT ![s] = StartGen]" "  /\\ G' = [G EXCEPT ![s] = 1]"
 }
 
 # ---------------------------------------------------------------------------

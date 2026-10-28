@@ -1,0 +1,19 @@
+$ TLC_NEG_WORKERS=1 bash scripts/check-tla-negative.sh horizon_advanced horizon_retired horizon_deduped horizon_refused_after_retire horizon_shards_retired horizon_shards_cross_dedupe horizon_accept_old horizon_retire_previous horizon_advance_no_fence horizon_retire_legacy horizon_dedupe_by_id horizon_compact_active horizon_loaded_generation horizon_shard_local_retire horizon_added_shard_low_gen horizon_no_grace
+# Wed Oct 28 10:30:04 PM UTC 2026
+horizon_advanced: expected counterexample found
+horizon_retired: expected counterexample found
+horizon_deduped: expected counterexample found
+horizon_refused_after_retire: expected counterexample found
+horizon_shards_retired: expected counterexample found
+horizon_shards_cross_dedupe: expected counterexample found
+horizon_accept_old: expected counterexample found
+horizon_retire_previous: expected counterexample found
+horizon_advance_no_fence: expected counterexample found
+horizon_retire_legacy: expected counterexample found
+horizon_dedupe_by_id: expected counterexample found
+horizon_compact_active: expected counterexample found
+horizon_loaded_generation: expected counterexample found
+horizon_shard_local_retire: expected counterexample found
+horizon_added_shard_low_gen: expected counterexample found
+horizon_no_grace: expected pass (redundant guard) confirmed
+exit 0
