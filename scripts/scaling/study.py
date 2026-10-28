@@ -12,6 +12,7 @@ import time
 import tomllib
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'impl/p5/scripts'))
 from benchmark import workspace_transfer
+from gate import check_dependency_closure
 from worker import declaration
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / 'results/scaling'
@@ -73,6 +74,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
     row = {'name': name, 'workload': workload, 'n': n, 'rep': rep, 'stock': stock,
            'sync': sync, 'work': work, 'agent': agent, 'git': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
            'task_sha256': hashlib.sha256(text.encode()).hexdigest(),
+           'worker_sha256': hashlib.sha256((ROOT/'scripts/scaling/worker.py').read_bytes()).hexdigest(),
            'started_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
     if stock:
         source = ('import Lean\n' if workload == 'synthetic' else 'import Init\n') + ('set_option Elab.async false\n' if sync else '')
@@ -90,6 +92,8 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
         # run.json contains no private signing keys; retain exact contracts/events.
         (evidence/'run.json').write_text(json.dumps(state,indent=2)+'\n')
         row['ok'] = row['returncode'] == 0 and state.get('phase') == 'targets_validated' and state.get('contract_validation',{}).get('ok') is True
+        row['dependencies'] = check_dependency_closure(directory, taskdata['targets'], {k:v['group'] for k,v in state.get('targets',{}).items() if v.get('group')})
+        row['ok'] = row['ok'] and row['dependencies']['ok']
         row['metrics'] = state.get('metrics',{})
         row['transfer'] = workspace_transfer(directory)
         vl = directory/'validator.log'
