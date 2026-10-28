@@ -248,3 +248,5 @@ Re-verification found three more problems, all fixed:
   in the checker's verdict process).
 - **Original stress-worker crash:** explained by its exit shape and the reproduced
   mechanism, but not by its own core, which never existed.
+
+Final tree: `59a0346` (pushed as `w2-security`); this line is added in the following commit.
