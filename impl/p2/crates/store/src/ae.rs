@@ -1023,6 +1023,12 @@ impl Writer {
     /// idempotent, so a crash after import but before cursor cleanup safely replays.
     pub async fn ae_import_staged(&self, source: &str, event: &AeEvent) -> Result<Outcome> {
         self.store.ae_check_source(source).await?;
+        // Store GC: a catalogue ID retired here (a dead record) is never handed back.
+        if let AeKind::Catalogue { id, .. } = &event.kind {
+            if self.store.meta.get(self.store.meta.keys.gc_retired_catalog(id)).await?.is_some() {
+                return Ok(Outcome::Rejected(format!("catalogue record {id} was retired here by the store GC")));
+            }
+        }
         let sub = self.store.meta.keys.ae_parts(source, &event.key);
         let (mut start, end) = sub.range();
         let mut parts = Vec::new();
@@ -1170,9 +1176,6 @@ impl Writer {
             }
             AeKind::Catalogue { source: event_origin, id, cert } => {
                 let origin = if event_origin.is_empty() { source } else { event_origin.as_str() };
-                if self.store.meta.get(self.store.meta.keys.gc_retired_catalog(id)).await?.is_some() {
-                    return Ok(Outcome::Rejected(format!("catalogue record {id} was retired here by the store GC")));
-                }
                 let cfg = self.store.ae_federation().await?.ok_or_else(|| StoreError::Invalid("federation config missing".into()))?;
                 let Some(member) = cfg.members.get(origin) else { return Ok(Outcome::Rejected("catalogue origin is not a federation member".into())); };
                 let rec_bytes = meta.get(&("catalogue".into(), *id)).ok_or_else(|| StoreError::Invalid("catalogue event lacks record".into()))?;

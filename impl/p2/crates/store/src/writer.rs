@@ -50,7 +50,7 @@ type Revivable = BTreeMap<(Kind, Id), Vec<u8>>;
 /// Retries a referencing transaction refused because the store GC is collecting one of its
 /// objects: revive that object (wait for `Gone`, re-PUT or verify it), then retry. Bounded;
 /// liveness only (nothing was written by a refused transaction).
-const REVIVAL_ATTEMPTS: usize = 4;
+const REVIVAL_ATTEMPTS: usize = 16;
 
 async fn revive_collected(store: &Store, sources: &Revivable, e: &StoreError) -> Result<bool> {
     let Some(GuardFailure::Collected { kind, id }) = e.guard() else { return Ok(false) };

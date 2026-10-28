@@ -243,8 +243,10 @@ fn gcobj_key(d: &GcDeployment, kind: &str, id: &[u8; 32]) -> Vec<u8> {
 
 /// Why a content delete for a configured deployment is refused before its FDB mark, if it is.
 fn content_delete_refusal(uri: &Uri, headers: &HeaderMap, gc: &GcPolicy) -> Option<&'static str> {
-    if uri.query().is_some() {
-        return Some("content deletes take no query");
+    // The only query admitted is the SDK's operation marker, spelled exactly; a version,
+    // sub-resource or any other (or re-encoded) query is refused.
+    if uri.query().is_some_and(|q| q != "x-id=DeleteObject") {
+        return Some("content deletes take no query but x-id=DeleteObject");
     }
     if !cfg!(feature = "mutate-storegc-guard-any-principal") && !gc_principal(headers, gc.key.as_deref()) {
         return Some("content deletes require the configured GC principal");
@@ -961,8 +963,12 @@ mod tests {
         assert!(content_delete_refusal(&uri, &forged, &policy).is_some(), "ambiguous credential");
         let no_key = GcPolicy::default();
         assert!(content_delete_refusal(&uri, &gc_headers("GKGC"), &no_key).is_some(), "no configured GC key");
-        let q: Uri = format!("/paralean/dep-a/obj/group/{HEX}?versionId=1").parse().unwrap();
-        assert!(content_delete_refusal(&q, &gc_headers("GKGC"), &policy).is_some(), "query");
+        let sdk: Uri = format!("/paralean/dep-a/obj/group/{HEX}?x-id=DeleteObject").parse().unwrap();
+        assert_eq!(content_delete_refusal(&sdk, &gc_headers("GKGC"), &policy), None, "the SDK's operation marker");
+        for q in ["versionId=1", "x-id=DeleteObject&versionId=1", "x-id=DeleteObjects", "x-%69d=DeleteObject", "delete", "x-id=DeleteObject&"] {
+            let q: Uri = format!("/paralean/dep-a/obj/group/{HEX}?{q}").parse().unwrap();
+            assert!(content_delete_refusal(&q, &gc_headers("GKGC"), &policy).is_some(), "query {q}");
+        }
         let mut vhost = gc_headers("GKGC");
         vhost.insert(hyper::header::HOST, "paralean.s3.example:32150".parse().unwrap());
         assert!(content_delete_refusal(&uri, &vhost, &policy).is_some(), "virtual-hosted");
