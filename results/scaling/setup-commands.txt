@@ -1,0 +1,9 @@
+# Initial revision a5dfc5c6eb83981156e2b456ff0465f4088b47b3
+# Design commit 712a5b23810f0ef7e82e187f4e0ae1ae62cfd67a
+source scripts/scaling/env.sh
+(cd impl/p1 && lake build) > .runs/scaling/lean-build.log 2>&1
+RUSTC_WRAPPER= cargo build --offline --release --locked --manifest-path impl/p2/Cargo.toml -j2 > .runs/scaling/rust-build.log 2>&1
+CARGO_TARGET_DIR="$PWD/impl/p2/target" RUSTC_WRAPPER= cargo build --offline --release --locked --manifest-path impl/p5/store-bridge/Cargo.toml -j2 > .runs/scaling/bridge-build.log 2>&1
+# Network sandbox initially refused localhost bind; retried with approved escalation.
+impl/p5/scripts/cluster-up.sh > .runs/scaling/cluster-up-escalated.log 2>&1
+# Individual measured commands are in each result.json; no credentials archived.

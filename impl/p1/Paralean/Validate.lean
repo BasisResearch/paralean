@@ -127,8 +127,13 @@ unsafe def checkGroup (store : Store) (gids : Array String) (declId : String)
   let imports := clo.foldl (fun acc g => (cat.get! g).capsule.imports.foldl
     (fun acc m => if acc.contains m then acc else acc.push m) acc) #[]
   let res ← try
+      let scalingStart ← IO.monoMsNow
       let sr ← sourceReplay cat clo imports (materialize? := some (materialize store))
+      let scalingSource ← IO.monoMsNow
       let (kr, _) ← kernelReplay store cat clo sr
+      let scalingKernel ← IO.monoMsNow
+      if (← IO.getEnv "PARALEAN_SCALING_PROFILE").isSome then
+        IO.eprintln s!"scaling_source_ms={scalingSource - scalingStart} scaling_kernel_ms={scalingKernel - scalingSource}"
       pure (Except.ok (sr, kr))
     catch e => pure (Except.error s!"replay: {e}")
   let (sr, kr) ← match res with

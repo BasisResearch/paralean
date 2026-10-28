@@ -249,6 +249,7 @@ impl Validator {
             Ok(true) => return ValidatorResponse::Cancelled,
             Err(e) => return inconclusive(&format!("store: {e}")),
         }
+        let scaling_queue_start = std::time::Instant::now();
         self.queued.fetch_add(1, Ordering::SeqCst);
         let permit = tokio::select! {
             p = self.permits.acquire() => p,
@@ -259,6 +260,9 @@ impl Validator {
         };
         self.queued.fetch_sub(1, Ordering::SeqCst);
         let _permit = permit.expect("semaphore open");
+        if std::env::var_os("PARALEAN_SCALING_PROFILE").is_some() {
+            eprintln!("scaling_queue_us={}", scaling_queue_start.elapsed().as_micros());
+        }
         self.running.fetch_add(1, Ordering::SeqCst);
         let r = self.check(job, policy, cancel, accepted).await;
         self.running.fetch_sub(1, Ordering::SeqCst);
@@ -269,10 +273,14 @@ impl Validator {
     async fn check(&self, job: &SignedJob, policy: &Policy, cancel: watch::Receiver<bool>,
         accepted: &BTreeMap<Id, (Receipt, SignedJob)>) -> ValidatorResponse {
         let j = &job.body;
+        let scaling_fetch_start = std::time::Instant::now();
         let groups = match self.fetch_inputs(job, accepted).await {
             Ok(g) => g,
             Err(r) => return r,
         };
+        if std::env::var_os("PARALEAN_SCALING_PROFILE").is_some() {
+            eprintln!("scaling_fetch_us={}", scaling_fetch_start.elapsed().as_micros());
+        }
         let root = groups.last().expect("fetch_inputs returns the group last").clone();
         let by_gid: BTreeMap<String, P1Group> = groups.iter().map(|g| (g.gid.clone(), g.clone())).collect();
         if let Err(e) = p1::closure(&by_gid, &root.gid) {
@@ -300,6 +308,7 @@ impl Validator {
             let s = String::from_utf8_lossy(&g.meta_json);
             s.contains("regularInitAttr") || s.contains("builtinInitAttr")
         });
+        let scaling_check_start = std::time::Instant::now();
         let out = if self.cfg.checker.warm_bin().is_some() {
             if initializer {
                 let disposable = checker::WarmPool::default();
@@ -313,6 +322,9 @@ impl Validator {
         } else {
             checker::run(&self.cfg.checker, &dir, &gids, &root.decl.hex(), &targets, deadline, memory, cancel).await
         };
+        if std::env::var_os("PARALEAN_SCALING_PROFILE").is_some() {
+            eprintln!("scaling_checker_us={}", scaling_check_start.elapsed().as_micros());
+        }
         let _ = std::fs::remove_dir_all(&dir);
         let o = match out {
             Ok(o) => o,
