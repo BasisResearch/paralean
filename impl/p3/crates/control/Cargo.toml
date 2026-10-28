@@ -129,6 +129,7 @@ mutate-shard-remove-owning = []
 mutate-shard-retired-lease-live = []
 mutate-shard-no-cross-replay = []
 mutate-shard-no-poll-rows = []
+mutate-shard-issue-job-no-gc-refs = []
 
 [dev-dependencies]
 libtest-mimic = "0.8.2"

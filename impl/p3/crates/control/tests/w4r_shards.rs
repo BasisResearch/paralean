@@ -874,6 +874,30 @@ async fn reshard_benchmark() {
     println!("{report}");
 }
 
+/// Design 1 x design 2: a dynamic shard's J1 references its envelope's objects, so the
+/// store GC (enabled before the job exists, so backfill cannot cover for it) keeps them.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn dynamic_pending_jobs_protect_their_objects() {
+    use paralean_store::gc::{self, GcConfig as StoreGcConfig, GcState};
+    let f = fixture("w4r-shard-gc-job", 1).await;
+    gc::backfill(&f.store).await.unwrap();
+    gc::enable(&f.store).await.unwrap();
+    let group = Opaque::new(Kind::Group, fixture::group_bytes("dyn-job"));
+    let capsule = Opaque::new(Kind::Capsule, b"dynamic job capsule".to_vec());
+    f.store.s3.put_opaque(&group).await.unwrap();
+    f.store.s3.put_opaque(&capsule).await.unwrap();
+    let job = fixture::job_by(&f.cfg.authority, "dyn-job", group.id(), capsule.id(), f.worker(0), &[]);
+    let d = Durable::new_dynamic(f.store.clone(), LEASE, 0);
+    let term = d.acquire_or_renew().await.unwrap().unwrap().term;
+    d.issue_job(&job, term).await.unwrap();
+    for _ in 0..4 { gc::sweep(&f.store, &StoreGcConfig { grace: 1 }).await.unwrap(); }
+    for (kind, id) in [(Kind::Group, group.id()), (Kind::Capsule, capsule.id())] {
+        let state = f.store.gc_state(kind, &id).await.unwrap();
+        assert!(!matches!(state, Some(GcState::Doomed { .. } | GcState::Deleting { .. } | GcState::Gone { .. })),
+            "a pending dynamic-shard job's {} was doomed: {state:?}", kind.name());
+    }
+}
+
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
@@ -889,6 +913,7 @@ fn main() {
         libtest_mimic::Trial::test("oversized_move_is_aborted_and_buckets_stay", || { oversized_move_is_aborted_and_buckets_stay(); Ok(()) }),
         libtest_mimic::Trial::test("fixed_and_dynamic_topologies_refuse_each_other", || { fixed_and_dynamic_topologies_refuse_each_other(); Ok(()) }),
         libtest_mimic::Trial::test("cross_shard_dependency_publication_after_move", || { cross_shard_dependency_publication_after_move(); Ok(()) }),
+        libtest_mimic::Trial::test("dynamic_pending_jobs_protect_their_objects", || { dynamic_pending_jobs_protect_their_objects(); Ok(()) }),
         libtest_mimic::Trial::test("kill_nine_mid_move_completes_by_takeover", || { kill_nine_mid_move_completes_by_takeover(); Ok(()) }),
         libtest_mimic::Trial::test("reshard_benchmark", || { reshard_benchmark(); Ok(()) }).with_ignored_flag(true),
     ]);

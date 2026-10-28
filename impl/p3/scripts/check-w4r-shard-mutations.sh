@@ -11,6 +11,7 @@ export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-1}"
 cd "$here/../../p2"
 cases=(
   'mutate-shard-export-keeps-source|move_preserves_every_job_exactly_once'
+  'mutate-shard-issue-job-no-gc-refs|dynamic_pending_jobs_protect_their_objects'
   'mutate-shard-flip-without-handoff|move_preserves_every_job_exactly_once'
   'mutate-shard-dest-serves-moving|move_preserves_every_job_exactly_once'
   'mutate-shard-import-no-state-check|second_import_does_not_resurrect_work'
