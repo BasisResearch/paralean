@@ -363,11 +363,19 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
                         agent == m.author && workspace == cert.body.writer && key == public && grant.verify()));
                     author_bound && target_home.as_ref().is_none_or(|home| federation.as_ref().is_some_and(|cfg|
                         cfg.members[home].replica == cert.body.replica && cfg.members[home].verify_writer_path(IMPORT_RELAXED, &st.ring, &cert.body.writer, &cert.id(), &cert.sig)))
-                })
-                .ok_or_else(|| StoreError::Invalid("origin author certificate missing".into()))?;
+                });
+            // A property of this item, like every other evidence check: rejecting it lets
+            // the exchange go on. An error would stall the source's queue at this event.
+            let Some(author_cert) = author_cert else {
+                if cfg!(feature = "mutate-author-cert-error") {
+                    return Err(StoreError::Invalid("origin author certificate missing".into()));
+                }
+                return reject("no certificate from the origin author's registered key");
+            };
             let author_writer = author_cert.body.writer;
-            let author_public = st.ring.signing_writer_key_path(IMPORT_RELAXED, &author_writer, &author_cert.id(), &author_cert.sig)
-                .ok_or_else(|| StoreError::Invalid("origin author certificate key untrusted".into()))?;
+            let Some(author_public) = st.ring.signing_writer_key_path(IMPORT_RELAXED, &author_writer, &author_cert.id(), &author_cert.sig) else {
+                return reject("origin author certificate key untrusted");
+            };
             let variant = base.as_ref().is_some_and(|(local, _)| *local != mid);
             if let Some((local, existing)) = &base {
                 let same_lineage = existing.group == m.group && existing.revisions == m.revisions
@@ -601,8 +609,6 @@ pub async fn exchangeable_set(store: &Store) -> Result<PublishedSet> {
     Ok(s)
 }
 
-/// Every signature import checks: peer certificates, tombstone certificates and the
-/// job issuer binding of an imported group.
 /// Every anti-entropy import signature (group and tombstone certificates, under current or
 /// retired writer keys, and the federated job issuer) verifies at this one path.
 const IMPORT_RELAXED: bool = cfg!(feature = "mutate-relaxed-import-sig");

@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b86869c9a0c2521625b96f72aa81aabcdb6c3fbf21e800c60f192b64c7c5734d # shrinks to a_acts = [Revise(0)], b_acts = [Insert(None), Insert(None), Insert(None)], schedule = [(false, 7624449550076820961, []), (false, 5773302254460762991, [Deliver, Deliver]), (true, 1004498688235480294, [Corrupt])]

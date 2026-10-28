@@ -74,6 +74,8 @@ mutate-relaxed-import-sig = []
 mutate-relaxed-agent-grant-sig = []
 mutate-relaxed-agent-revocation-sig = []
 mutate-relaxed-controller-delete-sig = []
+# W2-54: T9 import errors (instead of rejecting) on a group with no valid author certificate.
+mutate-author-cert-error = []
 mutate-key-debug = []
 mutate-unbounded-pce = []
 mutate-unbounded-s3-read = []

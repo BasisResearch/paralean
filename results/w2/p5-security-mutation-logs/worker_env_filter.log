@@ -2,10 +2,10 @@
 FAIL: test_worker_cli_receives_no_foreign_credentials (test_child_env.ChildEnvironmentTest.test_worker_cli_receives_no_foreign_credentials)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/kirancodes/tmp/w2-p5-mutations-8a24pexb/tests/test_child_env.py", line 103, in test_worker_cli_receives_no_foreign_credentials
+  File "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/4fc771f1-a6d8-4b4e-83bf-7bb90324af32/scratchpad/w2-p5-mutations-xussk_tz/p5/tests/test_child_env.py", line 103, in test_worker_cli_receives_no_foreign_credentials
     self.assert_clean(env)
     ~~~~~~~~~~~~~~~~~^^^^^
-  File "/Users/kirancodes/tmp/w2-p5-mutations-8a24pexb/tests/test_child_env.py", line 54, in assert_clean
+  File "/data/home/kirancodes/tmp/claude-2000/-data-home-kirancodes-Documents-code-paralean-w2-security/4fc771f1-a6d8-4b4e-83bf-7bb90324af32/scratchpad/w2-p5-mutations-xussk_tz/p5/tests/test_child_env.py", line 54, in assert_clean
     self.assertEqual(leaked, [], "credentials reached a child process")
     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: Lists differ: ['AWS_SECRET_ACCESS_KEY', 'DB_PASSWORD', '[361 chars]RET'] != []

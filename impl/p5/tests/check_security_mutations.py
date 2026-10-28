@@ -87,7 +87,9 @@ def main() -> int:
     LOGS.mkdir(parents=True, exist_ok=True)
     rows = []
     with tempfile.TemporaryDirectory(prefix="w2-p5-mutations-") as temp:
-        root = Path(temp)
+        # Mirror impl/: W5's editor-bridge tests import ../p4 (the LSP router and bridge).
+        root = Path(temp) / "p5"
+        shutil.copytree(P5.parent / "p4", Path(temp) / "p4", ignore=shutil.ignore_patterns("__pycache__", "results"))
         shutil.copytree(P5 / "p5lib", root / "p5lib", ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(P5 / "tests", root / "tests", ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(P5 / "tasks", root / "tasks")

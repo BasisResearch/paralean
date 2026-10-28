@@ -27,7 +27,7 @@ for case in "${cases[@]}"; do
   if output="$(cargo test -q -p paralean-control -j 1 --features "$feature" "${selector[@]}" -- --exact "$test_name" 2>&1)"; then
     echo "SURVIVED  $feature"
     failed=1
-  elif grep -Fq "$test_name --- FAILED" <<<"$output" &&
+  elif grep -Eq "$test_name --- FAILED|test[[:space:]]+$test_name[[:space:]]+[.]{3} FAILED" <<<"$output" &&
        grep -Eq 'assertion failed|assertion `left == right` failed' <<<"$output"; then
     echo "detected  $feature"
   else

@@ -327,7 +327,12 @@ async fn inconclusive_recovery_is_bounded() {
         base: Id([3; 32]), policy: Id([4; 32]), checker: Id([5; 32]), worker, targets: vec![],
         deadline_ms: 1000, memory_mb: 0,
     }, &authority);
-    store.meta.issue_job(&job).await.unwrap();
+    // W4: a controller recovers the envelopes of its shard's validation index, which
+    // its J1 (`Durable::issue_job`) writes with the route. This issuer's lease lapses
+    // once the first leader's monitor has advanced the shard clock past it.
+    let issuer = paralean_control::durable::Durable::new(store.clone(), Duration::from_millis(500));
+    let term = issuer.acquire_or_renew().await.unwrap().unwrap().term;
+    issuer.issue_job(&job, term).await.unwrap();
     let attempts = 2;
     let leader = || paralean_control::controller::ControlPlane::new(paralean_control::controller::ControllerConfig {
         store: store.clone(), authority: authority.clone(), validators: vec![sink_addr.clone()],

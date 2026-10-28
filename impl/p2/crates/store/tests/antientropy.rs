@@ -453,8 +453,11 @@ async fn cancelled_request_is_not_received_by_its_issuer() {
     let o = import(&a.w[S], &item).await.unwrap();
     assert!(matches!(&o, Outcome::Rejected(why) if why.contains("cancelled")), "{o:?}");
     assert!(a.store.marker(&p.group.id()).await.unwrap().is_none());
-    // The relay: B trusts A's controller as a job issuer and publishes the worker's
-    // package (it cannot read A's cancellation); anti-entropy then offers it to A.
+    // The relay: B trusts A's controller as a job issuer, its own controller registers
+    // A's worker key for the package's author (W3: T1 admits only a registered agent
+    // key), and it publishes the worker's package (it cannot read A's cancellation);
+    // anti-entropy then offers it to A.
+    b.ctl.register_agent_key(p.marker.author, a.w[0].id, a.w[0].signer().public()).await.unwrap();
     let relay = Writer::new(b.store.clone(), a.w[0].id, a.w[0].signer().clone());
     relay.publish(&p).await.unwrap();
     let (_, _, to_a) = antientropy::sync(sync_of(&a), sync_of(&b), 5).await.unwrap();
@@ -465,6 +468,9 @@ async fn cancelled_request_is_not_received_by_its_issuer() {
     // A request A did not cancel still arrives through the same relay.
     let mut q = a.plain_package(0, "Sh.kept", "kept");
     fixture::place(&mut q, F, None, None);
+    if q.marker.author != p.marker.author {
+        b.ctl.register_agent_key(q.marker.author, a.w[0].id, a.w[0].signer().public()).await.unwrap();
+    }
     relay.publish(&q).await.unwrap();
     antientropy::sync(sync_of(&a), sync_of(&b), 5).await.unwrap();
     assert!(published_set(&a.store).await.unwrap().groups.contains_key(&q.group.id()));
@@ -642,6 +648,9 @@ proptest! {
     #![proptest_config(ProptestConfig {
         cases: std::env::var("PROPTEST_CASES").ok().and_then(|s| s.parse().ok()).unwrap_or(12),
         max_shrink_iters: 16,
+        failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::Direct(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/antientropy.proptest-regressions"),
+        ))),
         .. ProptestConfig::default()
     })]
     fn any_exchange_order_converges_to_the_union(
@@ -653,6 +662,34 @@ proptest! {
         let r = rt.block_on(convergence_case(a_acts, b_acts, schedule));
         prop_assert!(r.is_ok(), "{}", r.unwrap_err());
     }
+}
+
+/// W2-54. A group whose only author-bound certificate does not verify (here its signature
+/// is damaged; another writer's certificate is valid) is rejected like any other bad
+/// evidence. It must not be an import error: the puller would retry the event forever and
+/// stall everything behind it from that source.
+#[tokio::main(flavor = "current_thread")]
+async fn group_without_a_valid_author_certificate_is_rejected() {
+    let (a, b) = pair("ae-author-cert", N, Faults::none(), Faults::none());
+    let p = insert(&a, 0, "author", None, 1).await;
+    let author = Cert::sign(CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[0].id }, a.w[0].signer());
+    let mut damaged = author.clone();
+    damaged.sig[7] ^= 1;
+    let other = Cert::sign(CertBody { replica: a.store.replica, marker: p.marker.id(), group: p.group.id(), writer: a.w[1].id }, a.w[1].signer());
+    let item = |certs: Vec<Vec<u8>>| Item::Group {
+        marker: p.marker.preimage(),
+        revisions: p.revisions.iter().map(|r| r.preimage()).collect(),
+        receipt: p.receipt.to_bytes(),
+        job: p.job.to_bytes(),
+        certs,
+    };
+    let o = import(&b.w[S], &item(vec![other.to_bytes(), damaged.to_bytes()])).await;
+    assert!(matches!(&o, Ok(Outcome::Rejected(_))), "{o:?}");
+    assert!(b.store.marker(&p.group.id()).await.unwrap().is_none());
+    // The same group with its author's certificate intact is received.
+    antientropy::sync(sync_of(&a), sync_of(&b), 5).await.unwrap();
+    assert!(published_set(&b.store).await.unwrap().groups.contains_key(&p.group.id()));
+    audits_clean(&a, &b).await;
 }
 
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
@@ -670,5 +707,6 @@ fn main() {
         libtest_mimic::Trial::test("received_group_waits_for_job_dependencies_here", || { received_group_waits_for_job_dependencies_here(); Ok(()) }),
         libtest_mimic::Trial::test("any_exchange_order_converges_to_the_union", || { any_exchange_order_converges_to_the_union(); Ok(()) }),
         libtest_mimic::Trial::test("moved_position_and_tombstone_converge_between_replicas", || { moved_position_and_tombstone_converge_between_replicas(); Ok(()) }),
+        libtest_mimic::Trial::test("group_without_a_valid_author_certificate_is_rejected", || { group_without_a_valid_author_certificate_is_rejected(); Ok(()) }),
     ]);
 }

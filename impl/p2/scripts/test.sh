@@ -7,7 +7,8 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
 if [ -n "${PARALEAN_PEER_INSTANCE:-}" ]; then
-  eval "$(PARALEAN_INSTANCE="$PARALEAN_PEER_INSTANCE" bash -c '. "$1/env.sh"
+  # env.sh keeps an already exported Garage socket, so clear the primary's for the peer.
+  eval "$(PARALEAN_INSTANCE="$PARALEAN_PEER_INSTANCE" PARALEAN_GARAGE_S3_SOCKET= bash -c '. "$1/env.sh"
     for v in FDB_CLUSTER S3_ENDPOINT S3_BUCKET S3_REGION S3_ACCESS_KEY S3_SECRET_KEY GARAGE_S3_SOCKET; do
       eval "printf \"export PARALEAN_PEER_%s=%q\n\" $v \"\$PARALEAN_$v\""
     done' _ "$here")"

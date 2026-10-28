@@ -175,8 +175,9 @@ async fn checker_memory_cgroup_hard_limit_kills_fast_burst() {
     let s = script(&root, "burst.py", "#!/usr/bin/env python3\nimport json, ctypes, mmap\nn = 96 << 20\nbuf = mmap.mmap(-1, n)\nctypes.memset((ctypes.c_char * n).from_buffer(buf), 1, n)\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n");
     let cfg = CheckerConfig { default_memory_mb: 64, ..CheckerConfig::sandboxed(s, "test") };
     // The cgroup kills every burst. The 50 ms RSS poll catches one only when a tick lands
-    // in its few milliseconds, so five in a row distinguish the two layers.
-    for attempt in 0..5 {
+    // in its few milliseconds (more often on a loaded host, where the burst is slower), so
+    // twenty in a row distinguish the two layers.
+    for attempt in 0..20 {
         let (_tx, cancel) = watch::channel(false);
         let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
         assert!(matches!(result, Err(NoVerdict::Memory { .. })), "fast burst {attempt} escaped the cgroup: {result:?}");
