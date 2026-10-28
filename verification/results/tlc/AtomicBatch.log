@@ -1,0 +1,31 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 69 and seed 2647164129958444558 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1628830] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatch/AtomicBatch.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatch-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatch-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatch-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AtomicBatch
+Starting... (2026-10-28 22:38:47)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:38:47.
+Progress(11) at 2026-10-28 22:38:50: 1,353,667 states generated (1,353,667 s/min), 245,639 distinct states found (245,639 ds/min), 115,808 states left on queue.
+Progress(21) at 2026-10-28 22:39:50: 33,862,067 states generated (32,508,400 s/min), 3,680,131 distinct states found (3,434,492 ds/min), 366,444 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 10.0E-6
+  based on the actual fingerprints:  val = 6.4E-7
+45939384 states generated, 4427772 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 29.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 14 and the 95th percentile is 2).
+Finished in 01min 28s at (2026-10-28 22:40:15)
+==== Paralean TLC provenance ====
+module AtomicBatch
+config AtomicBatch.cfg
+expect pass
+checked db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
+checked d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+==== end provenance ====

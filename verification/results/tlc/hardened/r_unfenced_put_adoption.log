@@ -1,38 +1,38 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 121 and seed -6349216771793168862 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 1273846] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption/Hardened.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 124 and seed 2937602582952495726 with 3 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 2016538] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/hardened/r_unfenced_put_adoption/Hardened.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/hardened/r_unfenced_put_adoption-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Hardened
-Starting... (2026-10-28 13:02:22)
+Starting... (2026-10-28 23:00:34)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 13:02:22.
-Progress(17) at 2026-10-28 13:02:25: 154,565 states generated (154,565 s/min), 35,249 distinct states found (35,249 ds/min), 14,036 states left on queue.
-Progress(24) at 2026-10-28 13:03:25: 5,229,583 states generated (5,075,018 s/min), 1,018,695 distinct states found (983,446 ds/min), 312,181 states left on queue.
-Progress(26) at 2026-10-28 13:04:25: 9,784,485 states generated (4,554,902 s/min), 1,817,306 distinct states found (798,611 ds/min), 466,287 states left on queue.
-Progress(28) at 2026-10-28 13:05:25: 14,462,470 states generated (4,677,985 s/min), 2,593,970 distinct states found (776,664 ds/min), 504,112 states left on queue.
-Progress(29) at 2026-10-28 13:06:25: 19,098,996 states generated (4,636,526 s/min), 3,251,567 distinct states found (657,597 ds/min), 403,444 states left on queue.
-Progress(33) at 2026-10-28 13:07:25: 23,416,400 states generated (4,317,404 s/min), 3,756,355 distinct states found (504,788 ds/min), 37,867 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 23:00:34.
+Progress(17) at 2026-10-28 23:00:37: 202,200 states generated (202,200 s/min), 44,312 distinct states found (44,312 ds/min), 17,254 states left on queue.
+Progress(24) at 2026-10-28 23:01:37: 5,266,897 states generated (5,064,697 s/min), 1,021,505 distinct states found (977,193 ds/min), 312,133 states left on queue.
+Progress(26) at 2026-10-28 23:02:37: 10,325,831 states generated (5,058,934 s/min), 1,910,870 distinct states found (889,365 ds/min), 475,117 states left on queue.
+Progress(28) at 2026-10-28 23:03:37: 15,401,828 states generated (5,075,997 s/min), 2,710,875 distinct states found (800,005 ds/min), 490,474 states left on queue.
+Progress(30) at 2026-10-28 23:04:37: 20,298,875 states generated (4,897,047 s/min), 3,408,308 distinct states found (697,433 ds/min), 327,923 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.0E-6
-  based on the actual fingerprints:  val = 6.3E-6
+  based on the actual fingerprints:  val = 7.0E-7
 23587845 states generated, 3766968 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 35.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 3).
-Finished in 05min 07s at (2026-10-28 13:07:29)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
+Finished in 04min 46s at (2026-10-28 23:05:20)
 ==== Paralean TLC provenance ====
 module Hardened
 config run.cfg
 expect pass: redundant guard
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -69,6 +69,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

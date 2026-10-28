@@ -1,28 +1,29 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 31 and seed 4897093664841224927 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 940423] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CertificatesLagging/Certificates.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CertificatesLagging-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CertificatesLagging-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CertificatesLagging-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CertificatesLagging-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 35 and seed -8202668385946414909 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1571087] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CertificatesLagging/Certificates.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CertificatesLagging-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CertificatesLagging-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CertificatesLagging-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CertificatesLagging-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Certificates
-Starting... (2026-10-28 12:43:15)
+Starting... (2026-10-28 22:35:55)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:43:15.
-Progress(16) at 2026-10-28 12:43:18: 1,305,082 states generated (1,305,082 s/min), 134,371 distinct states found (134,371 ds/min), 62,710 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:35:55.
+Progress(16) at 2026-10-28 22:35:58: 687,298 states generated (687,298 s/min), 75,781 distinct states found (75,781 ds/min), 37,303 states left on queue.
+Progress(24) at 2026-10-28 22:36:58: 19,826,496 states generated (19,139,198 s/min), 1,113,048 distinct states found (1,037,267 ds/min), 80,578 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.4E-6
-  based on the actual fingerprints:  val = 2.2E-8
+  based on the actual fingerprints:  val = 7.8E-7
 22711736 states generated, 1182911 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 29.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 37s at (2026-10-28 12:43:53)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 4).
+Finished in 01min 12s at (2026-10-28 22:37:07)
 ==== Paralean TLC provenance ====
 module Certificates
 config CertificatesLagging.cfg

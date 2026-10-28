@@ -1,0 +1,33 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 100 and seed 8189501382550147248 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1648804] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatchAE/AtomicBatch.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatchAE-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatchAE-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/AtomicBatchAE-java-tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AtomicBatch
+Starting... (2026-10-28 22:40:16)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:40:16.
+Progress(11) at 2026-10-28 22:40:19: 1,244,595 states generated (1,244,595 s/min), 243,758 distinct states found (243,758 ds/min), 116,944 states left on queue.
+Progress(20) at 2026-10-28 22:41:19: 32,023,171 states generated (30,778,576 s/min), 4,169,451 distinct states found (3,925,693 ds/min), 820,680 states left on queue.
+Progress(23) at 2026-10-28 22:42:19: 60,393,580 states generated (28,370,409 s/min), 7,241,327 distinct states found (3,071,876 ds/min), 977,555 states left on queue.
+Progress(28) at 2026-10-28 22:43:19: 88,170,286 states generated (27,776,706 s/min), 9,665,015 distinct states found (2,423,688 ds/min), 210,980 states left on queue.
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 4.3E-5
+  based on the actual fingerprints:  val = 2.3E-5
+91079377 states generated, 9866304 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 35.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 17 and the 95th percentile is 4).
+Finished in 03min 11s at (2026-10-28 22:43:27)
+==== Paralean TLC provenance ====
+module AtomicBatch
+config AtomicBatchAE.cfg
+expect pass
+checked db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
+checked 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+==== end provenance ====

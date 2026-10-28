@@ -1,14 +1,14 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 124 and seed -2934119689594493495 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 919229] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Publication.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse/Durability.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/CheckpointReuse-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 26 and seed -6482261220319039922 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1510541] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse/CheckpointReuse.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse/Integrated.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse/Publication.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse/Durability.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/CheckpointReuse-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -18,18 +18,18 @@ Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
 Semantic processing of module CheckpointReuse
-Starting... (2026-10-28 12:41:26)
+Starting... (2026-10-28 22:32:31)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:26.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:32.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.4E-9
-  based on the actual fingerprints:  val = 1.1E-10
+  based on the actual fingerprints:  val = 5.4E-10
 649369 states generated, 43888 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 4).
-Finished in 01s at (2026-10-28 12:41:27)
+Finished in 02s at (2026-10-28 22:32:34)
 ==== Paralean TLC provenance ====
 module CheckpointReuse
 config CheckpointReuse.cfg

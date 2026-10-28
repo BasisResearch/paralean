@@ -1,29 +1,30 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 29 and seed -9149969788182926657 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 912867] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert/Revert.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revert-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 99 and seed 7293730044104478563 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1508437] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert/Revert.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Revert-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Revert
-Starting... (2026-10-28 12:41:18)
+Starting... (2026-10-28 22:32:21)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:18.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:21.
+Progress(18) at 2026-10-28 22:32:24: 988,023 states generated (988,023 s/min), 85,648 distinct states found (85,648 ds/min), 10,691 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.6E-9
-  based on the actual fingerprints:  val = 2.1E-10
+  based on the actual fingerprints:  val = 2.3E-10
 1314857 states generated, 99756 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 26.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 4).
-Finished in 02s at (2026-10-28 12:41:20)
+Finished in 04s at (2026-10-28 22:32:25)
 ==== Paralean TLC provenance ====
 module Revert
 config Revert.cfg

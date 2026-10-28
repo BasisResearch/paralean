@@ -1,29 +1,30 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 21 and seed 399695525323191998 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 901891] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain/Chain.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Chain-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 5 and seed -3231439884430215372 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1494477] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain/Chain.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Chain-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Chain
-Starting... (2026-10-28 12:41:05)
+Starting... (2026-10-28 22:32:04)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:05.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:04.
+Progress(19) at 2026-10-28 22:32:07: 1,272,474 states generated (1,272,474 s/min), 102,234 distinct states found (102,234 ds/min), 11,755 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.1E-8
-  based on the actual fingerprints:  val = 6.9E-10
+  based on the actual fingerprints:  val = 7.4E-10
 1741289 states generated, 125232 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 4).
-Finished in 03s at (2026-10-28 12:41:08)
+Finished in 04s at (2026-10-28 22:32:08)
 ==== Paralean TLC provenance ====
 module Chain
 config Chain.cfg

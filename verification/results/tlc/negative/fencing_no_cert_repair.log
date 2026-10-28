@@ -1,20 +1,20 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 103 and seed 4850083744396816089 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1069790] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_no_cert_repair/Fencing.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_no_cert_repair-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_no_cert_repair-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_no_cert_repair-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_no_cert_repair-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 98 and seed -7534052033470437819 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1854587] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_no_cert_repair/Fencing.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_no_cert_repair-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_no_cert_repair-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_no_cert_repair-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_no_cert_repair-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-28 12:49:14)
+Starting... (2026-10-28 22:50:59)
 Implied-temporal checking--satisfiability problem has 2 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:49:14.
-Checking 2 branches of temporal properties for the current state space with 27474 total distinct states at (2026-10-28 12:49:17)
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:51:00.
+Checking 2 branches of temporal properties for the current state space with 41706 total distinct states at (2026-10-28 22:51:03)
 Error: Temporal properties were violated.
 
 Error: The following behavior constitutes a counter-example:
@@ -37,7 +37,25 @@ State 1: <Initial predicate>
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-State 2: <Put line 95, col 5 to line 103, col 90 of module Fencing>
+State 2: <LoseDesktop line 169, col 5 to line 176, col 42 of module Fencing>
+/\ scanned = FALSE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 0, d |-> 0]
+/\ desktopLost = TRUE
+/\ live = {r1, r2, r3}
+
+State 3: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ scanned = FALSE
 /\ lateAcked = {}
 /\ fence = 1
@@ -52,11 +70,11 @@ State 2: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ known = {}
 /\ acked = {}
 /\ writtenAt = [a |-> 1, d |-> 0]
-/\ desktopLost = FALSE
+/\ desktopLost = TRUE
 /\ live = {r1, r2, r3}
 
-State 3: <Put line 95, col 5 to line 103, col 90 of module Fencing>
-/\ scanned = FALSE
+State 4: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
+/\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 1
 /\ certFence = [a |-> 0, d |-> 0]
@@ -64,25 +82,7 @@ State 3: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
-/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
-/\ holds = [old |-> 1, new |-> 0]
-/\ known = {}
-/\ acked = {}
-/\ writtenAt = [a |-> 1, d |-> 0]
-/\ desktopLost = FALSE
-/\ live = {r1, r2, r3}
-
-State 4: <LoseDesktop line 169, col 5 to line 176, col 42 of module Fencing>
-/\ scanned = FALSE
-/\ lateAcked = {}
-/\ fence = 1
-/\ certFence = [a |-> 0, d |-> 0]
-/\ heads = {}
-/\ lateRepair = FALSE
-/\ selected = "none"
-/\ reconstructed = FALSE
-/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
+/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {})
 /\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 0]
 /\ known = {}
@@ -91,8 +91,8 @@ State 4: <LoseDesktop line 169, col 5 to line 176, col 42 of module Fencing>
 /\ desktopLost = TRUE
 /\ live = {r1, r2, r3}
 
-State 5: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
-/\ scanned = FALSE
+State 5: <Put line 95, col 5 to line 103, col 90 of module Fencing>
+/\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 1
 /\ certFence = [a |-> 0, d |-> 0]
@@ -100,7 +100,25 @@ State 5: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {}
+/\ writtenAt = [a |-> 1, d |-> 0]
+/\ desktopLost = TRUE
+/\ live = {r1, r2, r3}
+
+State 6: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 0, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 0]
 /\ known = {}
@@ -109,8 +127,8 @@ State 5: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
 /\ desktopLost = TRUE
 /\ live = {r1, r2, r3}
 
-State 6: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
-/\ scanned = FALSE
+State 7: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
+/\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 1
 /\ certFence = [a |-> 1, d |-> 0]
@@ -118,8 +136,8 @@ State 6: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
-/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {"a"})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 0]
 /\ known = {}
 /\ acked = {"a"}
@@ -127,8 +145,26 @@ State 6: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ desktopLost = TRUE
 /\ live = {r1, r2, r3}
 
-State 7: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
-/\ scanned = FALSE
+State 8: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 1
+/\ certFence = [a |-> 1, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {"a"})
+/\ holds = [old |-> 1, new |-> 0]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, d |-> 0]
+/\ desktopLost = TRUE
+/\ live = {r1, r2, r3}
+
+State 9: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
+/\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 2
 /\ certFence = [a |-> 1, d |-> 0]
@@ -136,44 +172,8 @@ State 7: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
 /\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
-/\ stored = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
-/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {"a"})
-/\ holds = [old |-> 1, new |-> 2]
-/\ known = {}
-/\ acked = {"a"}
-/\ writtenAt = [a |-> 1, d |-> 0]
-/\ desktopLost = TRUE
-/\ live = {r1, r2, r3}
-
-State 8: <Repair line 107, col 5 to line 114, col 78 of module Fencing>
-/\ scanned = FALSE
-/\ lateAcked = {}
-/\ fence = 2
-/\ certFence = [a |-> 1, d |-> 0]
-/\ heads = {}
-/\ lateRepair = TRUE
-/\ selected = "none"
-/\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
-/\ cert = (r1 :> {} @@ r2 :> {} @@ r3 :> {"a"})
-/\ holds = [old |-> 1, new |-> 2]
-/\ known = {}
-/\ acked = {"a"}
-/\ writtenAt = [a |-> 1, d |-> 0]
-/\ desktopLost = TRUE
-/\ live = {r1, r2, r3}
-
-State 9: <CertRepair line 141, col 5 to line 146, col 90 of module Fencing>
-/\ scanned = FALSE
-/\ lateAcked = {}
-/\ fence = 2
-/\ certFence = [a |-> 1, d |-> 0]
-/\ heads = {}
-/\ lateRepair = TRUE
-/\ selected = "none"
-/\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {"a"})
-/\ cert = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {"a"})
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {"a"})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
@@ -182,34 +182,16 @@ State 9: <CertRepair line 141, col 5 to line 146, col 90 of module Fencing>
 /\ live = {r1, r2, r3}
 
 State 10: <LoseReplica line 157, col 5 to line 166, col 90 of module Fencing>
-/\ scanned = FALSE
-/\ lateAcked = {}
-/\ fence = 2
-/\ certFence = [a |-> 1, d |-> 0]
-/\ heads = {}
-/\ lateRepair = TRUE
-/\ selected = "none"
-/\ reconstructed = FALSE
-/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ cert = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 1, new |-> 2]
-/\ known = {}
-/\ acked = {"a"}
-/\ writtenAt = [a |-> 1, d |-> 0]
-/\ desktopLost = TRUE
-/\ live = {r1, r2}
-
-State 11: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ scanned = TRUE
 /\ lateAcked = {}
 /\ fence = 2
 /\ certFence = [a |-> 1, d |-> 0]
 /\ heads = {}
-/\ lateRepair = TRUE
+/\ lateRepair = FALSE
 /\ selected = "none"
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ cert = (r1 :> {} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
 /\ holds = [old |-> 1, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
@@ -217,16 +199,52 @@ State 11: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ desktopLost = TRUE
 /\ live = {r1, r2}
 
-Back to state 10: <LoseDesktop line 169, col 5 to line 176, col 42 of module Fencing>
+State 11: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 3]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, d |-> 0]
+/\ desktopLost = TRUE
+/\ live = {r1, r2}
 
-Finished checking temporal properties in 00s at 2026-10-28 12:49:17
-80397 states generated, 13737 distinct states found, 5674 states left on queue.
-Finished in 03s at (2026-10-28 12:49:17)
+State 12: <Put line 95, col 5 to line 103, col 90 of module Fencing>
+/\ scanned = TRUE
+/\ lateAcked = {}
+/\ fence = 3
+/\ certFence = [a |-> 1, d |-> 0]
+/\ heads = {}
+/\ lateRepair = FALSE
+/\ selected = "none"
+/\ reconstructed = FALSE
+/\ stored = (r1 :> {"a"} @@ r2 :> {"a", "d"} @@ r3 :> {})
+/\ cert = (r1 :> {"a"} @@ r2 :> {} @@ r3 :> {})
+/\ holds = [old |-> 1, new |-> 3]
+/\ known = {}
+/\ acked = {"a"}
+/\ writtenAt = [a |-> 1, d |-> 3]
+/\ desktopLost = TRUE
+/\ live = {r1, r2}
+
+State 13: Stuttering
+Finished checking temporal properties in 00s at 2026-10-28 22:51:03
+139206 states generated, 20853 distinct states found, 7272 states left on queue.
+Finished in 03s at (2026-10-28 22:51:03)
 ==== Paralean TLC provenance ====
 module Fencing
 config FencingLive.cfg
 expect failure: Temporal properties were violated
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -263,6 +281,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

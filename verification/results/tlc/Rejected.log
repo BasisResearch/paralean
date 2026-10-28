@@ -1,20 +1,20 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 34 and seed 5432682959289352239 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 915670] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected/Rejected.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Rejected-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 122 and seed 7502572830646368248 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1509551] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected/Rejected.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Rejected-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Rejected
-Starting... (2026-10-28 12:41:21)
+Starting... (2026-10-28 22:32:25)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:21.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:25.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -22,7 +22,7 @@ Model checking completed. No error has been found.
 91 states generated, 17 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 5.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 5 and the 95th percentile is 5).
-Finished in 00s at (2026-10-28 12:41:21)
+Finished in 00s at (2026-10-28 22:32:25)
 ==== Paralean TLC provenance ====
 module Rejected
 config Rejected.cfg

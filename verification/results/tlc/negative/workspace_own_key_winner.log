@@ -1,17 +1,17 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 60 and seed -9051757777580199307 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1107096] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/workspace_own_key_winner/Workspace.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/workspace_own_key_winner-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/workspace_own_key_winner-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/workspace_own_key_winner-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 20 and seed -4044688763488126292 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1873125] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/workspace_own_key_winner/Workspace.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/workspace_own_key_winner-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/workspace_own_key_winner-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/workspace_own_key_winner-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-28 12:51:34)
+Starting... (2026-10-28 22:52:15)
 Implied-temporal checking--satisfiability problem has 1 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:51:34.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:52:15.
 Error: Action property WinnerLineageKeepsName is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -67,16 +67,16 @@ State 3: <Stage line 199, col 5 to line 216, col 53 of module Workspace>
 /\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
 State 4: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
-/\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
-  b |-> [F |-> <<>>, G |-> <<>>],
+/\ doc = [ a |-> [F |-> <<>>, G |-> <<>>],
+  b |-> [F |-> <<"b1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
-/\ rendered = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ rendered = [a |-> {}, b |-> {"b1"}, c |-> {}]
 /\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
-/\ pending = [a |-> {}, b |-> {"b1"}, c |-> {}]
+/\ pending = [a |-> {"a1"}, b |-> {}, c |-> {}]
 /\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
-/\ known = [a |-> {"a1"}, b |-> {}, c |-> {}]
-/\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
-  b |-> [foo |-> "none", bar |-> "none"],
+/\ known = [a |-> {}, b |-> {"b1"}, c |-> {}]
+/\ firstSeen = [ a |-> [foo |-> "none", bar |-> "none"],
+  b |-> [foo |-> "b1", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
 /\ path = [ a1 |-> <<<<1, 1>>>>,
   a2 |-> <<>>,
@@ -86,27 +86,27 @@ State 4: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
 /\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
 /\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
-State 5: <Stage line 199, col 5 to line 216, col 53 of module Workspace>
+State 5: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
 /\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
-  b |-> [F |-> <<>>, G |-> <<>>],
+  b |-> [F |-> <<"b1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
-/\ rendered = [a |-> {"a1"}, b |-> {}, c |-> {}]
-/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<"a3">>, b1 |-> <<"b1">>, b2 |-> <<>>]
-/\ pending = [a |-> {"a3"}, b |-> {"b1"}, c |-> {}]
-/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 2, b1 |-> 1, b2 |-> 0]
-/\ known = [a |-> {"a1"}, b |-> {}, c |-> {}]
+/\ rendered = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
+/\ intent = [a1 |-> <<"a1">>, a2 |-> <<>>, a3 |-> <<>>, b1 |-> <<"b1">>, b2 |-> <<>>]
+/\ pending = [a |-> {}, b |-> {}, c |-> {}]
+/\ ts = [a1 |-> 1, a2 |-> 0, a3 |-> 0, b1 |-> 1, b2 |-> 0]
+/\ known = [a |-> {"a1"}, b |-> {"b1"}, c |-> {}]
 /\ firstSeen = [ a |-> [foo |-> "a1", bar |-> "none"],
-  b |-> [foo |-> "none", bar |-> "none"],
+  b |-> [foo |-> "b1", bar |-> "none"],
   c |-> [foo |-> "none", bar |-> "none"] ]
 /\ path = [ a1 |-> <<<<1, 1>>>>,
   a2 |-> <<>>,
-  a3 |-> <<<<1, 1>>>>,
+  a3 |-> <<>>,
   b1 |-> <<<<1, 2>>>>,
   b2 |-> <<>> ]
-/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "start", b1 |-> "start", b2 |-> "none"]
-/\ lamport = [a |-> 2, b |-> 1, c |-> 0]
+/\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "none", b1 |-> "start", b2 |-> "none"]
+/\ lamport = [a |-> 1, b |-> 1, c |-> 0]
 
-State 6: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
+State 6: <Stage line 199, col 5 to line 216, col 53 of module Workspace>
 /\ doc = [ a |-> [F |-> <<"a1">>, G |-> <<>>],
   b |-> [F |-> <<"b1">>, G |-> <<>>],
   c |-> [F |-> <<>>, G |-> <<>>] ]
@@ -166,15 +166,16 @@ State 8: <Publish line 221, col 5 to line 228, col 54 of module Workspace>
 /\ anchor = [a1 |-> "start", a2 |-> "none", a3 |-> "start", b1 |-> "start", b2 |-> "none"]
 /\ lamport = [a |-> 2, b |-> 1, c |-> 0]
 
-1003 states generated, 527 distinct states found, 292 states left on queue.
+1097 states generated, 572 distinct states found, 317 states left on queue.
 The depth of the complete state graph search is 8.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 6 and the 95th percentile is 5).
-Finished in 00s at (2026-10-28 12:51:34)
+Finished in 00s at (2026-10-28 22:52:16)
 ==== Paralean TLC provenance ====
 module Workspace
 config Workspace.cfg
 expect failure: Action property WinnerLineageKeepsName is violated
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -211,6 +212,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

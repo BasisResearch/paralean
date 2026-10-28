@@ -1,24 +1,24 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 17 and seed 4629799738808629832 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 957915] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Ingress/Ingress.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Ingress-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Ingress-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Ingress-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 58 and seed 6771939617746667666 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1610730] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Ingress/Ingress.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Ingress-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Ingress-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Ingress-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Ingress
-Starting... (2026-10-28 12:44:25)
+Starting... (2026-10-28 22:38:02)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:44:25.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:38:02.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 3.5E-14
 2566 states generated, 279 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 9.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
-Finished in 00s at (2026-10-28 12:44:25)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 3).
+Finished in 00s at (2026-10-28 22:38:02)
 ==== Paralean TLC provenance ====
 module Ingress
 config Ingress.cfg

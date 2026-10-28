@@ -1,16 +1,16 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 56 and seed -1815409894012540896 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1110238] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/ingress_backend/Ingress.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/ingress_backend-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/ingress_backend-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/ingress_backend-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 80 and seed 8753949103985373052 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1875715] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/ingress_backend/Ingress.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/ingress_backend-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/ingress_backend-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/ingress_backend-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Ingress
-Starting... (2026-10-28 12:51:50)
+Starting... (2026-10-28 22:52:30)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:51:50.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:52:30.
 Error: Invariant AppendOnly is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -31,14 +31,15 @@ State 2: <Delete line 29, col 11 to line 30, col 60 of module Ingress>
 /\ allocated = 0
 /\ fetched = 0
 
-3 states generated, 3 distinct states found, 1 states left on queue.
-The depth of the complete state graph search is 2.
-Finished in 00s at (2026-10-28 12:51:50)
+10 states generated, 8 distinct states found, 4 states left on queue.
+The depth of the complete state graph search is 3.
+Finished in 00s at (2026-10-28 22:52:30)
 ==== Paralean TLC provenance ====
 module Ingress
 config Ingress.cfg
 expect failure: Invariant AppendOnly is violated
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -75,6 +76,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

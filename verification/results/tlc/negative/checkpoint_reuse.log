@@ -1,14 +1,14 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 18 and seed -6422556951661393095 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 979108] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse/CheckpointReuse.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse/Publication.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse/Durability.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/checkpoint_reuse-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 116 and seed -8770128696863799607 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1786847] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse/CheckpointReuse.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse/Integrated.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse/Publication.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse/Durability.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/checkpoint_reuse-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -18,9 +18,9 @@ Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
 Semantic processing of module CheckpointReuse
-Starting... (2026-10-28 12:45:15)
+Starting... (2026-10-28 22:47:48)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:45:15.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:47:48.
 Error: Invariant NeverReusedAfterLoss is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -73,7 +73,7 @@ State 4: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {"helper"}]
-/\ stored = [r1 |-> {"package"}, r2 |-> {"package"}, r3 |-> {}]
+/\ stored = [r1 |-> {"package"}, r2 |-> {}, r3 |-> {"package"}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {}
 /\ online = {"A"}
@@ -88,7 +88,7 @@ State 5: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {"helper"}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package"}, r3 |-> {}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package"}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {}
 /\ online = {"A"}
@@ -103,7 +103,7 @@ State 6: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {"helper"}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
 /\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {}
 /\ online = {"A"}
@@ -118,8 +118,8 @@ State 7: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {"helper"}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package"}
 /\ online = {"A"}
 /\ published = {}
@@ -133,8 +133,8 @@ State 8: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {"helper"}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {}
@@ -148,8 +148,8 @@ State 9: <UseNext line 18, col 8 to line 22, col 25 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "building"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -163,8 +163,8 @@ State 10: <UseNext line 23, col 8 to line 25, col 30 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "committed"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {"package", "checkpoint"}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -178,8 +178,8 @@ State 11: <UseNext line 26, col 8 to line 34, col 30 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "disk_lost"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -193,8 +193,8 @@ State 12: <UseNext line 35, col 8 to line 38, col 35 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "worker_crashed"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -208,8 +208,8 @@ State 13: <UseNext line 39, col 8 to line 42, col 37 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "worker_recovered"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -223,8 +223,8 @@ State 14: <UseNext line 43, col 8 to line 47, col 29 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "received"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -238,8 +238,8 @@ State 15: <UseNext line 48, col 8 to line 51, col 27 of module CheckpointReuse>
 /\ lastCommitCurrent = TRUE
 /\ stage = "reused"
 /\ pending = [A |-> {}]
-/\ stored = [r1 |-> {}, r2 |-> {"package", "checkpoint"}, r3 |-> {}]
-/\ witness = [package |-> {"r1", "r2"}, checkpoint |-> {"r1", "r2"}, empty |-> {"r1", "r2"}]
+/\ stored = [r1 |-> {}, r2 |-> {}, r3 |-> {"package", "checkpoint"}]
+/\ witness = [package |-> {"r1", "r3"}, checkpoint |-> {"r1", "r3"}, empty |-> {"r1", "r2"}]
 /\ acknowledged = {"package", "checkpoint"}
 /\ online = {"A"}
 /\ published = {"helper"}
@@ -248,15 +248,16 @@ State 15: <UseNext line 48, col 8 to line 51, col 27 of module CheckpointReuse>
 /\ stable = FALSE
 /\ head = [A |-> {"helper"}]
 
-536866 states generated, 38169 distinct states found, 3772 states left on queue.
+530062 states generated, 37892 distinct states found, 3883 states left on queue.
 The depth of the complete state graph search is 15.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 13 and the 95th percentile is 4).
-Finished in 03s at (2026-10-28 12:45:17)
+Finished in 01s at (2026-10-28 22:47:49)
 ==== Paralean TLC provenance ====
 module CheckpointReuse
 config CheckpointReuse.cfg
 expect failure: Invariant NeverReusedAfterLoss is violated
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -293,6 +294,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

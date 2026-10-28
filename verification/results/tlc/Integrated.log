@@ -1,13 +1,13 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 72 and seed -6305163508928977950 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 917263] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated/Integrated.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated/Publication.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated/Durability.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Integrated-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 99 and seed 884469425152938496 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1509706] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated/Integrated.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated/Publication.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated/Durability.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Integrated-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
@@ -16,18 +16,19 @@ Semantic processing of module Registry
 Semantic processing of module Durability
 Semantic processing of module Publication
 Semantic processing of module Integrated
-Starting... (2026-10-28 12:41:23)
+Starting... (2026-10-28 22:32:27)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:23.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:27.
+Progress(17) at 2026-10-28 22:32:30: 1,213,145 states generated (1,213,145 s/min), 83,264 distinct states found (83,264 ds/min), 6,215 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 6.4E-9
-  based on the actual fingerprints:  val = 1.2E-8
+  based on the actual fingerprints:  val = 2.8E-9
 1405609 states generated, 89428 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 16 and the 95th percentile is 3).
-Finished in 02s at (2026-10-28 12:41:25)
+Finished in 03s at (2026-10-28 22:32:31)
 ==== Paralean TLC provenance ====
 module Integrated
 config Integrated.cfg

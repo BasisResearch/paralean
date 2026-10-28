@@ -1,19 +1,19 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 32 and seed 3060745735265802345 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1031171] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_reacquire_witness/Fencing.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_reacquire_witness-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_reacquire_witness-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_reacquire_witness-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/fencing_reacquire_witness-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 47 and seed 9085614450324834341 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1839434] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_reacquire_witness/Fencing.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_reacquire_witness-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_reacquire_witness-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_reacquire_witness-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/negative/fencing_reacquire_witness-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-28 12:47:44)
+Starting... (2026-10-28 22:50:04)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:47:44.
-Progress(13) at 2026-10-28 12:47:47: 273,591 states generated (273,591 s/min), 37,254 distinct states found (37,254 ds/min), 16,683 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:50:04.
+Progress(14) at 2026-10-28 22:50:07: 468,390 states generated (468,390 s/min), 58,862 distinct states found (58,862 ds/min), 24,265 states left on queue.
 Error: Invariant NeverReacquiredRecovered is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -135,7 +135,7 @@ State 7: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 2, new |-> 0]
+/\ holds = [old |-> 1, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 0]
@@ -153,7 +153,7 @@ State 8: <RotateFence line 150, col 5 to line 154, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 0]
@@ -171,7 +171,7 @@ State 9: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a"} @@ r3 :> {})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -189,7 +189,7 @@ State 10: <Put line 95, col 5 to line 103, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -207,7 +207,7 @@ State 11: <Ack line 118, col 5 to line 124, col 79 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -225,7 +225,7 @@ State 12: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a", "d"} @@ r2 :> {"a"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -243,7 +243,7 @@ State 13: <CommitCert line 128, col 5 to line 137, col 90 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -261,7 +261,7 @@ State 14: <Scan line 181, col 5 to line 191, col 42 of module Fencing>
 /\ reconstructed = FALSE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {"a", "d"}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -279,7 +279,7 @@ State 15: <Reconstruct line 194, col 5 to line 198, col 68 of module Fencing>
 /\ reconstructed = TRUE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {"a", "d"}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
@@ -297,22 +297,23 @@ State 16: <Automatic line 201, col 5 to line 205, col 80 of module Fencing>
 /\ reconstructed = TRUE
 /\ stored = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
 /\ cert = (r1 :> {"a", "d"} @@ r2 :> {"a", "d"} @@ r3 :> {})
-/\ holds = [old |-> 3, new |-> 0]
+/\ holds = [old |-> 3, new |-> 2]
 /\ known = {"a", "d"}
 /\ acked = {"a", "d"}
 /\ writtenAt = [a |-> 1, m |-> 0, d |-> 3]
 /\ desktopLost = FALSE
 /\ live = {r1, r2, r3}
 
-1086595 states generated, 118398 distinct states found, 40902 states left on queue.
+1135968 states generated, 124188 distinct states found, 43161 states left on queue.
 The depth of the complete state graph search is 16.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 11 and the 95th percentile is 5).
-Finished in 10s at (2026-10-28 12:47:54)
+Finished in 06s at (2026-10-28 22:50:10)
 ==== Paralean TLC provenance ====
 module Fencing
 config Fencing.cfg
 expect failure: Invariant NeverReacquiredRecovered is violated
 source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source db3dfc9e5571476db589b0b04a492336e4c34e8b9e0677b750b8565c3dc84c18  AtomicBatch.tla
 source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
@@ -349,6 +350,9 @@ source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAu
 source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
 source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
 source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source 11316a6fc89ef5e82b1b63b7072d8c4f9cc1e6bc0acc7b2b4921475c0cc0a587  AtomicBatchAE.cfg
+source d5d84e1d923f51baf45b8563152c42fde11e3bc680f04265bcc578b4048e495e  AtomicBatch.cfg
+source 69d9d55b2759a4e46c5fa3c678e0976ce2824651e1fe12b9a7f75334192f8a3a  AtomicBatchStaged.cfg
 source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
 source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg

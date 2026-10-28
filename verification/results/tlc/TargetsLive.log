@@ -1,32 +1,32 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 122 and seed -1762176018889806336 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 922389] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsLive/Targets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsLive-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsLive-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsLive-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 112 and seed -749022785352951608 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1515762] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/TargetsLive/Targets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/TargetsLive-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/TargetsLive-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/TargetsLive-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-28 12:41:47)
+Starting... (2026-10-28 22:33:06)
 Implied-temporal checking--satisfiability problem has 3 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:47.
-Checking 3 branches of temporal properties for the current state space with 122490 total distinct states at (2026-10-28 12:41:50)
-Finished checking temporal properties in 00s at 2026-10-28 12:41:51
-Progress(12) at 2026-10-28 12:41:51: 134,439 states generated (134,439 s/min), 40,830 distinct states found (40,830 ds/min), 17,272 states left on queue.
-Progress(20) at 2026-10-28 12:42:04: 1,082,018 states generated, 185,674 distinct states found, 0 states left on queue.
-Checking 3 branches of temporal properties for the complete state space with 557022 total distinct states at (2026-10-28 12:42:04)
-Finished checking temporal properties in 01s at 2026-10-28 12:42:05
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:33:06.
+Checking 3 branches of temporal properties for the current state space with 90099 total distinct states at (2026-10-28 22:33:09)
+Finished checking temporal properties in 00s at 2026-10-28 22:33:09
+Progress(11) at 2026-10-28 22:33:09: 92,372 states generated (92,372 s/min), 30,033 distinct states found (30,033 ds/min), 13,667 states left on queue.
+Progress(20) at 2026-10-28 22:33:34: 1,082,018 states generated, 185,674 distinct states found, 0 states left on queue.
+Checking 3 branches of temporal properties for the complete state space with 557022 total distinct states at (2026-10-28 22:33:34)
+Finished checking temporal properties in 01s at 2026-10-28 22:33:36
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 9.0E-9
-  based on the actual fingerprints:  val = 2.2E-9
+  based on the actual fingerprints:  val = 1.5E-8
 1082018 states generated, 185674 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 20.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
-Finished in 17s at (2026-10-28 12:42:05)
+Finished in 29s at (2026-10-28 22:33:36)
 ==== Paralean TLC provenance ====
 module Targets
 config TargetsLive.cfg

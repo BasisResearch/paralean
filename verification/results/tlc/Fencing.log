@@ -1,28 +1,28 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 128 and seed -401337879148806218 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 923509] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing/Fencing.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 66 and seed -4163658295247186047 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1531436] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Fencing/Fencing.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Fencing-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Fencing-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Fencing-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Fencing-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-28 12:42:06)
+Starting... (2026-10-28 22:33:36)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:42:06.
-Progress(15) at 2026-10-28 12:42:09: 877,227 states generated (877,227 s/min), 100,058 distinct states found (100,058 ds/min), 36,456 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:33:37.
+Progress(14) at 2026-10-28 22:33:40: 438,468 states generated (438,468 s/min), 55,468 distinct states found (55,468 ds/min), 22,945 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.7E-7
-  based on the actual fingerprints:  val = 5.5E-8
+  based on the actual fingerprints:  val = 2.6E-7
 12301947 states generated, 754348 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
-Finished in 31s at (2026-10-28 12:42:37)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
+Finished in 59s at (2026-10-28 22:34:36)
 ==== Paralean TLC provenance ====
 module Fencing
 config Fencing.cfg

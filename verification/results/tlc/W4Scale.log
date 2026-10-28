@@ -1,26 +1,26 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 109 and seed -8796827575879353937 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 962084] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/W4Scale/W4Scale.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/W4Scale-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/W4Scale-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/W4Scale-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 15 and seed -8345914070047330660 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1624811] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/W4Scale/W4Scale.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/W4Scale-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/W4Scale-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/W4Scale-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module W4Scale
-Starting... (2026-10-28 12:44:44)
+Starting... (2026-10-28 22:38:28)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:44:44.
-Progress(16) at 2026-10-28 12:44:47: 2,087,524 states generated (2,087,524 s/min), 280,367 distinct states found (280,367 ds/min), 72,725 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:38:28.
+Progress(14) at 2026-10-28 22:38:31: 1,200,037 states generated (1,200,037 s/min), 173,186 distinct states found (173,186 ds/min), 54,248 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 3.5E-7
-  based on the actual fingerprints:  val = 2.8E-8
+  based on the actual fingerprints:  val = 2.0E-8
 8464465 states generated, 856832 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 27.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 3).
-Finished in 10s at (2026-10-28 12:44:54)
+Finished in 16s at (2026-10-28 22:38:43)
 ==== Paralean TLC provenance ====
 module W4Scale
 config W4Scale.cfg

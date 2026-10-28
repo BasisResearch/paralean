@@ -1,33 +1,36 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 83 and seed 5518286290872413831 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 904917] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision/Collision.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision/Registry.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision-java-tmp/TLC.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Collision-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 25 and seed -1504539997910428199 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1496702] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision/Collision.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision/Registry.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision-java-tmp/TLC.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Collision-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Collision
-Starting... (2026-10-28 12:41:09)
+Starting... (2026-10-28 22:32:09)
 Implied-temporal checking--satisfiability problem has 6 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:09.
-Progress(20) at 2026-10-28 12:41:12: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
-Checking 6 branches of temporal properties for the complete state space with 95568 total distinct states at (2026-10-28 12:41:12)
-Finished checking temporal properties in 00s at 2026-10-28 12:41:13
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:32:09.
+Checking 6 branches of temporal properties for the current state space with 85121 total distinct states at (2026-10-28 22:32:12)
+Finished checking temporal properties in 00s at 2026-10-28 22:32:13
+Progress(14) at 2026-10-28 22:32:13: 152,577 states generated (152,577 s/min), 14,409 distinct states found (14,409 ds/min), 1,328 states left on queue.
+Progress(19) at 2026-10-28 22:32:13: 186,121 states generated, 15,928 distinct states found, 0 states left on queue.
+Checking 6 branches of temporal properties for the complete state space with 95568 total distinct states at (2026-10-28 22:32:13)
+Finished checking temporal properties in 00s at 2026-10-28 22:32:14
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.5E-10
-  based on the actual fingerprints:  val = 6.0E-12
+  based on the actual fingerprints:  val = 9.6E-12
 186121 states generated, 15928 distinct states found, 0 states left on queue.
-The depth of the complete state graph search is 20.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 9 and the 95th percentile is 4).
-Finished in 04s at (2026-10-28 12:41:13)
+The depth of the complete state graph search is 19.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
+Finished in 05s at (2026-10-28 22:32:14)
 ==== Paralean TLC provenance ====
 module Collision
 config Collision.cfg

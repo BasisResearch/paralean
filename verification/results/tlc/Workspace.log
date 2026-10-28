@@ -1,32 +1,32 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 51 and seed -6306537731587527003 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 956177] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace/Workspace.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/FiniteSets.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/Naturals.tla
-Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Workspace-java-tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 107 and seed -9189764613488565993 with 2 workers on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1600725] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Workspace/Workspace.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Workspace-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Workspace-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-atomic-pub/.runs/tla/run/Workspace-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-28 12:43:57)
+Starting... (2026-10-28 22:37:12)
 Implied-temporal checking--satisfiability problem has 1 branches.
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-28 12:43:57.
-Checking temporal properties for the current state space with 6112 total distinct states at (2026-10-28 12:44:00)
-Finished checking temporal properties in 00s at 2026-10-28 12:44:00
-Progress(13) at 2026-10-28 12:44:00: 26,077 states generated (26,077 s/min), 10,129 distinct states found (10,129 ds/min), 4,013 states left on queue.
-Progress(21) at 2026-10-28 12:44:20: 197,037 states generated, 62,098 distinct states found, 0 states left on queue.
-Checking temporal properties for the complete state space with 62098 total distinct states at (2026-10-28 12:44:20)
-Finished checking temporal properties in 00s at 2026-10-28 12:44:21
+Finished computing initial states: 1 distinct state generated at 2026-10-28 22:37:12.
+Checking temporal properties for the current state space with 2941 total distinct states at (2026-10-28 22:37:15)
+Finished checking temporal properties in 00s at 2026-10-28 22:37:15
+Progress(12) at 2026-10-28 22:37:15: 12,666 states generated (12,666 s/min), 5,229 distinct states found (5,229 ds/min), 2,286 states left on queue.
+Progress(21) at 2026-10-28 22:37:56: 197,037 states generated, 62,098 distinct states found, 0 states left on queue.
+Checking temporal properties for the complete state space with 62098 total distinct states at (2026-10-28 22:37:56)
+Finished checking temporal properties in 00s at 2026-10-28 22:37:56
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.5E-10
-  based on the actual fingerprints:  val = 4.1E-10
+  based on the actual fingerprints:  val = 1.2E-9
 197037 states generated, 62098 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 21.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 3).
-Finished in 24s at (2026-10-28 12:44:21)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
+Finished in 44s at (2026-10-28 22:37:56)
 ==== Paralean TLC provenance ====
 module Workspace
 config Workspace.cfg
