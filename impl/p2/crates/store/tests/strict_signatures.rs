@@ -149,6 +149,20 @@ async fn agent_key_revocation_strict_signature_vectors() {
 }
 
 /// W3's controller deletion grant, which T8 checks against the issuing controller key.
+/// T12's batch intent check uses W2's strict verifier (a job issuer here; the controller
+/// key goes through the same path).
+fn batch_intent_strict_signature_vectors() {
+    let signer = Signer::from_seed(std::array::from_fn(|i| (i as u8).wrapping_mul(3)));
+    let body = BatchIntent { request: b"strict-batch".to_vec(), members: vec![] };
+    let genuine = SignedBatch::sign(body.clone(), &signer);
+    for case in vectors::cases(signer.public(), genuine.sig) {
+        let mut ring = KeyFile::demo(1).ring();
+        ring.job_issuers = vec![case.public];
+        let intent = SignedBatch { body: body.clone(), sig: case.signature };
+        assert_eq!(intent.issued_by(&ring), case.expected, "{}", case.name);
+    }
+}
+
 fn controller_delete_grant_strict_signature_vectors() {
     use paralean_store::authority::ControllerDeleteGrant;
     let signer = Signer::from_seed(std::array::from_fn(|i| (i * 7) as u8));
@@ -166,6 +180,7 @@ fn controller_delete_grant_strict_signature_vectors() {
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
+        libtest_mimic::Trial::test("batch_intent_strict_signature_vectors", || { batch_intent_strict_signature_vectors(); Ok(()) }),
         libtest_mimic::Trial::test("store_strict_signature_vectors", || { store_strict_signature_vectors(); Ok(()) }),
         libtest_mimic::Trial::test("antientropy_import_strict_signature_vectors", || { antientropy_import_strict_signature_vectors(); Ok(()) }),
         libtest_mimic::Trial::test("t1_publication_strict_receipt_signature_vectors", || { t1_publication_strict_receipt_signature_vectors(); Ok(()) }),

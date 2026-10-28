@@ -10,7 +10,7 @@ run_cmd do
     `ParaleanCompletionRecovery, `ParaleanProtocol, `ParaleanProtocolGuardChecks,
     `ParaleanLeanNames, `ParaleanInitializerIdentity, `ParaleanPublicationReceipts, `ParaleanTargetNames,
     `ParaleanCatalogFencing, `ParaleanAckCertificates, `ParaleanCatalogCertificates, `ParaleanHardened, `ParaleanWorkspaces, `ParaleanCheckpointConflicts,
-    `Paralean.ControllerGc]
+    `Paralean.ControllerGc, `ParaleanAtomicBatch]
   let allowed := #[`propext, `Classical.choice, `Quot.sound]
   let mut count : Nat := 0
   -- Private declarations are named `_private.<module>.0.<name>`; match the user name.

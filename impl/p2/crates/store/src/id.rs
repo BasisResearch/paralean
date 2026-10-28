@@ -128,6 +128,8 @@ pub enum Domain {
     Revocation,
     /// Tombstone certificate (§11.4: tombstones are certificate-discovered like markers).
     TCert,
+    /// Batch intent (atomic multi-group publication, T12).
+    Batch,
 }
 
 impl Domain {
@@ -154,6 +156,7 @@ impl Domain {
             Domain::Checker => "v0/checker",
             Domain::Revocation => "v0/revocation",
             Domain::TCert => "v0/tcert",
+            Domain::Batch => "v0/batch",
         }
     }
 

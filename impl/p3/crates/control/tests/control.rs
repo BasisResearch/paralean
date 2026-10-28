@@ -225,6 +225,7 @@ async fn queues_apply_backpressure() {
         targets: vec![],
         deadline_ms: 60_000,
         memory_mb: 0,
+        batch: None,
     };
     env.request = b"bp/direct".to_vec();
     let job = paralean_store::receipt::SignedJob::sign(env, &c.kf.authority_signer().unwrap());
@@ -326,6 +327,7 @@ async fn inconclusive_recovery_is_bounded() {
         request: b"recover/lost-client".to_vec(), group: Id([1; 32]), capsule: Id([2; 32]), deps: vec![],
         base: Id([3; 32]), policy: Id([4; 32]), checker: Id([5; 32]), worker, targets: vec![],
         deadline_ms: 1000, memory_mb: 0,
+        batch: None,
     }, &authority);
     // W4: a controller recovers the envelopes of its shard's validation index, which
     // its J1 (`Durable::issue_job`) writes with the route. This issuer's lease lapses
@@ -384,6 +386,7 @@ async fn dropped_validation_still_finishes_and_releases_its_resources() {
         targets: vec![],
         deadline_ms: 120_000,
         memory_mb: 0,
+        batch: None,
     }, &authority);
     let v = c.validators[0].clone();
     let jobs = [job("detached/1"), job("detached/2")];
@@ -434,6 +437,7 @@ async fn validator_slots_are_scoped_by_issuer_and_workspace() {
         targets: vec![],
         deadline_ms: 120_000,
         memory_mb: 0,
+        batch: None,
     };
     let jobs = [
         paralean_store::receipt::SignedJob::sign(env(w1.id()), &issuer),

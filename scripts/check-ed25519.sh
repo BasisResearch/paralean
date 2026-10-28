@@ -4,7 +4,7 @@
 # tests use a private cluster: PARALEAN_INSTANCE=w2-<name> (impl/p2/scripts/up.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-[[ "${PARALEAN_INSTANCE:-}" =~ ^w2[a-z]?-[A-Za-z0-9_-]+$ ]] || { echo 'set PARALEAN_INSTANCE=w2-<name> (or w2b-, w2c-)' >&2; exit 2; }
+[[ "${PARALEAN_INSTANCE:-}" =~ ^(w2[a-z]?|ap)-[A-Za-z0-9_-]+$ ]] || { echo 'set PARALEAN_INSTANCE=w2-<name> or ap-<name> (or w2b-, w2c-)' >&2; exit 2; }
 source impl/p2/scripts/env.sh
 out=results/w2/ed25519
 rm -rf "$out"; mkdir -p "$out"
@@ -23,6 +23,7 @@ cases=(
   'agent-key-grant|paralean-store|mutate-relaxed-agent-grant-sig|--test strict_signatures|agent_key_grant_strict_signature_vectors'
   'agent-key-revocation|paralean-store|mutate-relaxed-agent-revocation-sig|--test strict_signatures|agent_key_revocation_strict_signature_vectors'
   'controller-delete-grant|paralean-store|mutate-relaxed-controller-delete-sig|--test strict_signatures|controller_delete_grant_strict_signature_vectors'
+  'batch-intent|paralean-store|mutate-relaxed-batch-sig|--test strict_signatures|batch_intent_strict_signature_vectors'
   'sharded-controller-rpc|paralean-control|paralean-validator-api/mutate-relaxed-rpc-sig|--test strict_signatures|sharded_controller_rpc_strict_signature_vectors'
 )
 detected=0

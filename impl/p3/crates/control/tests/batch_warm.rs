@@ -24,6 +24,7 @@ fn job(c: &Cluster, w: WorkspaceId, groups: &std::collections::BTreeMap<String, 
         request: request.as_bytes().to_vec(), group: g.decl, capsule: g.capsule_id(), deps,
         base: base_id(&c.checker.lean_githash), policy: paralean_store::receipt::Policy::v1().id(),
         checker: c.validators[0].checker_id(), worker: w, targets, deadline_ms: 120_000, memory_mb: 4096,
+        batch: None,
     }, &c.kf.authority_signer().unwrap())
 }
 

@@ -208,6 +208,10 @@ pub struct JobEnvelope {
     pub deadline_ms: u64,
     /// Address-space limit of the checking process, in MiB (0: the validator default).
     pub memory_mb: u64,
+    /// The batch intent (`v0/batch`) this job's group belongs to. A bound group is
+    /// published only by that batch's T12 (or received by T13): T1 and T9 refuse it, so
+    /// no member of a rename can become visible without the rest.
+    pub batch: Option<Id>,
 }
 
 impl Pce for JobEnvelope {
@@ -223,6 +227,11 @@ impl Pce for JobEnvelope {
         self.worker.encode(e);
         e.set(&self.targets, |e, t| t.encode(e));
         e.uvarint(self.deadline_ms).uvarint(self.memory_mb);
+        // A trailing optional field: an unbound envelope keeps its bytes and ID.
+        if let Some(batch) = &self.batch {
+            e.byte(1);
+            batch.encode(e);
+        }
     }
     fn decode(d: &mut Dec<'_>) -> DResult<Self> {
         get_format(d)?;
@@ -238,6 +247,12 @@ impl Pce for JobEnvelope {
             targets: d.set(TargetBinding::decode)?,
             deadline_ms: d.uvarint()?,
             memory_mb: d.uvarint()?,
+            batch: if d.remaining() == 0 { None } else {
+                match d.byte()? {
+                    1 => Some(Id::decode(d)?),
+                    tag => return Err(crate::pce::DecodeError::UnknownTag { what: "job trailing field", tag }),
+                }
+            },
         })
     }
 }
@@ -579,6 +594,7 @@ mod tests {
             targets: targets.clone(),
             deadline_ms: 1000,
             memory_mb: 512,
+            batch: None,
         };
         assert_eq!(JobEnvelope::from_pce(&j.to_pce()).unwrap(), j);
         let s = SignedJob::sign(j.clone(), &Signer::derive("authority"));

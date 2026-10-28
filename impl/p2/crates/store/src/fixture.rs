@@ -102,6 +102,7 @@ pub fn job_by(issuer: &Signer, tag: &str, group: Id, capsule: Id, worker: Worksp
         targets: ts,
         deadline_ms: 0,
         memory_mb: 0,
+        batch: None,
     };
     SignedJob::sign(env, issuer)
 }
@@ -176,5 +177,5 @@ pub fn place(p: &mut Package, file: &str, anchor: Option<&Marker>, revises: Opti
 
 /// A tombstone of a published marker by its author (§11.4).
 pub fn tombstone_of(m: &Marker, lamport: u64) -> Tombstone {
-    Tombstone { file_path: m.file_path.clone(), target: m.group, lamport, author: m.author, receipt: None, position: Some(m.id()) }
+    Tombstone { file_path: m.file_path.clone(), target: m.group, lamport, author: m.author, receipt: None, position: Some(m.id()), batch: None }
 }

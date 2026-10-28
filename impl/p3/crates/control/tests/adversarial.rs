@@ -184,6 +184,7 @@ async fn receipt_under_an_unpinned_policy_fails_closed() {
         targets: vec![],
         deadline_ms: 120_000,
         memory_mb: 0,
+        batch: None,
     };
     let j = SignedJob::sign(env, &c.kf.authority_signer().unwrap());
     let resp = paralean_validator_api::validate(&c.vaddrs[0], &j, &c.kf.authority_signer().unwrap(), &[c.vsigners[0].public()], Duration::from_secs(300)).await.unwrap();
@@ -581,6 +582,7 @@ async fn job_issuer_keys_sign_target_free_envelopes_only() {
         targets,
         deadline_ms: 120_000,
         memory_mb: 0,
+        batch: None,
     };
     let ask = |j: SignedJob| {
         let addr = c.vaddrs[0].clone();

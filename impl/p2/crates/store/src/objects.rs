@@ -396,6 +396,9 @@ pub struct Tombstone {
     pub author: AgentId,
     pub receipt: Option<Id>,
     pub position: Option<Id>,
+    /// The batch intent (`v0/batch`) this deletion belongs to. A bound tombstone is
+    /// published only by that batch's T12 (or received by T13), never alone by T8/T10.
+    pub batch: Option<Id>,
 }
 
 impl Pce for Tombstone {
@@ -410,6 +413,11 @@ impl Pce for Tombstone {
             e.byte(1);
             position.encode(e);
         }
+        // Trailing optional fields in tag order: an unbound tombstone keeps its bytes.
+        if let Some(batch) = self.batch {
+            e.byte(2);
+            batch.encode(e);
+        }
     }
     fn decode(d: &mut Dec<'_>) -> DResult<Self> {
         get_format(d)?;
@@ -418,14 +426,17 @@ impl Pce for Tombstone {
         let lamport = d.uvarint()?;
         let author = AgentId::decode(d)?;
         let receipt = d.option(Id::decode)?;
-        let position = if d.remaining() == 0 { None } else {
+        let (mut position, mut batch, mut last) = (None, None, 0u8);
+        while d.remaining() > 0 {
             match d.byte()? {
-                1 => Some(Id::decode(d)?),
-                tag => return Err(DecodeError::UnknownTag { what: "tombstone position", tag }),
+                1 if last < 1 => position = Some(Id::decode(d)?),
+                2 if last < 2 => batch = Some(Id::decode(d)?),
+                tag => return Err(DecodeError::UnknownTag { what: "tombstone trailing field", tag }),
             }
-        };
+            last = if batch.is_some() { 2 } else { 1 };
+        }
         Ok(Tombstone {
-            file_path, target, lamport, author, receipt, position,
+            file_path, target, lamport, author, receipt, position, batch,
         })
     }
 }
@@ -989,7 +1000,7 @@ mod tests {
             assert!(m.check().is_err());
             assert!(matches!(Marker::from_pce(&m.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
             assert!(Marker::from_preimage(&m.preimage()).is_err());
-            let t = Tombstone { file_path: bad.into(), target: id(1), lamport: 2, author: AgentId::derive("a"), receipt: None, position: None };
+            let t = Tombstone { file_path: bad.into(), target: id(1), lamport: 2, author: AgentId::derive("a"), receipt: None, position: None, batch: None };
             assert!(t.check().is_err());
             assert!(matches!(Tombstone::from_pce(&t.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
         }

@@ -70,6 +70,15 @@ mutate-weak-signature = []
 # Per-path strict-verification removal (sign::verify_path); one path each.
 mutate-relaxed-receipt-sig = []
 mutate-relaxed-import-sig = []
+# Atomic batch publication (docs/atomic-pub-log.md): one guard each.
+mutate-relaxed-batch-sig = []
+mutate-batch-unsigned-intent = []
+mutate-batch-unchecked-members = []
+mutate-batch-partial-commit = []
+mutate-batch-member-alone = []
+mutate-receive-batch-member = []
+mutate-batch-scan-no-closure = []
+mutate-batch-ae-partial = []
 # W3's agent-key registry and controller deletion, one strict-verification path each.
 mutate-relaxed-agent-grant-sig = []
 mutate-relaxed-agent-revocation-sig = []
@@ -165,4 +174,8 @@ harness = false
 
 [[test]]
 name = "positions"
+harness = false
+
+[[test]]
+name = "batches"
 harness = false

@@ -42,6 +42,9 @@ pub enum Txn {
     T9ReceiveGroup,
     T11MovePosition,
     T10ReceiveTombstone,
+    /// Atomic batch publication and its anti-entropy receive.
+    T12PublishBatch,
+    T13ReceiveBatch,
     Ae,
 }
 

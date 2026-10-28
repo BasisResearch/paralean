@@ -618,7 +618,7 @@ impl Meta {
             Txn::T1Publish,
             Box::new(move |trx| {
                 let (k, a) = (k.clone(), a.clone());
-                Box::pin(async move { t1_body(trx, &k, &a).await })
+                Box::pin(async move { t1_body(trx, &k, &a, Mode::Single).await })
             }),
         )
         .await
@@ -957,7 +957,7 @@ impl Meta {
             Txn::T8Tombstone,
             Box::new(move |trx| {
                 let (k, a) = (k.clone(), a.clone());
-                Box::pin(async move { t8_body(trx, &k, &a).await })
+                Box::pin(async move { t8_body(trx, &k, &a, Mode::Single).await })
             }),
         )
         .await
@@ -992,7 +992,7 @@ impl Meta {
             Txn::T9ReceiveGroup,
             Box::new(move |trx| {
                 let (k, a) = (k.clone(), a.clone());
-                Box::pin(async move { t9_body(trx, &k, &a).await })
+                Box::pin(async move { t9_body(trx, &k, &a, Mode::Single).await })
             }),
         )
         .await
@@ -1006,7 +1006,7 @@ impl Meta {
             Txn::T10ReceiveTombstone,
             Box::new(move |trx| {
                 let (k, a) = (k.clone(), a.clone());
-                Box::pin(async move { t10_body(trx, &k, &a).await })
+                Box::pin(async move { t10_body(trx, &k, &a, Mode::Single).await })
             }),
         )
         .await
@@ -1089,7 +1089,32 @@ pub struct PublishOutcome {
     pub fresh: bool,
 }
 
-async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<PublishOutcome>> {
+/// Whether a T1/T8 body runs alone or as one member of a batch (T12). A member runs every
+/// guard of the single transaction, reading the writes of the members before it (FDB
+/// read-your-writes), but finds no earlier effect of its own (a batch is idempotent as a
+/// whole, through its record) and appends no anti-entropy event of its own (the batch
+/// travels as one event).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Mode {
+    Single,
+    Batch(Id),
+}
+
+impl Mode {
+    /// The batch binding: a job envelope or tombstone bound to a batch is admitted only by
+    /// that batch, and an unbound one only alone.
+    pub(crate) fn admits(self, bound: Option<Id>) -> bool {
+        match self {
+            Mode::Single => bound.is_none() || cfg!(feature = "mutate-batch-member-alone"),
+            Mode::Batch(id) => bound == Some(id),
+        }
+    }
+}
+
+pub(crate) async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs, mode: Mode) -> Result<Step<PublishOutcome>> {
+    if !mode.admits(a.job.body.batch) {
+        return Err(GuardFailure::BatchBinding(a.group).into());
+    }
     if let Some(cfg) = config_in_txn(trx, k).await? {
         let own = &cfg.members[&cfg.deployment];
         if !a.job.verify(&own.authority) && !own.job_issuers.iter().any(|key| a.job.verify(key)) {
@@ -1111,7 +1136,7 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
     let ck = k.cert(&a.group, &a.writer);
     if let Some(v) = get(trx, &mk).await? {
         let existing = envelope_object_id(&v)?;
-        if existing == a.marker_id && (cfg!(feature = "mutate-cert-outside-publish") || get(trx, &ck).await?.is_some()) {
+        if mode == Mode::Single && existing == a.marker_id && (cfg!(feature = "mutate-cert-outside-publish") || get(trx, &ck).await?.is_some()) {
             return Ok(Step::Done(PublishOutcome { marker: a.marker_id, fresh: false }));
         }
         return Err(GuardFailure::AlreadyPublished { group: a.group, existing }.into());
@@ -1230,7 +1255,9 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
         e.list(chunks, |e, (id, length)| { id.encode(e); e.uvarint(*length); });
         trx.set(&k.group_chunks(&a.group), &e.finish());
     }
-    append_event(trx, k, &AeKind::GroupVariant { group: a.group, marker: a.marker_id, cert: publisher_cert }, 0);
+    if mode == Mode::Single {
+        append_event(trx, k, &AeKind::GroupVariant { group: a.group, marker: a.marker_id, cert: publisher_cert }, 0);
+    }
     Ok(Step::Commit(PublishOutcome { marker: a.marker_id, fresh: true }))
 }
 
@@ -1351,11 +1378,14 @@ pub(crate) async fn tombstone_guards(
     Ok(())
 }
 
-async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<bool>> {
+pub(crate) async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs, mode: Mode) -> Result<Step<bool>> {
+    if !mode.admits(a.tombstone.batch) {
+        return Err(GuardFailure::BatchBinding(a.tombstone_id).into());
+    }
     let tk = k.tombstone(&a.tombstone_id);
     let ck = k.tcert(&a.tombstone_id, &a.writer);
     if let Some(v) = get(trx, &tk).await? {
-        if envelope_object_id(&v)? == a.tombstone_id
+        if mode == Mode::Single && envelope_object_id(&v)? == a.tombstone_id
             && (cfg!(feature = "mutate-tombstone-cert-outside") || get(trx, &ck).await?.is_some())
         {
             return Ok(Step::Done(false));
@@ -1378,7 +1408,9 @@ async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<
     if !cfg!(feature = "mutate-tombstone-cert-outside") {
         trx.set(&ck, &a.cert_value);
     }
-    append_event(trx, k, &AeKind::Tombstone { id: a.tombstone_id, cert: TombstoneCert::from_bytes(&a.cert_value)?.id() }, 0);
+    if mode == Mode::Single {
+        append_event(trx, k, &AeKind::Tombstone { id: a.tombstone_id, cert: TombstoneCert::from_bytes(&a.cert_value)?.id() }, 0);
+    }
     Ok(Step::Commit(true))
 }
 
@@ -1424,7 +1456,11 @@ pub(crate) struct ReceiveGroupArgs {
 /// the evidence (§8.3 "receiving an already-published group requires a live replica
 /// certificate"; AckCertificates `put` needs `known n d`). It certifies on its own
 /// deployment's replica only; the sender's certificates are stored apart and never counted.
-async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<Step<bool>> {
+pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, mode: Mode) -> Result<Step<bool>> {
+    // T9 refuses a batch member: it is received only with its whole batch (T13).
+    if !(mode.admits(a.job.body.batch) || (mode == Mode::Single && cfg!(feature = "mutate-receive-batch-member"))) {
+        return Err(GuardFailure::BatchBinding(a.group).into());
+    }
     let federation = config_in_txn(trx, k).await?;
     if let Some(cfg) = &federation {
         let mut found_home: Option<&String> = None;
@@ -1471,6 +1507,10 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
     let mut publication_new = false;
     if let Some(v) = get(trx, &mk).await? {
         let local = envelope_object_id(&v)?;
+        // A member arrives only with its batch, and the batch record was absent.
+        if mode != Mode::Single {
+            return Err(GuardFailure::AlreadyPublished { group: a.group, existing: local }.into());
+        }
         if local != a.marker_id && cfg!(feature = "mutate-receive-overwrite-marker") {
             trx.set(&mk, &a.marker_value);
         } else if local != a.marker_id && !a.variant {
@@ -1574,6 +1614,10 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
         e.list(chunks, |e, (id, length)| { id.encode(e); e.uvarint(*length); });
         trx.set(&k.group_chunks(&a.group), &e.finish());
     }
+    if mode != Mode::Single {
+        // The batch is relayed as one event; its record carries every member.
+        return Ok(Step::Commit(true));
+    }
     if proof_new { append_event(trx, k, &AeKind::GroupVariant { group: a.group, marker: a.marker_id, cert: origin_cert }, 0); }
     if new_evidence.len() > u16::MAX as usize - 2 { return Err(StoreError::Invalid("too many certificates in one receive".into())); }
     for (i, cert) in new_evidence.into_iter().enumerate() {
@@ -1605,11 +1649,17 @@ pub(crate) struct ReceiveTombstoneArgs {
     pub evidence: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
-async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Result<Step<bool>> {
+pub(crate) async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs, mode: Mode) -> Result<Step<bool>> {
+    if !(mode.admits(a.tombstone.batch) || (mode == Mode::Single && cfg!(feature = "mutate-receive-batch-member"))) {
+        return Err(GuardFailure::BatchBinding(a.tombstone_id).into());
+    }
     let federation = config_in_txn(trx, k).await?;
     let tk = k.tombstone(&a.tombstone_id);
     let mut publication_new = false;
     if let Some(v) = get(trx, &tk).await? {
+        if mode != Mode::Single {
+            return Err(GuardFailure::TombstoneExists { tombstone: a.tombstone_id }.into());
+        }
         if envelope_object_id(&v)? != a.tombstone_id {
             return Err(StoreError::Invalid("tombstone key holds another object".into()));
         }
@@ -1664,6 +1714,9 @@ async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Resu
             Some(old) if old == *ev => {}
             Some(_) => return Err(StoreError::Invalid("foreign tombstone certificate key holds different bytes".into())),
         }
+    }
+    if mode != Mode::Single {
+        return Ok(Step::Commit(true));
     }
     if publication_new {
         let cert = a.evidence.iter().filter_map(|(_, ev)| TombstoneCert::from_bytes(ev).ok())

@@ -505,6 +505,7 @@ async fn tombstone(a: &[&str]) -> R<Value> {
         author: if a.contains(&"--controller") { controller_agent_id(&st.ring.authority) } else { target_marker.author },
         receipt: None,
         position,
+        batch: None,
     };
     t.check().map_err(|e| format!("--file: {e}"))?;
     // T8 checks the exact signed controller grant and current fence inside its transaction.
@@ -548,7 +549,7 @@ async fn move_position(a: &[&str]) -> R<Value> {
     }
     next.root_path.push((group, new_lamport, old.author));
     let deletion = Tombstone { file_path: file.into(), target: group, position: Some(position),
-        lamport: new_lamport - 1, author: old.author, receipt: None };
+        lamport: new_lamport - 1, author: old.author, receipt: None, batch: None };
     let w = Writer::new(st, wid, signer);
     w.tombstone(&deletion).await.map_err(es)?;
     let fresh = w.move_position(&next, &deletion).await.map_err(es)?;

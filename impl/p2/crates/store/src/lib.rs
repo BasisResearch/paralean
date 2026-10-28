@@ -12,9 +12,11 @@
 //! | `audit` | whole-store invariant checks |
 //! | `faults` | client-side fault injection |
 //! | `antientropy` | exchange of published groups and tombstones between deployments |
+//! | `batch` | atomic multi-group publication (T12) and its records |
 
 pub mod ae;
 pub mod authority;
+pub mod batch;
 pub mod antientropy;
 pub mod audit;
 mod checkpoint_guard;
@@ -45,3 +47,4 @@ pub use s3::{Acked, S3Config};
 pub use sign::{KeyFile, KeyRing, Signer};
 pub use store::{Store, StoreConfig};
 pub use writer::{CertKey, Checkpoint, Controller, Package, Writer};
+pub use batch::{BatchEntry, BatchIntent, BatchItem, BatchMember, BatchOutcome, BatchPackage, BatchRecord, SignedBatch, MAX_BATCH_BYTES, MAX_BATCH_MEMBERS};

@@ -1282,6 +1282,85 @@ case_ingress_event_objects() {
   run_expected_failure ingress_event_objects Ingress 'Invariant EventObjectsBounded is violated'
 }
 
+# Atomic multi-group publication (docs/atomic-pub-log.md): one case per guard.
+# A mutation whose trace could first break another invariant checks only the
+# named one (single_invariant), so the expected failure is unambiguous.
+single_invariant() {
+  python3 - "$1" "$2" <<'PY2'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+lines = [l for l in p.read_text().splitlines() if not l.startswith('INVARIANTS ')]
+lines.append('INVARIANTS TypeOK ' + sys.argv[2])
+p.write_text('\n'.join(lines) + '\n')
+PY2
+}
+batch_mutation() {
+  local label="$1" old="$2" replacement="$3" invariant="$4" config="$5" only="${6:-}"
+  prepare_case "$label"
+  edit_once "$neg/$label/AtomicBatch.tla" "$old" "$replacement"
+  [[ -z $only ]] || single_invariant "$neg/$label/$config.cfg" "$invariant"
+  run_expected_failure "$label" AtomicBatch "Invariant $invariant is violated" "$config"
+}
+batch_witness() {
+  local label="$1" invariant="$2" config="$3"
+  prepare_case "$label"
+  printf 'INVARIANT %s\n' "$invariant" >> "$neg/$label/$config.cfg"
+  run_expected_failure "$label" AtomicBatch "Invariant $invariant is violated" "$config"
+}
+defcase batch_no_receipt
+case_batch_no_receipt() { batch_mutation batch_no_receipt 'ReceiptOK(i) == IF i \in Tombs THEN TRUE ELSE i \in rcpt' 'ReceiptOK(i) == TRUE' ReceiptSafety AtomicBatch; }
+defcase batch_no_cert
+case_batch_no_cert() { batch_mutation batch_no_cert 'CertOK(i) == certBy[i] = Writer[i]' 'CertOK(i) == TRUE' CertSafety AtomicBatch; }
+defcase batch_no_owner
+case_batch_no_owner() { batch_mutation batch_no_owner 'OwnerOK(i) == IF i \in Proofs THEN owner = Writer[i] ELSE TRUE' 'OwnerOK(i) == TRUE' NoStalePublication AtomicBatch; }
+defcase batch_no_epoch
+case_batch_no_epoch() { batch_mutation batch_no_epoch 'EpochOK(i) == IF i \in Proofs THEN prepEpoch[i] = epoch ELSE TRUE' 'EpochOK(i) == TRUE' NoStalePublication AtomicBatch; }
+defcase batch_no_head_cas
+case_batch_no_head_cas() { batch_mutation batch_no_head_cas 'HeadOK(i, h) == IF i \in Proofs THEN prepHead[i] = h ELSE TRUE' 'HeadOK(i, h) == TRUE' TargetChain AtomicBatch; }
+defcase batch_no_deps
+case_batch_no_deps() { batch_mutation batch_no_deps 'DepsOK(i, S) == Deps[i] \subseteq S' 'DepsOK(i, S) == TRUE' DepsClosed AtomicBatch; }
+defcase batch_no_tombstone
+case_batch_no_tombstone() { batch_mutation batch_no_tombstone 'TombOK(i, S) == IF i \in Tombs THEN TargetOf[i] \in S /\ TargetOf[i] \notin Proofs ELSE TRUE' 'TombOK(i, S) == TRUE' TombstoneSafety AtomicBatch; }
+defcase batch_member_alone
+case_batch_member_alone() { batch_mutation batch_member_alone 'UnboundOK(i) == Bound[i] = None' 'UnboundOK(i) == TRUE' BatchBound AtomicBatch; }
+defcase batch_partial_commit
+case_batch_partial_commit() { batch_mutation batch_partial_commit 'AllOrNothing == TRUE' 'AllOrNothing == FALSE' NoPartialStore AtomicBatch; }
+defcase batch_scan_no_closure
+case_batch_scan_no_closure() { batch_mutation batch_scan_no_closure 'CloseScan == TRUE' 'CloseScan == FALSE' NoPartialScan AtomicBatch; }
+defcase batch_checkpoint_stale
+case_batch_checkpoint_stale() { batch_mutation batch_checkpoint_stale 'CurrentOK(g) == ~Superseded(g, ReaderVisible)' 'CurrentOK(g) == TRUE' CheckpointNoStraddle AtomicBatch; }
+defcase batch_unknown_as_failure
+case_batch_unknown_as_failure() { batch_mutation batch_unknown_as_failure 'ResolveReads == TRUE' 'ResolveReads == FALSE' OutcomeTruthful AtomicBatch; }
+defcase batch_ae_per_member
+case_batch_ae_per_member() { batch_mutation batch_ae_per_member 'AeUnboundOK(i) == Bound[i] = None' 'AeUnboundOK(i) == TRUE' NoPartialPeer AtomicBatchAE; }
+defcase batch_ae_partial_parts
+case_batch_ae_partial_parts() { batch_mutation batch_ae_partial_parts 'PartsOK == parts = BatchItems' 'PartsOK == TRUE' NoPartialPeer AtomicBatchAE; }
+defcase batch_cache_no_filter
+case_batch_cache_no_filter() { batch_mutation batch_cache_no_filter 'FilterOK(i) == IF Bound[i] = None THEN TRUE ELSE cfile' 'FilterOK(i) == TRUE' NoPartialCache AtomicBatchAE; }
+defcase batch_cache_file_early
+case_batch_cache_file_early() { batch_mutation batch_cache_file_early 'FileOK == BatchItems \subseteq cache' 'FileOK == TRUE' NoPartialCache AtomicBatchAE; }
+defcase batch_staged_ignores_intent
+case_batch_staged_ignores_intent() { batch_mutation batch_staged_ignores_intent 'StatusOK == status = "committed"' 'StatusOK == TRUE' NoPartialStore AtomicBatchStaged; }
+defcase batch_staged_incomplete
+case_batch_staged_incomplete() { batch_mutation batch_staged_incomplete 'AllStaged == staged = BatchItems' 'AllStaged == TRUE' NoPartialStore AtomicBatchStaged; }
+defcase batch_staged_no_recheck
+case_batch_staged_no_recheck() { batch_mutation batch_staged_no_recheck 'RecheckAtCommit == TRUE' 'RecheckAtCommit == FALSE' TargetChain AtomicBatchStaged only; }
+defcase batch_commit_work
+case_batch_commit_work() { batch_witness batch_commit_work NeverCommitted AtomicBatch; }
+defcase batch_stale_rejected_work
+case_batch_stale_rejected_work() { batch_witness batch_stale_rejected_work NeverStaleRejected AtomicBatch; }
+defcase batch_scan_work
+case_batch_scan_work() { batch_witness batch_scan_work NeverScanBatch AtomicBatch; }
+defcase batch_checkpoint_work
+case_batch_checkpoint_work() { batch_witness batch_checkpoint_work NeverCheckpointBatch AtomicBatch; }
+defcase batch_peer_work
+case_batch_peer_work() { batch_witness batch_peer_work NeverPeerBatch AtomicBatchAE; }
+defcase batch_cache_work
+case_batch_cache_work() { batch_witness batch_cache_work NeverCacheBatch AtomicBatchAE; }
+defcase batch_staged_work
+case_batch_staged_work() { batch_witness batch_staged_work NeverCommitted AtomicBatchStaged; }
+
 # Redundant checks and the independent failure oracle for each effective guard
 # are documented in verification/TLA-GUARDS.md.
 

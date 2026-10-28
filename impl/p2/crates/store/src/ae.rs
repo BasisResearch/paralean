@@ -95,6 +95,8 @@ pub enum AeKind {
     Tombstone { id: Id, cert: Id },
     Catalogue { source: String, id: Id, cert: Id },
     Evidence { kind: String, object: Id, cert: Id },
+    /// A committed batch (T12/T13): every member travels in this one event.
+    Batch { id: Id },
 }
 
 impl Pce for AeKind {
@@ -104,6 +106,7 @@ impl Pce for AeKind {
             Self::Tombstone { id, cert } => { e.byte(1); id.encode(e); cert.encode(e); }
             Self::Catalogue { source, id, cert } => { e.byte(2).string(source); id.encode(e); cert.encode(e); }
             Self::Evidence { kind, object, cert } => { e.byte(3).string(kind); object.encode(e); cert.encode(e); }
+            Self::Batch { id } => { e.byte(4); id.encode(e); }
         }
     }
     fn decode(d: &mut Dec<'_>) -> DResult<Self> {
@@ -112,6 +115,7 @@ impl Pce for AeKind {
             1 => Self::Tombstone { id: Id::decode(d)?, cert: Id::decode(d)? },
             2 => Self::Catalogue { source: d.string()?, id: Id::decode(d)?, cert: Id::decode(d)? },
             3 => Self::Evidence { kind: d.string()?, object: Id::decode(d)?, cert: Id::decode(d)? },
+            4 => Self::Batch { id: Id::decode(d)? },
             tag => return Err(DecodeError::UnknownTag { what: "anti-entropy event", tag }),
         })
     }
@@ -396,6 +400,69 @@ impl Store {
         Ok(bytes)
     }
 
+    /// The parts of one published group: marker, receipt, job, revisions, the event's
+    /// certificate and the payload object references.
+    async fn ae_group_parts(&self, all: &mut Vec<AePart>, group: &Id, marker: &Id, cert: &Id) -> Result<()> {
+        let all = all;
+        let m = self.marker_variant(group, marker).await?.ok_or(StoreError::Missing { kind: "marker variant", id: *marker })?;
+        push_meta(all, "marker", *marker, &m.preimage())?;
+        let receipt = self.receipt(&m.receipt).await?.ok_or(StoreError::Missing { kind: "receipt", id: m.receipt })?;
+        push_meta(all, "receipt", m.receipt, &receipt.to_bytes())?;
+        let job_id = receipt.body.request.as_ref().and_then(|v| <[u8; 32]>::try_from(v.as_slice()).ok()).map(Id)
+            .ok_or_else(|| StoreError::Invalid("receipt has no job ID".into()))?;
+        let job = self.meta.get(self.meta.keys.jobproof(group, marker, cert)).await?
+            .or(self.meta.get(self.meta.keys.job(&job_id)).await?)
+            .ok_or(StoreError::Missing { kind: "job proof", id: job_id })?;
+        if SignedJob::from_bytes(&job)?.id() != job_id {
+            return Err(StoreError::Invalid("job proof does not match receipt request".into()));
+        }
+        push_meta(all, "job", job_id, &job)?;
+        let mut capsules = BTreeMap::new();
+        for rid in &m.revisions {
+            let rev = self.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?;
+            push_meta(all, "revision", *rid, &rev.preimage())?;
+            capsules.insert(rev.capsule, ());
+        }
+        let cert_bytes = self.meta.get(self.meta.keys.xcertv("cert", group, cert)).await?;
+        let cert_bytes = match cert_bytes {
+            Some(bytes) => bytes,
+            None => self.certs(group).await?.into_iter().find(|c| c.id() == *cert && c.body.marker == *marker)
+                .ok_or_else(|| StoreError::Invalid("group event certificate unavailable".into()))?.to_bytes(),
+        };
+        push_cert(all, "cert", *cert, &cert_bytes)?;
+        let group_bytes = self.ae_object_ref(all, Kind::Group, *group).await?;
+        self.ae_object_ref(all, Kind::StagedMarker, *marker).await?;
+        for capsule in capsules.keys() { self.ae_object_ref(all, Kind::Capsule, *capsule).await?; }
+        let actual = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)?;
+        let stored = self.meta.get(self.meta.keys.group_chunks(group)).await?
+            .map(|index| decode_chunk_index(&index)).transpose()?;
+        if actual != stored && (actual.is_some() || stored.is_some()) {
+            return Err(StoreError::Invalid("group chunk index differs from verified group manifest".into()));
+        }
+        if let Some(chunks) = actual {
+            for (chunk, length) in chunks { all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length }); }
+        }
+        Ok(())
+    }
+
+    /// The parts of one published tombstone.
+    async fn ae_tombstone_parts(&self, all: &mut Vec<AePart>, id: &Id, cert: &Id) -> Result<()> {
+        let all = all;
+        let tomb = self.tombstone(id).await?.ok_or(StoreError::Missing { kind: "tombstone", id: *id })?;
+        push_meta(all, "tombstone", *id, &tomb.preimage())?;
+        if let Some(grant) = self.meta.get(self.meta.keys.delete_grant(id)).await? {
+            push_meta(all, "deletegrant", *id, &grant)?;
+        }
+        let cert_bytes = match self.meta.get(self.meta.keys.xcertv("tcert", id, cert)).await? {
+            Some(bytes) => bytes,
+            None => self.tcerts(id).await?.into_iter().find(|c| c.id() == *cert)
+                .ok_or_else(|| StoreError::Invalid("tombstone event certificate unavailable".into()))?.to_bytes(),
+        };
+        push_cert(all, "tcert", *cert, &cert_bytes)?;
+        self.ae_object_ref(all, Kind::StagedTombstone, *id).await?;
+        Ok(())
+    }
+
     /// Materialize one immutable event, then return a bounded page of stable numbered parts.
     /// Later certificates have their own events, so this never enumerates all certificates.
     pub async fn ae_materialize(&self, event: &AeEvent, after_part: Option<u64>, max_bytes: usize) -> Result<AeBundlePage> {
@@ -405,60 +472,22 @@ impl Store {
         }
         let mut all = Vec::new();
         match &event.kind {
-            AeKind::GroupVariant { group, marker, cert } => {
-                let m = self.marker_variant(group, marker).await?.ok_or(StoreError::Missing { kind: "marker variant", id: *marker })?;
-                push_meta(&mut all, "marker", *marker, &m.preimage())?;
-                let receipt = self.receipt(&m.receipt).await?.ok_or(StoreError::Missing { kind: "receipt", id: m.receipt })?;
-                push_meta(&mut all, "receipt", m.receipt, &receipt.to_bytes())?;
-                let job_id = receipt.body.request.as_ref().and_then(|v| <[u8; 32]>::try_from(v.as_slice()).ok()).map(Id)
-                    .ok_or_else(|| StoreError::Invalid("receipt has no job ID".into()))?;
-                let job = self.meta.get(self.meta.keys.jobproof(group, marker, cert)).await?
-                    .or(self.meta.get(self.meta.keys.job(&job_id)).await?)
-                    .ok_or(StoreError::Missing { kind: "job proof", id: job_id })?;
-                if SignedJob::from_bytes(&job)?.id() != job_id {
-                    return Err(StoreError::Invalid("job proof does not match receipt request".into()));
-                }
-                push_meta(&mut all, "job", job_id, &job)?;
-                let mut capsules = BTreeMap::new();
-                for rid in &m.revisions {
-                    let rev = self.revision(rid).await?.ok_or(StoreError::Missing { kind: "revision", id: *rid })?;
-                    push_meta(&mut all, "revision", *rid, &rev.preimage())?;
-                    capsules.insert(rev.capsule, ());
-                }
-                let cert_bytes = self.meta.get(self.meta.keys.xcertv("cert", group, cert)).await?;
-                let cert_bytes = match cert_bytes {
-                    Some(bytes) => bytes,
-                    None => self.certs(group).await?.into_iter().find(|c| c.id() == *cert && c.body.marker == *marker)
-                        .ok_or_else(|| StoreError::Invalid("group event certificate unavailable".into()))?.to_bytes(),
-                };
-                push_cert(&mut all, "cert", *cert, &cert_bytes)?;
-                let group_bytes = self.ae_object_ref(&mut all, Kind::Group, *group).await?;
-                self.ae_object_ref(&mut all, Kind::StagedMarker, *marker).await?;
-                for capsule in capsules.keys() { self.ae_object_ref(&mut all, Kind::Capsule, *capsule).await?; }
-                let actual = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)?;
-                let stored = self.meta.get(self.meta.keys.group_chunks(group)).await?
-                    .map(|index| decode_chunk_index(&index)).transpose()?;
-                if actual != stored && (actual.is_some() || stored.is_some()) {
-                    return Err(StoreError::Invalid("group chunk index differs from verified group manifest".into()));
-                }
-                if let Some(chunks) = actual {
-                    for (chunk, length) in chunks { all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length }); }
+            // A batch is one event: its record, then every member's parts, so the receiver
+            // stages all of them before T13 applies any.
+            AeKind::Batch { id } => {
+                let v = self.meta.get(self.meta.keys.batch(id)).await?.ok_or(StoreError::Missing { kind: "batch record", id: *id })?;
+                let rec = crate::batch::BatchRecord::decode_value(&v)?;
+                if rec.id() != *id { return Err(StoreError::Invalid("batch key holds another intent".into())); }
+                push_meta(&mut all, "batch", *id, &v)?;
+                for e in &rec.entries {
+                    match &e.member {
+                        crate::batch::BatchMember::Publish { group, .. } => self.ae_group_parts(&mut all, group, &e.object, &e.cert).await?,
+                        crate::batch::BatchMember::Tombstone { .. } => self.ae_tombstone_parts(&mut all, &e.object, &e.cert).await?,
+                    }
                 }
             }
-            AeKind::Tombstone { id, cert } => {
-                let tomb = self.tombstone(id).await?.ok_or(StoreError::Missing { kind: "tombstone", id: *id })?;
-                push_meta(&mut all, "tombstone", *id, &tomb.preimage())?;
-                if let Some(grant) = self.meta.get(self.meta.keys.delete_grant(id)).await? {
-                    push_meta(&mut all, "deletegrant", *id, &grant)?;
-                }
-                let cert_bytes = match self.meta.get(self.meta.keys.xcertv("tcert", id, cert)).await? {
-                    Some(bytes) => bytes,
-                    None => self.tcerts(id).await?.into_iter().find(|c| c.id() == *cert)
-                        .ok_or_else(|| StoreError::Invalid("tombstone event certificate unavailable".into()))?.to_bytes(),
-                };
-                push_cert(&mut all, "tcert", *cert, &cert_bytes)?;
-                self.ae_object_ref(&mut all, Kind::StagedTombstone, *id).await?;
-            }
+            AeKind::GroupVariant { group, marker, cert } => self.ae_group_parts(&mut all, group, marker, cert).await?,
+            AeKind::Tombstone { id, cert } => self.ae_tombstone_parts(&mut all, id, cert).await?,
             AeKind::Catalogue { source, id, cert } => {
                 let origin = if source.is_empty() { &self.deployment } else { source };
                 let local = origin == &self.deployment;
@@ -1009,6 +1038,38 @@ impl Writer {
         let meta = assemble_fragments(&parts, false)?;
         let certs = assemble_fragments(&parts, true)?;
         match &event.kind {
+            AeKind::Batch { id } => {
+                let record = meta.get(&("batch".into(), *id)).ok_or_else(|| StoreError::Invalid("batch event lacks its record".into()))?;
+                let Ok(rec) = crate::batch::BatchRecord::decode_value(record) else {
+                    return Ok(Outcome::Rejected("batch record does not decode".into()));
+                };
+                if rec.id() != *id { return Ok(Outcome::Rejected("batch event names another intent".into())); }
+                let mut members = Vec::new();
+                for e in &rec.entries {
+                    let lacks = |what: &str| StoreError::Invalid(format!("batch event lacks a member's {what}"));
+                    match &e.member {
+                        crate::batch::BatchMember::Publish { .. } => {
+                            let marker = meta.get(&("marker".into(), e.object)).ok_or_else(|| lacks("marker"))?;
+                            let m = Marker::from_preimage(marker)?;
+                            let receipt = meta.get(&("receipt".into(), m.receipt)).ok_or_else(|| lacks("receipt"))?;
+                            let job_id = Receipt::from_bytes(receipt)?.body.request.as_ref()
+                                .and_then(|v| <[u8; 32]>::try_from(v.as_slice()).ok()).map(Id).ok_or_else(|| lacks("job ID"))?;
+                            let job = meta.get(&("job".into(), job_id)).ok_or_else(|| lacks("job"))?;
+                            let revisions = m.revisions.iter().map(|rid| meta.get(&("revision".into(), *rid)).cloned()
+                                .ok_or_else(|| lacks("revision"))).collect::<Result<Vec<_>>>()?;
+                            let cert = certs.get(&("cert".into(), e.cert)).ok_or_else(|| lacks("certificate"))?;
+                            members.push(Item::Group { marker: marker.clone(), revisions, receipt: receipt.clone(), job: job.clone(), certs: vec![cert.clone()] });
+                        }
+                        crate::batch::BatchMember::Tombstone { .. } => {
+                            let tombstone = meta.get(&("tombstone".into(), e.object)).ok_or_else(|| lacks("tombstone"))?;
+                            let cert = certs.get(&("tcert".into(), e.cert)).ok_or_else(|| lacks("tombstone certificate"))?;
+                            let controller_grant = meta.get(&("deletegrant".into(), e.object)).cloned();
+                            members.push(Item::Tombstone { tombstone: tombstone.clone(), certs: vec![cert.clone()], controller_grant });
+                        }
+                    }
+                }
+                antientropy::import(self, &Item::Batch { record: record.clone(), members }).await
+            }
             AeKind::GroupVariant { group, marker, cert } => {
                 let marker_bytes = meta.get(&("marker".into(), *marker)).ok_or_else(|| StoreError::Invalid("group event lacks marker".into()))?;
                 let m = Marker::from_preimage(marker_bytes)?;

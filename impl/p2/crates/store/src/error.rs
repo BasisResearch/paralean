@@ -112,6 +112,15 @@ pub enum GuardFailure {
     RepairInvalid(String),
     #[error("repair target lacks the certified object's bytes")]
     RepairNoExistingBytes,
+    // --- T12/T13 (atomic multi-group publication; docs/atomic-pub-log.md)
+    #[error("{0:?} is bound to another batch, or a batch member was submitted alone")]
+    BatchBinding(Id),
+    #[error("batch intent: {0}")]
+    BatchIntent(String),
+    #[error("batch {0:?} is already recorded with other member bytes")]
+    BatchConflict(Id),
+    #[error("batch exceeds the single-transaction budget: {0}")]
+    BatchTooLarge(String),
 }
 
 #[derive(Debug, Error)]

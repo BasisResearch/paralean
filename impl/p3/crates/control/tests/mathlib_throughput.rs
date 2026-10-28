@@ -68,6 +68,7 @@ async fn mathlib_throughput() {
                     base: base_id(&c.checker.lean_githash), policy: Policy::v1().id(),
                     checker: checker_id, worker: w.id(), targets: vec![],
                     deadline_ms: 120_000, memory_mb: 8192,
+                    batch: None,
                 }, &authority);
                 c.store.meta.issue_job(&job).await.unwrap();
                 jobs.push(job);

@@ -46,6 +46,7 @@ pub fn issue(kf: &KeyFile, issuer: &str, worker: WorkspaceId, group: Id, capsule
         targets: vec![],
         deadline_ms: 1_800_000,
         memory_mb: 0,
+        batch: None,
     };
     Ok(Signed::sign(job, &auth))
 }

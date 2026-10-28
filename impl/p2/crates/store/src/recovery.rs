@@ -71,6 +71,8 @@ pub struct Discovery {
     pub heads: BTreeMap<Name, Vec<Id>>,
     /// Names with more than one head (an eventual error in the registry, §7).
     pub conflicts: Vec<Name>,
+    /// Committed batches with a member in this view; every member is in the view.
+    pub batches: BTreeMap<Id, crate::batch::BatchRecord>,
 }
 
 /// Heads of each name: known revisions not superseded by a known descendant of that name.
@@ -138,6 +140,8 @@ pub async fn discover_with(
             }
         }
     }
+    discover_tombstones(store, &mut d).await?;
+    close_batches(store, &mut d).await?;
     // Diagnostics: marker keys without certificates.
     let markers = store.meta.scan(&keys.sub("marker"), store.page, |_| None).await?;
     for (k, _) in markers {
@@ -156,7 +160,6 @@ pub async fn discover_with(
     }
     d.heads = reconstruct_heads(&d.revisions);
     d.conflicts = d.heads.iter().filter(|(_, h)| h.len() > 1).map(|(n, _)| n.clone()).collect();
-    discover_tombstones(store, &mut d).await?;
     d.superseded = superseded_groups(store, &d.revisions).await?;
     let paths: BTreeSet<String> = d.positions.values().map(|p| p.marker.file_path.clone()).collect();
     for path in paths {
@@ -214,6 +217,56 @@ pub fn rendered_names(d: &Discovery) -> BTreeMap<(Id, Name), Name> {
 }
 
 /// Tombstones by certificates (`tcert/` scan), as markers are discovered by `cert/`.
+/// A view never holds part of a batch. The scans above run page by page, each page at
+/// its own read version, so a batch committed while they run can be seen on later pages
+/// only (and the tombstone scan runs after the certificate scan). A batch's members and
+/// its record are written by one transaction and nothing is ever deleted, so a member in
+/// the view means the record exists now; every member it names is then read by point
+/// reads, with the same certificate checks, and added (TLA `AtomicBatch` NoPartialScan).
+async fn close_batches(store: &Store, d: &mut Discovery) -> Result<()> {
+    if cfg!(feature = "mutate-batch-scan-no-closure") {
+        return Ok(());
+    }
+    for rec in store.batch_records().await? {
+        let seen = rec.markers().any(|(g, m)| d.positions.contains_key(&(g, m)))
+            || rec.tombstones().any(|t| d.tombstones.contains_key(&t));
+        if !seen {
+            continue;
+        }
+        for (g, mid) in rec.markers().collect::<Vec<_>>() {
+            if d.positions.contains_key(&(g, mid)) {
+                continue;
+            }
+            let m = store.marker_variant(&g, &mid).await?.ok_or(StoreError::Missing { kind: "batch member marker", id: mid })?;
+            let certifiers: Vec<WorkspaceId> = store.certs(&g).await?.into_iter()
+                .filter(|c| c.body.marker == mid && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig))
+                .map(|c| c.body.writer).collect();
+            if certifiers.is_empty() {
+                return Err(StoreError::Invalid(format!("batch member {} has no valid certificate", g.short())));
+            }
+            let p = Published { marker_id: mid, marker: m, certifiers };
+            d.positions.insert((g, mid), p.clone());
+            d.groups.entry(g).or_insert(p);
+        }
+        for tid in rec.tombstones().collect::<Vec<_>>() {
+            if d.tombstones.contains_key(&tid) {
+                continue;
+            }
+            let t = store.tombstone(&tid).await?.ok_or(StoreError::Missing { kind: "batch member tombstone", id: tid })?;
+            let certifiers: Vec<WorkspaceId> = store.tcerts(&tid).await?.into_iter()
+                .filter(|c| c.body.target == t.target && store.ring.verify_writer(&c.body.writer, &c.id(), &c.sig))
+                .map(|c| c.body.writer).collect();
+            if certifiers.is_empty() {
+                return Err(StoreError::Invalid(format!("batch tombstone {} has no valid certificate", tid.short())));
+            }
+            d.ignored_tombstones.retain(|x| *x != tid);
+            d.tombstones.insert(tid, PublishedTombstone { tombstone: t, certifiers });
+        }
+        d.batches.insert(rec.id(), rec);
+    }
+    Ok(())
+}
+
 async fn discover_tombstones(store: &Store, d: &mut Discovery) -> Result<()> {
     let keys = &store.meta.keys;
     let mut by_t: BTreeMap<Id, Vec<TombstoneCert>> = BTreeMap::new();

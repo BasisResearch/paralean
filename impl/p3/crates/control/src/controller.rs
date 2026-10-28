@@ -1500,6 +1500,7 @@ impl ControlPlane {
             targets: bindings,
             deadline_ms: if deadline_ms == 0 { cap_ms } else { deadline_ms.min(cap_ms) },
             memory_mb: if memory_mb == 0 { self.cfg.validation_memory_mb } else { memory_mb.min(self.cfg.validation_memory_mb) },
+            batch: None,
         };
         let mut job = SignedJob::sign(env, &self.cfg.authority);
         let req = job_key(&w, &job.body.request);

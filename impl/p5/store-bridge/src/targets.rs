@@ -491,6 +491,7 @@ async fn validate_target(args: &[String]) -> R<Value> {
             }],
             deadline_ms: 1_800_000,
             memory_mb: 0,
+            batch: None,
         },
         &authority,
     );

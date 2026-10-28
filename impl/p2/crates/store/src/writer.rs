@@ -62,6 +62,49 @@ pub(crate) async fn dependency_groups(store: &Store, job: &crate::receipt::Signe
     Ok(dep_groups.into_iter().collect())
 }
 
+/// The worker-side package checks (§6 staging rule, marker/revision consistency).
+pub(crate) fn check_package(store: &Store, p: &Package) -> Result<Id> {
+    let bad = |s: &str| Err(StoreError::Guard(GuardFailure::BadPackage(s.into())));
+    if p.group.kind != Kind::Group || p.capsule.kind != Kind::Capsule || p.chunks.iter().any(|c| c.kind != Kind::Chunk) {
+        return bad("object kinds");
+    }
+    let g = p.group.id();
+    if p.marker.group != g {
+        return bad("marker names another group");
+    }
+    let ids: BTreeSet<Id> = p.revisions.iter().map(|r| r.id()).collect();
+    if ids.len() != p.revisions.len() || p.marker.revisions != ids.iter().copied().collect::<Vec<_>>() {
+        return bad("marker revisions differ from the package's");
+    }
+    if p.revisions.iter().any(|r| r.group != g || r.capsule != p.capsule.id()) {
+        return bad("revision names another group or capsule");
+    }
+    if p.marker.receipt != p.receipt.id() {
+        return bad("marker names another receipt");
+    }
+    // W2 A-6: every syncing copy writes a file at the marker's path; receivers refuse
+    // to decode one that breaks the relative-path rule, so it is never published.
+    if !cfg!(feature = "mutate-unchecked-publish-path") {
+        if let Err(e) = p.marker.check() {
+            return bad(&format!("marker file path: {e}"));
+        }
+    }
+    // The staging rule: a worker stages only while holding a bound receipt (§6, P3).
+    crate::receipt::check(&p.receipt, &p.job, &g, &p.targets, &store.ring)?;
+    if let Some(refs) = unique_chunks(&p.group.pce)? {
+        let provided: BTreeSet<Id> = p.chunks.iter().map(Opaque::id).collect();
+        if provided.len() != p.chunks.len() || provided != refs.keys().copied().collect() {
+            return bad("chunked group references do not equal Package.chunks");
+        }
+        for chunk in &p.chunks {
+            if chunk.preimage().len() as u64 != refs[&chunk.id()] {
+                return bad("chunk length differs from hashed group manifest");
+            }
+        }
+    }
+    Ok(g)
+}
+
 #[derive(Clone)]
 pub struct Writer {
     pub store: Store,
@@ -98,45 +141,7 @@ impl Writer {
     }
 
     fn check_package(&self, p: &Package) -> Result<Id> {
-        let bad = |s: &str| Err(StoreError::Guard(GuardFailure::BadPackage(s.into())));
-        if p.group.kind != Kind::Group || p.capsule.kind != Kind::Capsule || p.chunks.iter().any(|c| c.kind != Kind::Chunk) {
-            return bad("object kinds");
-        }
-        let g = p.group.id();
-        if p.marker.group != g {
-            return bad("marker names another group");
-        }
-        let ids: BTreeSet<Id> = p.revisions.iter().map(|r| r.id()).collect();
-        if ids.len() != p.revisions.len() || p.marker.revisions != ids.iter().copied().collect::<Vec<_>>() {
-            return bad("marker revisions differ from the package's");
-        }
-        if p.revisions.iter().any(|r| r.group != g || r.capsule != p.capsule.id()) {
-            return bad("revision names another group or capsule");
-        }
-        if p.marker.receipt != p.receipt.id() {
-            return bad("marker names another receipt");
-        }
-        // W2 A-6: every syncing copy writes a file at the marker's path; receivers refuse
-        // to decode one that breaks the relative-path rule, so it is never published.
-        if !cfg!(feature = "mutate-unchecked-publish-path") {
-            if let Err(e) = p.marker.check() {
-                return bad(&format!("marker file path: {e}"));
-            }
-        }
-        // The staging rule: a worker stages only while holding a bound receipt (§6, P3).
-        crate::receipt::check(&p.receipt, &p.job, &g, &p.targets, &self.store.ring)?;
-        if let Some(refs) = unique_chunks(&p.group.pce)? {
-            let provided: BTreeSet<Id> = p.chunks.iter().map(Opaque::id).collect();
-            if provided.len() != p.chunks.len() || provided != refs.keys().copied().collect() {
-                return bad("chunked group references do not equal Package.chunks");
-            }
-            for chunk in &p.chunks {
-                if chunk.preimage().len() as u64 != refs[&chunk.id()] {
-                    return bad("chunk length differs from hashed group manifest");
-                }
-            }
-        }
-        Ok(g)
+        check_package(&self.store, p)
     }
 
     /// Publish a group: S3 objects, the acknowledged marker copy, then T1, which writes the

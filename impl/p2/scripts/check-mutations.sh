@@ -58,6 +58,23 @@ cases=(
   "mutate-no-controller-fence|authority|controller_delete_requires_local_signature_and_current_fence"
   "mutate-controller-no-source|authority|controller_delete_relay_keeps_origin_authority"
   "mutate-controller-no-origin|authority|foreign_controller_cannot_claim_another_origins_writer_certificate"
+  # Atomic batch publication (docs/atomic-pub-log.md): the batch's own guards, and the
+  # per-member guards exercised through T12.
+  "mutate-batch-member-alone|batches|members_are_bound_to_their_batch"
+  "mutate-batch-unsigned-intent|batches|members_are_bound_to_their_batch"
+  "mutate-batch-unchecked-members|batches|members_are_bound_to_their_batch"
+  "mutate-batch-partial-commit|batches|any_failing_member_rejects_the_whole_batch"
+  "mutate-batch-scan-no-closure|batches|paginated_discovery_never_sees_part_of_a_batch"
+  "mutate-receive-batch-member|batches|anti_entropy_transfers_a_batch_atomically"
+  "mutate-batch-ae-partial|batches|anti_entropy_transfers_a_batch_atomically"
+  "mutate-no-owner-check|batches|stale_owner_on_one_member_rejects_the_whole_batch"
+  "mutate-no-epoch-fence|batches|stale_owner_on_one_member_rejects_the_whole_batch"
+  "mutate-no-head-cas|batches|stale_owner_on_one_member_rejects_the_whole_batch"
+  "mutate-no-revocation-check|batches|every_member_guard_applies_inside_a_batch"
+  "mutate-no-cancel-check|batches|every_member_guard_applies_inside_a_batch"
+  "mutate-agent-no-revocation|batches|every_member_guard_applies_inside_a_batch"
+  "mutate-tombstone-no-author-check|batches|every_member_guard_applies_inside_a_batch"
+  "mutate-checkpoint-no-current|batches|checkpoints_never_mix_a_batch_with_what_it_replaces"
 )
 fail=0
 for c in "${cases[@]}"; do
