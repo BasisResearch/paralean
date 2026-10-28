@@ -1,0 +1,1020 @@
+Checking Registry
+'ParaleanRegistry.published_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.pending_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.published_ancestor_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.published_no_self_ancestor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.initial_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.next_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.prepare_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.publish_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.receive_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.crash_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.recover_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.partition_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reconnect_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.heal_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.known_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.published_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.published_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.snapshot_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.collision_blocks_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.dependency_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.prepare_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.publish_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.receive_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.crash_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.recover_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.partition_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reconnect_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.heal_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.initializer_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Durability
+'Durability.Put_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Ack_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Lose_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Init_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.Next_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_invariants' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'Durability.reachable_noDataLoss' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Convergence
+'ParaleanConvergence.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.conflict_no_silent_winner' does not depend on any axioms
+'ParaleanRegistry.receive_adds_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.receive_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.heal_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.conflicting_name_not_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.reachable_stutter_prevents_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanConvergence.unfair_scheduler_counterexample' does not depend on any axioms
+Checking Composition
+'ParaleanComposition.storage_acknowledged_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.registry_preserves_coupling' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.initial_coupled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.published_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.published_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.checkpoint_manifest_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.checkpoint_manifest_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.checkpoint_declaration_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.checkpoint_declaration_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking EndToEnd
+'ParaleanComposition.next_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.reachable_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.reachable_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.published_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.pending_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.reachable_ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.published_ancestor_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.toRegistryTrace' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.eventual_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.Trace.durable_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Commit
+'ParaleanRegistry.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_member_unique_head' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_member_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.stale_member_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.commit_excludes_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRegistry.collision_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Commit.lean:137:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_fresh`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Commit.lean:149:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_member_not_stale`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Commit.lean:159:0: warning: automatically included section variable(s) unused in theorem `ParaleanComposition.commit_excludes_collision`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanComposition.CommitStep.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_member_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanComposition.commit_excludes_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Groups
+'ParaleanGroups.published_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.pending_ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_ancestor_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_no_self_ancestor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ancestor_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initial_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.prepare_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.crash_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.recover_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.partition_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reconnect_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.heal_ancestor_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.known_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_valid' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.snapshot_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.collision_blocks_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_acyclic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.prepare_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.crash_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.recover_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.partition_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reconnect_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.heal_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.initializer_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:768:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_publication`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:774:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroups.no_subset_snapshot`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq name] [Inhabited name] [DecidableEq snapshot] [Inhabited snapshot] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:1026:52: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:1026:77: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:1059:57: warning: this tactic is never executed
+
+Note: This linter can be disabled with `set_option linter.unreachableTactic false`
+'ParaleanGroups.published_revision_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.published_revision_rank' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_initial' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_prepare_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_publish_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_three_names' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_resolves_both' depends on axioms: [propext]
+'ParaleanGroups.overlap_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_commit_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlap_pipeline_success' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.publish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.no_subset_publication' depends on axioms: [propext]
+'ParaleanGroups.no_subset_snapshot' depends on axioms: [propext]
+'ParaleanGroups.snapshot_no_duplicate_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.snapshot_exact_dependency' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.commit_unique_head_for_every_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.stale_name_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.overlapping_heads_block_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.transitive_name_conflict_blocks_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.old_snapshot_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.singleton_buildable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.singleton_assumptions' depends on axioms: [propext, Quot.sound]
+'ParaleanGroups.resolved_group_current' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.resolved_group_commit_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.storage_acknowledged_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.registry_preserves_coupling' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.initial_coupled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_manifest_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_manifest_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_declaration_recoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.checkpoint_declaration_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.receive_adds_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.registry_step_persistent' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.reachable_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.reachable_registry_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.published_ancestor_has_copy' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:1841:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.commit_fresh`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.CommitStep.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.commit_fresh' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_path_snapshot_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.dependency_path_conflict_blocks_commit' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.next_preserves_historical_snapshot' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:1952:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.guarded_commit_enabled_iff`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.guarded_commit_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.Trace.eventual_two_heads' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroupComposition.snapshot_no_duplicate_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanGroups.Trace.eventual_name_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Groups.lean:2034:0: warning: automatically included section variable(s) unused in theorem `ParaleanGroupComposition.CommitStep.registry_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq obj]
+  [Inhabited obj]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  obj] [Inhabited
+  obj] [DecidableEq writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanGroupComposition.Trace.eventual_name_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Delivery
+'ParaleanDelivery.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.accept_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.finish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.empty_cannot_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.old_response_after_restart' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.completion_group_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.wrong_worker_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.relabelled_receipt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.nonempty_completion_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.finish_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.accept_effect' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.corrupt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.receipt_mismatch_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanDelivery.transport_no_admission' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking DeliveryAlternatives
+'ParaleanDelivery.alternative_results_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Admission
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:93:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.PassiveProtocol.to_next`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq request] [Inhabited request] [DecidableEq packet] [Inhabited packet] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:125:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.to_next`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq request] [Inhabited request] [DecidableEq packet] [Inhabited packet] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:133:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.known`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:241:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptStep.delivery_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:248:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.FinishStep.delivery_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:255:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.FinishStep.protocol_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:367:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.AcceptProtocol.enabled_iff`:
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:419:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.payload_mapping_injective`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq
+  name] [Inhabited
+  name] [DecidableEq
+  snapshot] [Inhabited
+  snapshot] [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:427:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.payload_manifest_distinct`:
+  [DecidableEq node]
+  [Inhabited node]
+  [DecidableEq group]
+  [Inhabited group]
+  [DecidableEq name]
+  [Inhabited name]
+  [DecidableEq snapshot]
+  [Inhabited snapshot]
+  [DecidableEq request]
+  [Inhabited request]
+  [DecidableEq packet]
+  [Inhabited packet]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  node] [Inhabited
+  node] [DecidableEq
+  group] [Inhabited
+  group] [DecidableEq
+  name] [Inhabited
+  name] [DecidableEq
+  snapshot] [Inhabited
+  snapshot] [DecidableEq
+  request] [Inhabited
+  request] [DecidableEq
+  packet] [Inhabited
+  packet] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Admission.lean:446:0: warning: automatically included section variable(s) unused in theorem `ParaleanAdmission.CrashStep.cancel_transition`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanAdmission.initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.reachable_protocol_projection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_published_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_complete_current_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_required_groups' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.corrupt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.stale_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_checked_realizes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.AcceptProtocol.enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.accept_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.payload_mapping_injective' does not depend on any axioms
+'ParaleanAdmission.payload_manifest_distinct' does not depend on any axioms
+'ParaleanAdmission.PassiveProtocol.to_next' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.crash_epoch' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.crash_rejects_old_response' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_all_groups_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.finish_required_targets_durable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAdmission.empty_cannot_finish' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking AdmissionExecution
+'ParaleanAdmission.combined_receipt_commit_disk_failure' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Recovery
+'ParaleanRecovery.commit_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.loseDesktop_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.rotateFence_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.enumerate_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruct_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.automatic_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.historical_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.Init_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.Next_preserves' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruction_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.conflict_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.selected_record_backed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.catalog_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.automatic_no_silent_winner' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.stale_writer_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.composition_checkpoint_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.ready_in_quorum_catalog' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.nonempty_lose_id_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Recovery.lean:739:5: warning: Variable name `th` is not explicitly referenced.
+
+The binding can be removed (if unused) or named `_` (if used implicitly).
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/Recovery.lean:740:5: warning: Variable name `s` is not explicitly referenced.
+
+The binding can be removed (if unused) or named `_` (if used implicitly).
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+'ParaleanRecovery.physical_enumeration_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_selected_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_scan_ready_for_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_scan_covers_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_initial_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_selected_has_copies' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.coupled_nonempty_lose_id_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.ofAdmission_objects_separate' does not depend on any axioms
+Checking RecoveryAncestry
+'ParaleanRecovery.ancestor_iff_parent_path' does not depend on any axioms
+'ParaleanRecovery.no_parent_no_ancestor' depends on axioms: [propext]
+'ParaleanRecovery.reconstruction_parent_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.parent_conflict_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.parentless_records_conflict' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking RecoveryAdequacy
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/RecoveryAdequacy.lean:77:48: warning: This simp argument is unused:
+  instIsSubReaderOfRefl
+
+Hint: Omit it from the simp argument list.
+  simp [rec', accepted, admissible, readFrom, i̵n̵s̵t̵I̵s̵S̵u̵b̵R̵e̵a̵d̵e̵r̵O̵f̵R̵e̵f̵l̵,̵ ̵buildable, Veil.FieldRepresentation.setSingle,
+  ̲  ̲ ̲ ̲ ̲ ̲Veil.CanonicalField.set, Veil.FieldUpdatePat.match, Veil.IteratedArrow.curry,
+  ̲  ̲ ̲ ̲ ̲ ̲Veil.IteratedArrow.uncurry, Veil.IteratedProd.patCmp]
+
+Note: This linter can be disabled with `set_option linter.unusedSimpArgs false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/RecoveryAdequacy.lean:88:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.reconstruction_enabled_for_known_record`:
+  [DecidableEq node]
+  [Inhabited node]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq node] [Inhabited node] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/RecoveryAdequacy.lean:116:0: warning: automatically included section variable(s) unused in theorem `ParaleanRecovery.historical_enabled_for_known_record`:
+  [DecidableEq node]
+  [Inhabited node]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq node] [Inhabited node] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanRecovery.physical_enumeration_enabled_with_label' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reachable_physical_historical_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.committed_admissible_from_physical_scan' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.reconstruction_enabled_for_known_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.historical_enabled_for_known_record' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanRecovery.physical_historical_recovery_adequate' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking PublicationDiscovery
+'ParaleanPublicationDiscovery.Trace.scan_fair_implies_receive_fair' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationDiscovery.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.failure_healed_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.nonempty_failure_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.accepted_exact_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationDiscovery.staged_unacknowledged_rejected' does not depend on any axioms
+'ParaleanPublicationDiscovery.all_indexes_erased_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking CompletionRecovery
+'ParaleanCompletionRecovery.next_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.finish_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCompletionRecovery.completed_required_target_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.physical_recovery_extends_composed_prefix' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking Protocol
+'ParaleanProtocol.reachable_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.finish_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.publication_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.all_indexes_erased_rediscovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.committed_physical_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.completed_required_target_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.Trace.eventual_delivery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanProtocol.Trace.index_convergence' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking CompletionRecoveryExecution
+'ParaleanCompletionRecovery.Example.selected_identifier_then_losses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.Example.nonempty_completion_loss_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanCompletionRecovery.Example.completion_then_actual_losses' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking ProtocolExecution
+'ParaleanProtocol.Example.joint_nonempty_completion_loss_recovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking ProtocolGuardChecks
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/ProtocolGuardChecks.lean:18:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.missing_catalogue_guard_regression`:
+  [DecidableEq record]
+  [Inhabited record]
+  [DecidableEq workspace]
+  [Inhabited workspace]
+  [DecidableEq token]
+  [Inhabited token]
+  [DecidableEq scan]
+  [Inhabited scan]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  record] [Inhabited
+  record] [DecidableEq
+  workspace] [Inhabited
+  workspace] [DecidableEq
+  token] [Inhabited
+  token] [DecidableEq
+  scan] [Inhabited
+  scan] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/ProtocolGuardChecks.lean:34:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.mismatched_image_guard_regression`:
+  [DecidableEq record]
+  [Inhabited record]
+  [DecidableEq workspace]
+  [Inhabited workspace]
+  [DecidableEq token]
+  [Inhabited token]
+  [DecidableEq scan]
+  [Inhabited scan]
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  record] [Inhabited
+  record] [DecidableEq
+  workspace] [Inhabited
+  workspace] [DecidableEq
+  token] [Inhabited
+  token] [DecidableEq
+  scan] [Inhabited
+  scan] [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/ProtocolGuardChecks.lean:50:0: warning: automatically included section variable(s) unused in theorem `ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression`:
+  [DecidableEq replica]
+  [Inhabited replica]
+  [DecidableEq writeQuorum]
+  [Inhabited writeQuorum]
+  [DecidableEq readQuorum]
+  [Inhabited readQuorum]
+consider restructuring your `variable` declarations so that the variables are not in scope or explicitly omit them:
+  omit [DecidableEq
+  replica] [Inhabited
+  replica] [DecidableEq
+  writeQuorum] [Inhabited writeQuorum] [DecidableEq readQuorum] [Inhabited readQuorum] in theorem ...
+
+Note: This linter can be disabled with `set_option linter.unusedSectionVars false`
+'ParaleanProtocolGuardChecks.missing_catalogue_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanProtocolGuardChecks.mismatched_image_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanProtocolGuardChecks.absent_publication_marker_guard_regression' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking LeanNames
+'ParaleanLeanNames.canon_injective_public' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.aux_same_group' depends on axioms: [propext]
+'ParaleanLeanNames.scoped_render_distinct' depends on axioms: [propext]
+'ParaleanLeanNames.render_clash_iff' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.render_clash_conflict' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.derived_collision_iff' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.derived_name_determines_base' depends on axioms: [propext]
+'ParaleanLeanNames.instance_anchor' depends on axioms: [propext]
+'ParaleanLeanNames.instance_collision' depends on axioms: [propext]
+'ParaleanLeanNames.relocation_invariant' depends on axioms: [propext]
+'ParaleanLeanNames.public_collision_iff' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.realization_member_eq' depends on axioms: [propext, Quot.sound]
+'ParaleanLeanNames.naming_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.conflict_not_buildable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.realization_theory_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.reserved_consumer_deterministic' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_member_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_conflicts_exact' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_classes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_theory_eq' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.inst_nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.naive_false_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanLeanNames.addDecl_capture_splits' depends on axioms: [propext]
+Checking InitializerIdentity
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/InitializerIdentity.lean:79:34: warning: try 'simp' instead of 'simpa'
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+'ParaleanInitializerIdentity.exact_implies_observable' does not depend on any axioms
+'ParaleanInitializerIdentity.private_literal_changes' depends on axioms: [propext]
+'ParaleanInitializerIdentity.rendered_declaration_unchanged' depends on axioms: [propext]
+'ParaleanInitializerIdentity.quotient_cannot_certify_exact' depends on axioms: [propext]
+'ParaleanInitializerIdentity.concrete_module_change' depends on axioms: [propext]
+'ParaleanInitializerIdentity.singleton_hygiene_match_sound' depends on axioms: [propext]
+'ParaleanInitializerIdentity.singleton_hygiene_match_perm' depends on axioms: [propext, Quot.sound]
+Checking PublicationReceipts
+'ParaleanPublicationReceipts.published_receipted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.unreceipted_never_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.receipt_implies_valid' does not depend on any axioms
+'ParaleanPublicationReceipts.invalid_never_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.prepare_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.valid_guard_redundant' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.guard_stutter' does not depend on any axioms
+'ParaleanPublicationReceipts.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.Example.receipted_publication_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.Example.base_publishes_unreceipted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.untrusted_step_is_protocol_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.ureachable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.invalid_never_published_untrusted' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.guard_necessary' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.untrusted_prepare_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanPublicationReceipts.Example.untrusted_publication_reachable' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanPublicationReceipts.Example.untrusted_invalid_staged_without_guard' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking TargetNames
+'ParaleanTargetNames.guard_stutter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.guard_of_synced_prepare' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.reachable_inv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.target_chain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.realized_chain' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.target_head_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.no_target_collision' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.collision_premise_fails' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.stale_publication_blocked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.split_owner_unpreparable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.guard_observable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.common_owner_preparable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.Example.alternatives_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.Example.handover_witness' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.Example.guard_necessity' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.Example.scan_check_unsafe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanTargetNames.recorded_head_tops_chain' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking CatalogFencing
+'ParaleanCatalogFencing.guard_stutter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.fence_mono' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.reachable_inv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.present_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.stale_first_write_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.repair_put_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.ack_unfenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.catalog_objects_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.selected_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.completion_not_stale' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.guard_enabled_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.fenced_put_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.fenced_recovery_execution' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.unfenced_stale_selection' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogFencing.Example.late_ack_and_repair_execution' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking AckCertificates
+'ParaleanAckCertificates.guard_stutter' depends on axioms: [propext, Quot.sound]
+'ParaleanAckCertificates.reachable_protocol' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.publish_write_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.cert_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.published_certified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.reply_survives' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.scan_complete' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.scan_between' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.published_discoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.checkpoint_contents_discoverable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.checkpoint_discoverable_unguarded' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.receive_guard_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.receive_guard_physical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.published_receivable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.published_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.lost_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.erased_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanAckCertificates.Example.nonvacuous_certificate_rediscovery' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+'ParaleanAckCertificates.Example.guard_necessity' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking CatalogCertificates
+'ParaleanCatalogCertificates.inv_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.record_cert_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.committed_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.selected_fenced' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.stale_record_cert_rejected' does not depend on any axioms
+'ParaleanCatalogCertificates.stale_stays_uncertified' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.orphan_record_cert_rejected' does not depend on any axioms
+'ParaleanCatalogCertificates.record_cert_parents_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.record_cert_ancestors_ready' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.orphan_not_adopted' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.uncertified_not_committed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.catReady_storageReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.committed_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.catReady_scanReady' does not depend on any axioms
+'ParaleanCatalogCertificates.scanReady_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.scanReady_iff_catReady' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.certScanValue_covers' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.certScanValue_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.scan_enumerate_step' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanCatalogCertificates.certified_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Hardened
+'ParaleanHardened.hardened_safe' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.hardened_certified_recovery' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.scan_enumerate_hardened' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.sreachable_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.recorded_head_receivable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.owner_prepare_enabled' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking HardenedExecution
+'ParaleanHardened.Example.instance_assumptions' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.hardened_nonvacuous' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.hardened_scan_adoption' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.stale_owner_publish_blocked' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanHardened.Example.hardened_receipt_rejected' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking Workspaces
+'ParaleanWorkspaces.Layout.prec_strict_total_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.posLt_strict_total_order' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.revision_root' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.revision_in_place' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_function' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_pairwise' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_nodup' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_mem' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_order_stable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_sublist_live' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_disappears' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.tombstone_not_rendered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.superseded_not_rendered' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.reachable_inv' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.anchor_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.ancestors_closed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.known_anchor_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.path_published' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.reachable_wf_known' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.staged_local' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.guard_stutter' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.reachable_groups' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.staged_pos_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.insert_after_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.intention_preserved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.deps_precede' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.winner_eq_some' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.winner_exists' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.names_agree' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.names_unique' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.renamed_env' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.revise_winner_keeps_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.winner_change_explained' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.rename_preserves_deps' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.receive_guard' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.eventually_identical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.posLt_iff_paths' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.linLt_iff_keys' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.live_carried' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.render_carried' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.renamed_carried' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.view_carried' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.ex_reachable' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.final_render' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.final_identical' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.arrival_orders' depends on axioms: [propext]
+'ParaleanWorkspaces.Example.arrival_render_diverges' depends on axioms: [propext]
+'ParaleanWorkspaces.Example.collision_resolved' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.revised_winner_keeps_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.stage_follows_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.final_dep_precedes' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.dep_guard_needed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.delete_frees_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.partial_revision_frees_name' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.own_pending_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.publish_guard_needed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.Example.ex_names_checked' depends on axioms: [propext, Quot.sound]
+'ParaleanWorkspaces.Example.reserved_check_needed' depends on axioms: [propext, Classical.choice, Quot.sound]
+'ParaleanWorkspaces.fresh_not_declared' does not depend on any axioms
+'ParaleanWorkspaces.Example.render_reads_unknown_anchor' depends on axioms: [propext, Classical.choice, Quot.sound]
+Checking CheckpointConflicts
+'ParaleanCheckpointConflicts.every_unresolved_checkpoint_rejected' depends on axioms: [propext,
+ Classical.choice,
+ Quot.sound]
+Checking ControllerGc
+PASS: 7359 project declarations use only the permitted stock Lean axioms
+
+real	5m15.418s
+user	7m47.882s
+sys	0m18.639s

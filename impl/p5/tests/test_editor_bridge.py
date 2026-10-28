@@ -19,8 +19,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "p4"))
 
 from controller_bridge import BridgeError, ControllerBridge, attach_p5, authoritative_policy_probe, policy_feed
 from lsp import EnvironmentInvalid, Proxy as RouterProxy, Workspace as RouterWorkspace
+from lsp import read_message as router_read_message
 from p5lib.backend import Backend as P5Backend
 from p5lib.lsp_provision import SshEndpoint, lsp_workspace_args, provision_ssh_copy
+
+
+def run_unblocking(test, function, fifo, timeout=3.0):
+    """Run ``function`` in a thread; fail if it blocks on the planted ``fifo``."""
+    outcome = {}
+
+    def target():
+        try:
+            outcome["value"] = function()
+        except BaseException as exc:
+            outcome["error"] = exc
+
+    thread = threading.Thread(target=target, daemon=True)
+    thread.start()
+    thread.join(timeout)
+    if thread.is_alive():
+        # Release the blocked reader so the test process can exit.
+        try:
+            os.close(os.open(fifo, os.O_WRONLY | os.O_NONBLOCK))
+        except OSError:
+            pass
+        thread.join(timeout)
+        test.fail("read blocked on a worker-planted FIFO")
+    return outcome
 
 
 class Workspace:
@@ -266,6 +291,221 @@ for line in sys.stdin:
         self.ws.open_documents[self.uri].update(version=4, text="STAMP_BAD\n")
         with self.assertRaisesRegex(BridgeError, "mismatched stamp"):
             await self.bridge.capture(self.ws, self.uri, 4)
+
+    def _recapture(self, text):
+        self.ws.open_documents[self.uri]["text"] = text
+        self.bridge.captures[("w0", self.uri)] = {
+            **self.bridge._stamp(self.ws, self.uri),
+            "packages": [{"names": ["P5.answer"]}], "groups": []}
+
+    async def _expect_bridge_error(self, awaitable, text):
+        try:
+            await awaitable
+        except BridgeError as exc:
+            self.assertIn(text, str(exc))
+        except Exception as exc:
+            self.fail(f"expected BridgeError({text!r}), got {exc!r}")
+        else:
+            self.fail(f"expected BridgeError({text!r})")
+
+    async def test_publish_replaces_planted_source_links_without_writing_through(self):
+        source = self.root / "work" / "A.lean"
+        victim = self.root.parent / "controller-secret.txt"
+        buffer = "theorem P5.answer : True := trivial\n"
+
+        checked = self.bridge._assert_current
+
+        def plant_symlink():
+            # _source resolves links, so a leaf symlink must race the last
+            # stamp check before the write.
+            calls = []
+
+            def racing(*args):
+                checked(*args)
+                calls.append(args)
+                if len(calls) == 2:
+                    source.unlink()
+                    source.symlink_to(victim)
+            self.bridge._assert_current = racing
+
+        def plant_hard_link():
+            source.unlink()
+            os.link(victim, source)
+
+        for label, plant in (("symlink", plant_symlink), ("hard link", plant_hard_link)):
+            with self.subTest(link=label):
+                victim.write_text("controller secret\n")
+                source.unlink(missing_ok=True)
+                source.write_text(self.ws.open_documents[self.uri]["text"])
+                self._recapture(buffer)
+                plant()
+                outcome = None
+                try:
+                    await self.bridge.publish(self.ws, self.uri, 1, "P5.answer", "w0", 4,
+                                              policy="frozen-target")
+                except (BridgeError, OSError) as exc:
+                    outcome = exc
+                finally:
+                    self.bridge.__dict__.pop("_assert_current", None)
+                self.assertEqual(victim.read_text(), "controller secret\n")
+                self.assertEqual(os.stat(victim).st_nlink, 1)
+                self.assertIsNone(outcome)
+                self.assertFalse(source.is_symlink())
+                self.assertEqual(source.read_text(), buffer)
+        with self.subTest(link="work directory symlink"):
+            elsewhere = self.root.parent / "elsewhere"
+            (self.root / "work").rename(elsewhere)
+            (self.root / "work").symlink_to(elsewhere, target_is_directory=True)
+            (elsewhere / "A.lean").write_text("outside original\n")
+            self._recapture("theorem P5.answer : True := by exact trivial\n")
+            calls = self.backend.calls
+            try:
+                await self.bridge.publish(self.ws, self.uri, 1, "P5.answer", "w0", 4,
+                                          policy="frozen-target")
+            except (BridgeError, OSError):
+                pass
+            self.assertEqual((elsewhere / "A.lean").read_text(), "outside original\n")
+            self.assertEqual(self.backend.calls, calls)
+
+    async def test_precommit_guard_refuses_sparse_oversized_source(self):
+        def grow():
+            with open(self.root / "work" / "A.lean", "r+b") as handle:
+                handle.truncate(4 * 1024 * 1024 * 1024)
+
+        self.backend.before_commit = grow
+        await self._expect_bridge_error(
+            self.bridge.publish(self.ws, self.uri, 1, "P5.answer", "w0", 4, policy="frozen-target"),
+            "working source changed")
+
+    def _capture_worker(self, script_body):
+        fake = self.root / "capture-worker"
+        fake.write_text("#!/usr/bin/env python3\nimport json, sys\n" + script_body)
+        fake.chmod(0o700)
+        self.bridge.capture_binary = str(fake)
+        self.bridge.captures.clear()
+
+    def _set_buffer(self, version, text):
+        self.ws.open_documents[self.uri].update(version=version, text=text)
+        self.bridge.observe(self.ws, self.uri, "textDocument/didChange")
+
+    async def test_large_and_overlimit_capture_replies(self):
+        self._capture_worker("""
+for line in sys.stdin:
+    request = json.loads(line)
+    pad = 200000 if 'LARGE' in request['text'] else 2000000 if 'HUGE' in request['text'] else 0
+    reply = {k: request[k] for k in ('file', 'version', 'environment', 'generation')}
+    reply.update(registry='r', reusedCommands=0, newCommands=1,
+                 capture={'packages': [{'names': ['P5.answer'], 'group': 'private-group',
+                                        'pad': 'x' * pad}], 'groups': [], 'rejected': []})
+    sys.stdout.write(json.dumps(reply) + '\\n')
+    sys.stdout.flush()
+""")
+        self.bridge.capture_reply_limit = 1024 * 1024
+        key = ("w0", self.uri)
+        self._set_buffer(2, "theorem P5.answer : True := trivial -- LARGE\n")
+        try:
+            large = await self.bridge.capture(self.ws, self.uri, 2)
+        except Exception as exc:
+            self.fail(f"a 200 KB capture reply was refused: {exc!r}")
+        self.assertEqual(large["version"], 2)
+        self._set_buffer(3, "theorem P5.answer : True := trivial -- HUGE\n")
+        await self._expect_bridge_error(self.bridge.capture(self.ws, self.uri, 3), "size limit")
+        self.assertNotIn(key, self.bridge.workers)
+        self._set_buffer(4, "theorem P5.answer : True := trivial\n")
+        try:
+            after = await self.bridge.capture(self.ws, self.uri, 4)
+        except Exception as exc:
+            self.fail(f"capture after an over-limit reply read a stale stream: {exc!r}")
+        self.assertEqual(after["version"], 4)
+
+    async def test_malformed_capture_reply_stops_worker(self):
+        self._capture_worker("""
+for line in sys.stdin:
+    request = json.loads(line)
+    reply = {k: request[k] for k in ('file', 'version', 'environment', 'generation')}
+    reply.update(registry='r', capture={'packages': ['not-a-package'], 'groups': []})
+    if 'ARRAY' in request['text']:
+        reply = [reply]
+    sys.stdout.write(('not json' if 'GARBAGE' in request['text'] else json.dumps(reply)) + '\\n')
+    sys.stdout.flush()
+""")
+        key = ("w0", self.uri)
+        for version, marker, text in ((2, "ARRAY", "malformed JSON"), (3, "GARBAGE", "malformed JSON"),
+                                      (4, "PACKAGES", "malformed packages")):
+            with self.subTest(reply=marker):
+                self._set_buffer(version, f"theorem P5.answer : True := trivial -- {marker}\n")
+                await self._expect_bridge_error(self.bridge.capture(self.ws, self.uri, version), text)
+                self.assertFalse(self.bridge.captures)
+                if marker != "PACKAGES":
+                    self.assertNotIn(key, self.bridge.workers)
+
+    async def test_source_path_rule_matches_p2_check_file_path(self):
+        bad = [".git/A.lean", "Sub/.GiT/A.lean", "a\\b.lean", "\x01A.lean", "A\x7f.lean",
+               "/".join(["d" * 100] * 11) + "/A.lean"]
+        for relative in bad:
+            with self.subTest(path=relative):
+                uri = (self.root / "work" / relative).as_uri()
+                self.ws.open_documents[uri] = {"version": 1, "text": "", "public_uri": uri}
+                try:
+                    self.bridge._stamp(self.ws, uri)
+                except BridgeError:
+                    pass
+                else:
+                    self.fail(f"source path outside the P2 file-path rule was accepted: {relative!r}")
+        for relative in ("Sub/A.lean", "x..lean", ".gitx/A.lean"):
+            with self.subTest(path=relative):
+                uri = (self.root / "work" / relative).as_uri()
+                self.ws.open_documents[uri] = {"version": 1, "text": "", "public_uri": uri}
+                self.assertEqual(self.bridge._stamp(self.ws, uri)["file"], relative)
+
+    def _probe_run(self, receipts):
+        def run(argv, **kwargs):
+            if argv[1] == "policy-state":
+                body = {"validators": [{"key": "a" * 64, "revoked": False}],
+                        "agents": [{"workspace": "w0", "registered": True, "revoked": False}]}
+            elif argv[1] == "pull":
+                body = {"stale": False, "available": 1}
+            elif argv[1] == "check-receipt":
+                receipts.append(argv[2])
+                body = {"admits": True, "receipt": "r"}
+            else:
+                raise AssertionError(f"unexpected authoritative query: {argv}")
+            return subprocess.CompletedProcess(argv, 0, json.dumps(body), "")
+        return run
+
+    async def test_policy_probe_reads_markers_without_following_worker_links(self):
+        records = self.root / "cache" / "p3" / "records"
+        records.mkdir(parents=True)
+        outside = self.root.parent / "outside-marker.json"
+        outside.write_text(json.dumps({"group": "b" * 64}))
+        receipts = []
+        with patch("controller_bridge.subprocess.run", side_effect=self._probe_run(receipts)):
+            fifo = records / "m-fifo.json"
+            os.mkfifo(fifo)
+            with self.subTest(marker="fifo"):
+                outcome = run_unblocking(self, lambda: authoritative_policy_probe(self.ws), fifo)
+                self.assertIsInstance(outcome.get("error"), BridgeError)
+            fifo.unlink()
+            (records / "m-link.json").symlink_to(outside)
+            with self.subTest(marker="symlink"):
+                outcome = run_unblocking(self, lambda: authoritative_policy_probe(self.ws), outside)
+                self.assertIsInstance(outcome.get("error"), BridgeError)
+                self.assertNotIn("b" * 64, receipts)
+            (records / "m-link.json").unlink()
+            (records / "m-good.json").write_text(json.dumps({"group": "c" * 64}))
+            with self.subTest(marker="regular"):
+                outcome = run_unblocking(self, lambda: authoritative_policy_probe(self.ws), outside)
+                self.assertIn("value", outcome)
+                self.assertEqual(receipts, ["c" * 64])
+
+    async def test_policy_probe_rejects_sparse_oversized_marker(self):
+        records = self.root / "cache" / "p3" / "records"
+        records.mkdir(parents=True)
+        with open(records / "m-big.json", "wb") as handle:
+            handle.truncate(4 * 1024 * 1024 * 1024)
+        with patch("controller_bridge.subprocess.run", side_effect=self._probe_run([])), \
+             self.assertRaisesRegex(BridgeError, "marker is unreadable"):
+            authoritative_policy_probe(self.ws)
 
     async def test_policy_push_invalidates_capture_and_replaces_worker(self):
         current = ["store-policy-a"]
@@ -551,6 +791,122 @@ for line in sys.stdin:
         missing = self.bridge.rename_inventory()["missing"]
         self.assertEqual(len(missing), 3)
         self.assertTrue(any(x["uri"] == new_uri for x in missing))
+
+
+class RouterBoundsTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name) / "w0"
+        (self.root / "work").mkdir(parents=True)
+        (self.root / "cache" / "p3" / "records").mkdir(parents=True)
+        (self.root / "cache" / "meta").mkdir()
+        self.proxy = RouterProxy({}, ["unused"])
+        self.ws = RouterWorkspace(self.proxy, "w0", self.root, "policy-a",
+                                  {"PARALEAN_STORE": str(self.root / "cache"),
+                                   "PARALEAN_WORK_ROOT": str(self.root / "work")})
+        self.proxy.workspaces["w0"] = self.ws
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    @staticmethod
+    def frame_result(data):
+        async def read():
+            reader = asyncio.StreamReader()
+            reader.feed_data(data)
+            reader.feed_eof()
+            return await router_read_message(reader)
+        return asyncio.run(read())
+
+    def test_lsp_frame_header_budget(self):
+        self.assertEqual(self.frame_result(
+            b"Content-Type: application/vscode-jsonrpc; charset=utf-8\r\n"
+            b"Content-Length: 2\r\n\r\n{}"), {})
+        with self.assertRaises(ValueError):
+            self.frame_result(b"X-Pad: y\r\n" * 2000 + b"Content-Length: 2\r\n\r\n{}")
+
+    def test_lsp_frame_content_length_is_single_decimal(self):
+        body = b'{"a":1}'
+        self.assertEqual(self.frame_result(b"Content-Length: 7\r\n\r\n" + body), {"a": 1})
+        for header in (b"Content-Length: 2\r\nContent-Length: 7\r\n", b"Content-Length: +7\r\n",
+                       b"Content-Length: 0_7\r\n", b"Content-Length: -1\r\n"):
+            with self.subTest(header=header), self.assertRaises(ValueError):
+                self.frame_result(header + b"\r\n" + body)
+
+    def _marker(self, name, pid, group, directory=None):
+        path = (directory or self.root / "cache" / "p3" / "records") / name
+        path.write_text(json.dumps({"kind": "marker", "pid": pid, "group": group, "file": "A.lean",
+                                    "author": "w0", "lamport": 1}))
+        return path
+
+    def _capsule(self, path, name):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"publicNames": [name], "capsule": {"startLine": 1}}))
+
+    def _symbols(self, fifo):
+        outcome = run_unblocking(self, lambda: self.proxy.registry_symbols(self.ws, ""), fifo)
+        self.assertNotIn("error", outcome)
+        return {symbol["name"] for symbol in outcome["value"]}
+
+    def test_registry_symbols_ignore_planted_fifo_and_links(self):
+        good, linked = "1" * 64, "2" * 64
+        self._marker("m-good.json", good, "a" * 64)
+        self._capsule(self.root / "cache" / "meta" / f"{good}.json", "Good.name")
+        outside = self.root.parent / "outside"
+        outside.mkdir()
+        self._marker("m-linked.json", linked, "b" * 64, outside)
+        self._capsule(self.root / "cache" / "meta" / f"{linked}.json", "Linked.name")
+        (self.root / "cache" / "p3" / "records" / "m-link.json").symlink_to(outside / "m-linked.json")
+        fifo = self.root / "cache" / "p3" / "records" / "m-fifo.json"
+        os.mkfifo(fifo)
+        self.assertEqual(self._symbols(fifo), {"Good.name"})
+
+    def test_registry_symbols_do_not_follow_marker_paths_out_of_store(self):
+        self._marker("m-escape.json", "../../outside/capsule", "c" * 64)
+        self._capsule(self.root / "outside" / "capsule.json", "Leaked.name")
+        self.assertEqual(self._symbols(self.root / "unused-fifo"), set())
+
+    def _source(self, path, fifo):
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        self.proxy.send = send
+        message = {"jsonrpc": "2.0", "id": 1, "method": "paralean/source",
+                   "params": {"uri": path.as_uri()}}
+        outcome = run_unblocking(self, lambda: asyncio.run(self.proxy.dispatch(message)), fifo)
+        self.assertNotIn("error", outcome)
+        self.assertEqual(len(sent), 1)
+        return sent[0]
+
+    def test_source_request_does_not_block_on_planted_fifo(self):
+        (self.root / "work" / "A.lean").write_text("def A := 1\n")
+        self.assertEqual(self._source(self.root / "work" / "A.lean", self.root / "unused")["result"]["text"],
+                         "def A := 1\n")
+        fifo = self.root / "work" / "F.lean"
+        os.mkfifo(fifo)
+        reply = self._source(fifo, fifo)
+        self.assertEqual(reply.get("error", {}).get("message"), "Source unavailable")
+
+    def test_environment_digest_does_not_block_on_planted_fifo(self):
+        fifo = self.root / "trust.json"
+        os.mkfifo(fifo)
+        self.ws.env_overrides["PARALEAN_TRUST"] = str(fifo)
+        outcome = run_unblocking(self, self.ws.environment_digest, fifo)
+        self.assertIsInstance(outcome.get("value"), str)
+
+    def test_worker_files_reject_sparse_oversized_contents(self):
+        for path in (self.root / "cache" / "p3" / "records" / "m-big.json",
+                     self.root / "cache" / "records" / "big.json", self.root / "work" / "Big.lean"):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "wb") as handle:
+                handle.truncate(4 * 1024 * 1024 * 1024)
+        self.assertEqual(self._symbols(self.root / "unused"), set())
+        self.assertIsInstance(self.ws.environment_digest(), str)
+        self.ws.refresh_environment()
+        reply = self._source(self.root / "work" / "Big.lean", self.root / "unused")
+        self.assertEqual(reply.get("error", {}).get("message"), "Source unavailable")
 
 
 class ProvisionTests(unittest.TestCase):

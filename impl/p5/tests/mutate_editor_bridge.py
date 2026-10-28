@@ -38,8 +38,32 @@ CASES = [
      "test_agent_key_revocation_changes_policy_and_refuses_publication"),
     ("precommit_policy", "self._assert_store_policy(ws)", "pass",
      "test_live_policy_change_after_validation_aborts_commit"),
-    ("precommit_disk", "if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != stamp[\"source_sha256\"]:",
+    ("precommit_disk", "if current is None or hashlib.sha256(current).hexdigest() != stamp[\"source_sha256\"]:",
      "if False:", "test_external_source_edit_after_validation_aborts_commit"),
+    # W5 editor path: worker-controlled files, capture replies and source paths.
+    ("publish_write_no_follow",
+     '            _replace_beneath(ws.root, relative, ws.open_documents[uri]["text"].encode())',
+     '            (ws.root / relative).resolve().write_text(ws.open_documents[uri]["text"])',
+     "test_publish_replaces_planted_source_links_without_writing_through"),
+    ("capture_reply_limit", "start_new_session=True,\n                limit=self.capture_reply_limit)",
+     "start_new_session=True)", "test_large_and_overlimit_capture_replies"),
+    ("capture_overlimit_stop",
+     "            # asyncio discards an over-limit partial line; the stream is unframed.\n"
+     "            await self._stop_worker(key)",
+     "            # asyncio discards an over-limit partial line; the stream is unframed.\n"
+     "            pass", "test_large_and_overlimit_capture_replies"),
+    ("capture_reply_object", "if not isinstance(result, dict):", "if False:",
+     "test_malformed_capture_reply_stops_worker"),
+    ("capture_package_objects",
+     '\n                or any(not isinstance(package, dict) for package in capture["packages"])', "",
+     "test_malformed_capture_reply_stops_worker"),
+    ("source_path_rule", "return check_file_path(source.relative_to(work).as_posix()), state",
+     "return source.relative_to(work).as_posix(), state",
+     "test_source_path_rule_matches_p2_check_file_path"),
+    ("probe_marker_bounded_read",
+     'marker = json.loads(_read_beneath(cache, "p3/records/" + path.name, MAX_MARKER_JSON))',
+     "marker = json.loads(path.read_text())",
+     "test_policy_probe_reads_markers_without_following_worker_links"),
     ("capture_rejected", "if capture.get(\"rejected\") or capture.get(\"rejectedPids\"):",
      "if False:", "test_capture_worker_is_private_and_restarts_on_generation_change"),
     ("capture_worker_stamp", "if any(result.get(k) != stamp[k] for k in (\"file\", \"version\", \"environment\", \"generation\")):",
@@ -125,6 +149,26 @@ def main() -> int:
              '        if bound is not None and any(overrides.get(key) != value for key, value in bound.items()):',
              '        if False:', tests.ProvisionTests,
              "test_workspace_env_reload_cannot_replace_bound_p5_settings"),
+            ("router_frame_header_budget", "        if header_bytes > MAX_LSP_HEADER_BYTES:",
+             "        if False:", tests.RouterBoundsTests, "test_lsp_frame_header_budget"),
+            ("router_frame_strict_length",
+             "if length is not None or not value.isdigit() or len(value) > 10:", "if False:",
+             tests.RouterBoundsTests, "test_lsp_frame_content_length_is_single_decimal"),
+            ("router_store_bounded_read",
+             "                return json.loads(read_beneath(store, relative, MAX_WORKER_FILE))",
+             "                return json.loads((store / relative).read_text())",
+             tests.RouterBoundsTests, "test_registry_symbols_ignore_planted_fifo_and_links"),
+            ("router_store_contained_read",
+             "                return json.loads(read_beneath(store, relative, MAX_WORKER_FILE))",
+             "                return json.loads((store / relative).read_text())",
+             tests.RouterBoundsTests, "test_registry_symbols_do_not_follow_marker_paths_out_of_store"),
+            ("router_source_bounded_read",
+             "source = read_beneath(ws.root, path.relative_to(ws.root).as_posix(), MAX_WORKER_FILE).decode()",
+             "source = path.read_text()",
+             tests.RouterBoundsTests, "test_source_request_does_not_block_on_planted_fifo"),
+            ("router_environment_bounded_read",
+             "read_regular(path, MAX_ENVIRONMENT_FILE, follow_symlinks=True)", "path.read_bytes()",
+             tests.RouterBoundsTests, "test_environment_digest_does_not_block_on_planted_fifo"),
         ]
         for index, (name, needle, replacement, test_class, method) in enumerate(router_cases):
             if ROUTER_SOURCE.count(needle) != 1:
@@ -137,6 +181,7 @@ def main() -> int:
             spec.loader.exec_module(module)
             tests.RouterProxy = module.Proxy
             tests.RouterWorkspace = module.Workspace
+            tests.router_read_message = module.read_message
             suite = unittest.TestSuite([test_class(method)])
             with open(Path(tmp) / f"{name}.log", "w") as stream:
                 result = unittest.TextTestRunner(stream=stream).run(suite)
@@ -145,6 +190,7 @@ def main() -> int:
             print(f"detected {name} by {method}")
         tests.RouterProxy = __import__("lsp").Proxy
         tests.RouterWorkspace = __import__("lsp").Workspace
+        tests.router_read_message = __import__("lsp").read_message
         name = "ssh_ownership_marker"
         needle = 'f"if test -e {shlex.quote(root)}; then "'
         if PROVISION_SOURCE.count(needle) != 1:
@@ -205,7 +251,7 @@ def main() -> int:
             raise AssertionError(f"guard anchor changed: {name}")
         path = Path(tmp) / "mutant_backend_trust.py"
         path.write_text(BACKEND_SOURCE.replace(needle, "if trust_dest.is_file():", 1))
-        spec = importlib.util.spec_from_file_location("mutant_backend_trust", path)
+        spec = importlib.util.spec_from_file_location("p5lib.mutant_backend_trust", path)
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

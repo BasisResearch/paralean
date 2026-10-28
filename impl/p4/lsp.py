@@ -94,11 +94,6 @@ def read_beneath(root, relative, limit):
         os.close(fd)
 
 
-def is_hex_id(value):
-    """64 lowercase hexadecimal digits (p3 ``is_hex_id``, Lean ``Safety.isHexId``)."""
-    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
-
-
 def file_uri(path):
     return pathlib.Path(path).as_uri()
 
@@ -596,9 +591,9 @@ class Proxy:
         entries = []
         for marker in live:
             pid = marker.get("pid")
-            capsule = read_json(f"meta/{pid}.json") if is_hex_id(pid) else None
-            if not isinstance(capsule, dict) and is_hex_id(marker.get("capsule")):
-                capsule = read_json(f"p3/capsules/{marker['capsule']}.json")
+            capsule = read_json(f"meta/{pid}.json") if pid else None
+            if not isinstance(capsule, dict):
+                capsule = read_json(f"p3/capsules/{marker.get('capsule')}.json")
             if not isinstance(capsule, dict):
                 continue
             for original in capsule.get("publicNames", []):
