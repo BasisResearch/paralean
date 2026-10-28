@@ -1,0 +1,30 @@
+baseline  add_shard_takes_buckets_and_remove_shard_retires passes
+baseline  compacted_work_and_poll_tokens_resolve_across_shards passes
+baseline  dynamic_pending_jobs_protect_their_objects passes
+baseline  inflight_validation_is_drained_before_export passes
+baseline  move_preserves_every_job_exactly_once passes
+baseline  second_import_does_not_resurrect_work passes
+baseline  snapshot_saves_compare_the_loaded_generation passes
+baseline  stale_leader_export_is_fenced_by_lease passes
+baseline  stale_source_cannot_write_moved_buckets passes
+detected  mutate-shard-export-keeps-source  by w4r_shards::move_preserves_every_job_exactly_once  (duplicated across shards: [("job/0/0", 2), ("job/0/1", 2), ("job/0/2", 2), ("job/1/0", 2), ("job/1/1", 2), ("job/1/2", 2), ("job/2/0", 2), ()
+detected  mutate-shard-issue-job-no-gc-refs  by w4r_shards::dynamic_pending_jobs_protect_their_objects  (a pending dynamic-shard job's group was doomed: Some(Doomed { clock: 2, size: 54 }))
+detected  mutate-shard-flip-without-handoff  by w4r_shards::move_preserves_every_job_exactly_once  (lost by the move: ["job/0/0", "job/0/1", "job/0/2", "job/1/0", "job/1/1", "job/1/2", "job/2/0", "job/2/1", "job/2/2", "job/3/0", "job/3/1", )
+detected  mutate-shard-dest-serves-moving  by w4r_shards::move_preserves_every_job_exactly_once  (assertion `left == right` failed)
+detected  mutate-shard-import-no-state-check  by w4r_shards::second_import_does_not_resurrect_work  (second import resurrected work)
+detected  mutate-shard-no-fence-reserve  by w4r_shards::stale_source_cannot_write_moved_buckets  (work route during move)
+detected  mutate-shard-no-fence-assign  by w4r_shards::stale_source_cannot_write_moved_buckets  (T4 claim during move)
+detected  mutate-shard-no-fence-issue-job  by w4r_shards::stale_source_cannot_write_moved_buckets  (J1 during move)
+detected  mutate-shard-no-fence-receipt  by w4r_shards::stale_source_cannot_write_moved_buckets  (stale J2)
+detected  mutate-shard-no-fence-recovery  by w4r_shards::stale_source_cannot_write_moved_buckets  (stale recovery dispatch)
+detected  mutate-shard-no-drain  by w4r_shards::inflight_validation_is_drained_before_export  (assertion `left == right` failed: exported with a validation in flight)
+detected  mutate-shard-export-no-lease  by w4r_shards::stale_leader_export_is_fenced_by_lease  (stale leader exported: Ok(Committed))
+detected  mutate-shard-save-no-cas  by w4r_shards::snapshot_saves_compare_the_loaded_generation  (stale generation replaced the head)
+detected  mutate-shard-remove-owning  by w4r_shards::add_shard_takes_buckets_and_remove_shard_retires  (removed a shard owning buckets)
+detected  mutate-shard-retired-lease-live  by w4r_shards::add_shard_takes_buckets_and_remove_shard_retires  (retired leader wrote its snapshot)
+detected  mutate-shard-no-cross-replay  by w4r_shards::compacted_work_and_poll_tokens_resolve_across_shards  (assertion `left == right` failed)
+detected  mutate-shard-no-poll-rows  by w4r_shards::compacted_work_and_poll_tokens_resolve_across_shards  (assertion `left == right` failed: moved job's poll token lost its first answer)
+
+real	2m22.895s
+user	3m46.733s
+sys	0m34.071s

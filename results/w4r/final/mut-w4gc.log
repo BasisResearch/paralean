@@ -1,0 +1,10 @@
+detected  mutate-gc-no-head-check
+detected  mutate-gc-no-retention-check
+detected  mutate-gc-no-grace-check
+detected  mutate-gc-no-opt-in-check
+detected  mutate-gc-no-candidate-check
+detected  mutate-gc-modulo-schedule
+
+real	0m40.098s
+user	0m55.349s
+sys	0m9.336s
