@@ -1,0 +1,16 @@
+source_no_follow: PASS
+key_plaintext_match: PASS
+runtime_secret_filter: PASS
+publish_receipt_private_dir: PASS
+publish_plan_private_dir: PASS
+worker_log_replace_links: PASS
+recovery_secret_reuse: PASS
+recovery_secret_private_file: PASS
+legacy_key_bundle_refusal: PASS
+legacy_key_bundle_commit: PASS
+child_env_credential_patterns: PASS
+worker_env_filter: PASS
+export_recorded_head: PASS
+snapshot_file_path: PASS
+assign_statement_pin: PASS
+/data/home/kirancodes/Documents/code/paralean-w2-security/results/w2/p5-security-mutations.json

@@ -57,6 +57,8 @@ mutate-unscoped-validator-slots = []
 mutate-unscoped-job-keys = ["paralean-store/mutate-unscoped-job-keys"]
 # W2-41: the controller binary leaves snapshot/history GC off unless --gc.
 mutate-gc-off-by-default = []
+# W2-55: the bwrap root tmpfs stays writable.
+mutate-writable-sandbox-root = []
 mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-role-keys-unchecked = []

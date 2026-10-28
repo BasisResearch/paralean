@@ -1,10 +1,10 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.93s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.86s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-c1d3100c4008191c)
 
 running 1 test
 
-thread '<unnamed>' (774956) panicked at crates/store/tests/strict_signatures.rs:71:13:
+thread '<unnamed>' (3467479) panicked at crates/store/tests/strict_signatures.rs:71:13:
 small_order_A_0: Ok(PublishOutcome { marker: e9c980f50e88, fresh: true })
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test t1_publication_strict_receipt_signature_vectors ... FAILED

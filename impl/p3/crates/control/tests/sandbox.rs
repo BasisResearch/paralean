@@ -25,7 +25,9 @@ fn script(root: &Path, name: &str, body: &str) -> PathBuf {
 }
 
 fn tmp(tag: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!("paralean-sandbox-{tag}-{}-{}", std::process::id(), rand::random::<u64>()));
+    // Outside /tmp (the sandbox's own tmpfs), so a host path the checker should not be able
+    // to create is not hidden by it whatever TMPDIR is.
+    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("paralean-sandbox-{tag}-{}-{}", std::process::id(), rand::random::<u64>()));
     std::fs::create_dir_all(&root).unwrap();
     root
 }
@@ -174,14 +176,20 @@ async fn checker_memory_cgroup_hard_limit_kills_fast_burst() {
     // CHECK. The whole process lives well under a poll interval's worth of resident memory.
     let s = script(&root, "burst.py", "#!/usr/bin/env python3\nimport json, ctypes, mmap\nn = 96 << 20\nbuf = mmap.mmap(-1, n)\nctypes.memset((ctypes.c_char * n).from_buffer(buf), 1, n)\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n");
     let cfg = CheckerConfig { default_memory_mb: 64, ..CheckerConfig::sandboxed(s, "test") };
-    // The cgroup kills every burst. The 50 ms RSS poll catches one only when a tick lands
-    // in its few milliseconds (more often on a loaded host, where the burst is slower), so
-    // twenty in a row distinguish the two layers.
-    for attempt in 0..20 {
+    // Every burst must be stopped. The cgroup's hard limit usually acts first, but the
+    // 50 ms resident-set poll sums the group's RSS (shared pages included), so it can see
+    // the limit crossed first. Without the cgroup no kill is the cgroup's, so requiring at
+    // least one cgroup kill tells the layers apart whatever the host load.
+    let mut by_cgroup = 0;
+    for attempt in 0..10 {
         let (_tx, cancel) = watch::channel(false);
         let result = checker::run(&cfg, &root, &["fixture".into()], "fixture", &[], Duration::from_secs(10), 64, cancel).await;
-        assert!(matches!(result, Err(NoVerdict::Memory { .. })), "fast burst {attempt} escaped the cgroup: {result:?}");
+        match result {
+            Err(NoVerdict::Memory { cgroup, .. }) => by_cgroup += usize::from(cgroup),
+            other => panic!("fast burst {attempt} escaped the memory limit: {other:?}"),
+        }
     }
+    assert!(by_cgroup > 0, "no fast burst was stopped by the cgroup's hard limit");
     std::fs::remove_dir_all(&root).unwrap();
 }
 

@@ -1,0 +1,22 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.18s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-838317a6897a750e)
+
+running 1 test
+test server::tests::one_source_cannot_hold_every_handshake_slot ... FAILED
+
+failures:
+
+---- server::tests::one_source_cannot_hold_every_handshake_slot stdout ----
+
+thread 'server::tests::one_source_cannot_hold_every_handshake_slot' (3440216) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/server.rs:313:9:
+a source exceeded its handshake cap: Ok(Ok(Challenge { nonce: [187, 10, 218, 166, 165, 252, 33, 121, 244, 64, 117, 249, 13, 29, 122, 9, 168, 95, 40, 211, 84, 119, 50, 139, 78, 77, 39, 214, 157, 96, 95, 162], signature: [6, 25, 111, 216, 252, 237, 113, 22, 215, 77, 55, 201, 165, 153, 108, 4, 249, 239, 183, 135, 69, 175, 93, 58, 48, 109, 224, 133, 50, 20, 7, 149, 179, 117, 30, 154, 213, 216, 239, 203, 94, 75, 236, 1, 192, 43, 241, 85, 100, 39, 77, 123, 227, 124, 232, 249, 132, 247, 123, 44, 201, 66, 0, 13] }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server::tests::one_source_cannot_hold_every_handshake_slot
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

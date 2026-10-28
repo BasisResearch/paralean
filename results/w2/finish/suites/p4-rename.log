@@ -1,0 +1,23 @@
+.........................
+----------------------------------------------------------------------
+Ran 25 tests in 0.061s
+
+OK
+KILLED standard multi-workspace refusal
+KILLED complete inventory
+KILLED uncertified source coverage
+KILLED captured source digest
+KILLED final environment stamp
+KILLED postprobe final generation
+KILLED authoritative policy before commit
+KILLED definition member
+KILLED same definition across workers
+KILLED rename plan covers anchor
+KILLED origin anchor identity
+KILLED cancel before commit
+KILLED all affected documents planned
+KILLED worker agreement
+KILLED all-buffer commit
+KILLED worker edit version
+KILLED unambiguous worker plan
+KILLED nonoverlapping worker edits

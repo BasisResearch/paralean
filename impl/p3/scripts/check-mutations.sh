@@ -37,6 +37,7 @@ cases=(
   "mutate-checker-config-unsandboxed|sandbox|production_config_enables_the_sandbox"
   "mutate-checker-fallback-unsandboxed|sandbox|sandbox_fails_closed_when_bwrap_is_missing"
   "mutate-checker-seccomp-allows-io-uring|sandbox|checker_io_uring_is_blocked"
+  "mutate-writable-sandbox-root|sandbox|checker_cannot_read_secrets_write_outside_or_use_network"
   "mutate-unbounded-checker-output|checker_protocol|cold_output_flood_cannot_fill_validator_memory"
   "mutate-drop-invalid-axiom|checker_protocol|cold_malformed_axiom_cannot_be_silently_dropped"
   "mutate-unbounded-completed-slots|lib|validator::completed_tests::completed_receipt_cache_is_bounded"

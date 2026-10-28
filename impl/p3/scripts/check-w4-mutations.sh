@@ -21,7 +21,7 @@ for case in "${cases[@]}"; do
   IFS='|' read -r feature name test <<<"$case"
   test="${test:-durable}"
   output="$(cargo test -q -j1 -p paralean-control --features "$feature" --test "$test" -- --exact "$name" 2>&1)"
-  if rg -q 'assertion failed|assertion `left == right` failed' <<<"$output" && rg -q "${name} --- FAILED|test\s+${name}\s+\.\.\. FAILED" <<<"$output"; then
+  if rg -q 'assertion failed|assertion `left == right` failed' <<<"$output" && rg -q "${name} --- FAILED|test\s+${name}\s+\.\.\. FAILED|^---- ${name} ----$" <<<"$output"; then
     echo "detected  $feature  by $test::$name"
   else
     echo "SURVIVED  $feature  $test::$name"

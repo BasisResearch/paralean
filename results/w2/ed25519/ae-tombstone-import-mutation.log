@@ -1,10 +1,10 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.49s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.74s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-32cdc5aba821d530)
 
 running 1 test
 
-thread '<unnamed>' (781368) panicked at crates/store/tests/strict_signatures.rs:41:13:
+thread '<unnamed>' (3468075) panicked at crates/store/tests/strict_signatures.rs:41:13:
 small_order_A_0: Deferred("tombstone copy not acknowledged here")
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test antientropy_import_strict_signature_vectors ... FAILED

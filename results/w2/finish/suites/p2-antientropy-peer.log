@@ -1,0 +1,69 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.31s
+     Running tests/network.rs (target/debug/deps/network-52c563e62d1edadc)
+
+running 21 tests
+test pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle              ... ok
+test pinned_federation_rejects_changed_roster_and_wrong_peer_key                    ... ok
+test server_rejects_a_stale_generation_before_serving_changes                       ... ok
+anti-entropy t-net-scheduled-0-3562361-751513658-9: RoundStats { received_events: 0, received_parts: 0, fetched_objects: 0, applied: 0, present: 0, deferred: 0, terminal: 0 }
+anti-entropy t-net-huge-refs-0-3562361-764795326-45 event 4201: over the per-event caps; archived
+test oversized_declared_objects_are_terminal_before_fetch                           ... ok
+anti-entropy t-net-invalid-receipt-0-3562361-751856343-21: retryable event failure: t-net-invalid-receipt-0-3562361-751856343-21: decode: unexpected end of input
+test federated_import_rejects_a_cancelled_local_request                             ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-marker-layout-1-3562361-751874798-25 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d312d333536323336312d3735313837343739382d3235000261656c6f67003300000003dd1dba5700000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 remote=c7a832cacf881b307f58ca78af572b0a491a3c7c77794a415858dd8a6a6e7d1b differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+anti-entropy t-net-scheduled-0-3562361-751513658-9: RoundStats { received_events: 1, received_parts: 8, fetched_objects: 3, applied: 1, present: 0, deferred: 0, terminal: 0 }
+test malformed_source_receipt_cannot_be_imported_and_repair_allows_retry            ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-source-cap-0-3562361-764803527-51: retryable event failure: anti-entropy source t-net-source-cap-0-3562361-764803527-51 has 32 GiB of pending objects; retry after its events drain
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+test catalogue_guards_reject_forged_source_token_and_object_proofs                  ... ok
+test scheduled_pull_observes_publication_after_service_start_and_stops_cleanly      ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+test catalogue_child_waits_for_parent_and_ignores_receiver_fence                    ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+test restarted_puller_resumes_a_persisted_metadata_fragment_cursor                  ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+test chunked_group_fetches_deduplicated_chunk_and_retries_missing_source            ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-source-cap-0-3562361-764803527-51: retryable event failure: anti-entropy source t-net-source-cap-0-3562361-764803527-51 has 32 GiB of pending objects; retry after its events drain
+test declared_objects_are_bounded_per_source                                        ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+test target_home_publication_reaches_third_deployment_without_local_target_key      ... ok
+anti-entropy t-net-cursor-0-3562361-751908099-30: retryable event failure: t-net-cursor-0-3562361-751908099-30: missing anti-entropy payload: 9c85868fe2f3deeb7bd71b2515ec968aaf8c592c821f7e5bc443c9047666648b
+anti-entropy t-net-marker-layout-0-3562361-751871261-24 event 02706172616c65616e0002742d6e65742d6d61726b65722d6c61796f75742d302d333536323336312d3735313837313236312d3234000261656c6f67003300000003dd1c324600000000: Rejected("MarkerConflict group=3c3c581ff1ac5e10c7e458162763d3ba353e2a45d7bdfdc1734000f143e6f24b local=c7a832cacf881b307f58ca78af572b0a491a3c7c77794a415858dd8a6a6e7d1b remote=a3f2f9581fe8c4e7f3f689b5e0826c78ffd1a6d83dafb330bc5eae0cf6773eb1 differing_fields=lamport,author,root_path,receipt; immutable Workspaces layout/revision content")
+test three_deployment_group_and_tombstone_relay_preserves_origin_evidence           ... ok
+test lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards ... ok
+test bounded_pages_and_restart_replay_deferred_missing_object                       ... ok
+test catalogue_relay_retains_the_original_source_and_commit_proof                   ... ok
+test simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge             ... ok
+anti-entropy t-net-endless-parts-0-3562361-764796586-46 event 4201: over the per-event caps; archived
+test endless_event_parts_are_capped_and_archived                                    ... ok
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite       ... ok
+test receipt_only_marker_variants_converge_and_keep_both_certificates               ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.17s
+
+     Running tests/antientropy.rs (target/debug/deps/antientropy-e432148a12818299)
+
+running 13 tests
+test foreign_target_names_and_certificate_copies_refused    ... ok
+test marker_conflict_is_reported_not_overwritten            ... ok
+test received_group_waits_for_job_dependencies_here         ... ok
+test cancelled_request_is_not_received_by_its_issuer        ... ok
+test group_without_a_valid_author_certificate_is_rejected   ... ok
+test received_groups_need_a_receipt_valid_here              ... ok
+test deferred_until_dependencies_arrive                     ... ok
+test receiver_rejects_corrupt_forged_and_untrusted          ... ok
+test moved_position_and_tombstone_converge_between_replicas ... ok
+test corrupt_payloads_at_rest_are_repaired_or_wait          ... ok
+test receive_faults_resolve                                 ... ok
+converged after 4 rounds; file Shared.lean: [ef7331cd00fd, 40016ed2c914, ee90f3d89193]
+test sync_converges_between_two_clusters                    ... ok
+test any_exchange_order_converges_to_the_union              ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 102.16s
+

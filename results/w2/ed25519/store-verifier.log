@@ -1,5 +1,5 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.72s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-2f9e3c449e70ad60)
 
 running 1 test

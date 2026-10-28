@@ -440,8 +440,10 @@ async fn oversized_poll_token_does_not_block_small_history_replay() {
     let (worker, _) = c.keys.workspace("w0").unwrap();
     assert!(matches!(c.ctl.handle(ControlRequest::Register { worker: worker.hex(), capacity_mb: 128 }).await,
         ControlResponse::Registered { .. }));
+    // W2-33 bounds poll tokens at 256 bytes, so an unwritable replay row is refused at
+    // the door; small history replay must still proceed.
     let huge_token = format!("hist/huge/{}", "x".repeat(92 * 1024));
-    assert_eq!(c.ctl.handle(poll(worker, &huge_token)).await, ControlResponse::NoWork);
+    assert!(matches!(c.ctl.handle(poll(worker, &huge_token)).await, ControlResponse::Refused { .. }));
     assert_eq!(c.ctl.handle(submit("hist/small", "History.Small", 1)).await, ControlResponse::Queued);
     assert_eq!(c.ctl.handle(ControlRequest::Cancel { request: "hist/small".into(), worker: String::new() }).await,
         ControlResponse::Cancelled);
@@ -455,7 +457,7 @@ async fn oversized_poll_token_does_not_block_small_history_replay() {
     assert!(c.clock.poll_replay(&huge_token).await.unwrap().is_none());
     let current = head(&c.store, 0).await;
     let state: serde_json::Value = serde_json::from_slice(&snapshot_bytes(&c.store, 0, &current).await).unwrap();
-    assert!(state["poll_responses"].get(&huge_token).is_some(), "oversized token was lost");
+    assert!(state["poll_responses"].get(&huge_token).is_none(), "a refused token was stored");
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]

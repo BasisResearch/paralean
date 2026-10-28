@@ -214,6 +214,10 @@ fn checker_command(cfg: &CheckerConfig, store: &Path, bin: &Path, memory_mb: u64
         if !path.is_absolute() { return Err(NoVerdict::Crashed("sandbox mount is relative".into())); }
         cmd.arg("--ro-bind").arg(&path).arg(&path);
     }
+    // The sandbox root is bwrap's own tmpfs, which holds the directories it creates for
+    // the bind targets above (such as the checker's own directory). Make it read-only, so
+    // the only writable places are the size-capped /tmp and /work (W2-55).
+    if !cfg!(feature = "mutate-writable-sandbox-root") { cmd.args(["--remount-ro", "/"]); }
     let path = format!("{}/bin:/usr/bin:/bin", prefix.display());
     cmd.args(["--setenv", "PATH", &path, "--setenv", "HOME", "/tmp", "--setenv", "TMPDIR", "/tmp",
         "--setenv", "PARALEAN_SYSROOT", prefix.to_str().unwrap(), "--setenv", "PARALEAN_LAKE", prefix.join("bin/lake").to_str().unwrap()]);
@@ -532,7 +536,7 @@ impl WarmPool {
                     peak_kb = peak_kb.max(rss);
                     self.peak_rss_kb.fetch_max(rss, std::sync::atomic::Ordering::Relaxed);
                     if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > memory_mb.max(1).saturating_mul(1024) {
-                        break Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 });
+                        break Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024, cgroup: false });
                     }
                 },
                 r = cancel.changed() => if r.is_err() || *cancel.borrow() { break Err(NoVerdict::Cancelled); }
@@ -549,7 +553,7 @@ impl WarmPool {
         let _ = proc.child.wait().await;
         match proc.scope.take() {
             Some(unit) if scope_oom_killed(&unit) && result.is_err() && !matches!(result, Err(NoVerdict::Cancelled)) =>
-                Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024 }),
+                Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024, cgroup: true }),
             _ => result,
         }
     }
@@ -559,7 +563,8 @@ impl WarmPool {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NoVerdict {
     Timeout,
-    Memory { limit_mb: u64, peak_mb: u64 },
+    /// `cgroup`: the scope's hard limit killed it (otherwise the resident-set poll did).
+    Memory { limit_mb: u64, peak_mb: u64, cgroup: bool },
     Cancelled,
     Output,
     Crashed(String),
@@ -569,7 +574,7 @@ impl std::fmt::Display for NoVerdict {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NoVerdict::Timeout => write!(f, "deadline passed"),
-            NoVerdict::Memory { limit_mb, peak_mb } => write!(f, "memory limit {limit_mb} MiB exceeded ({peak_mb} MiB resident)"),
+            NoVerdict::Memory { limit_mb, peak_mb, .. } => write!(f, "memory limit {limit_mb} MiB exceeded ({peak_mb} MiB resident)"),
             NoVerdict::Cancelled => write!(f, "cancelled"),
             NoVerdict::Output => write!(f, "checker output limit exceeded"),
             NoVerdict::Crashed(s) => write!(f, "checker crashed: {s}"),
@@ -641,7 +646,7 @@ pub async fn run(
                         // that exited successfully was never OOM-killed.
                         if scope_oom_killed(unit) {
                             kill_group(pgid);
-                            return Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024 });
+                            return Err(NoVerdict::Memory { limit_mb: memory_mb, peak_mb: peak_kb / 1024, cgroup: true });
                         }
                     }
                 }
@@ -676,7 +681,7 @@ pub async fn run(
                 let rss = group_rss_kb(pgid);
                 peak_kb = peak_kb.max(rss);
                 if !cfg!(feature = "mutate-no-checker-memory-limit") && rss > limit_kb {
-                    break NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024 };
+                    break NoVerdict::Memory { limit_mb: memory_mb, peak_mb: rss / 1024, cgroup: false };
                 }
             }
             r = cancel.changed() => {

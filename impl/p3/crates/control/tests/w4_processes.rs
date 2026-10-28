@@ -60,7 +60,9 @@ int clock_gettime(clockid_t id, struct timespec *ts) {
     let dep = deployment("w4-skew-process");
     let keys = KeyFile::demo(2);
     let keypath = dir.join("keys.json");
-    std::fs::write(&keypath, serde_json::to_vec(&keys).unwrap()).unwrap();
+    // W2-37: a controller process refuses a key file holding other roles' seeds.
+    paralean_control::keys::export(&keys, paralean_control::keys::Role::Controller, None).unwrap()
+        .write_private(&keypath).unwrap();
     let authority = keys.authority_signer().unwrap();
     let store = Store::open(&StoreConfig::from_env(&dep).unwrap(), keys.ring(), Faults::none()).unwrap();
     let ports: Vec<_> = (0..3).map(|_| std::net::TcpListener::bind("127.0.0.1:0").unwrap()).collect();

@@ -1,10 +1,10 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.39s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.98s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-736c212addde59dc)
 
 running 1 test
 
-thread '<unnamed>' (813391) panicked at crates/store/tests/strict_signatures.rs:145:9:
+thread '<unnamed>' (3497989) panicked at crates/store/tests/strict_signatures.rs:145:9:
 assertion `left == right` failed: verify: small_order_A_0
   left: true
  right: false

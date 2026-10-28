@@ -1,0 +1,24 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.61s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-86cf37e15e4342bd)
+
+running 1 test
+
+thread '<unnamed>' (3460886) panicked at crates/ae-service/tests/network.rs:1547:5:
+38654705664 bytes of references staged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test declared_objects_are_bounded_per_source ... FAILED
+
+failures:
+
+---- declared_objects_are_bounded_per_source ----
+test panicked: 38654705664 bytes of references staged
+
+
+failures:
+    declared_objects_are_bounded_per_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 1.25s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

@@ -1,0 +1,38 @@
+point-encoding: strict regression passed; mutate-noncanonical-point detected by point_encoding_is_canonical
+store-verifier: strict regression passed; mutate-weak-signature detected by store_strict_signature_vectors
+t1-receipt: strict regression passed; mutate-relaxed-receipt-sig detected by t1_publication_strict_receipt_signature_vectors
+ae-tombstone-import: strict regression passed; mutate-relaxed-import-sig detected by antientropy_import_strict_signature_vectors
+ae-group-import: strict regression passed; mutate-relaxed-import-sig detected by antientropy_group_import_strict_signature_vectors
+ae-transport: strict regression passed; mutate-weak-signature detected by tests::transport_strict_signature_vectors
+validator-envelope: strict regression passed; mutate-relaxed-envelope-sig detected by validator_envelope_strict_signature_vectors
+rpc-auth: strict regression passed; mutate-relaxed-rpc-sig detected by validator_rpc_strict_signature_vectors
+agent-key-grant: strict regression passed; mutate-relaxed-agent-grant-sig detected by agent_key_grant_strict_signature_vectors
+agent-key-revocation: strict regression passed; mutate-relaxed-agent-revocation-sig detected by agent_key_revocation_strict_signature_vectors
+controller-delete-grant: strict regression passed; mutate-relaxed-controller-delete-sig detected by controller_delete_grant_strict_signature_vectors
+sharded-controller-rpc: strict regression passed; paralean-validator-api/mutate-relaxed-rpc-sig detected by sharded_controller_rpc_strict_signature_vectors
+Rust Ed25519 path mutations: 12/12 detected
+varint_canonical: PASS
+varint_overflow: PASS
+target_authority: PASS
+target_exact_bytes: PASS
+cached_job_id: PASS
+cached_receipt_signature: PASS
+ed25519_small_order: PASS
+ed25519_scalar_range: PASS
+ed25519_canonical_y: PASS
+ed25519_negative_zero: PASS
+rel_path_dot_component: PASS
+marker_file_rule: PASS
+safe_join_symlink: PASS
+export_module_path: PASS
+capsule_module_matches_file: PASS
+meta_package_id: PASS
+meta_hex_id: PASS
+payload_varint_overflow: PASS
+payload_varint_canonical: PASS
+gate_command_allowlist: PASS
+gate_option_name: PASS
+consumer_gate_call: PASS
+validator_gate_call: PASS
+validator_initializer_refusal: PASS
+/data/home/kirancodes/Documents/code/paralean-w2-security/results/w2/p1-security-mutations.json

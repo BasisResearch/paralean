@@ -4,15 +4,19 @@
 running 1 test
 PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
 
-thread '<unnamed>' (781614) panicked at crates/store/tests/strict_signatures.rs:98:54:
-called `Result::unwrap()` on an `Err` value: Invalid("origin author certificate missing")
+thread '<unnamed>' (3468392) panicked at crates/store/tests/strict_signatures.rs:100:9:
+assertion `left == right` failed: small_order_A_0: Rejected("no certificate from the origin author's registered key")
+  left: true
+ right: false
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test antientropy_group_import_strict_signature_vectors ... FAILED
 
 failures:
 
 ---- antientropy_group_import_strict_signature_vectors ----
-test panicked: called `Result::unwrap()` on an `Err` value: Invalid("origin author certificate missing")
+test panicked: assertion `left == right` failed: small_order_A_0: Rejected("no certificate from the origin author's registered key")
+  left: true
+ right: false
 
 
 failures:

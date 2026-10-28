@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
      Running unittests src/lib.rs (impl/p2/target/debug/deps/ae_wire-e3655e2667096164)
 
 running 1 test
@@ -8,7 +8,7 @@ failures:
 
 ---- tests::transport_strict_signature_vectors stdout ----
 
-thread 'tests::transport_strict_signature_vectors' (781680) panicked at crates/ae-wire/src/lib.rs:503:13:
+thread 'tests::transport_strict_signature_vectors' (3468492) panicked at crates/ae-wire/src/lib.rs:503:13:
 assertion `left == right` failed: small_order_A_0
   left: true
  right: false

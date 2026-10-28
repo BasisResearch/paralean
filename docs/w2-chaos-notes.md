@@ -364,7 +364,29 @@ that such a gap closes the window. The historical crash happened during
 double disk-loss recovery; this investigation found no evidence that recovery
 was necessary rather than coincidental.
 
-**Remaining binaries.** The P3 controller/validator (`impl/p3/crates/control`),
-`p3-remote` and their FDB test suites also return from `main` without stopping
-FDB. They are fixed with the same pattern after the origin/main merge (see
-w2-log.md).
+**Remaining binaries.** After the origin/main merge, the P3 controller/validator
+(`paralean-p3`), `plr` and the P5 store bridge run their async `main` through
+`meta::run_main`, which drops the runtime and then stops and joins FDB, also on
+unwind. Every FDB test suite of P2 and P3 (including W3's `authority` and
+`positions`, W4's and the anti-entropy network suite) uses the explicit
+`libtest-mimic` main; each denies dead code, so a test left out of its list fails
+to compile, and `impl/p2/scripts/harnessify.py --check` finds a stray test
+attribute.
+
+## Seeded chaos on the merged tree (2026-10-28 UTC)
+
+Four FDB-scoped fixture gates ran on `w2c-chaos` (six fdbservers, triple
+redundancy, five coordinators, netsplit) after the merge, each with five fast
+rounds of `fixtures`, `guards`, `tombstones` and W3's `positions` and `authority`
+suites, then `faults` and an eight-case `property` run:
+
+| Seed | Suite summaries | Injected FDB faults |
+| --- | --- | ---: |
+| 22021 | 27/27 | 31 |
+| 77003 | 27/27 | 22 |
+| 99173 | 27/27 | 31 |
+| 4242 | 27/27 | 33 |
+
+Together **108/108** summaries under **117** faults, with no signalled test process.
+Each suite kept one test-binary identity across all four seeds. Raw logs are in
+`results/w2/finish/chaos-merged/`.

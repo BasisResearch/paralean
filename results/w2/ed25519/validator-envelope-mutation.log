@@ -1,12 +1,12 @@
    Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.18s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.84s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-01092eb2c8fbe606)
 
 running 1 test
 
-thread '<unnamed>' (811236) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:38:13:
+thread '<unnamed>' (3486839) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:38:13:
 assertion `left == right` failed: small_order_A_0
-  left: "envelope names checker b41e7fd9dc8b, this validator runs 91cc18079959"
+  left: "envelope names checker b41e7fd9dc8b, this validator runs dd8fe728ea2a"
  right: "envelope is not signed by the controller"
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test validator_envelope_strict_signature_vectors ... FAILED
@@ -15,13 +15,13 @@ failures:
 
 ---- validator_envelope_strict_signature_vectors ----
 test panicked: assertion `left == right` failed: small_order_A_0
-  left: "envelope names checker b41e7fd9dc8b, this validator runs 91cc18079959"
+  left: "envelope names checker b41e7fd9dc8b, this validator runs dd8fe728ea2a"
  right: "envelope is not signed by the controller"
 
 
 failures:
     validator_envelope_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 2.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1.87s
 
 error: test failed, to rerun pass `-p paralean-control --test strict_signatures`

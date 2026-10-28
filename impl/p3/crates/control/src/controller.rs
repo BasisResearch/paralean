@@ -202,6 +202,8 @@ pub const MAX_POLL_TOKENS_PER_WORKER: usize = 16;
 pub const MAX_FINISHED_WORK: usize = 1024;
 /// Replay-row bytes one save may spill (below `Durable`'s 256 KiB history write budget).
 const SPILL_BUDGET: usize = 200 * 1024;
+/// The largest replay row `Durable` writes (its `MAX_HISTORY_VALUE`).
+const SPILL_ROW_LIMIT: usize = 90 * 1024;
 
 pub struct ControlPlane {
     pub cfg: ControllerConfig,
@@ -371,9 +373,10 @@ impl State {
     }
 
     /// W2-33: keep the snapshot every operation loads and saves bounded, whatever request
-    /// IDs and poll tokens clients choose. A live worker keeps its newest
+    /// IDs and poll tokens clients choose. A worker keeps its newest
     /// `MAX_POLL_TOKENS_PER_WORKER` tokens (one poll is outstanding at a time, so a token
-    /// only has to outlive the retries of its own call) and a dead worker none; finished
+    /// only has to outlive the retries of its own call; workers are configured workspaces,
+    /// so this bounds all tokens, and a worker that re-registers keeps them); finished
     /// work beyond `MAX_FINISHED_WORK` goes oldest first, once no remaining token names
     /// it. Like W4 history compaction, an entry leaves the snapshot only as an immutable
     /// replay row that `save_with_history` commits with it, so a retry of a dropped token
@@ -381,18 +384,24 @@ impl State {
     /// bytes of rows move per save; the rest move on later saves.
     fn spill_over_caps(&mut self, budget: usize) -> (Vec<WorkReplay>, Vec<PollReplay>) {
         let (mut work_rows, mut poll_rows, mut bytes) = (Vec::new(), Vec::new(), 0usize);
-        let mut fits = |size: usize| if bytes + size <= budget { bytes += size; true } else { false };
+        // A row over FDB's value limit can never be written (W4 compaction skips it too):
+        // it stays in the snapshot rather than failing every save. Otherwise stop at the budget.
+        enum Fit { Yes, Skip, Full }
+        let mut fits = |size: usize| if size > SPILL_ROW_LIMIT { Fit::Skip }
+            else if bytes + size <= budget { bytes += size; Fit::Yes } else { Fit::Full };
         if !cfg!(feature = "mutate-unbounded-poll-responses") {
-            let alive: std::collections::BTreeSet<String> = self.workers.iter().filter(|(_, i)| i.alive).map(|(w, _)| w.hex()).collect();
             let mut by_worker: BTreeMap<String, Vec<(u64, String)>> = BTreeMap::new();
             for (t, p) in &self.poll_responses { by_worker.entry(p.worker.clone()).or_default().push((p.seq, t.clone())); }
-            for (worker, mut mine) in by_worker {
+            for (_, mut mine) in by_worker {
                 mine.sort();
-                let keep = if alive.contains(&worker) { MAX_POLL_TOKENS_PER_WORKER } else { 0 };
-                for (_, token) in &mine[..mine.len().saturating_sub(keep)] {
+                for (_, token) in &mine[..mine.len().saturating_sub(MAX_POLL_TOKENS_PER_WORKER)] {
                     let p = &self.poll_responses[token];
                     let row = PollReplay { token: token.clone(), worker: p.worker.clone(), work: p.work.clone(), epoch: p.epoch };
-                    if !fits(serde_json::to_vec(&row).map_or(usize::MAX, |v| v.len())) { break }
+                    match fits(serde_json::to_vec(&row).map_or(usize::MAX, |v| v.len())) {
+                        Fit::Yes => {}
+                        Fit::Skip => continue,
+                        Fit::Full => break,
+                    }
                     self.poll_responses.remove(token);
                     poll_rows.push(row);
                 }
@@ -413,7 +422,11 @@ impl State {
                 let Some(state) = terminal(j) else { continue };
                 if named.contains(r.as_str()) { continue }
                 let row = WorkReplay { request: r.clone(), target: j.target.to_string(), memory_mb: j.memory_mb, state };
-                if !fits(serde_json::to_vec(&row).map_or(usize::MAX, |v| v.len())) { break }
+                match fits(serde_json::to_vec(&row).map_or(usize::MAX, |v| v.len())) {
+                    Fit::Yes => {}
+                    Fit::Skip => continue,
+                    Fit::Full => break,
+                }
                 work_rows.push(row);
                 excess -= 1;
             }
@@ -1316,9 +1329,8 @@ impl ControlPlane {
             for d in &dead {
                 st.workers.get_mut(d).unwrap().alive = false;
             }
-            // A dead worker's poll tokens answer nothing any more (Poll needs a live lease).
-            let dead_hex: Vec<String> = dead.iter().map(WorkspaceId::hex).collect();
-            st.poll_responses.retain(|_, p| !dead_hex.contains(&p.worker));
+            // A dead worker's poll tokens stay: they leave the snapshot only through
+            // `spill_over_caps`, as replay rows (W4 history), never silently.
             let order = st.order.clone();
             for r in order {
                 let (target, mem, attempts, already_unowned) = {
@@ -1749,9 +1761,9 @@ mod snapshot_tests {
         assert_eq!(mine, MAX_POLL_TOKENS_PER_WORKER);
         assert!(st.poll_responses.contains_key("a/4999") && !st.poll_responses.contains_key("a/0"));
         assert!(st.poll_responses.contains_key("b/kept"), "another worker's token was evicted");
-        assert!(!st.poll_responses.contains_key("dead/0"), "a dead worker kept a token");
+        assert!(st.poll_responses.contains_key("dead/0"), "a worker's token within its bound was dropped");
         // Every dropped token left as a replay row (W4 history: a retry still resolves).
-        assert_eq!(polls.len(), 5000 - MAX_POLL_TOKENS_PER_WORKER + 1);
+        assert_eq!(polls.len(), 5000 - MAX_POLL_TOKENS_PER_WORKER);
         assert!(polls.iter().any(|p| p.token == "a/0" && p.worker == a.hex()));
         // Finished work beyond the bound goes, oldest first; queued and running work stays,
         // and so does finished work a remaining poll token names.
@@ -1782,6 +1794,20 @@ mod snapshot_tests {
         }
         spill_all(&mut st);
         assert!(snapshot_len(&st) <= bounded + 4096, "snapshot grew with poll tokens");
+    }
+
+    #[test]
+    fn rows_over_the_value_limit_stay_in_the_snapshot() {
+        let mut st = State::default();
+        for i in 0..MAX_FINISHED_WORK + 2 {
+            let r = format!("big/{i}");
+            let target = if i == 0 { "x".repeat(SPILL_ROW_LIMIT) } else { "T.ok".into() };
+            st.order.push(r.clone());
+            st.work.insert(r, WorkJob { target: Name::parse(&target), memory_mb: 1, state: WorkState::Done, attempts: 1, settled_tick: Some(1) });
+        }
+        let (work, _) = st.spill_over_caps(SPILL_BUDGET);
+        assert!(st.work.contains_key("big/0"), "an unwritable row left the snapshot");
+        assert_eq!(work.iter().map(|r| r.request.as_str()).collect::<Vec<_>>(), vec!["big/1", "big/2"]);
     }
 
     #[test]

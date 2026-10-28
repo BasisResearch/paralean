@@ -1,0 +1,22 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.41s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/paralean_p3-17d9ca741dcc6191)
+
+running 1 test
+test tests::controller_collects_unless_told_not_to ... FAILED
+
+failures:
+
+---- tests::controller_collects_unless_told_not_to stdout ----
+
+thread 'tests::controller_collects_unless_told_not_to' (3465526) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/main.rs:316:9:
+a default controller never reclaims retired snapshots
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::controller_collects_unless_told_not_to
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-control --bin paralean-p3`

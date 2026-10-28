@@ -1,0 +1,23 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.67s
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-e046601367ee1d64)
+
+running 1 test
+
+thread '<unnamed>' (3464420) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/durable.rs:318:5:
+Inconclusive { reason: "not controller shard" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test overlong_request_id_is_refused_before_shard_routing ... FAILED
+
+failures:
+
+---- overlong_request_id_is_refused_before_shard_routing ----
+test panicked: Inconclusive { reason: "not controller shard" }
+
+
+failures:
+    overlong_request_id_is_refused_before_shard_routing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p paralean-control --test durable`

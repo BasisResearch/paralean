@@ -1,5 +1,5 @@
    Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
      Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-4f8cc8cb6114a20a)
 
 running 1 test

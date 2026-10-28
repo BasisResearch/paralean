@@ -150,3 +150,101 @@ check durable effects and retry idempotent setup. The newly recovered evidence
 includes a 150-round pagination run with seed 77003 and 428 faults, plus six-worker
 stress and 12,000 faulted process exits without a reproduced crash. These are
 historical results, not new verification of this integrated revision.
+
+## Final summary (finish pass, 2026-10-28)
+
+Instances: P2 `w2c-chaos` (six fdbservers, triple, netsplit; ports 31400–31450) and its
+anti-entropy peer `w2c-peer` (31600–31650); P3 cluster `w2c-p3` (31500–31550, under
+`~/paralean-p3-w2c`). No other instance or clone was touched. Disk was pruned first
+(salvaged worktrees' and incremental cargo targets, about 25 GB); nothing cited was removed.
+
+### 1. The previous manager's uncommitted work
+
+Kept, committed at `4784f33`: the explicit `libtest-mimic` main for the five chaos suites,
+the shutdown contract test and its mutation, the mutation-parser fix and the exit-race
+strictness. Changed: the same main for the three other FDB suites (and later for every
+FDB suite of P2 and P3); `deny(dead_code)` so a test left out of a list cannot compile;
+the property suite reads its existing regression seeds instead of a new file. Dropped
+from the commit: test-deployment `keys.json` files (private seeds) and the 48 MB crashed
+binary (its SHA-256 is kept).
+
+### 2. Chaos failure and SIGSEGV root causes
+
+- **SIGSEGV: root-caused with stacks.** A process leaving `main` with FDB's network
+  thread still running races libfdb_c's own exit-time destructors. glibc runs
+  `__cxa_finalize` for libfdb_c, which frees the client's globals while
+  `fdb_run_network` still uses them. `examples/exit_race.rs` reproduces it without
+  faults in about 1% of exits right after a `Database` is dropped (27/3000). The
+  controls are all 0/1000: leaking the database, exiting with requests in flight, a
+  20 ms gap, and the stop-and-join fix. Every captured core shows the same two-thread
+  stack. This is the `seed-77003` fixture crash after `test result: ok`, and the exit
+  shape of the pre-`667dcf6` stress worker (no core of that process exists). It is also
+  why 12,000 later CLI exits did not crash: the CLI drops its runtime first. Details are
+  in `w2-chaos-notes.md`.
+- **61/62: not a pagination bug.** The retained failure is round 19,
+  `t8_tombstone_guards`, a freshness assertion after an ambiguous commit. The round-9
+  pagination failure was an ambiguous setup commit. Both test bugs were fixed earlier.
+- **Fix: W2-48.** Every FDB test suite stops FDB before exit, and `paralean-p3`, `plr`
+  and the P5 bridge use `meta::run_main`.
+- **Chaos on the final merged code:** seeds 22021, 77003, 99173 and 4242 gave **108/108**
+  suite summaries under **117** injected FDB faults, with no signalled process.
+
+### 3. Merge of origin/main `a5dfc5c` (merge commit `fd20d4e`)
+
+There were 19 source conflicts, plus generated logs that were regenerated rather than
+hand-merged. Both sides' semantics are kept. Where they collided, W2's limits now hold
+on W3/W4/W5 code:
+- W2-42: W4's validation routes are scoped per workspace.
+- W2-43: over-cap snapshot entries spill into W4 replay rows.
+- W2-44: the request-ID bound runs before shard routing.
+- W2-45: imports use the per-path import verifier.
+- W2-41: the controller runs W4's GC by default.
+
+The required mutation cases:
+- **W3 agent-key registry:** grant, revocation and controller deletion grant, one path
+  mutation each (W2-46).
+- **W4 sharded controller RPCs:** a live two-shard strict-vector test (W2-47), plus the
+  scoping, routing-bound and spill cases above.
+- **W5 LSP publication:** a subagent audit, reviewed here, found and fixed W2-49 to
+  W2-53, one High. It adds 13 editor-bridge mutants and repairs a broken one.
+
+Re-verification found three more problems, all fixed:
+- W2-54: a W3 import bug, also present on origin/main.
+- W2-55: the sandbox root tmpfs was writable.
+- Several W2/W4 tests and scripts were invalidated by the merge: role key files, the W4
+  index, the 256-byte bound, verdict formats, the peer Garage socket, and a P5 mutation
+  copy.
+
+### 4. Re-verification (final tree)
+
+| Suite | Result |
+| --- | --- |
+| Veil `check-veil.sh` | 34 modules; axiom audit 7,359 declarations, stock axioms only |
+| TLC (pinned v1.7.4) | 35 positive, 193 negative/expected-outcome, 4 wide, 29 hardened; `archive-verification.sh --verify` passes |
+| P2 workspace (`w2c-chaos`, peer `w2c-peer`) | 163 passed, 0 failed |
+| P2 guard mutations `check-mutations.sh` | 49/49 detected; W2-54's `mutate-author-cert-error` detected |
+| W2 security mutations `check-w2-security.sh` | 36/36 detected |
+| Ed25519 paths `check-ed25519.sh` | 12/12 Rust path mutations; Lean 24/24 security mutations |
+| s3-guard mutations | 4/4 |
+| FDB shutdown contract | pass; `mutate-no-network-shutdown` killed |
+| P3 tests (`impl/p3/scripts/test.sh`) | 113 passed, 0 failed, 4 ignored (live benchmarks; the fork test skips without a fork build) |
+| P3 mutations `check-mutations.sh` | 39 cases. In the full run, 38 were detected and `mutate-no-checker-cgroup` survived: at load ~45 the RSS poll stopped every burst. The test now requires a cgroup kill (`NoVerdict::Memory { cgroup }`). After that change: baseline 5/5, mutant detected 3/3, rerun on the final tree also detected; `mutate-writable-sandbox-root` (W2-55) detected |
+| W4 controller / GC / history mutations | 10/10, 6/6, 15/15 |
+| P3-remote gate (`remote-gate.py`, stock Lean, `w2c-chaos`) | 14/15 PASS. The failing check is "clean export of a copy": its stock build needs a Mathlib checkout at `.deps/mathlib`, which this clone lacks (`ws-export` reports `mathlib: package directory not found`). This is environmental, not a code result |
+| P5 unit tests | 91 passed, 2 environment-gated skips |
+| P5 editor-bridge mutants / security mutations / revoke guard | 46/46 / 15/15 / killed |
+| P4 rename unit / mutants | 25 passed / 18 killed |
+| W2 adversarial and isolation | P3 `adversarial` 15/15 and `sandbox` 13/13 inside the P3 run; Lean `lean_security.py` pass |
+
+### Not done
+
+- **P1 G1–G6:** not run.
+- **The gate's clean-export check:** needs a local Mathlib checkout (`.deps/mathlib`).
+- **The live P5 integrated gate:** not run. It needs model-driven workers and an SSH LSP
+  worker.
+- **Fork-mode checks:** not run. This clone has no Paralean fork build, and using
+  another clone's build was out of bounds.
+- **W2-12 and W2-13 remain OPEN** (hostile P5 workers with raw store access; package code
+  in the checker's verdict process).
+- **Original stress-worker crash:** explained by its exit shape and the reproduced
+  mechanism, but not by its own core, which never existed.

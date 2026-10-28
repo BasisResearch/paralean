@@ -1,0 +1,24 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.74s
+     Running tests/antientropy.rs (target/debug/deps/antientropy-8c9e28af408294dd)
+
+running 1 test
+PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
+
+thread '<unnamed>' (3781370) panicked at crates/store/tests/antientropy.rs:687:5:
+Err(Invalid("origin author certificate missing"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test group_without_a_valid_author_certificate_is_rejected ... FAILED
+
+failures:
+
+---- group_without_a_valid_author_certificate_is_rejected ----
+test panicked: Err(Invalid("origin author certificate missing"))
+
+
+failures:
+    group_without_a_valid_author_certificate_is_rejected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.16s
+
+error: test failed, to rerun pass `-p paralean-store --test antientropy`

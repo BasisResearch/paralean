@@ -1,0 +1,13 @@
+p2-workspace rc=101 248s
+p2-mutations rc=0 404s
+s3-guard-mutations rc=126 0s
+network-shutdown rc=0 12s
+w2-security rc=126 0s
+p3-tests rc=101 218s
+p3-mutations rc=1 960s
+w4-mutations rc=0 49s
+w4-gc-mutations rc=126 0s
+w4-history-mutations rc=126 0s
+p5-security-mutations rc=1 0s
+p5-revoke-guard rc=0 0s
+p4-rename rc=0 3s

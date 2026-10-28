@@ -1,0 +1,28 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/ae-service)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.41s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-3657233d449885d3)
+
+running 1 test
+
+thread '<unnamed>' (3453950) panicked at crates/ae-service/tests/network.rs:1516:5:
+assertion `left == right` failed: no object of an over-cap event is fetched
+  left: 3
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test oversized_declared_objects_are_terminal_before_fetch ... FAILED
+
+failures:
+
+---- oversized_declared_objects_are_terminal_before_fetch ----
+test panicked: assertion `left == right` failed: no object of an over-cap event is fetched
+  left: 3
+ right: 0
+
+
+failures:
+    oversized_declared_objects_are_terminal_before_fetch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.39s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

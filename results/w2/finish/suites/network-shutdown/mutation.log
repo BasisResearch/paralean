@@ -1,0 +1,22 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.50s
+     Running unittests src/lib.rs (target/debug/deps/paralean_store-236c5aa4d602d143)
+
+running 1 test
+test meta::lifecycle_tests::network_stops_before_process_exit ... FAILED
+
+failures:
+
+---- meta::lifecycle_tests::network_stops_before_process_exit stdout ----
+
+thread 'meta::lifecycle_tests::network_stops_before_process_exit' (2140033) panicked at crates/store/src/meta.rs:103:9:
+shutdown did not stop and join FDB: status ExitStatus(unix_wait_status(25856)), stderr 
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    meta::lifecycle_tests::network_stops_before_process_exit
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.07s
+
+error: test failed, to rerun pass `-p paralean-store --lib`

@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/sandbox.rs (target/debug/deps/sandbox-5c0923bcab4e0fa8)
+
+running 1 test
+test checker_memory_cgroup_hard_limit_kills_fast_burst ... FAILED
+
+failures:
+
+---- checker_memory_cgroup_hard_limit_kills_fast_burst stdout ----
+
+thread 'checker_memory_cgroup_hard_limit_kills_fast_burst' (3623515) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/sandbox.rs:192:5:
+no fast burst was stopped by the cgroup's hard limit
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    checker_memory_cgroup_hard_limit_kills_fast_burst
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 1.05s
+
+error: test failed, to rerun pass `-p paralean-control --test sandbox`

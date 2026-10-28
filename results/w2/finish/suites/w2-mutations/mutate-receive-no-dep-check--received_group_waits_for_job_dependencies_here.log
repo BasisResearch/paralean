@@ -1,0 +1,24 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.12s
+     Running tests/antientropy.rs (impl/p2/target/debug/deps/antientropy-0e4d934cb660a1ba)
+
+running 1 test
+PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
+
+thread '<unnamed>' (3445433) panicked at crates/store/tests/antientropy.rs:505:5:
+Applied
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test received_group_waits_for_job_dependencies_here ... FAILED
+
+failures:
+
+---- received_group_waits_for_job_dependencies_here ----
+test panicked: Applied
+
+
+failures:
+    received_group_waits_for_job_dependencies_here
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.36s
+
+error: test failed, to rerun pass `-p paralean-store --test antientropy`

@@ -1,0 +1,22 @@
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-c05488abba0fafb4)
+
+running 1 test
+test rpc::tests::request_signature_binds_server_key_and_service ... FAILED
+
+failures:
+
+---- rpc::tests::request_signature_binds_server_key_and_service stdout ----
+
+thread 'rpc::tests::request_signature_binds_server_key_and_service' (3438829) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api/src/rpc.rs:208:9:
+request valid at another server
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    rpc::tests::request_signature_binds_server_key_and_service
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p paralean-validator-api --lib`

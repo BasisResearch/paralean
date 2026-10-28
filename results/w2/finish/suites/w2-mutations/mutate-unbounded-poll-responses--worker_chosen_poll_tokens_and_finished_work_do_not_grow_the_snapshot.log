@@ -1,0 +1,24 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.21s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-f6cccd5aecc1bc08)
+
+running 1 test
+test controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot ... FAILED
+
+failures:
+
+---- controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot stdout ----
+
+thread 'controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot' (3443093) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/controller.rs:1761:9:
+assertion `left == right` failed
+  left: 5000
+ right: 16
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

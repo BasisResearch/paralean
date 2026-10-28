@@ -1,0 +1,87 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-66b6039fba7ffae1)
+
+running 13 tests
+test controller::gc_schedule_tests::gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight ... ok
+test validator::completed_tests::validator_workdir_must_be_private_and_ours ... ok
+test validator::completed_tests::completed_receipt_cache_is_bounded ... ok
+test p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store ... ok
+test server::tests::connection_admission_is_bounded_before_authentication ... ok
+test keys::tests::roles_refuse_key_files_with_other_roles_seeds ... ok
+test controller::snapshot_tests::rows_over_the_value_limit_stay_in_the_snapshot ... ok
+test controller::snapshot_tests::one_save_spills_within_its_budget ... ok
+test server::tests::one_source_cannot_hold_every_handshake_slot ... ok
+test controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot ... ok
+test gc::tests::stale_scanned_candidate_cannot_collect_new_retirement ... ok
+test server::tests::incomplete_frames_expire_and_release_admission ... ok
+test server::tests::long_authenticated_calls_cannot_lock_out_the_authority ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.36s
+
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-b90503cb4e64e148)
+
+running 24 tests
+test group_chunks::tests::legacy_opaque_group_has_unknown_chunk_coverage ... ok
+test group_chunks::tests::conflicting_lengths_and_unbounded_refs_are_rejected ... ok
+test id::tests::p1_group_id_matches ... ok
+test group_chunks::tests::reserved_prefix_is_fail_closed ... ok
+test group_chunks::tests::valid_wrapper_preserves_order_and_deduplicates_transfer_refs ... ok
+test id::tests::preimage_shape_and_hash ... ok
+test id::tests::matches_p1_lean_sha256 ... ok
+test id::tests::sha256_vectors ... ok
+test objects::tests::names ... ok
+test objects::tests::roundtrips_and_strictness ... ok
+test pce::tests::nat_and_sets ... ok
+test objects::tests::marker_and_tombstone_file_paths_follow_the_relative_path_rule ... ok
+test pce::tests::rejects_non_minimal_and_trailing ... ok
+test pce::tests::hostile_counts_are_bounded_before_container_allocation ... ok
+test pce::tests::uvarint_matches_leb128_and_p1 ... ok
+test s3::security_tests::config_debug_redacts_credentials ... ok
+test s3::security_tests::oversized_s3_body_is_rejected_before_hashing ... ok
+test sign::security_tests::debug_does_not_disclose_role_seeds ... ok
+test group_chunks::tests::maximum_distinct_refs_fit_one_fdb_index_value ... ok
+test sign::security_tests::weak_public_key_identity_signature_is_rejected ... ok
+test objects::tests::signed_roundtrip ... ok
+test sign::security_tests::private_key_file_replaces_public_inode_and_symlink ... ok
+test meta::lifecycle_tests::network_stops_before_process_exit ... ok
+test receipt::tests::envelope_roundtrip_and_strictness ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-1549f82478f1a3e1)
+
+running 2 tests
+test rpc::tests::oversized_frame_is_rejected_without_waiting_for_body ... ok
+test rpc::tests::request_signature_binds_server_key_and_service ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-31f287b10e3cc8a8)
+
+running 7 tests
+test tests::decodes_query_keys_before_denying_destructive_subresources ... ok
+test tests::encoded_and_unknown_mutations_are_denied ... ok
+test tests::gc_key_only_allows_signed_object_delete_candidate ... ok
+test tests::overwrites_copies_and_unaddressed_keys_are_denied ... ok
+test tests::refuses_deletes_and_config ... ok
+test tests::gc_never_deletes_p2_content_or_unlisted_keys ... ok
+test tests::streamed_body_limit_is_enforced ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/plr-6c28e75ff9c7881d)
+
+running 2 tests
+test cache::tests::records_with_unsafe_file_paths_are_not_written ... ok
+test cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+..
+----------------------------------------------------------------------
+Ran 2 tests in 0.003s
+
+OK
