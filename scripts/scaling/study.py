@@ -21,7 +21,7 @@ RUN = ROOT / '.runs/scaling'
 
 def load_gate():
     while os.getloadavg()[0] > 24:
-        print('waiting for load <24:', os.getloadavg(), flush=True)
+        print(time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'waiting for load <24:', os.getloadavg(), flush=True)
         time.sleep(30)
 
 
@@ -39,6 +39,7 @@ def service_cpu():
 
 def command(cmd, log, env):
     load_gate()
+    started_utc = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     services0 = service_cpu()
     cpu0 = resource.getrusage(resource.RUSAGE_CHILDREN)
     load = os.getloadavg()
@@ -46,7 +47,7 @@ def command(cmd, log, env):
     with log.open('w') as f:
         p = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, env=env)
     cpu1 = resource.getrusage(resource.RUSAGE_CHILDREN)
-    return {'command': cmd, 'returncode': p.returncode, 'wall_s': time.monotonic()-start,
+    return {'command': cmd, 'started_utc': started_utc, 'returncode': p.returncode, 'wall_s': time.monotonic()-start,
             'cpu_s': cpu1.ru_utime+cpu1.ru_stime-cpu0.ru_utime-cpu0.ru_stime,
             'load_start': load, 'load_end': os.getloadavg(),
             'service_cpu_s': {k:v-services0.get(k,v) for k,v in service_cpu().items()}}
