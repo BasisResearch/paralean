@@ -66,10 +66,20 @@ pub struct Durable {
     pub lease_ms: u64,
     pub shard: u32,
     pub shards: u32,
+    /// A dynamic topology member (`crate::topology`); `shards` is then unused.
+    pub dynamic: bool,
+    pub(crate) move_limit: std::sync::atomic::AtomicUsize,
 }
 
-const CHUNK_SIZE: usize = 60 * 1024;
-const MAX_SHARD_SNAPSHOT: usize = 8 * 1024 * 1024;
+/// The outcome of writing a snapshot head (`Durable::write_snapshot_in`).
+pub(crate) enum HeadWrite {
+    Written(u64),
+    /// An unknown commit of this same write is being retried: the head already holds it.
+    AlreadyCommitted(u64),
+}
+
+pub(crate) const CHUNK_SIZE: usize = 60 * 1024;
+pub(crate) const MAX_SHARD_SNAPSHOT: usize = 8 * 1024 * 1024;
 const MAX_HISTORY_WRITE: usize = 256 * 1024;
 const MAX_HISTORY_VALUE: usize = 90 * 1024;
 const LEASE_TICKS: u64 = 8;
@@ -127,7 +137,8 @@ impl Durable {
 
     pub fn new_shard(store: Store, lease: Duration, shard: u32, shards: u32) -> Self {
         assert!(shards > 0 && shard < shards, "invalid controller shard topology");
-        Durable { store, holder: hex::encode(rand::random::<[u8; 16]>()), lease_ms: (lease.as_millis() as u64).max(500), shard, shards }
+        Durable { store, holder: hex::encode(rand::random::<[u8; 16]>()), lease_ms: (lease.as_millis() as u64).max(500), shard, shards,
+            dynamic: false, move_limit: std::sync::atomic::AtomicUsize::new(crate::topology::MOVE_LIMIT) }
     }
 
     pub(crate) fn lease_key(&self) -> Vec<u8> { self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "lease")) }
@@ -162,12 +173,14 @@ impl Durable {
             .map(|v| serde_json::from_slice::<SnapshotHead>(&v).map(|h| h.hash).map_err(|e| e.to_string())).transpose()
     }
     pub async fn work_replay(&self, request: &str) -> Result<Option<WorkReplay>, String> {
+        if self.dynamic { return self.dyn_work_replay(request).await }
         let record = self.store.meta.get(self.work_replay_key(request)).await.map_err(|e| e.to_string())?
             .map(|v| serde_json::from_slice::<WorkReplay>(&v).map_err(|e| e.to_string())).transpose()?;
         if record.as_ref().is_some_and(|r| r.request != request) { return Err("work replay hash collision".into()) }
         Ok(record)
     }
     pub async fn poll_replay(&self, token: &str) -> Result<Option<PollReplay>, String> {
+        if self.dynamic { return Ok(self.poll_replays(token).await?.into_iter().next()) }
         let record = self.store.meta.get(self.poll_replay_key(token)).await.map_err(|e| e.to_string())?
             .map(|v| serde_json::from_slice::<PollReplay>(&v).map_err(|e| e.to_string())).transpose()?;
         if record.as_ref().is_some_and(|r| r.token != token) { return Err("poll replay hash collision".into()) }
@@ -175,13 +188,13 @@ impl Durable {
     }
     fn topology_key(&self) -> Vec<u8> { self.store.meta.keys.root.pack(&("controller", "topology")) }
     fn target_shard_key(&self, name: &Name) -> Vec<u8> { target_claim_key(&self.store, name) }
-    fn work_shard_key(&self, request: &str) -> Vec<u8> {
+    pub(crate) fn work_shard_key(&self, request: &str) -> Vec<u8> {
         self.store.meta.keys.root.pack(&("controller", "work-shard", foundationdb::tuple::Bytes::from(&sha256(request.as_bytes())[..])))
     }
     /// Validation routes and the shard-local job index are keyed by (requesting
     /// workspace, request ID), as J1-J3 are (W2-32): one worker's request ID never routes,
     /// squats or recovers another's.
-    fn validation_shard_key(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
+    pub(crate) fn validation_shard_key(&self, worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
         let mut id = worker.0.to_vec();
         if cfg!(feature = "mutate-unscoped-job-keys") { id.clear() }
         id.extend_from_slice(request);
@@ -199,9 +212,11 @@ impl Durable {
         (u64::from_be_bytes(hash[0..8].try_into().unwrap()) % shards as u64) as u32
     }
     pub async fn shard_for_target(&self, name: &Name) -> Result<u32, String> {
+        if self.dynamic { return self.dyn_shard_for_target(name, false).await.map(|s| s.unwrap_or(u32::MAX)) }
         Ok(self.mapped_shard(name).await?.unwrap_or_else(|| Self::hash_shard(name, self.shards)))
     }
     pub async fn mapped_shard(&self, name: &Name) -> Result<Option<u32>, String> {
+        if self.dynamic { return self.dyn_shard_for_target(name, true).await }
         let key = self.target_shard_key(name);
         match self.store.meta.get(key).await.map_err(|e| e.to_string())? {
             Some(v) => {
@@ -214,6 +229,7 @@ impl Durable {
         }
     }
     pub async fn shard_for_work(&self, request: &str) -> Result<Option<u32>, String> {
+        if self.dynamic { return self.dyn_shard_for_work(request).await }
         match self.store.meta.get(self.work_shard_key(request)).await.map_err(|e| e.to_string())? {
             Some(v) => {
                 if v.len() != 36 { return Err("invalid work shard catalog".into()) }
@@ -229,6 +245,7 @@ impl Durable {
         self.shard_for_validation_bytes(worker, request.as_bytes()).await
     }
     pub async fn shard_for_validation_bytes(&self, worker: &WorkspaceId, request: &[u8]) -> Result<Option<u32>, String> {
+        if self.dynamic { return self.dyn_shard_for_validation(worker, request).await }
         match self.store.meta.get(self.validation_shard_key(worker, request)).await.map_err(|e| e.to_string())? {
             Some(v) => {
                 let b: [u8; 4] = v.as_slice().try_into().map_err(|_| "invalid validation shard catalog")?;
@@ -239,7 +256,13 @@ impl Durable {
             None => Ok(None),
         }
     }
+    /// Reserve the work route; in a dynamic topology, also return its bucket.
+    pub async fn reserve_work(&self, request: &str, target: &Name, term: u64) -> Result<Option<u16>, String> {
+        if self.dynamic { return self.dyn_reserve_work(request, target, term).await.map(Some) }
+        self.reserve_work_shard(request, target, term).await.map(|_| None)
+    }
     pub async fn reserve_work_shard(&self, request: &str, target: &Name, term: u64) -> Result<(), String> {
+        if self.dynamic { return self.dyn_reserve_work(request, target, term).await.map(|_| ()) }
         let key = self.work_shard_key(request);
         let target_key = self.target_shard_key(target);
         let mut value = self.shard.to_be_bytes().to_vec();
@@ -268,6 +291,7 @@ impl Durable {
         Err("work shard reservation outcome unresolved".into())
     }
     async fn topology_in(&self, trx: &Transaction) -> Result<(), String> {
+        if self.dynamic { return self.dynamic_topology_in(trx).await.map(|_| ()) }
         let key = self.topology_key();
         match trx.get(&key, false).await.map_err(|e| e.to_string())? {
             Some(value) if value.as_ref() == self.shards.to_be_bytes() => Ok(()),
@@ -344,6 +368,7 @@ impl Durable {
         let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
             self.require_lease(&trx, term).await?;
+            if self.dynamic { self.dyn_recovery_fence(&trx, worker, request).await? }
             let used = match trx.get(&key, false).await.map_err(|e| e.to_string())? {
                 Some(v) => u64::from_be_bytes(v[..].try_into().map_err(|_| "bad recovery count")?),
                 None => 0,
@@ -430,6 +455,11 @@ impl Durable {
     /// The head and its chunks are read in one transaction: a concurrent GC clear of a
     /// retired snapshot's chunks cannot interleave.
     pub async fn load(&self) -> Result<Option<Vec<u8>>, String> {
+        Ok(self.load_generation().await?.map(|(bytes, _)| bytes))
+    }
+
+    /// The current snapshot and its head generation, read in one transaction.
+    pub async fn load_generation(&self) -> Result<Option<(Vec<u8>, u64)>, String> {
         let sk = self.state_key();
         let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
@@ -441,7 +471,7 @@ impl Durable {
         Err("controller state read unresolved".into())
     }
 
-    async fn load_in(&self, trx: &Transaction, sk: &[u8]) -> Result<Result<Option<Vec<u8>>, String>, foundationdb::FdbError> {
+    async fn load_in(&self, trx: &Transaction, sk: &[u8]) -> Result<Result<Option<(Vec<u8>, u64)>, String>, foundationdb::FdbError> {
         let Some(v) = trx.get(sk, false).await? else { return Ok(Ok(None)) };
         let head: SnapshotHead = match serde_json::from_slice(&v) { Ok(h) => h, Err(e) => return Ok(Err(e.to_string())) };
         if head.len > MAX_SHARD_SNAPSHOT || head.chunks as usize != head.len.div_ceil(CHUNK_SIZE) {
@@ -457,7 +487,7 @@ impl Durable {
         if bytes.len() != head.len || hex::encode(sha256(&bytes)) != head.hash {
             return Ok(Err("controller snapshot hash mismatch".into()));
         }
-        Ok(Ok(Some(bytes)))
+        Ok(Ok(Some((bytes, head.generation))))
     }
 
     pub async fn save(&self, bytes: &[u8], term: u64) -> Result<(), String> {
@@ -468,6 +498,13 @@ impl Durable {
     /// committed head can never omit a terminal request or poll token unless
     /// its replay record was committed in the same FDB transaction.
     pub async fn save_with_history(&self, bytes: &[u8], term: u64, work: &[WorkReplay], polls: &[PollReplay]) -> Result<(), String> {
+        self.save_generation(bytes, term, work, polls, None).await.map(|_| ())
+    }
+
+    /// As `save_with_history`, returning the new head generation. With `expected`, the
+    /// head must still carry the generation the caller loaded (`None`: no head), so a
+    /// snapshot computed from a superseded load can never replace a newer one.
+    pub async fn save_generation(&self, bytes: &[u8], term: u64, work: &[WorkReplay], polls: &[PollReplay], expected: Option<Option<u64>>) -> Result<u64, String> {
         if bytes.len() > MAX_SHARD_SNAPSHOT { return Err("controller shard snapshot exceeds 8 MiB".into()) }
         let work_values = work.iter().map(|r| serde_json::to_vec(r).map_err(|e| e.to_string())).collect::<Result<Vec<_>, _>>()?;
         let poll_values = polls.iter().map(|r| serde_json::to_vec(r).map_err(|e| e.to_string())).collect::<Result<Vec<_>, _>>()?;
@@ -476,9 +513,7 @@ impl Durable {
         }
         let history_bytes: usize = work_values.iter().chain(poll_values.iter()).map(Vec::len).sum();
         if history_bytes > MAX_HISTORY_WRITE { return Err("controller history batch exceeds transaction write budget".into()) }
-        let hash = hex::encode(sha256(bytes));
         let db = &self.store.meta.db;
-        let sk = self.state_key();
         let mut trx = db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
             let tick = if cfg!(feature = "mutate-history-no-term-fence") && (!work.is_empty() || !polls.is_empty()) {
@@ -508,27 +543,60 @@ impl Durable {
                     None => {}
                 }
             }
-            let previous = trx.get(&sk, false).await.map_err(|e| e.to_string())?
-                .map(|v| serde_json::from_slice::<SnapshotHead>(&v).map_err(|e| e.to_string())).transpose()?;
-            let generation = previous.as_ref().map_or(1, |h| h.generation.saturating_add(1));
-            let head = SnapshotHead { hash: hash.clone(), chunks: bytes.len().div_ceil(CHUNK_SIZE) as u32, len: bytes.len(), generation };
-            let value = serde_json::to_vec(&head).map_err(|e| e.to_string())?;
-            if let Some(old) = &previous {
-                if old.hash != hash {
-                    let retired = RetiredSnapshot { chunks: old.chunks, len: old.len, retired_tick: tick, generation: old.generation };
-                    trx.set(&self.retired_key(&old.hash), &serde_json::to_vec(&retired).map_err(|e| e.to_string())?);
-                }
-            }
-            for (index, chunk) in bytes.chunks(CHUNK_SIZE).enumerate() {
-                trx.set(&self.chunk_key(&hash, index as u32), chunk);
-            }
-            trx.set(&sk, &value);
+            let generation = match self.write_snapshot_in(&trx, bytes, tick, expected).await? {
+                HeadWrite::AlreadyCommitted(generation) => return Ok(generation),
+                HeadWrite::Written(generation) => generation,
+            };
             match trx.commit().await {
-                Ok(_) => return Ok(()),
+                Ok(_) => return Ok(generation),
                 Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
             }
         }
         Err("controller state outcome unresolved".into())
+    }
+
+    /// Write `bytes` as this shard's head in `trx`: its chunks, the head (generation + 1)
+    /// and, for different content, the retirement record of the former head (W4 GC).
+    pub(crate) async fn write_snapshot_in(&self, trx: &Transaction, bytes: &[u8], tick: u64, expected: Option<Option<u64>>) -> Result<HeadWrite, String> {
+        let hash = hex::encode(sha256(bytes));
+        let sk = self.state_key();
+        let previous = trx.get(&sk, false).await.map_err(|e| e.to_string())?
+            .map(|v| serde_json::from_slice::<SnapshotHead>(&v).map_err(|e| e.to_string())).transpose()?;
+        if let Some(expected) = expected.filter(|_| !cfg!(feature = "mutate-shard-save-no-cas")) {
+            if previous.as_ref().map(|h| h.generation) != expected {
+                if let Some(h) = previous.as_ref().filter(|h| h.hash == hash && h.generation == expected.map_or(1, |g| g.saturating_add(1))) {
+                    return Ok(HeadWrite::AlreadyCommitted(h.generation));
+                }
+                return Err("controller snapshot generation changed since load".into());
+            }
+        }
+        let generation = previous.as_ref().map_or(1, |h| h.generation.saturating_add(1));
+        let head = SnapshotHead { hash: hash.clone(), chunks: bytes.len().div_ceil(CHUNK_SIZE) as u32, len: bytes.len(), generation };
+        let value = serde_json::to_vec(&head).map_err(|e| e.to_string())?;
+        if let Some(old) = &previous {
+            if old.hash != hash {
+                let retired = RetiredSnapshot { chunks: old.chunks, len: old.len, retired_tick: tick, generation: old.generation };
+                trx.set(&self.retired_key(&old.hash), &serde_json::to_vec(&retired).map_err(|e| e.to_string())?);
+            }
+        }
+        for (index, chunk) in bytes.chunks(CHUNK_SIZE).enumerate() {
+            trx.set(&self.chunk_key(&hash, index as u32), chunk);
+        }
+        trx.set(&sk, &value);
+        Ok(HeadWrite::Written(generation))
+    }
+
+    /// Poll replay rows in `trx`, write-once as in `save_with_history`.
+    pub(crate) async fn write_poll_rows_in(&self, trx: &Transaction, polls: &[PollReplay], values: &[Vec<u8>]) -> Result<(), String> {
+        for (record, value) in polls.iter().zip(values) {
+            let key = self.poll_replay_key(&record.token);
+            match trx.get(&key, false).await.map_err(|e| e.to_string())? {
+                Some(old) if old.as_ref() == value.as_slice() => {}
+                Some(_) => return Err("poll replay ID already has another binding".into()),
+                None => trx.set(&key, value),
+            }
+        }
+        Ok(())
     }
 
     /// Atomic T4 for all names, with the controller lease as an FDB conflict read.
@@ -545,6 +613,7 @@ impl Durable {
         for _ in 0..60 {
             self.require_lease(&trx, term).await?;
             let mut claimed_target = false;
+            if self.dynamic { claimed_target = self.dyn_claim_group_in(&trx, names).await? } else {
             for name in names {
                 let key = self.target_shard_key(name);
                 if let Some(v) = trx.get(&key, false).await.map_err(|e| e.to_string())? {
@@ -553,6 +622,7 @@ impl Durable {
                     trx.set(&key, &self.shard.to_be_bytes());
                     claimed_target = true;
                 }
+            }
             }
             let mut epochs = Vec::with_capacity(names.len());
             let mut missing = Vec::new();
@@ -596,6 +666,7 @@ impl Durable {
     /// J2 is leader-fenced as well as write-once: an old controller cannot finish
     /// dispatch after a new replica takes the lease.
     pub async fn record_receipt(&self, worker: &WorkspaceId, request: &[u8], receipt: &Receipt, term: u64) -> Result<Receipt, String> {
+        if self.dynamic { return self.dyn_record_receipt(worker, request, receipt, term).await }
         let rk = self.store.meta.keys.job_receipt(worker, request);
         let route_key = self.validation_shard_key(worker, request);
         let job_key = self.store.meta.keys.job_request(worker, request);
@@ -625,6 +696,7 @@ impl Durable {
     }
 
     pub async fn issue_job(&self, job: &SignedJob, term: u64) -> Result<SignedJob, String> {
+        if self.dynamic { return self.dyn_issue_job(job, term).await }
         let key = self.store.meta.keys.job_request(&job.body.worker, &job.body.request);
         let route_key = self.validation_shard_key(&job.body.worker, &job.body.request);
         let index_key = self.validation_index_key(&job.body.worker, &job.body.request);

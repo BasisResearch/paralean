@@ -109,6 +109,24 @@ mutate-replay-advance-no-fence = []
 mutate-replay-retire-gen0 = []
 mutate-replay-dedupe-ignores-generation = []
 mutate-replay-poll-token-unchecked = []
+# W4-rest design 2 (dynamic shard topology): one guard removal each, for
+# impl/p3/scripts/check-w4r-shard-mutations.sh; never enable otherwise.
+mutate-shard-export-keeps-source = []
+mutate-shard-import-no-state-check = []
+mutate-shard-flip-without-handoff = []
+mutate-shard-dest-serves-moving = []
+mutate-shard-no-fence-issue-job = []
+mutate-shard-no-fence-receipt = []
+mutate-shard-no-fence-assign = []
+mutate-shard-no-fence-reserve = []
+mutate-shard-no-fence-recovery = []
+mutate-shard-no-drain = []
+mutate-shard-export-no-lease = []
+mutate-shard-save-no-cas = []
+mutate-shard-remove-owning = []
+mutate-shard-retired-lease-live = []
+mutate-shard-no-cross-replay = []
+mutate-shard-no-poll-rows = []
 
 [dev-dependencies]
 libtest-mimic = "0.8.2"
@@ -196,4 +214,8 @@ harness = false
 
 [[test]]
 name = "split"
+harness = false
+
+[[test]]
+name = "w4r_shards"
 harness = false

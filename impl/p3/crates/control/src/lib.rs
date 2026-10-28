@@ -10,6 +10,7 @@
 //! | `server` | the TCP frame server shared by both services |
 //! | `replay` | replay horizons: generation-scoped request identities, their gate and row retirement |
 //! | `keys` | role-specific key files: each process holds only its own seed |
+//! | `topology` | W4-rest dynamic shard topology: buckets, moves (begin/export/import), add/remove shard |
 //!
 //! The receipt format and the staging rule are `paralean_store::receipt`; the validator's
 //! wire API is the `paralean-validator-api` crate.
@@ -22,5 +23,6 @@ pub mod gc;
 pub mod p1;
 pub mod replay;
 pub mod server;
+pub mod topology;
 pub mod validator;
 pub mod worker;

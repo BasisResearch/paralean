@@ -38,7 +38,7 @@
 //! Backpressure: at most `max_work_queue` queued work jobs and `max_validations` validations
 //! in flight; beyond that the answer is `Busy` and nothing is recorded.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -55,6 +55,7 @@ use tokio::task::JoinHandle;
 use crate::durable::{Durable, GroupRequest, PollReplay, TerminalState, WorkReplay};
 use crate::gc::GcConfig;
 use crate::replay::{ReplayConfig, ReplayGen, ReplayReport};
+use crate::topology::{self, MoveOutcome, MoveRecord, MoveState};
 
 /// The workspace that owns a target whose owner died and that no live worker could take.
 pub fn unowned() -> WorkspaceId {
@@ -258,6 +259,9 @@ struct State {
     history_next_poll: bool,
     history_compacted_work: u64,
     history_compacted_polls: u64,
+    /// Dynamic topology: the bucket of each work request (from its route). Stored with
+    /// the work entry; empty in a fixed topology.
+    work_buckets: BTreeMap<String, u16>,
 }
 
 /// Bounds on the controller snapshot, which every operation loads and saves. Request IDs
@@ -280,6 +284,47 @@ pub struct ControlPlane {
     gc: GcConfig,
     gc_cursor: Mutex<Option<String>>,
     replay: ReplayConfig,
+    /// Head generation of the last load or save (dynamic topology: saves compare it).
+    loaded_generation: Mutex<Option<u64>>,
+    /// Validations in progress per bucket (dynamic topology), from routing to the end of
+    /// their dispatch. An export waits until its buckets have none.
+    active: Arc<Mutex<HashMap<u16, usize>>>,
+    /// Buckets of this shard's active moves, refreshed by every operation.
+    moving: Mutex<HashSet<u16>>,
+    /// Test hook: a replica that does not run move steps on its own (as if it died
+    /// before its next tick). `drive_moves_now` still runs them.
+    move_steps_paused: std::sync::atomic::AtomicBool,
+}
+
+/// One in-progress validation of a bucket; the count drops when the last clone goes.
+pub struct ActiveGuard { map: Arc<Mutex<HashMap<u16, usize>>>, bucket: u16 }
+
+impl ActiveGuard {
+    fn enter(map: &Arc<Mutex<HashMap<u16, usize>>>, bucket: u16) -> Arc<ActiveGuard> {
+        *map.lock().unwrap().entry(bucket).or_insert(0) += 1;
+        Arc::new(ActiveGuard { map: map.clone(), bucket })
+    }
+}
+
+impl Drop for ActiveGuard {
+    fn drop(&mut self) {
+        let mut map = self.map.lock().unwrap();
+        if let Some(n) = map.get_mut(&self.bucket) {
+            *n -= 1;
+            if *n == 0 { map.remove(&self.bucket); }
+        }
+    }
+}
+
+/// Where a request goes in a dynamic topology.
+enum Route { Local, Mine(u16), Moving, Other }
+
+/// The moved part of a source snapshot (`controller/handoff/<move>`).
+#[derive(Serialize, Deserialize, Default)]
+struct Handoff {
+    work: Vec<(String, StoredWork)>,
+    groups: Vec<StoredGroup>,
+    workers: BTreeMap<String, StoredWorker>,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
@@ -362,16 +407,20 @@ struct StoredGroup {
     owner: String,
     request: String,
     pending: bool,
+    /// Dynamic topology: the bucket the group's names are claimed for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bucket: Option<u16>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct StoredWorker { capacity_mb: u64, used_mb: u64, lease_until: u64, alive: bool }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct StoredWork { target: String, memory_mb: u64, state: StoredWorkState, attempts: u64,
-    #[serde(default)] settled_tick: Option<u64> }
+    #[serde(default)] settled_tick: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")] bucket: Option<u16> }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 enum StoredWorkState {
     Queued,
     Running { worker: String, epoch: u64, delivered: bool },
@@ -408,7 +457,8 @@ impl State {
     fn snapshot(&self) -> Snapshot {
         Snapshot {
             workers: self.workers.iter().map(|(id, i)| (id.hex(), StoredWorker { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive })).collect(),
-            work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts, settled_tick: j.settled_tick })).collect(),
+            work: self.work.iter().map(|(r, j)| (r.clone(), StoredWork { target: j.target.to_string(), memory_mb: j.memory_mb, state: StoredWorkState::from(&j.state), attempts: j.attempts, settled_tick: j.settled_tick,
+                bucket: self.work_buckets.get(r).copied() })).collect(),
             order: self.order.clone(), next_validator: self.next_validator, groups: self.groups.clone(), recovery_cursor: self.recovery_cursor.clone(), recovering: self.recovering, poll_responses: self.poll_responses.clone(),
             poll_seq: self.poll_seq,
             history_work_cursor: self.history_work_cursor, history_poll_cursor: self.history_poll_cursor.clone(),
@@ -418,6 +468,7 @@ impl State {
     }
     fn restore(&mut self, s: Snapshot) {
         self.workers = s.workers.into_iter().filter_map(|(id, i)| ws(&id).map(|id| (id, WorkerInfo { capacity_mb: i.capacity_mb, used_mb: i.used_mb, lease_until: i.lease_until, alive: i.alive }))).collect();
+        self.work_buckets = s.work.iter().filter_map(|(r, j)| j.bucket.map(|b| (r.clone(), b))).collect();
         self.work = s.work.into_iter().filter_map(|(r, j)| Some((r, WorkJob { target: Name::parse(&j.target), memory_mb: j.memory_mb, state: j.state.restore()?, attempts: j.attempts, settled_tick: j.settled_tick }))).collect();
         self.order = s.order;
         self.next_validator = s.next_validator;
@@ -523,18 +574,6 @@ fn request_id(req: &ControlRequest) -> Option<&str> {
     }
 }
 
-/// The target names a validation binds (every publication member's, for a batch).
-fn validation_targets(req: &ControlRequest) -> Vec<String> {
-    match req {
-        ControlRequest::Validate { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
-        ControlRequest::ValidateBatch { members, .. } => members.iter().flat_map(|m| match m {
-            BatchMemberReq::Publish { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
-            BatchMemberReq::Tombstone { .. } => vec![],
-        }).collect(),
-        _ => vec![],
-    }
-}
-
 /// Replace a request's client-chosen ID by its generation-scoped identity (identical for
 /// generation 0). Returns the generation the identity names.
 fn scope_request(field: Option<u64>, mut req: ControlRequest) -> Result<(ControlRequest, u64), ControlResponse> {
@@ -558,6 +597,18 @@ pub fn replay_generation_hint(response: &ControlResponse) -> Option<u64> {
     match response {
         ControlResponse::Refused { reason } => crate::replay::generation_hint(reason),
         _ => None,
+    }
+}
+
+/// The target names a validation binds (every publication member's, for a batch).
+fn validation_targets(req: &ControlRequest) -> Vec<String> {
+    match req {
+        ControlRequest::Validate { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
+        ControlRequest::ValidateBatch { members, .. } => members.iter().flat_map(|m| match m {
+            BatchMemberReq::Publish { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
+            BatchMemberReq::Tombstone { .. } => vec![],
+        }).collect(),
+        _ => vec![],
     }
 }
 
@@ -600,7 +651,8 @@ pub async fn call_controller<Q: ControlMessage>(
             if left.is_zero() { break }
             let one = left.min(if validation { Duration::from_secs(30) } else { Duration::from_secs(3) });
             match rpc::call_authenticated(addr, req, signer, authority_public, one).await {
-                Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" || reason == "not controller shard" => {
+                Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" || reason == "not controller shard"
+                    || reason == "bucket moving" => {
                     follower = Some(ControlResponse::Inconclusive { reason });
                 }
                 Ok(ControlResponse::Status { status }) if status.get("leader") == Some(&serde_json::Value::Bool(false)) => {
@@ -632,8 +684,30 @@ impl ControlPlane {
 
     pub fn new_shard_with_replay(cfg: ControllerConfig, shard: u32, shards: u32, gc: GcConfig, replay: ReplayConfig) -> Arc<ControlPlane> {
         let durable = Durable::new_shard(cfg.store.clone(), cfg.lease, shard, shards);
-        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None), replay })
+        Self::with_durable(cfg, durable, gc, replay)
     }
+
+    /// A member `shard` of a dynamic topology (`paralean-p3 topology init`).
+    pub fn new_dynamic(cfg: ControllerConfig, shard: u32, gc: GcConfig) -> Arc<ControlPlane> {
+        Self::new_dynamic_with_replay(cfg, shard, gc, ReplayConfig::default())
+    }
+
+    pub fn new_dynamic_with_replay(cfg: ControllerConfig, shard: u32, gc: GcConfig, replay: ReplayConfig) -> Arc<ControlPlane> {
+        let durable = Durable::new_dynamic(cfg.store.clone(), cfg.lease, shard);
+        Self::with_durable(cfg, durable, gc, replay)
+    }
+
+    fn with_durable(cfg: ControllerConfig, durable: Durable, gc: GcConfig, replay: ReplayConfig) -> Arc<ControlPlane> {
+        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None), replay,
+            loaded_generation: Mutex::new(None), active: Arc::new(Mutex::new(HashMap::new())), moving: Mutex::new(HashSet::new()),
+            move_steps_paused: std::sync::atomic::AtomicBool::new(false) })
+    }
+
+    /// This replica's durable state (its shard, lease and fenced writes).
+    pub fn durable(&self) -> &Durable { &self.durable }
+
+    /// Test hook: stop (or resume) running move steps on ticks and requests.
+    pub fn pause_move_steps(&self, paused: bool) { self.move_steps_paused.store(paused, Ordering::SeqCst) }
 
     /// Validate and initialize the deployment's fixed shard topology before listening.
     pub async fn verify_topology(&self) -> Result<(), String> {
@@ -768,7 +842,7 @@ impl ControlPlane {
             st.history_compacted_polls = st.history_compacted_polls.saturating_add(report.compacted_polls as u64);
             serde_json::to_vec(&st.snapshot()).map_err(|e| e.to_string())?
         };
-        if let Err(e) = self.durable.save_with_history(&snapshot, lease.term, &work_rows, &poll_rows).await {
+        if let Err(e) = self.save_bytes(&snapshot, lease.term, &work_rows, &poll_rows).await {
             let _ = self.load_state().await;
             return Err(e);
         }
@@ -850,6 +924,7 @@ impl ControlPlane {
     }
 
     async fn handle_scoped(self: &Arc<Self>, req: ControlRequest, generation: u64) -> ControlResponse {
+        if self.durable.dynamic { return self.handle_dynamic(req, generation).await }
         match self.request_shard(&req).await {
             Ok(Some(shard)) if shard != self.durable.shard => return inconclusive("not controller shard"),
             Err(e) => return inconclusive(&e),
@@ -869,7 +944,7 @@ impl ControlPlane {
                 if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
                 lease.term
             };
-            return self.handle_inner(req, term).await;
+            return self.handle_inner(req, term, None, None).await;
         }
         let _guard = self.operation.lock().await;
         let lease = match self.durable.acquire_or_renew().await {
@@ -891,7 +966,7 @@ impl ControlPlane {
         if let ControlRequest::SubmitWork { request, target, .. } = &req {
             if let Err(e) = self.durable.reserve_work_shard(request, &Name::parse(target), lease.term).await { return refused(&e) }
         }
-        let resp = self.handle_inner(req, lease.term).await;
+        let resp = self.handle_inner(req, lease.term, None, None).await;
         if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
         resp
     }
@@ -966,6 +1041,242 @@ impl ControlPlane {
         Ok(())
     }
 
+    /// `handle` in a dynamic topology: requests route by bucket; a bucket with a move in
+    /// progress answers the retryable `bucket moving`; pending move steps run first.
+    async fn handle_dynamic(self: &Arc<Self>, req: ControlRequest, generation: u64) -> ControlResponse {
+        // A request for another shard's bucket goes there before this replica leads.
+        if let Ok(Route::Other) = self.route_dynamic(&req).await { return inconclusive("not controller shard") }
+        let guard = self.operation.lock().await;
+        let lease = match self.durable.acquire_or_renew().await {
+            Ok(Some(l)) => l,
+            Ok(None) => {
+                if matches!(req, ControlRequest::Status) {
+                    return ControlResponse::Status { status: serde_json::json!({"leader": false, "shard": self.durable.shard, "dynamic": true}) };
+                }
+                return inconclusive("not controller leader");
+            }
+            // A retired shard (or one never added) serves nothing; clients try the others.
+            Err(e) if e.contains("retired") || e.contains("not in the topology") => return inconclusive("not controller shard"),
+            Err(e) => return inconclusive(&e),
+        };
+        if let Err(e) = self.begin_locked(lease.term).await { return inconclusive(&e) }
+        // Re-route under the operation lock: no export of this shard can interleave now.
+        let bucket = match self.route_dynamic(&req).await {
+            Ok(Route::Local) => None,
+            Ok(Route::Mine(b)) => Some(b),
+            Ok(Route::Moving) => return inconclusive("bucket moving"),
+            Ok(Route::Other) => return inconclusive("not controller shard"),
+            Err(e) => return inconclusive(&e),
+        };
+        // The replay gate precedes every request-specific write (W4-rest design 3).
+        if let Err(r) = self.replay_gate(&req, generation).await { return r }
+        if matches!(req, ControlRequest::Validate { .. }) {
+            // Counted before J1 and until its dispatch ends: an export of the bucket waits.
+            let active = bucket.map(|b| ActiveGuard::enter(&self.active, b));
+            drop(guard);
+            return self.handle_inner(req, lease.term, bucket, active).await;
+        }
+        let mut bucket = bucket;
+        if let ControlRequest::SubmitWork { request, target, .. } = &req {
+            match self.durable.reserve_work(request, &Name::parse(target), lease.term).await {
+                Ok(b) => bucket = b,
+                Err(e) if e == "bucket moving" => return inconclusive(&e),
+                Err(e) if e.contains("another controller shard") => return inconclusive("not controller shard"),
+                Err(e) if e.contains("lost lease") => return inconclusive(&e),
+                Err(e) => return refused(&e),
+            }
+        }
+        let resp = self.handle_inner(req, lease.term, bucket, None).await;
+        if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
+        resp
+    }
+
+    /// Under the operation lock and a fresh lease: load, start a takeover's recovery
+    /// (persisting it), and run this shard's pending move steps.
+    async fn begin_locked(self: &Arc<Self>, term: u64) -> Result<(), String> {
+        self.load_state().await?;
+        if self.on_leadership(term) {
+            self.recover_pending(term).await;
+            self.save_state(term).await?;
+        }
+        self.drive_moves(term, false).await;
+        Ok(())
+    }
+
+    /// The bucket a request is about, if any.
+    async fn request_bucket(&self, req: &ControlRequest) -> Result<Option<u16>, String> {
+        let d = &self.durable;
+        let names = |targets: &[String]| targets.iter().map(|t| Name::parse(t)).collect::<Vec<_>>();
+        Ok(match req {
+            ControlRequest::SubmitWork { request, target, .. } => match d.work_bucket(request).await? {
+                Some(b) => Some(b),
+                None => Some(d.bucket_for_names(&[Name::parse(target)]).await?),
+            },
+            ControlRequest::Assign { target, .. } => Some(d.bucket_for_names(&[Name::parse(target)]).await?),
+            ControlRequest::AssignGroup { targets, .. } if !targets.is_empty() => Some(d.bucket_for_names(&names(targets)).await?),
+            ControlRequest::Validate { worker, request, targets, .. } => {
+                let Some(w) = ws(worker) else { return Ok(None) };
+                if let Some(b) = d.validation_route_bucket(&w, request.as_bytes()).await? { Some(b) }
+                else if targets.is_empty() { Some(topology::validation_bucket(&w, request.as_bytes())) }
+                else { Some(d.bucket_for_names(&targets.iter().map(|t| Name::parse(&t.name)).collect::<Vec<_>>()).await?) }
+            }
+            ControlRequest::Finish { request, .. } => d.work_bucket(request).await?,
+            ControlRequest::Cancel { request, worker } => {
+                if let Some(b) = d.work_bucket(request).await? { return Ok(Some(b)) }
+                if !worker.is_empty() {
+                    return match ws(worker) { Some(w) => d.validation_route_bucket(&w, request.as_bytes()).await, None => Ok(None) };
+                }
+                for w in self.cancel_scope(None) {
+                    if let Some(b) = d.validation_route_bucket(&w, request.as_bytes()).await? { return Ok(Some(b)) }
+                }
+                None
+            }
+            _ => None,
+        })
+    }
+
+    async fn route_dynamic(&self, req: &ControlRequest) -> Result<Route, String> {
+        let Some(bucket) = self.request_bucket(req).await? else { return Ok(Route::Local) };
+        let record = topology::read_bucket(&self.cfg.store, bucket).await?;
+        if record.shard != self.durable.shard { return Ok(Route::Other) }
+        if let Some(id) = record.moving {
+            // Between export and import the destination owns the bucket but has not
+            // merged its entries: it must not answer for them yet.
+            if cfg!(feature = "mutate-shard-dest-serves-moving")
+                && topology::read_move(&self.cfg.store, id).await?.is_some_and(|m| m.state == MoveState::Exported) {
+                return Ok(Route::Mine(bucket));
+            }
+            return Ok(Route::Moving);
+        }
+        Ok(Route::Mine(bucket))
+    }
+
+    /// Run this shard's pending move steps: export moves it is the source of, import
+    /// moves it is the destination of. Called under the operation lock.
+    async fn drive_moves(self: &Arc<Self>, term: u64, explicit: bool) {
+        if !self.durable.dynamic { return }
+        let Ok(moves) = topology::active_moves(&self.cfg.store).await else { return };
+        let shard = self.durable.shard;
+        *self.moving.lock().unwrap() = moves.iter().filter(|m| m.from == shard || m.to == shard)
+            .flat_map(|m| m.buckets.iter().copied()).collect();
+        if !explicit && self.move_steps_paused.load(Ordering::SeqCst) { return }
+        for m in moves {
+            let result = match m.state {
+                MoveState::Prepared if m.from == shard => self.export_locked(&m, term).await,
+                MoveState::Exported if m.to == shard => self.import_locked(&m, term).await,
+                _ => Ok(false),
+            };
+            if let Err(e) = result { eprintln!("controller shard {shard}: move {}: {e}", m.id) }
+        }
+    }
+
+    /// The export step of `m` (source leader, under the operation lock and `term`).
+    async fn export_locked(self: &Arc<Self>, m: &MoveRecord, term: u64) -> Result<bool, String> {
+        if m.state != MoveState::Prepared || m.from != self.durable.shard { return Ok(false) }
+        // Drain: validations of these buckets that started before Begin finish (and
+        // record their J2) first. New ones are refused (`bucket moving`, J1's fence).
+        if !cfg!(feature = "mutate-shard-no-drain") {
+            let active = self.active.lock().unwrap();
+            if m.buckets.iter().any(|b| active.get(b).is_some_and(|n| *n > 0)) { return Ok(false) }
+        }
+        self.fill_missing_buckets().await?;
+        let buckets: HashSet<u16> = m.buckets.iter().copied().collect();
+        let (source, handoff, polls) = {
+            let st = self.state.lock().unwrap();
+            let mut snap = st.snapshot();
+            let (handoff, polls) = split_for_move(&mut snap, &buckets)?;
+            let source = if cfg!(feature = "mutate-shard-export-keeps-source") { st.snapshot() } else { snap };
+            let handoff = if cfg!(feature = "mutate-shard-flip-without-handoff") { Handoff::default() } else { handoff };
+            let polls = if cfg!(feature = "mutate-shard-no-poll-rows") { Vec::new() } else { polls };
+            (serde_json::to_vec(&source).map_err(|e| e.to_string())?, serde_json::to_vec(&handoff).map_err(|e| e.to_string())?, polls)
+        };
+        let expected = *self.loaded_generation.lock().unwrap();
+        if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_BEFORE_EXPORT_MS").unwrap_or_default().parse::<u64>() {
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+        }
+        let outcome = self.durable.export_commit(m.id, term, expected, &source, &handoff, &polls).await;
+        let reload = self.load_state().await;
+        match outcome? {
+            MoveOutcome::Committed => { reload?; Ok(true) }
+            MoveOutcome::AlreadyDone => Ok(false),
+            MoveOutcome::TooLarge(reason) => {
+                eprintln!("controller shard {}: move {} aborted: {reason}", self.durable.shard, m.id);
+                self.durable.abort_export(m.id, term, &reason).await.map(|_| false)
+            }
+        }
+    }
+
+    /// Work loaded without a bucket (none in a dynamic deployment's normal operation)
+    /// takes its route's; a group, its names'.
+    async fn fill_missing_buckets(&self) -> Result<(), String> {
+        let (work, groups): (Vec<String>, Vec<Vec<String>>) = {
+            let st = self.state.lock().unwrap();
+            (st.work.keys().filter(|r| !st.work_buckets.contains_key(*r)).cloned().collect(),
+             st.groups.iter().filter(|g| g.bucket.is_none()).map(|g| g.names.clone()).collect())
+        };
+        for r in work {
+            let b = self.durable.work_bucket(&r).await?.ok_or_else(|| format!("work {r} has no route"))?;
+            self.state.lock().unwrap().work_buckets.insert(r, b);
+        }
+        for names in groups {
+            let b = self.durable.bucket_for_names(&names.iter().map(|n| Name::parse(n)).collect::<Vec<_>>()).await?;
+            if let Some(g) = self.state.lock().unwrap().groups.iter_mut().find(|g| g.names == names) { g.bucket = Some(b) }
+        }
+        Ok(())
+    }
+
+    /// The import step of `m` (destination leader, under the operation lock and `term`).
+    async fn import_locked(self: &Arc<Self>, m: &MoveRecord, term: u64) -> Result<bool, String> {
+        let unchecked = cfg!(feature = "mutate-shard-import-no-state-check");
+        if (m.state != MoveState::Exported && !unchecked) || m.to != self.durable.shard { return Ok(false) }
+        let Some((hash, bytes)) = self.durable.read_handoff(m.id).await? else {
+            return if unchecked { Ok(false) } else { Err("exported move has no handoff".into()) };
+        };
+        let handoff: Handoff = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let now = self.durable.clock().await?;
+        let merged = {
+            let st = self.state.lock().unwrap();
+            let mut snap = st.snapshot();
+            merge_handoff(&mut snap, handoff, now)?;
+            serde_json::to_vec(&snap).map_err(|e| e.to_string())?
+        };
+        let expected = *self.loaded_generation.lock().unwrap();
+        if let Ok(ms) = std::env::var("PARALEAN_TEST_PAUSE_BEFORE_IMPORT_MS").unwrap_or_default().parse::<u64>() {
+            tokio::time::sleep(Duration::from_millis(ms)).await;
+        }
+        let outcome = self.durable.import_commit(m.id, term, expected, &merged, &hash).await;
+        let reload = self.load_state().await;
+        match outcome? {
+            MoveOutcome::Committed => {
+                reload?;
+                let mut moving = self.moving.lock().unwrap();
+                for b in &m.buckets { moving.remove(b); }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// Run this shard's pending move steps now, as the monitor and every request do.
+    /// Returns the lease term (tests; operators use `topology move --wait-secs`).
+    pub async fn drive_moves_now(self: &Arc<Self>) -> Result<u64, String> {
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.begin_locked(lease.term).await?;
+        self.drive_moves(lease.term, true).await;
+        Ok(lease.term)
+    }
+
+    /// Run the import step of move `id` now, whatever the active-move list says
+    /// (idempotence: a finished move imports nothing).
+    pub async fn import_move_now(self: &Arc<Self>, id: u64) -> Result<bool, String> {
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.begin_locked(lease.term).await?;
+        let m = topology::read_move(&self.cfg.store, id).await?.ok_or("no such move")?;
+        self.import_locked(&m, lease.term).await
+    }
+
     async fn request_shard(&self, req: &ControlRequest) -> Result<Option<u32>, String> {
         let target = match req {
             ControlRequest::SubmitWork { target, .. } | ControlRequest::Assign { target, .. } => Some(Name::parse(target)),
@@ -1032,9 +1343,20 @@ impl ControlPlane {
     }
 
     async fn load_state(&self) -> Result<(), String> {
-        let bytes = self.durable.load().await?;
-        let snap = bytes.map(|b| serde_json::from_slice(&b).map_err(|e| e.to_string())).transpose()?.unwrap_or_default();
+        let loaded = self.durable.load_generation().await?;
+        let generation = loaded.as_ref().map(|(_, g)| *g);
+        let snap = loaded.map(|(b, _)| serde_json::from_slice(&b).map_err(|e| e.to_string())).transpose()?.unwrap_or_default();
         self.state.lock().unwrap().restore(snap);
+        *self.loaded_generation.lock().unwrap() = generation;
+        Ok(())
+    }
+
+    /// Save a snapshot; in a dynamic topology only over the generation last loaded.
+    async fn save_bytes(&self, bytes: &[u8], term: u64, work: &[WorkReplay], polls: &[PollReplay]) -> Result<(), String> {
+        if !self.durable.dynamic { return self.durable.save_with_history(bytes, term, work, polls).await }
+        let expected = *self.loaded_generation.lock().unwrap();
+        let generation = self.durable.save_generation(bytes, term, work, polls, Some(expected)).await?;
+        *self.loaded_generation.lock().unwrap() = Some(generation);
         Ok(())
     }
 
@@ -1046,7 +1368,7 @@ impl ControlPlane {
             let (work, polls) = st.spill_over_caps(SPILL_BUDGET);
             (serde_json::to_vec(&st.snapshot()).map_err(|e| e.to_string())?, work, polls)
         };
-        self.durable.save_with_history(&bytes, term, &work, &polls).await
+        self.save_bytes(&bytes, term, &work, &polls).await
     }
 
     /// True on the first operation of a new term: this replica just took the lease. A
@@ -1101,7 +1423,13 @@ impl ControlPlane {
             let req = job_key(&worker, &job.body.request);
             // The index is shard local, while J1 remains global for T1 deduplication.
             // Verify the authoritative route before starting any recovered dispatch.
-            if !matches!(self.durable.shard_for_validation_bytes(&worker, &job.body.request).await, Ok(Some(s)) if s == self.durable.shard) {
+            let mut bucket = None;
+            if self.durable.dynamic {
+                // Dynamic: the route's bucket must be this shard's, with no move in progress.
+                let Ok(Some(b)) = self.durable.validation_route_bucket(&worker, &job.body.request).await else { continue };
+                if !matches!(topology::read_bucket(&self.cfg.store, b).await, Ok(r) if r.shard == self.durable.shard && r.moving.is_none()) { continue }
+                bucket = Some(b);
+            } else if !matches!(self.durable.shard_for_validation_bytes(&worker, &job.body.request).await, Ok(Some(s)) if s == self.durable.shard) {
                 continue;
             }
             if self.cfg.store.meta.get(self.cfg.store.meta.keys.job_receipt(&worker, &job.body.request)).await.ok().flatten().is_some() { continue }
@@ -1131,8 +1459,10 @@ impl ControlPlane {
                 if state.inflight.contains_key(&req) { continue }
                 state.inflight.insert(req.clone(), Inflight { job: job.id(), result: rx, cancel: ctx });
             }
+            let active = bucket.map(|b| ActiveGuard::enter(&self.active, b));
             let me = self.clone();
             tokio::spawn(async move {
+                let _active = active;
                 let result = me.dispatch(&job, crx, term).await;
                 let _ = tx.send(Some(result));
                 me.state.lock().unwrap().inflight.remove(&req);
@@ -1140,7 +1470,7 @@ impl ControlPlane {
         }
     }
 
-    async fn handle_inner(self: &Arc<Self>, req: ControlRequest, term: u64) -> ControlResponse {
+    async fn handle_inner(self: &Arc<Self>, req: ControlRequest, term: u64, bucket: Option<u16>, active: Option<Arc<ActiveGuard>>) -> ControlResponse {
         match req {
             ControlRequest::Register { worker, capacity_mb } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -1192,7 +1522,7 @@ impl ControlPlane {
                         Err(e) => return inconclusive(&e),
                     }
                 }
-                self.submit_work(request, target, memory_mb)
+                self.submit_work(request, target, memory_mb, bucket)
             }
             ControlRequest::Poll { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -1216,7 +1546,7 @@ impl ControlPlane {
                 self.finish(w, &request, ok, now)
             }
             ControlRequest::Validate { worker, request, group, capsule, deps, targets, memory_mb, deadline_ms } => {
-                self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms, term).await
+                self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms, term, active).await
             }
             ControlRequest::ValidateBatch { coordinator, request, members } => {
                 self.validate_batch(coordinator, request, members, term).await
@@ -1288,8 +1618,9 @@ impl ControlPlane {
                         g.owner = worker.clone();
                         g.request = req.clone();
                         g.pending = true;
+                        g.bucket = g.bucket.or(bucket);
                     } else {
-                        st.groups.push(StoredGroup { names: target_set, owner: worker.clone(), request: req.clone(), pending: true });
+                        st.groups.push(StoredGroup { names: target_set, owner: worker.clone(), request: req.clone(), pending: true, bucket });
                     }
                 }
                 if let Err(e) = self.save_state(term).await { return inconclusive(&e) }
@@ -1339,14 +1670,20 @@ impl ControlPlane {
             })
             .collect();
         ControlResponse::Status {
-            status: serde_json::json!({"leader": true, "shard": self.durable.shard, "shards": self.durable.shards, "term": self.seen_term.load(Ordering::SeqCst), "workers": workers, "work": work, "validations_in_flight": st.inflight.len(),
-                "history_compacted_work": st.history_compacted_work, "history_compacted_polls": st.history_compacted_polls}),
+            status: if self.durable.dynamic {
+                serde_json::json!({"leader": true, "shard": self.durable.shard, "dynamic": true, "term": self.seen_term.load(Ordering::SeqCst), "workers": workers, "work": work, "validations_in_flight": st.inflight.len(),
+                    "groups": st.groups.iter().map(|g| g.names.clone()).collect::<Vec<_>>(),
+                    "history_compacted_work": st.history_compacted_work, "history_compacted_polls": st.history_compacted_polls})
+            } else {
+                serde_json::json!({"leader": true, "shard": self.durable.shard, "shards": self.durable.shards, "term": self.seen_term.load(Ordering::SeqCst), "workers": workers, "work": work, "validations_in_flight": st.inflight.len(),
+                "history_compacted_work": st.history_compacted_work, "history_compacted_polls": st.history_compacted_polls})
+            },
         }
     }
 
     // ------------------------------------------------------------ target work
 
-    fn submit_work(&self, request: String, target: String, memory_mb: u64) -> ControlResponse {
+    fn submit_work(&self, request: String, target: String, memory_mb: u64, bucket: Option<u16>) -> ControlResponse {
         let mut st = self.state.lock().unwrap();
         let name = Name::parse(&target);
         if name.to_string().is_empty() { return refused("empty target name") }
@@ -1369,15 +1706,23 @@ impl ControlPlane {
         if !st.work.contains_key(&request) {
             st.order.push(request.clone());
         }
+        if let Some(b) = bucket { st.work_buckets.insert(request.clone(), b); }
         st.work.insert(request, WorkJob { target: name, memory_mb, state: WorkState::Queued, attempts: 0, settled_tick: None });
         ControlResponse::Queued
     }
 
     async fn poll(&self, w: WorkspaceId, token: Option<&str>) -> ControlResponse {
         let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
-        let archived = if let Some(token) = token.filter(|_| !cfg!(feature = "mutate-history-no-poll-replay")) {
+        let dynamic = self.durable.dynamic;
+        let archived = if dynamic { None } else if let Some(token) = token.filter(|_| !cfg!(feature = "mutate-history-no-poll-replay")) {
             match self.durable.poll_replay(token).await { Ok(v) => v, Err(e) => return inconclusive(&e) }
         } else { None };
+        // Dynamic: a token's rows from every shard (a moved job's token is the source's row).
+        let rows = match token.filter(|_| dynamic && !cfg!(feature = "mutate-history-no-poll-replay")) {
+            Some(token) => match self.durable.poll_replays(token).await { Ok(v) => v, Err(e) => return inconclusive(&e) },
+            None => Vec::new(),
+        };
+        let moving = if dynamic { self.moving.lock().unwrap().clone() } else { HashSet::new() };
         // A job already assigned to this worker (after a reassignment) comes first.
         let pick = {
             let mut st = self.state.lock().unwrap();
@@ -1418,6 +1763,24 @@ impl ControlPlane {
                     return ControlResponse::NoWork;
                 }
             }
+            if !rows.is_empty() {
+                if !cfg!(feature = "mutate-history-no-poll-worker") && rows.iter().any(|p| p.worker != w.hex()) {
+                    return refused("poll request ID belongs to another worker");
+                }
+                for p in &rows {
+                    let Some(work) = &p.work else { continue };
+                    if let Some(j) = st.work.get(work) {
+                        if let WorkState::Running { worker, epoch, .. } = j.state {
+                            if worker == w && p.epoch == Some(epoch) {
+                                return ControlResponse::Work { request: work.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
+                            }
+                        }
+                    }
+                }
+                return ControlResponse::NoWork;
+            }
+            // Work of a bucket with a move in progress waits for the move (T4 is fenced).
+            let blocked: HashSet<String> = st.work_buckets.iter().filter(|(_, b)| moving.contains(b)).map(|(r, _)| r.clone()).collect();
             let free = {
                 let i = &st.workers[&w];
                 i.capacity_mb.saturating_sub(i.used_mb)
@@ -1427,7 +1790,7 @@ impl ControlPlane {
             for r in &order {
                 let j = st.work.get_mut(r).unwrap();
                 if let WorkState::Running { worker, epoch, delivered: false } = j.state {
-                    if worker == w {
+                    if worker == w && !(epoch == u64::MAX && blocked.contains(r)) {
                         if epoch != u64::MAX {
                             j.state = WorkState::Running { worker, epoch, delivered: true };
                             let response = ControlResponse::Work { request: r.clone(), target: j.target.to_string(), epoch, memory_mb: j.memory_mb };
@@ -1441,6 +1804,7 @@ impl ControlPlane {
             }
             for r in &order {
                 if pick.is_some() { break }
+                if blocked.contains(r) { continue }
                 let j = st.work.get_mut(r).unwrap();
                 if (j.state == WorkState::Queued
                     || matches!(j.state, WorkState::Running { worker, epoch, .. }
@@ -1530,9 +1894,13 @@ impl ControlPlane {
     pub async fn expire_leases(self: &Arc<Self>) {
         let _guard = self.operation.lock().await;
         let lease = match self.durable.acquire_or_renew().await { Ok(Some(l)) => l, _ => return };
-        if self.load_state().await.is_err() { return }
-        self.on_leadership(lease.term);
-        self.recover_pending(lease.term).await;
+        if self.durable.dynamic {
+            if self.begin_locked(lease.term).await.is_err() { return }
+        } else {
+            if self.load_state().await.is_err() { return }
+            self.on_leadership(lease.term);
+            self.recover_pending(lease.term).await;
+        }
         if self.expire_leases_inner(lease.term).await {
             let _ = self.save_state(lease.term).await;
         }
@@ -1627,6 +1995,9 @@ impl ControlPlane {
             // remaining handovers of this tick; the intent stays durable and
             // is reconsidered with a fresh attempt once its owner expires.
             if res.as_ref().is_err_and(|e| e.contains("superseded")) { continue }
+            // Dynamic: a bucket with a move in progress keeps its durable intent, which
+            // moves with the job; its next owner resumes it.
+            if self.durable.dynamic && res.as_ref().is_err_and(|e| e.contains("bucket")) { continue }
             if res.is_err() { return false }
             {
                 let mut st = self.state.lock().unwrap();
@@ -1651,6 +2022,7 @@ impl ControlPlane {
         }
         for (names, owner, req) in group_moves {
             let res = self.durable.assign_group(&names, owner, req.as_bytes(), term).await;
+            if self.durable.dynamic && res.as_ref().is_err_and(|e| e.contains("bucket")) { continue }
             if res.is_err() { return false }
             if let Some(group) = self.state.lock().unwrap().groups.iter_mut().find(|g| g.request == req) {
                 group.pending = false;
@@ -1673,6 +2045,7 @@ impl ControlPlane {
         memory_mb: u64,
         deadline_ms: u64,
         term: u64,
+        active: Option<Arc<ActiveGuard>>,
     ) -> ControlResponse {
         let st = &self.cfg.store;
         let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -1736,7 +2109,9 @@ impl ControlPlane {
                     let me = self.clone();
                     let job = job.clone();
                     let req = req.clone();
+                    let active = active.clone();
                     tokio::spawn(async move {
+                        let _active = active;
                         let r = me.dispatch(&job, crx, term).await;
                         let _ = tx.send(Some(r));
                         me.state.lock().unwrap().inflight.remove(&req);
@@ -2143,6 +2518,86 @@ fn batch_receipts(intent: &SignedBatch, receipts: &[Receipt], jobs: &[SignedJob]
         intent: hex::encode(intent.to_bytes()),
         receipts: receipts.iter().map(|r| hex::encode(r.to_bytes())).collect(),
         jobs: jobs.iter().map(|j| hex::encode(j.to_bytes())).collect(),
+    }
+}
+
+/// Take every entry of `buckets` out of a source snapshot: work in any state (in
+/// submission order), groups, and the poll tokens naming moved work, which leave as
+/// replay rows of the source (cross-shard poll lookups find them at the destination).
+/// Workers of moved running work and groups travel with their capacity.
+fn split_for_move(snap: &mut Snapshot, buckets: &HashSet<u16>) -> Result<(Handoff, Vec<PollReplay>), String> {
+    if let Some(r) = snap.work.iter().find(|(_, w)| w.bucket.is_none()).map(|(r, _)| r) { return Err(format!("work {r} has no bucket")) }
+    if snap.groups.iter().any(|g| g.bucket.is_none()) { return Err("group without bucket".into()) }
+    let moved: BTreeSet<String> = snap.work.iter().filter(|(_, w)| w.bucket.is_some_and(|b| buckets.contains(&b))).map(|(r, _)| r.clone()).collect();
+    let mut handoff = Handoff::default();
+    for r in snap.order.iter().filter(|r| moved.contains(*r)) {
+        if let Some(w) = snap.work.remove(r) { handoff.work.push((r.clone(), w)) }
+    }
+    for r in &moved {
+        if let Some(w) = snap.work.remove(r) { handoff.work.push((r.clone(), w)) }
+    }
+    snap.order.retain(|r| !moved.contains(r));
+    let (gone, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut snap.groups).into_iter().partition(|g| g.bucket.is_some_and(|b| buckets.contains(&b)));
+    snap.groups = kept;
+    handoff.groups = gone;
+    let tokens: Vec<String> = snap.poll_responses.iter().filter(|(_, p)| p.work.as_ref().is_some_and(|w| moved.contains(w))).map(|(t, _)| t.clone()).collect();
+    let polls = tokens.into_iter().map(|token| {
+        let p = snap.poll_responses.remove(&token).unwrap();
+        PollReplay { token, worker: p.worker, work: p.work, epoch: p.epoch }
+    }).collect();
+    let mut affected = BTreeSet::new();
+    for (_, w) in &handoff.work {
+        if let StoredWorkState::Running { worker, .. } = &w.state { affected.insert(worker.clone()); }
+    }
+    for g in &handoff.groups { affected.insert(g.owner.clone()); }
+    for id in &affected {
+        if let Some(info) = snap.workers.get(id) { handoff.workers.insert(id.clone(), info.clone()); }
+    }
+    recompute_used(snap, &affected);
+    snap.history_work_cursor = 0;
+    Ok((handoff, polls))
+}
+
+/// Merge a handoff into a destination snapshot. A worker unknown here (or expired)
+/// gets a fresh lease in this shard's clock, so a dead one expires and its moved work is
+/// reassigned here. The recovery pass restarts to cover the moved validation index.
+fn merge_handoff(snap: &mut Snapshot, handoff: Handoff, now: u64) -> Result<(), String> {
+    let mut affected = BTreeSet::new();
+    for (r, w) in handoff.work {
+        if let Some(existing) = snap.work.get(&r) {
+            if serde_json::to_vec(existing).ok() == serde_json::to_vec(&w).ok() { continue }
+            return Err(format!("handoff work {r} conflicts with this shard's"));
+        }
+        if let StoredWorkState::Running { worker, .. } = &w.state { affected.insert(worker.clone()); }
+        snap.order.push(r.clone());
+        snap.work.insert(r, w);
+    }
+    for g in handoff.groups {
+        if let Some(existing) = snap.groups.iter().find(|x| x.names == g.names) {
+            if serde_json::to_vec(existing).ok() == serde_json::to_vec(&g).ok() { continue }
+            return Err("handoff group conflicts with this shard's".into());
+        }
+        affected.insert(g.owner.clone());
+        snap.groups.push(g);
+    }
+    for (id, info) in handoff.workers {
+        let entry = snap.workers.entry(id.clone()).or_insert(StoredWorker { capacity_mb: info.capacity_mb, used_mb: 0, lease_until: 0, alive: false });
+        if !entry.alive || entry.lease_until <= now {
+            entry.alive = true;
+            entry.lease_until = now.saturating_add(8);
+        }
+        affected.insert(id);
+    }
+    recompute_used(snap, &affected);
+    snap.recovering = true;
+    snap.recovery_cursor.clear();
+    Ok(())
+}
+
+fn recompute_used(snap: &mut Snapshot, workers: &BTreeSet<String>) {
+    for id in workers {
+        let used = snap.work.values().filter(|w| matches!(&w.state, StoredWorkState::Running { worker, .. } if worker == id)).map(|w| w.memory_mb).sum();
+        if let Some(info) = snap.workers.get_mut(id) { info.used_mb = used }
     }
 }
 
