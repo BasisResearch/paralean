@@ -1,0 +1,113 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on shared package cache
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running unittests src/lib.rs (target/debug/deps/paralean_control-df45ad63fb4cf0dd)
+
+running 17 tests
+test controller::gc_schedule_tests::gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight ... ok
+test controller::replay_wire_tests::legacy_requests_and_responses_are_byte_identical_through_control_call ... ok
+test controller::replay_wire_tests::request_ids_become_generation_scoped_identities ... ok
+test controller::snapshot_tests::one_save_spills_within_its_budget ... ok
+test controller::snapshot_tests::rows_over_the_value_limit_stay_in_the_snapshot ... ok
+test controller::snapshot_tests::worker_chosen_poll_tokens_and_finished_work_do_not_grow_the_snapshot ... ok
+test gc::tests::stale_scanned_candidate_cannot_collect_new_retirement ... ok
+test keys::tests::roles_refuse_key_files_with_other_roles_seeds ... ok
+test p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store ... ok
+test replay::tests::scoped_identities_are_injective_and_canonical ... ok
+test replay::tests::the_shard_accepts_exactly_its_two_newest_generations ... ok
+test server::tests::connection_admission_is_bounded_before_authentication ... ok
+test server::tests::incomplete_frames_expire_and_release_admission ... ok
+test server::tests::long_authenticated_calls_cannot_lock_out_the_authority ... ok
+test server::tests::one_source_cannot_hold_every_handshake_slot ... ok
+test validator::completed_tests::completed_receipt_cache_is_bounded ... ok
+test validator::completed_tests::validator_workdir_must_be_private_and_ours ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.71s
+
+     Running tests/durable.rs (target/debug/deps/durable-ff880b2defc0fa6b)
+
+running 14 tests
+test elapsed_wall_time_alone_cannot_expire_a_lease                    ... ok
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced       ... ok
+test shard_terms_and_target_catalog_are_independent                   ... ok
+test expired_same_holder_cannot_reuse_old_term_or_write_during_gap    ... ok
+test different_topology_is_rejected_before_a_leader_can_write         ... ok
+test legacy_controller_state_requires_offline_migration               ... ok
+test queued_target_claim_blocks_another_shards_assignment             ... ok
+test submitted_work_routes_before_another_shard_can_claim_target      ... ok
+test target_free_job_routes_its_cancellation_to_issuing_shard         ... ok
+test unowned_fence_can_be_taken_by_later_registered_worker            ... ok
+test replay_of_external_assignment_commits_the_controller_shard_claim ... ok
+test sharded_validation_routes_are_scoped_per_workspace               ... ok
+test overlong_request_id_is_refused_before_shard_routing              ... ok
+test spilled_poll_tokens_keep_their_first_answer                      ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+     Running tests/gc.rs (target/debug/deps/gc-05c806003c0155a8)
+
+running 4 tests
+test controller_monitor_collects_only_when_enabled_and_preserves_queued_work ... ok
+test gc_requires_opt_in_grace_and_unpinned_superseded_root                   ... ok
+test gc_rechecks_current_head_and_rejects_stale_leader                       ... ok
+test load_during_collection_and_new_incarnation_of_same_hash                 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+
+     Running tests/w4_dependencies.rs (target/debug/deps/w4_dependencies-7b852094e376a098)
+
+running 1 test
+test dependency_across_shards_remains_required_after_handover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests/w4_history.rs (target/debug/deps/w4_history-ee5e5ffc13835cb8)
+
+running 12 tests
+test terminal_history_obeys_grace_and_preserves_active_and_retained_snapshot    ... ok
+test default_disabled_preserves_history_after_logical_grace                     ... ok
+test active_poll_tokens_cannot_starve_terminal_work                             ... ok
+test old_poll_token_waits_for_its_work_to_settle_and_age                        ... ok
+test old_poll_token_cannot_claim_new_epoch_on_same_worker                       ... ok
+test replay_survives_restart_with_gc_disabled_and_poll_tokens_do_not_steal_work ... ok
+test compacted_work_keeps_its_cross_shard_route                                 ... ok
+test stale_history_compactor_cannot_prune                                       ... ok
+test history_batch_commit_survives_crash_before_memory_update                   ... ok
+test history_replay_rows_reject_conflicting_rewrites                            ... ok
+test oversized_poll_token_does_not_block_small_history_replay                   ... ok
+test durable_history_write_limits_leave_head_and_markers_unchanged              ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+
+     Running tests/w4_processes.rs (target/debug/deps/w4_processes-bc7b0a13db06f085)
+
+running 1 test
+test opposing_wall_clock_skew_and_paused_leader_preserve_handover ... W4 realtime skew ±100 days, SIGSTOP takeover: 1.160s; queued request preserved; other shard stayed leader
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+
+     Running tests/w4_workers.rs (target/debug/deps/w4_workers-8a372f84caf4f10f)
+
+running 1 test
+test unresponsive_endpoint_does_not_starve_live_shard_heartbeats ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+
+     Running tests/w4r_replay.rs (target/debug/deps/w4r_replay-0f5d13653bdbdde4)
+
+running 9 tests
+test legacy_generation_zero_is_unchanged_and_never_retired          ... ok
+test in_window_duplicates_are_deduplicated_after_compaction         ... ok
+test retired_generations_are_refused_before_and_after_their_rows_go ... ok
+test retirement_and_advance_need_the_fenced_leader                  ... ok
+test retired_poll_tokens_cannot_take_new_work                       ... ok
+test active_work_of_an_old_generation_still_finishes                ... ok
+test require_replay_generation_refuses_generation_zero              ... ok
+test workers_learn_and_follow_the_generation_over_rpc               ... ok
+test replay_rows_with_and_without_a_horizon                         ... ignored
+
+test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.98s
+

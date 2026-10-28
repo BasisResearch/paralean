@@ -1,0 +1,165 @@
+{
+  "description": "Replay rows (W4 history-work/history-poll and W4-rest replay-rows) retained on one shard after each phase of terminal requests; each phase's requests are cancelled and compacted to replay rows, then the shard clock advances one horizon.",
+  "history_grace_ticks": 1,
+  "horizon_ticks": 4,
+  "legs": {
+    "with_horizon": {
+      "samples": [
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 17899,
+          "generation_after": 2,
+          "generation_written": 1,
+          "phase": 0,
+          "rows_deleted": 0,
+          "rows_retained": 80
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 35797,
+          "generation_after": 3,
+          "generation_written": 2,
+          "phase": 1,
+          "rows_deleted": 0,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 17899,
+          "bytes_retained": 35793,
+          "generation_after": 4,
+          "generation_written": 3,
+          "phase": 2,
+          "rows_deleted": 80,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 35797,
+          "bytes_retained": 35792,
+          "generation_after": 5,
+          "generation_written": 4,
+          "phase": 3,
+          "rows_deleted": 160,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 53692,
+          "bytes_retained": 35804,
+          "generation_after": 6,
+          "generation_written": 5,
+          "phase": 4,
+          "rows_deleted": 240,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 71589,
+          "bytes_retained": 35808,
+          "generation_after": 7,
+          "generation_written": 6,
+          "phase": 5,
+          "rows_deleted": 320,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 89496,
+          "bytes_retained": 35798,
+          "generation_after": 8,
+          "generation_written": 7,
+          "phase": 6,
+          "rows_deleted": 400,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 107397,
+          "bytes_retained": 35791,
+          "generation_after": 9,
+          "generation_written": 8,
+          "phase": 7,
+          "rows_deleted": 480,
+          "rows_retained": 160
+        }
+      ],
+      "seconds": 16.025635388
+    },
+    "without_horizon": {
+      "samples": [
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 16704,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 0,
+          "rows_deleted": 0,
+          "rows_retained": 80
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 33401,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 1,
+          "rows_deleted": 0,
+          "rows_retained": 160
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 50102,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 2,
+          "rows_deleted": 0,
+          "rows_retained": 240
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 66802,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 3,
+          "rows_deleted": 0,
+          "rows_retained": 320
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 83501,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 4,
+          "rows_deleted": 0,
+          "rows_retained": 400
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 100201,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 5,
+          "rows_deleted": 0,
+          "rows_retained": 480
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 116902,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 6,
+          "rows_deleted": 0,
+          "rows_retained": 560
+        },
+        {
+          "bytes_deleted": 0,
+          "bytes_retained": 133601,
+          "generation_after": 0,
+          "generation_written": 0,
+          "phase": 7,
+          "rows_deleted": 0,
+          "rows_retained": 640
+        }
+      ],
+      "seconds": 16.765332997
+    }
+  },
+  "phases": 8,
+  "poll_tokens_per_phase": 16,
+  "replay_grace_ticks": 1,
+  "requests_per_phase": 64
+}

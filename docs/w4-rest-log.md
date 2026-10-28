@@ -234,6 +234,86 @@ its generation, and finishes and cancellations refer to existing jobs by ID.
 `--require-replay-generation` makes generation-0 submissions refused, so that a
 deployment's replay state is bounded by `H`.
 
+### Design 3 implementation (branch `w4r-replay`)
+
+The code is `impl/p3/crates/control/src/replay.rs` plus small touch points in
+`controller.rs`, `durable.rs` (the two replay-row key functions), `worker.rs` and
+`main.rs`.
+
+**Wire.** A request is its W4 object plus an optional `"generation"` field
+(`ControlCall`, the same RPC service as `ControlRequest`). Absent means a legacy
+client and generation 0; the RPC layer verifies the server's re-serialization, and a
+legacy request re-serializes byte for byte (unit test). A generation-aware client
+always sends the field; only it receives `Registered.replay_generation`, so a legacy
+client's responses are unchanged. Refusals stay `Refused { reason }` (no new response
+variant) and end with `(current replay generation N)`: `expired replay generation g`,
+`replay generation g is ahead of this shard`, `replay generation required`. `Status`
+reports the generation, its start tick, the horizon, the require flag and the
+deleted-row and byte counters.
+
+**Identity.** Request `(g, id)` with `g > 0` has the identity `"\u{1e}" g "/" id`,
+which replaces the ID before routing, so the snapshot, the work and validation
+routes, the group descriptor, J1-J3 and the assignment request all key on it.
+Generation 0 is the ID itself and keeps every W4 key. An ID that already has this
+form names its own generation (a worker passes back the work ID it was given; a
+legacy client cannot alias a scoped identity), and a malformed one is refused. The
+W2-44 length bound still applies to the client's ID before routing; an identity is
+at most 22 bytes longer. Replay rows of `g > 0` are
+`controller/shard/<n>/replay-rows/<g>/{work,poll}/<sha256(identity)>`.
+
+**Gate.** It runs after routing (so the owning shard answers) and after the snapshot
+load, before takeover bookkeeping and before any write, including the work-shard
+reservation. Gated: `SubmitWork`, `PollRequest`, `Validate` and `AssignGroup` with a
+client request ID. Not gated: `Finish`, `Cancel`, `Poll` without a token, and the
+operations without client IDs. A `Validate` of a job that is `Running` on the same
+worker passes whatever its generation, so active work of an old generation can still
+be validated and finished. The shard's operation lock orders the gate, the dedupe
+read and the save with the advance and the collector; a leader that lost its lease
+cannot commit what it read.
+
+**Advance.** The monitor, holding the operation lock, runs one transaction under the
+lease and term: no record means generation 1 starting now; otherwise, once the clock
+reaches `started_tick + H`, `G + 1` starts and `replay-refused/<G-1>` records the
+tick at which `G - 1` stopped being accepted.
+
+**Retirement.** One transaction per page reads the lease and term, the clock,
+`replay-gen`, the refusal records and the range `replay-rows/[1, G-2]` (at most the
+scan limit), clears the rows whose generation has been refused for at least the grace,
+stops at the first generation still in its grace, and adds the rows and bytes to
+`replay-stats`. A racing advance, takeover or row write conflicts with it.
+Generation-0 rows lie outside the range. The current snapshot is never touched. Old
+active work compacted after its generation retired writes a row in that generation's
+range; a later pass clears it. Collection needs GC on and a horizon.
+
+**Retained.** Routing records keyed by request ID (work-shard routes, group-request
+descriptors, validation routes, the shard-local validation index), J1/J2/J3, the
+recovery counters and P2's assignment-request keys are not retired. A route of a job
+that is still active must survive its generation, because `Finish` and `Cancel` route
+by it. Deleting routes safely would need a snapshot-membership check inside the
+deleting transaction, and it would have to compose with design 2's bucket moves.
+These records therefore still grow with the number of requests, at a few dozen bytes
+each; the bound by `H` covers replay rows only.
+
+**Flags and clients.** `controller --replay-horizon-ticks H [--replay-grace-ticks N]
+[--require-replay-generation]`. The grace defaults to 8, and the require flag needs a
+horizon. The worker keeps each endpoint's generation, learned from `Registered` and
+from refusals. It sends poll tokens in that generation and retries once in a reported
+one. Validations of a handed-out work ID go in that ID's own generation; other
+validation IDs go in the newest generation the worker knows, retried in the one a
+refusal reports. `submit`, `assign` and `assign-group` take `--generation G`. Without
+it they probe with a generation no shard reaches (the owning shard refuses it before
+writing and reports its own) and then resend. `cancel --generation G` names a scoped
+request. `plr` (p3-remote) and P5's bridge still send legacy generation-0 requests,
+so `--require-replay-generation` refuses their submissions. A pre-existing legacy ID
+beginning with U+001E would now be parsed as scoped, or refused.
+
+**Evidence.** `tests/w4r_replay.rs` has eight live tests and one ignored measurement.
+`impl/p3/scripts/check-w4r-replay-mutations.sh` detects nine `mutate-replay-*` cases.
+`results/w4r/replay.json` holds the measurement: eight phases of 64 cancelled requests
+and 16 poll tokens, `H = 4`, grace 1. With a horizon the shard retains 160 replay rows
+(about 35.8 KB) from the second phase on; without one it reaches 640 rows (133.6 KB),
+growing linearly.
+
 ## Verification plan
 
 Models first: `StoreGc` (TLA+, with mutations, and Lean lemmas for the doom and
