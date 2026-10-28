@@ -9,7 +9,8 @@ TLA_SCENARIOS=(Chain Collision Revision Revert Rejected Quorums Integrated
   CertificatesLagging:Certificates CertificatesLive:Certificates Workspace
   WorkspacePending:Workspace TargetHomes Ingress TargetsStatement:Targets ReplayIdentity
   ExportLookup ExportLookupResidual CatalogueExchange CheckpointConflicts AgentAuthority
-  StorePositions W4Scale W4History EditorPublication:EditorWiring EditorRename:EditorWiring
+  StorePositions W4Scale W4History ShardHandover ReplayHorizon ReplayHorizonShards
+  EditorPublication:EditorWiring EditorRename:EditorWiring
   CapsuleReplay:EditorWiring AtomicBatch AtomicBatchAE:AtomicBatch
   AtomicBatchStaged:AtomicBatch)
 

@@ -1,0 +1,6 @@
+$ TLC_NEG_WORKERS=1 bash scripts/check-tla-negative.sh handover_literal_receipt_fence handover_no_receipt_owner handover_no_t4_fence
+# Wed Oct 28 10:37:49 PM UTC 2026
+handover_literal_receipt_fence: expected pass (missing useful-work witness) confirmed
+handover_no_receipt_owner: expected pass (redundant guard) confirmed
+handover_no_t4_fence: expected pass (redundant guard) confirmed
+exit 0

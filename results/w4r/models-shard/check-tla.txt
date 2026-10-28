@@ -1,0 +1,12 @@
+$ TLC_WORKERS=2 TLC_HEAP=4g bash scripts/check-tla.sh ShardHandover ReplayHorizon ReplayHorizonShards
+# Wed Oct 28 10:30:04 PM UTC 2026 on 572dcdf + working tree
+Checking ShardHandover (ShardHandover.tla)
+84802245 states generated, 6538594 distinct states found, 0 states left on queue.
+Finished in 05min 20s at (2026-10-28 22:35:24)
+Checking ReplayHorizon (ReplayHorizon.tla)
+39999514 states generated, 4861494 distinct states found, 0 states left on queue.
+Finished in 01min 56s at (2026-10-28 22:37:21)
+Checking ReplayHorizonShards (ReplayHorizonShards.tla)
+3309073 states generated, 562556 distinct states found, 0 states left on queue.
+Finished in 08s at (2026-10-28 22:37:30)
+exit 0
