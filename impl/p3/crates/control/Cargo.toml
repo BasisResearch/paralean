@@ -99,6 +99,16 @@ mutate-gc-no-grace-check = []
 mutate-gc-no-opt-in-check = []
 mutate-gc-no-candidate-check = []
 mutate-gc-modulo-schedule = []
+# W4-rest design 3 (replay horizons): impl/p3/scripts/check-w4r-replay-mutations.sh.
+mutate-replay-accept-g-minus-2 = []
+mutate-replay-accept-legacy = []
+mutate-replay-retire-g-minus-1 = []
+mutate-replay-retire-no-grace = []
+mutate-replay-retire-no-fence = []
+mutate-replay-advance-no-fence = []
+mutate-replay-retire-gen0 = []
+mutate-replay-dedupe-ignores-generation = []
+mutate-replay-poll-token-unchecked = []
 
 [dev-dependencies]
 libtest-mimic = "0.8.2"
@@ -178,6 +188,10 @@ harness = false
 
 [[test]]
 name = "w4_workers"
+harness = false
+
+[[test]]
+name = "w4r_replay"
 harness = false
 
 [[test]]

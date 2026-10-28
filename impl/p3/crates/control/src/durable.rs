@@ -145,11 +145,15 @@ impl Durable {
     pub(crate) fn retired_subspace(&self) -> foundationdb::tuple::Subspace {
         self.store.meta.keys.root.subspace(&("controller", "shard", self.shard as u64, "retired"))
     }
+    /// Generation-0 rows keep W4's keys; a scoped identity's row is in its generation's
+    /// range (`replay-rows/<g>`, docs/w4-rest-log.md design 3), which retirement clears.
     fn work_replay_key(&self, request: &str) -> Vec<u8> {
+        if let Some(g) = crate::replay::identity_generation(request) { return self.replay_row_key(g, "work", request) }
         self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "history-work",
             foundationdb::tuple::Bytes::from(&sha256(request.as_bytes())[..])))
     }
     fn poll_replay_key(&self, token: &str) -> Vec<u8> {
+        if let Some(g) = crate::replay::identity_generation(token) { return self.replay_row_key(g, "poll", token) }
         self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "history-poll",
             foundationdb::tuple::Bytes::from(&sha256(token.as_bytes())[..])))
     }

@@ -54,6 +54,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use crate::durable::{Durable, GroupRequest, PollReplay, TerminalState, WorkReplay};
 use crate::gc::GcConfig;
+use crate::replay::{ReplayConfig, ReplayGen, ReplayReport};
 
 /// The workspace that owns a target whose owner died and that no live worker could take.
 pub fn unowned() -> WorkspaceId {
@@ -147,11 +148,43 @@ impl rpc::Service for ControlRequest {
     const NAME: &'static str = "paralean/controller";
 }
 
+/// A controller request with its replay generation (docs/w4-rest-log.md, design 3). On the
+/// wire it is the request's own object plus an optional `"generation"` field: a legacy
+/// client sends none (generation 0), a generation-aware client always sends one. Both
+/// types are the same service, so a legacy client's request verifies as a `ControlCall`.
+/// The generation scopes the request's client-chosen ID (`crate::replay`).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ControlCall {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<u64>,
+    #[serde(flatten)]
+    pub request: ControlRequest,
+}
+
+impl rpc::Service for ControlCall {
+    const NAME: &'static str = ControlRequest::NAME;
+}
+
+impl ControlCall {
+    pub fn scoped(generation: u64, request: ControlRequest) -> Self { ControlCall { generation: Some(generation), request } }
+}
+
+/// What `call_controller` sends: a legacy request or a [`ControlCall`].
+pub trait ControlMessage: Serialize + rpc::Service + Sync {
+    fn control(&self) -> &ControlRequest;
+}
+impl ControlMessage for ControlRequest { fn control(&self) -> &ControlRequest { self } }
+impl ControlMessage for ControlCall { fn control(&self) -> &ControlRequest { &self.request } }
+
+fn is_zero(v: &u64) -> bool { *v == 0 }
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "result", rename_all = "snake_case")]
 pub enum ControlResponse {
     Ok,
-    Registered { lease_ms: u64 },
+    /// `replay_generation` is the shard's current replay generation, sent only to a
+    /// generation-aware caller (a legacy client's response stays byte-identical).
+    Registered { lease_ms: u64, #[serde(default, skip_serializing_if = "is_zero")] replay_generation: u64 },
     /// The worker is not registered, or its lease expired (it must re-register; its
     /// targets were reassigned).
     Unknown,
@@ -246,6 +279,7 @@ pub struct ControlPlane {
     seen_term: AtomicU64,
     gc: GcConfig,
     gc_cursor: Mutex<Option<String>>,
+    replay: ReplayConfig,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
@@ -501,6 +535,32 @@ fn validation_targets(req: &ControlRequest) -> Vec<String> {
     }
 }
 
+/// Replace a request's client-chosen ID by its generation-scoped identity (identical for
+/// generation 0). Returns the generation the identity names.
+fn scope_request(field: Option<u64>, mut req: ControlRequest) -> Result<(ControlRequest, u64), ControlResponse> {
+    let id = match &mut req {
+        ControlRequest::SubmitWork { request, .. }
+        | ControlRequest::PollRequest { request, .. }
+        | ControlRequest::Finish { request, .. }
+        | ControlRequest::Validate { request, .. }
+        | ControlRequest::ValidateBatch { request, .. }
+        | ControlRequest::Cancel { request, .. } => request,
+        ControlRequest::AssignGroup { request, .. } if !request.is_empty() => request,
+        _ => return Ok((req, 0)),
+    };
+    let (generation, identity) = crate::replay::resolve_id(field, id).map_err(|e| refused(&e))?;
+    *id = identity;
+    Ok((req, generation))
+}
+
+/// The current replay generation a refusal reports (`crate::replay::check`).
+pub fn replay_generation_hint(response: &ControlResponse) -> Option<u64> {
+    match response {
+        ControlResponse::Refused { reason } => crate::replay::generation_hint(reason),
+        _ => None,
+    }
+}
+
 /// The in-flight key of a validation: (requesting workspace, request ID).
 fn job_key(worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
     let mut k = worker.0.to_vec();
@@ -522,14 +582,14 @@ pub fn monitor_interval(lease: Duration) -> Duration {
     (lease / 8).max(Duration::from_millis(20))
 }
 
-pub async fn call_controller(
-    addrs: &str, req: &ControlRequest, signer: &Signer, authority_public: &[u8; 32], total_timeout: Duration,
+pub async fn call_controller<Q: ControlMessage>(
+    addrs: &str, req: &Q, signer: &Signer, authority_public: &[u8; 32], total_timeout: Duration,
 ) -> std::io::Result<ControlResponse> {
     let endpoints: Vec<&str> = addrs.split(',').map(str::trim).filter(|s| !s.is_empty()).collect();
     if endpoints.is_empty() {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "no controller address"));
     }
-    let validation = matches!(req, ControlRequest::Validate { .. } | ControlRequest::ValidateBatch { .. });
+    let validation = matches!(req.control(), ControlRequest::Validate { .. } | ControlRequest::ValidateBatch { .. });
     let budget = if validation { total_timeout } else { total_timeout.min(Duration::from_secs(15)) };
     let deadline = Instant::now() + budget;
     let mut last_error = None;
@@ -567,8 +627,12 @@ impl ControlPlane {
     }
 
     pub fn new_shard_with_gc(cfg: ControllerConfig, shard: u32, shards: u32, gc: GcConfig) -> Arc<ControlPlane> {
+        Self::new_shard_with_replay(cfg, shard, shards, gc, ReplayConfig::default())
+    }
+
+    pub fn new_shard_with_replay(cfg: ControllerConfig, shard: u32, shards: u32, gc: GcConfig, replay: ReplayConfig) -> Arc<ControlPlane> {
         let durable = Durable::new_shard(cfg.store.clone(), cfg.lease, shard, shards);
-        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None) })
+        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None), replay })
     }
 
     /// Validate and initialize the deployment's fixed shard topology before listening.
@@ -721,8 +785,8 @@ impl ControlPlane {
         let me = self.clone();
         let ring = self.cfg.store.ring.clone();
         let privileged = ring.authority;
-        let server = crate::server::serve_authenticated(listener, self.cfg.authority.clone(), privileged, move |req: &ControlRequest, public| {
-            match req {
+        let server = crate::server::serve_authenticated(listener, self.cfg.authority.clone(), privileged, move |call: &ControlCall, public| {
+            match &call.request {
                 ControlRequest::Register { worker, .. }
                 | ControlRequest::Heartbeat { worker }
                 | ControlRequest::Poll { worker }
@@ -732,9 +796,9 @@ impl ControlPlane {
                 | ControlRequest::ValidateBatch { coordinator: worker, .. } => ws(worker).and_then(|w| ring.writer(&w).copied()).is_some_and(|key| &key == public),
                 _ => &ring.authority == public,
             }
-        }, move |req: ControlRequest| {
+        }, move |call: ControlCall| {
             let me = me.clone();
-            async move { me.handle(req).await }
+            async move { me.handle_call(call).await }
         });
         let server = AbortOnDrop(server);
         let me = self.clone();
@@ -746,6 +810,7 @@ impl ControlPlane {
                 tick.tick().await;
                 let now = me.durable.tick().await.ok();
                 me.expire_leases().await;
+                if me.replay.horizon_ticks.is_some() { let _ = me.replay_maintenance().await; }
                 if let Some(now) = now.filter(|n| me.gc.enabled && gc_sweep_due(*n, next_gc_tick)) {
                     if let Ok(Some(lease)) = me.durable.current().await {
                         let cursor = me.gc_cursor.lock().unwrap().clone();
@@ -762,13 +827,29 @@ impl ControlPlane {
         })
     }
 
+    /// A legacy request: replay generation 0.
     pub async fn handle(self: &Arc<Self>, req: ControlRequest) -> ControlResponse {
+        self.handle_call(ControlCall { generation: None, request: req }).await
+    }
+
+    /// A request with its replay generation. Its client-chosen ID becomes the
+    /// generation-scoped identity before routing (`crate::replay`), so every key the
+    /// controller writes for it names the generation.
+    pub async fn handle_call(self: &Arc<Self>, call: ControlCall) -> ControlResponse {
+        let aware = call.generation.is_some();
+        let req = call.request;
         // Before routing: shard lookups and W4's work-shard reservation key on the ID.
         if let Some(id) = request_id(&req) {
             if id.len() > MAX_REQUEST_ID && !cfg!(feature = "mutate-unbounded-poll-responses") {
                 return refused(&format!("request ID longer than {MAX_REQUEST_ID} bytes"));
             }
         }
+        let (req, generation) = match scope_request(call.generation, req) { Ok(v) => v, Err(r) => return r };
+        let response = self.handle_scoped(req, generation).await;
+        self.decorate(response, aware).await
+    }
+
+    async fn handle_scoped(self: &Arc<Self>, req: ControlRequest, generation: u64) -> ControlResponse {
         match self.request_shard(&req).await {
             Ok(Some(shard)) if shard != self.durable.shard => return inconclusive("not controller shard"),
             Err(e) => return inconclusive(&e),
@@ -781,6 +862,8 @@ impl ControlPlane {
                 let _guard = self.operation.lock().await;
                 let Ok(Some(lease)) = self.durable.acquire_or_renew().await else { return inconclusive("not controller leader") };
                 if let Err(e) = self.load_state().await { return inconclusive(&e) }
+                // The replay gate precedes takeover bookkeeping and every write.
+                if let Err(r) = self.replay_gate(&req, generation).await { return r }
                 let takeover = self.on_leadership(lease.term);
                 if takeover { self.recover_pending(lease.term).await }
                 if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
@@ -800,6 +883,7 @@ impl ControlPlane {
             Err(e) => return inconclusive(&e),
         };
         if let Err(e) = self.load_state().await { return inconclusive(&e) }
+        if let Err(r) = self.replay_gate(&req, generation).await { return r }
         let takeover = self.on_leadership(lease.term);
         if takeover {
             self.recover_pending(lease.term).await;
@@ -810,6 +894,76 @@ impl ControlPlane {
         let resp = self.handle_inner(req, lease.term).await;
         if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
         resp
+    }
+
+    /// Refuse a new submission outside the shard's accepted replay generations (`G` and
+    /// `G - 1`; generation 0 unless `--require-replay-generation`). Called with the
+    /// operation lock held and the snapshot loaded, after routing and before any write.
+    /// Finish, Cancel and polls without a token name no new identity and are not gated; a
+    /// validation of work this worker is running is not either, so active work of an old
+    /// generation still finishes.
+    async fn replay_gate(&self, req: &ControlRequest, generation: u64) -> Result<(), ControlResponse> {
+        let gated = match req {
+            ControlRequest::SubmitWork { .. } | ControlRequest::Validate { .. } => true,
+            ControlRequest::PollRequest { .. } => !cfg!(feature = "mutate-replay-poll-token-unchecked"),
+            ControlRequest::AssignGroup { request, .. } => !request.is_empty(),
+            _ => false,
+        };
+        if !gated { return Ok(()) }
+        let current = self.durable.replay_generation().await.map_err(|e| inconclusive(&e))?;
+        let Err(reason) = crate::replay::check(generation, current.generation, self.replay.require_generation) else { return Ok(()) };
+        if let ControlRequest::Validate { worker, request, .. } = req {
+            let st = self.state.lock().unwrap();
+            if st.work.get(request).is_some_and(|j| matches!(j.state, WorkState::Running { worker: w, .. } if Some(w) == ws(worker))) {
+                return Ok(());
+            }
+        }
+        Err(refused(&reason))
+    }
+
+    /// Tell a generation-aware client the shard's generation; add replay state to Status.
+    async fn decorate(&self, response: ControlResponse, aware: bool) -> ControlResponse {
+        match response {
+            ControlResponse::Registered { lease_ms, .. } if aware => {
+                let replay_generation = self.durable.replay_generation().await.map_or(0, |g| g.generation);
+                ControlResponse::Registered { lease_ms, replay_generation }
+            }
+            ControlResponse::Status { mut status } if status["leader"] == true => {
+                if let (Ok(current), Ok(stats), Some(map)) = (self.durable.replay_generation().await, self.durable.replay_stats().await, status.as_object_mut()) {
+                    map.insert("replay_generation".into(), current.generation.into());
+                    map.insert("replay_started_tick".into(), current.started_tick.into());
+                    map.insert("replay_horizon_ticks".into(), self.replay.horizon_ticks.into());
+                    map.insert("replay_require_generation".into(), self.replay.require_generation.into());
+                    map.insert("replay_deleted_rows".into(), stats.deleted_rows.into());
+                    map.insert("replay_deleted_bytes".into(), stats.deleted_bytes.into());
+                }
+                ControlResponse::Status { status }
+            }
+            other => other,
+        }
+    }
+
+    /// Start or advance this shard's replay generation (`--replay-horizon-ticks`) under
+    /// the lease and term; the operation lock orders it with every gate check.
+    pub async fn advance_replay(&self) -> Result<ReplayGen, String> {
+        let horizon = self.replay.horizon_ticks.ok_or("replay horizon is not configured")?;
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.durable.advance_replay_generation(lease.term, horizon).await
+    }
+
+    /// One fenced page of replay-row retirement (requires GC and a horizon).
+    pub async fn collect_replay(&self) -> Result<ReplayReport, String> {
+        if self.replay.horizon_ticks.is_none() { return Err("replay horizon is not configured".into()) }
+        let _guard = self.operation.lock().await;
+        let lease = self.durable.acquire_or_renew().await?.ok_or("not controller leader")?;
+        self.durable.collect_replay_rows(lease.term, &self.replay, &self.gc).await
+    }
+
+    async fn replay_maintenance(&self) -> Result<(), String> {
+        self.advance_replay().await?;
+        if self.gc.enabled { self.collect_replay().await?; }
+        Ok(())
     }
 
     async fn request_shard(&self, req: &ControlRequest) -> Result<Option<u32>, String> {
@@ -1005,7 +1159,7 @@ impl ControlPlane {
                 // Workers heartbeat at a third of the advertised lease, so
                 // advertise one monitor interval: heartbeats then outpace expiry
                 // for fewer than 24 concurrently ticking replicas.
-                ControlResponse::Registered { lease_ms: monitor_interval(self.cfg.lease).as_millis() as u64 }
+                ControlResponse::Registered { lease_ms: monitor_interval(self.cfg.lease).as_millis() as u64, replay_generation: 0 }
             }
             ControlRequest::Heartbeat { worker } => {
                 let Some(w) = ws(&worker) else { return refused("bad worker ID") };
@@ -2102,5 +2256,68 @@ mod snapshot_tests {
         assert!(work.is_empty() && !polls.is_empty() && bytes <= SPILL_BUDGET);
         assert!(polls.len() < 5000 - MAX_POLL_TOKENS_PER_WORKER, "the budget did not bound one save");
         assert_eq!(st.poll_responses.len() + polls.len(), 5000);
+    }
+}
+
+#[cfg(test)]
+mod replay_wire_tests {
+    use super::*;
+
+    /// The RPC layer verifies the signature over the server's re-serialization of what it
+    /// parsed. A legacy client's request must therefore parse as a `ControlCall` and
+    /// re-serialize byte for byte, and a legacy client must get back a `Registered` it
+    /// re-serializes identically.
+    #[test]
+    fn legacy_requests_and_responses_are_byte_identical_through_control_call() {
+        let t = TargetReq { name: "A.b".into(), statement: "00".into() };
+        let all = vec![
+            ControlRequest::Register { worker: "w".into(), capacity_mb: 7 },
+            ControlRequest::Heartbeat { worker: "w".into() },
+            ControlRequest::SubmitWork { request: "r".into(), target: "T".into(), memory_mb: u64::MAX },
+            ControlRequest::Poll { worker: "w".into() },
+            ControlRequest::PollRequest { worker: "w".into(), request: "p".into() },
+            ControlRequest::Finish { worker: "w".into(), request: "r".into(), ok: true },
+            ControlRequest::Validate { worker: "w".into(), request: "v".into(), group: "g".into(), capsule: "c".into(),
+                deps: vec!["d".into()], targets: vec![t], memory_mb: 0, deadline_ms: 9 },
+            ControlRequest::Cancel { request: "r".into(), worker: String::new() },
+            ControlRequest::Assign { target: "T".into(), worker: "w".into(), statement: String::new() },
+            ControlRequest::AssignGroup { targets: vec!["T".into()], worker: "w".into(), request: "q".into(), statements: vec![] },
+            ControlRequest::Status,
+        ];
+        for req in all {
+            let legacy = serde_json::to_vec(&req).unwrap();
+            let call: ControlCall = serde_json::from_slice(&legacy).unwrap();
+            assert_eq!(call.generation, None);
+            assert_eq!(serde_json::to_vec(&call).unwrap(), legacy, "{req:?}");
+            let scoped = serde_json::to_vec(&ControlCall::scoped(3, req.clone())).unwrap();
+            let back: ControlCall = serde_json::from_slice(&scoped).unwrap();
+            assert_eq!(back.generation, Some(3));
+            assert_eq!(serde_json::to_vec(&back).unwrap(), scoped);
+            assert_eq!(serde_json::to_vec(&back.request).unwrap(), legacy);
+        }
+        let registered = ControlResponse::Registered { lease_ms: 5, replay_generation: 0 };
+        assert_eq!(serde_json::to_string(&registered).unwrap(), r#"{"result":"registered","lease_ms":5}"#);
+        let aware = ControlResponse::Registered { lease_ms: 5, replay_generation: 4 };
+        let parsed: ControlResponse = serde_json::from_slice(&serde_json::to_vec(&aware).unwrap()).unwrap();
+        assert_eq!(parsed, aware);
+        assert_eq!(replay_generation_hint(&refused(&crate::replay::check(1, 4, false).unwrap_err())), Some(4));
+    }
+
+    #[test]
+    fn request_ids_become_generation_scoped_identities() {
+        let submit = |request: &str| ControlRequest::SubmitWork { request: request.into(), target: "T".into(), memory_mb: 1 };
+        let id = |r: &ControlRequest| request_id(r).unwrap().to_string();
+        let (r, g) = scope_request(None, submit("a")).unwrap();
+        assert_eq!((id(&r), g), ("a".into(), 0));
+        let (r, g) = scope_request(Some(4), submit("a")).unwrap();
+        assert_eq!((id(&r), g), (crate::replay::scoped_id(4, "a"), 4));
+        // A legacy client cannot alias generation 4's identity under generation 0.
+        let (r2, g2) = scope_request(None, submit(&id(&r))).unwrap();
+        assert_eq!((id(&r2), g2), (id(&r), 4));
+        assert!(scope_request(Some(5), submit(&id(&r))).is_err());
+        assert!(scope_request(None, submit("\u{1e}x")).is_err());
+        // A server-chosen group request stays unscoped.
+        let (r, g) = scope_request(Some(4), ControlRequest::AssignGroup { targets: vec![], worker: "w".into(), request: String::new(), statements: vec![] }).unwrap();
+        assert_eq!((request_id(&r).unwrap(), g), ("", 0));
     }
 }
