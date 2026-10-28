@@ -78,3 +78,11 @@ path. Production synthetic samples use 20,000, recorded explicitly in each row.
 The List Paralean pilot passed all contracts and clean export. Production wall
 time ends after all-target contract validation; the representative pilots measure
 clean export separately. Production proof scripts will remain fixed.
+
+Pilot amendment before production: the 20,000-iteration pilot exceeded worker
+heartbeats and drove load above 24; it was aborted by exact owned PIDs and is
+excluded from inference. It exposed that ws-check can report JSON errors with a
+zero process exit code; the scripted worker now checks that JSON explicitly.
+Reduce production synthetic work to 100 iterations per branch and impose a
+180-second worker timeout. A new eight-worker pilot must pass before production.
+This reduces the attainable compute/coordination ratio; report it as a limitation.

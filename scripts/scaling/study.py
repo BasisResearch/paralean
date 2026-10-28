@@ -63,6 +63,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
     taskdata = tomllib.loads(text)
     text = text.replace('id = "'+taskdata['task']['id']+'"', 'id = "scal-'+name+'"')
     text = text.replace('max_attempts = 3', 'max_attempts = 1')
+    text = text.replace('kind = "command"', 'kind = "command"\ntimeout_s = 180')
     if workload == 'synthetic':
         text += '\n[sources]\n' + '\n'.join(json.dumps(t['file'])+' = "import Lean\\n"' for t in taskdata['targets'])+'\n'
     task = evidence / 'task.toml'

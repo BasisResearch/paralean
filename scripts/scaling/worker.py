@@ -36,7 +36,10 @@ if __name__ == '__main__':
     path = directory / 'work' / os.environ['PARALEAN_P5_FILE']
     with path.open('a') as out:
         out.write(declaration(os.environ['PARALEAN_P5_TARGET'], os.environ['PARALEAN_P5_STATEMENT'], int(os.environ.get('SCALING_WORK', '2000'))))
-    subprocess.run([os.environ['PARALEAN_BIN'], 'ws-check', '--dir', str(directory), os.environ['PARALEAN_P5_FILE']], check=True)
+    result = subprocess.run([os.environ['PARALEAN_BIN'], 'ws-check', '--dir', str(directory), os.environ['PARALEAN_P5_FILE']], check=True, capture_output=True, text=True)
+    print(result.stdout, end='')
+    verdict = json.loads(result.stdout.strip().splitlines()[-1])
+    if verdict.get('errors'): raise RuntimeError('scripted proof failed ws-check')
     if os.environ.get('SCALING_PHASES'):
         with open(os.environ['SCALING_PHASES'], 'a') as f:
             f.write(json.dumps({'phase':'scripted_worker', 'start':started, 'wall_s':time.monotonic()-started,
