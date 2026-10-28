@@ -18,7 +18,7 @@ may supply optional pinned statement hashes as NAME:STATEMENT_HASH entries.
 Each step is a separate process; nothing is shared between copies except the store.
 Prints one JSON object per step on stdout (prefixed by the step name).
 """
-import json, os, shutil, subprocess, sys, time
+import json, os, shutil, subprocess, sys, tempfile, time
 
 BIN = os.environ["PARALEAN_BIN"]
 PLR = os.environ["PARALEAN_PLR"]
@@ -53,6 +53,19 @@ def run(cmd, d, file=None, check=True):
         return json.loads(out[-1]) if out else {}
     except json.JSONDecodeError:
         return {"raw": p.stdout}
+
+
+def write_new_file(path, text):
+    """Create a new owner-only file; an existing name or symlink fails closed."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(text)
+
+
+def read_private(path):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(fd) as f:
+        return f.read()
 
 
 def emit(step, obj):
@@ -111,22 +124,25 @@ def publish(d, file):
             while not os.path.exists(os.environ["PARALEAN_PAUSE_BEFORE_PLAN"]):
                 time.sleep(0.2)
             run([PLR, "pull", "--cache", cache(d)], d)
-        rpath = os.path.join(d, "receipt.json")
-        json.dump(v, open(rpath, "w"))
-        plan = os.path.join(d, "plan.json")
-        pl = run([BIN, "ws-plan", "--dir", d, "--file", file, "--receipts", rpath, "--out", plan], d, file)
-        emit("plan", pl)
-        if pl.get("planned", 0) == 0:
-            continue
-        if selected:
-            entries = json.load(open(plan))
-            for entry in entries:
-                if entry["group"] == p["group"]:
-                    entry["targets"] = v["targets"]
-            with open(plan, "w") as f:
-                json.dump(entries, f)
-        pub = run([PLR, "publish", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"], "--plan", plan], d,
-                  check=False)
+        # The working copy's folder may hold planted symlinks, so the receipt and plan live
+        # in a fresh owner-only directory outside it (W2-20), written without following links.
+        with tempfile.TemporaryDirectory(prefix="ws-publish-") as staging:
+            rpath = os.path.join(staging, "receipt.json")
+            write_new_file(rpath, json.dumps(v))
+            plan = os.path.join(staging, "plan.json")
+            pl = run([BIN, "ws-plan", "--dir", d, "--file", file, "--receipts", rpath, "--out", plan], d, file)
+            emit("plan", pl)
+            if pl.get("planned", 0) == 0:
+                continue
+            if selected:
+                entries = json.loads(read_private(plan))
+                for entry in entries:
+                    if entry["group"] == p["group"]:
+                        entry["targets"] = v["targets"]
+                plan = os.path.join(staging, "plan-targets.json")
+                write_new_file(plan, json.dumps(entries))
+            pub = run([PLR, "publish", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"], "--plan", plan],
+                      d, check=False)
         if "error" in pub:
             emit("publish_rejected", {"group": p["group"], "reason": pub["error"]})
             continue

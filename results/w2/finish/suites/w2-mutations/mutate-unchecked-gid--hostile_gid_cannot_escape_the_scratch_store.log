@@ -1,5 +1,5 @@
    Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.35s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.06s
      Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-2a602b2be7ebf619)
 
 running 1 test
@@ -9,7 +9,7 @@ failures:
 
 ---- p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store stdout ----
 
-thread 'p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store' (3441710) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/p1.rs:211:13:
+thread 'p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store' (316801) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/p1.rs:211:13:
 from_parts accepted gid "../../escaped"
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
@@ -17,6 +17,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     p1::gid_tests::hostile_gid_cannot_escape_the_scratch_store
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s
 
 error: test failed, to rerun pass `-p paralean-control --lib`

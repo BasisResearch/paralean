@@ -21,3 +21,4 @@ import Paralean.Rga
 import Paralean.Ed25519
 import Paralean.Copy
 import Paralean.Forge
+import Paralean.KernelCheck

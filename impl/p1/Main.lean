@@ -10,6 +10,9 @@ def usage : String := "usage:
   paralean validate-pkgs --store DIR --out FILE PID...   (P3 working copies: verdicts for a batch)
   paralean check-group --store DIR --gids a,b,... --decl DECLID [--targets NAME=HASH,...]
                                                  (P3 validator: one group from its closure; prints CHECK <json>)
+  paralean source-check (same flags)            (W2-13 frontend: CHECK as above, then EVIDENCE <json>)
+  paralean kernel-check (same flags) --evidence FILE
+                                                 (W2-13 trusted verdict: no capsule is elaborated; prints CHECK <json>)
   paralean stats | contract --names a,b | dump --decl ID | merge --into DIR --from DIR
   paralean fasync --file FAsync.lean --store DIR
   paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
@@ -25,6 +28,12 @@ def usage : String := "usage:
 def moduleOfPath (rel : String) : Name :=
   let rel := if rel.endsWith ".lean" then (rel.dropEnd 5).toString else rel
   (rel.splitOn "/").foldl (fun n c => Name.mkStr n c) .anonymous
+
+/-- `NAME=HASH` pins a statement; `NAME=` only requires the group to declare NAME. -/
+def parseTargets (s : String) : Array TargetContract :=
+  (s.splitOn ",").filter (· ≠ "") |>.toArray.map fun s => match s.splitOn "=" with
+    | [n, h] => { name := n.toName, typeHash := h }
+    | _ => { name := s.toName, typeHash := "" }
 
 partial def parseFlags (args : List String) (acc : Std.HashMap String String := {}) (rest : Array String := #[]) :
     Std.HashMap String String × Array String :=
@@ -377,6 +386,27 @@ unsafe def main (args : List String) : IO UInt32 := do
         | [n, h] => { name := n.toName, typeHash := h }
         | _ => { name := s.toName, typeHash := "" }
     let r ← checkGroup { root := storeDir } gids decl targets
+    IO.println s!"CHECK {(toJson r).compress}"
+    return if r.ok then 0 else 1
+  | "source-check" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some storeDir := flags["store"]? | IO.eprintln usage; return 2
+    let some decl := flags["decl"]? | IO.eprintln usage; return 2
+    let gids := ((flags.getD "gids" "").splitOn ",").filter (· ≠ "") |>.toArray
+    let (r, ev) ← sourceCheck { root := storeDir } gids decl (parseTargets (flags.getD "targets" ""))
+    IO.println s!"CHECK {(toJson r).compress}"
+    IO.println s!"EVIDENCE {(evidenceToJson ev).compress}"
+    return 0
+  | "kernel-check" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some storeDir := flags["store"]? | IO.eprintln usage; return 2
+    let some decl := flags["decl"]? | IO.eprintln usage; return 2
+    let some evPath := flags["evidence"]? | IO.eprintln usage; return 2
+    let gids := ((flags.getD "gids" "").splitOn ",").filter (· ≠ "") |>.toArray
+    let ev ← match (Json.parse (← IO.FS.readFile evPath)) >>= evidenceOfJson with
+      | .ok ev => pure ev
+      | .error e => IO.println s!"CHECK {(toJson ({ declId := decl, ok := false, diags := #[s!"evidence: {e}"] } : CheckResult)).compress}"; return 1
+    let r ← kernelCheck { root := storeDir } gids decl (parseTargets (flags.getD "targets" "")) ev
     IO.println s!"CHECK {(toJson r).compress}"
     return if r.ok then 0 else 1
   | "forge-proof" :: rest =>

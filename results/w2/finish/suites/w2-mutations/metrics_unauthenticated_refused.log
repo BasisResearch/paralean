@@ -1,0 +1,14 @@
+F..
+======================================================================
+FAIL: test_metrics_require_the_config_token (__main__.StorageBoundary.test_metrics_require_the_config_token)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-07oc8e0n/test-storage-boundary.py", line 121, in test_metrics_require_the_config_token
+    with self.assertRaisesRegex(ValueError, "answers without its token"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.521s
+
+FAILED (failures=1)

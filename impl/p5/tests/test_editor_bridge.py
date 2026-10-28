@@ -866,6 +866,121 @@ class RouterBoundsTests(unittest.TestCase):
         self._capsule(self.root / "outside" / "capsule.json", "Leaked.name")
         self.assertEqual(self._symbols(self.root / "unused-fifo"), set())
 
+    def _malformed_registry(self):
+        """One good symbol among records whose fields are readable but malformed."""
+        records = self.root / "cache" / "p3" / "records"
+        meta = self.root / "cache" / "meta"
+        def plant(index, marker=None, capsule=None):
+            pid = f"{index:064x}"
+            record = {"kind": "marker", "pid": pid, "group": f"{index:064x}", "file": "A.lean",
+                      "author": "w0", "lamport": 1}
+            (records / f"m{index}.json").write_text(json.dumps(record | (marker or {})))
+            body = {"publicNames": [f"Name{index}"], "capsule": {"startLine": 1}}
+            (meta / f"{pid}.json").write_text(json.dumps(body | (capsule or {})))
+        plant(1, capsule={"publicNames": ["Good.name"]})
+        plant(2, capsule={"capsule": {"startLine": "two"}})
+        plant(3, capsule={"capsule": {"startLine": None}})
+        plant(4, capsule={"capsule": "not an object"})
+        plant(5, capsule={"publicNames": 5})
+        plant(6, capsule={"publicNames": "Str"})
+        plant(7, capsule={"publicNames": [7, None, {"x": 1}, [], ["A", None], ["Comp", "name"]]})
+        plant(8, marker={"lamport": "late"}, capsule={"publicNames": ["Good.name"]})
+        plant(9, marker={"revisions": 5})
+        plant(10, marker={"group": 10})
+        plant(11, marker={"file": 11})
+        plant(12, marker={"file": "A\u0000.lean"})
+        plant(13, marker={"lineageKeys": "rows"})
+        plant(14, marker={"lineageKeys": [[["Name14"], "1", "w0"], ["Name14"], 3]})
+        plant(15, marker={"revisions": ["r1"]})
+        revisions = self.root / "cache" / "p3" / "revisions"
+        revisions.mkdir()
+        (revisions / "r1.json").write_text(json.dumps({"id": "r1", "parents": 5, "group": "x"}))
+        (revisions / "r2.json").write_text(json.dumps({"id": ["r2"], "parents": []}))
+        return {"Good.name", "Comp.name", "Name14", "Name15"}
+
+    def test_registry_symbols_skip_malformed_entries(self):
+        expected = self._malformed_registry()
+        self.assertEqual(self._symbols(self.root / "unused"), expected)
+        outcome = run_unblocking(self, lambda: self.proxy.registry_symbols(self.ws, 5), self.root / "unused")
+        self.assertNotIn("error", outcome)
+
+    def test_symbol_request_is_answered_despite_malformed_records(self):
+        expected = self._malformed_registry()
+        sent = []
+
+        async def send(message):
+            sent.append(message)
+
+        async def no_worker(*args, **kwargs):
+            raise ConnectionError("no Lean worker in this test")
+
+        self.proxy.send = send
+        self.ws.refresh_environment = lambda: False
+        self.ws.request = no_worker
+
+        async def search():
+            await self.proxy.dispatch({"jsonrpc": "2.0", "id": 7, "method": "workspace/symbol",
+                                       "params": {"query": ""}})
+            for _ in range(200):
+                if sent:
+                    return
+                await asyncio.sleep(0.01)
+
+        asyncio.run(search())
+        self.assertEqual(len(sent), 1, "workspace/symbol was left unanswered")
+        self.assertEqual({symbol["name"] for symbol in sent[0].get("result", [])}, expected, sent[0])
+
+    def _forward_stderr(self, data):
+        lines = []
+        self.proxy.debug = lambda *items: lines.append(items)
+
+        async def forward():
+            reader = asyncio.StreamReader()
+            reader.feed_data(data)
+            reader.feed_eof()
+            await asyncio.wait_for(self.ws.forward_stderr(reader), 5)
+            return reader.at_eof()
+
+        try:
+            drained = asyncio.run(forward())
+        except Exception as exc:
+            self.fail(f"stderr forwarding stopped: {exc!r}")
+        self.assertTrue(drained)
+        return [items[-1] for items in lines]
+
+    def test_debug_stderr_forwarding_bounds_long_lines(self):
+        long = b"x" * (1024 * 1024)
+        lines = self._forward_stderr(b"first\n" + long + b"\nafter\r\n" + b"y" * 70000 + b"\ntail")
+        bound = 16 * 1024
+        self.assertEqual(lines, ["first", "x" * bound + " [truncated]", "after",
+                                 "y" * bound + " [truncated]", "tail"])
+
+    def test_debug_stderr_forwarding_keeps_lean_running(self):
+        # Lean writes a line longer than the stream limit to stderr, then more output;
+        # an undrained pipe would block it forever.
+        script = "import sys; sys.stderr.write('x' * (4 << 20) + '\\n' + 'done\\n')"
+        lines = []
+        self.proxy.debug = lambda *items: lines.append(items[-1])
+
+        async def run():
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, "-c", script, stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE)
+            forward = asyncio.create_task(self.ws.forward_stderr(process.stderr))
+            # Poll: Process.wait() also waits for the pipes, which a blocked child never closes.
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + 20
+            while process.returncode is None and loop.time() < deadline:
+                await asyncio.sleep(0.05)
+            code = process.returncode
+            if code is None:
+                process.kill()
+            await asyncio.wait([forward], timeout=5)
+            return code
+
+        self.assertEqual(asyncio.run(run()), 0, "Lean blocked writing to its stderr pipe")
+        self.assertEqual(lines[-1], "done")
+
     def _source(self, path, fifo):
         sent = []
 

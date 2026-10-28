@@ -1,10 +1,9 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.19s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running tests/guards.rs (impl/p2/target/debug/deps/guards-4906b57db3105bef)
 
 running 1 test
 
-thread '<unnamed>' (3446153) panicked at crates/store/tests/common/mod.rs:135:18:
+thread '<unnamed>' (328531) panicked at crates/store/tests/common/mod.rs:135:18:
 expected a guard failure, got Ok(PublishOutcome { marker: 7eed2d182b0b, fresh: true })
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test t1_requires_the_pinned_target_statement ... FAILED
@@ -18,6 +17,6 @@ test panicked: expected a guard failure, got Ok(PublishOutcome { marker: 7eed2d1
 failures:
     t1_requires_the_pinned_target_statement
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.12s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.42s
 
 error: test failed, to rerun pass `-p paralean-store --test guards`

@@ -13,6 +13,7 @@ cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-store -p paralean
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p s3-guard >> "$out/baseline.log" 2>&1
 cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p paralean-remote --bin plr >> "$out/baseline.log" 2>&1
 python3 impl/p2/scripts/test-storage-boundary.py >> "$out/baseline.log" 2>&1
+python3 impl/p3-remote/scripts/test-ws.py >> "$out/baseline.log" 2>&1
 # FoundationDB's connection string is its only client credential: never commit one.
 if git grep -nE 'paralean:[a-z0-9]+@[0-9]' -- results docs impl scripts; then
   echo "an FDB connection string is committed (redact it and treat that cluster as exposed)"; exit 1
@@ -37,6 +38,7 @@ cases=(
  "s3-guard|mutate-allow-delete|tests::encoded_and_unknown_mutations_are_denied|"
  "s3-guard|mutate-unbounded-body|tests::streamed_body_limit_is_enforced|"
  "s3-guard|mutate-allow-overwrite|tests::overwrites_copies_and_unaddressed_keys_are_denied|"
+ "s3-guard|mutate-no-per-source-admission|tests::one_source_cannot_hold_every_connection_slot|"
  "paralean-store|mutate-receive-no-cancel-check|cancelled_request_is_not_received_by_its_issuer|--test antientropy"
  "paralean-store|mutate-receive-no-dep-check|received_group_waits_for_job_dependencies_here|--test antientropy"
  "paralean-store|mutate-no-statement-pin-check|t1_requires_the_pinned_target_statement|--test guards"
@@ -78,23 +80,35 @@ done
 python3 - "$out" <<'PY'
 from pathlib import Path
 import shutil, subprocess, sys, tempfile
-source = Path("impl/p2/scripts")
-text = (source / "check-storage-boundary.py").read_text()
+# (directory, script, its test, the test's arguments)
+boundary = ("impl/p2/scripts", "check-storage-boundary.py", "test-storage-boundary.py", [])
+ws = ("impl/p3-remote/scripts", "ws.py", "test-ws.py", ["PublishStagingTest.test_publish_does_not_follow_planted_links"])
+raised = "AssertionError: ValueError not raised"
+planted = "FAIL: test_publish_does_not_follow_planted_links"
 mutations = {
-    "private_backend_mode": ('if parent.st_uid != os.getuid() or stat.S_IMODE(parent.st_mode) & 0o077:', 'if False:'),
-    "private_secret_files": ('if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) & 0o077:', 'if False:'),
-    "private_backend_tcp": ('raise ValueError("direct Garage TCP port is reachable; restart this instance")', 'return'),
+    "private_backend_mode": (boundary, 'if parent.st_uid != os.getuid() or stat.S_IMODE(parent.st_mode) & 0o077:', 'if False:', raised),
+    "private_secret_files": (boundary, 'if st.st_uid != os.getuid() or stat.S_IMODE(st.st_mode) & 0o077:', 'if False:', raised),
+    "private_backend_tcp": (boundary, 'raise ValueError("direct Garage TCP port is reachable; restart this instance")', 'return', raised),
+    # W2-40: garage.toml carries a metrics token, and the running Garage enforces it.
+    "metrics_token_required": (boundary, 'if not isinstance(token, str) or len(token) < 32:', 'if False:', raised),
+    "metrics_unauthenticated_refused": (boundary, 'if metrics_status(addr, None) not in (401, 403):', 'if False:', raised),
+    # W2-20: ws.py stages the receipt and plan outside the working copy, without following links.
+    "ws_receipt_private_dir": (ws, 'rpath = os.path.join(staging, "receipt.json")\n            write_new_file(rpath, json.dumps(v))',
+                               'rpath = os.path.join(d, "receipt.json")\n            json.dump(v, open(rpath, "w"))', planted),
+    "ws_plan_private_dir": (ws, 'plan = os.path.join(staging, "plan.json")', 'plan = os.path.join(d, "plan.json")', planted),
 }
-for name, (old, new) in mutations.items():
-    assert text.count(old) == 1
-    with tempfile.TemporaryDirectory(prefix="w2-boundary-mutation-") as tmp:
+for name, ((directory, script, test, args), old, new, verdict) in mutations.items():
+    source = Path(directory)
+    text = (source / script).read_text()
+    assert text.count(old) == 1, name
+    with tempfile.TemporaryDirectory(prefix="w2-script-mutation-") as tmp:
         dest = Path(tmp)
-        (dest / "check-storage-boundary.py").write_text(text.replace(old, new))
-        shutil.copyfile(source / "test-storage-boundary.py", dest / "test-storage-boundary.py")
-        result = subprocess.run([sys.executable, str(dest / "test-storage-boundary.py")], capture_output=True, text=True)
+        (dest / script).write_text(text.replace(old, new))
+        shutil.copyfile(source / test, dest / test)
+        result = subprocess.run([sys.executable, str(dest / test), *args], capture_output=True, text=True)
         (Path(sys.argv[1]) / (name + ".log")).write_text(result.stdout + result.stderr)
-        assert result.returncode != 0 and "AssertionError: ValueError not raised" in result.stderr, result.stderr
+        assert result.returncode != 0 and verdict in result.stderr and "ERROR:" not in result.stderr, result.stderr
         print("detected", name)
 PY
-total=$((${#cases[@]} + 3))
+total=$((${#cases[@]} + 7))
 echo "W2 security mutations: $total/$total detected"

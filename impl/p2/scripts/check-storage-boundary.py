@@ -5,7 +5,9 @@ Garage's S3 API must be a Unix socket in an owner-only directory, with no legacy
 listener, so the delete- and overwrite-denying gateway is the only S3 ingress. Files
 holding deployment secrets (garage.toml: RPC secret and admin token; fdb.cluster:
 FoundationDB's only client credential) and their directories must be owner-only.
+Garage's admin /metrics endpoint must require the config's bearer `metrics_token`.
 """
+import http.client
 import os
 from pathlib import Path
 import socket
@@ -20,13 +22,40 @@ def private(path: Path, what: str) -> None:
         raise ValueError(f"{what} {path} must be owned by this user with no group or other access")
 
 
+def metrics_status(addr: str, token: str | None) -> int:
+    host, _, port = addr.rpartition(":")
+    conn = http.client.HTTPConnection(host, int(port), timeout=2)
+    try:
+        conn.request("GET", "/metrics", headers={"Authorization": f"Bearer {token}"} if token else {})
+        return conn.getresponse().status
+    except (OSError, http.client.HTTPException) as exc:
+        raise ValueError(f"Garage admin API {addr} is not answering; restart this instance") from exc
+    finally:
+        conn.close()
+
+
+def private_metrics(admin: dict) -> None:
+    # Without a metrics token Garage serves /metrics to every local client (W2-40).
+    token = admin.get("metrics_token")
+    if not isinstance(token, str) or len(token) < 32:
+        raise ValueError("Garage config has no [admin] metrics_token; rerun up.sh (bootstrap.sh for the default cluster)")
+    addr = admin.get("api_bind_addr")
+    if not isinstance(addr, str) or addr.startswith("/") or ":" not in addr:
+        raise ValueError("Garage admin API must bind a loopback TCP address")
+    if metrics_status(addr, None) not in (401, 403):
+        raise ValueError("Garage /metrics answers without its token; restart this instance")
+    if metrics_status(addr, token) != 200:
+        raise ValueError("Garage /metrics refuses this config's token; restart this instance")
+
+
 def check(config: Path, old_port: int, cluster: Path | None = None) -> None:
     private(config, "Garage config")
     private(config.parent, "Garage config directory")
     if cluster is not None:
         private(cluster, "FDB cluster file")
         private(cluster.parent, "FDB cluster directory")
-    bind = tomllib.loads(config.read_text())["s3_api"]["api_bind_addr"]
+    settings = tomllib.loads(config.read_text())
+    bind = settings["s3_api"]["api_bind_addr"]
     endpoint = Path(bind)
     if not endpoint.is_absolute():
         raise ValueError("Garage S3 must bind an absolute private Unix socket")
@@ -40,8 +69,10 @@ def check(config: Path, old_port: int, cluster: Path | None = None) -> None:
         with socket.create_connection(("127.0.0.1", old_port), timeout=0.2):
             pass
     except (ConnectionRefusedError, TimeoutError):
-        return
-    raise ValueError("direct Garage TCP port is reachable; restart this instance")
+        pass
+    else:
+        raise ValueError("direct Garage TCP port is reachable; restart this instance")
+    private_metrics(settings.get("admin", {}))
 
 
 if __name__ == "__main__":

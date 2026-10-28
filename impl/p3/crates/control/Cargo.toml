@@ -59,6 +59,8 @@ mutate-unscoped-job-keys = ["paralean-store/mutate-unscoped-job-keys"]
 mutate-gc-off-by-default = []
 # W2-55: the bwrap root tmpfs stays writable.
 mutate-writable-sandbox-root = []
+# W2-13: the verdict comes from the capsule-elaborating process (no kernel-check).
+mutate-verdict-from-frontend = []
 mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-role-keys-unchecked = []
@@ -170,4 +172,8 @@ harness = false
 
 [[test]]
 name = "w4_workers"
+harness = false
+
+[[test]]
+name = "split"
 harness = false

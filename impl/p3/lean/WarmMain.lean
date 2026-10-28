@@ -55,8 +55,9 @@ unsafe def main : IO UInt32 := do
       InstName.chosen.set #[]
       let targets := req.targets.map fun t =>
         ({ name := t.name.toName, typeHash := t.statement } : TargetContract)
-      let r ← checkGroup { root := req.store } req.gids req.decl targets
-      pure <| Json.mkObj [("nonce", toJson req.nonce), ("result", toJson r)]
+      -- W2-13: this process is the frontend; its evidence goes to a cold `kernel-check`.
+      let (r, ev) ← sourceCheck { root := req.store } req.gids req.decl targets
+      pure <| Json.mkObj [("nonce", toJson req.nonce), ("result", toJson r), ("evidence", evidenceToJson ev)]
     catch e =>
       pure <| Json.mkObj [("nonce", toJson req.nonce), ("error", toJson (toString e))]
     stdout.putStrLn s!"WARM {result.compress}"

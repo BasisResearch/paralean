@@ -111,7 +111,7 @@ async fn measure_sandbox_overhead() {
     // cgroup scope startup cost: a trivial sandboxed checker with cgroup on vs off.
     let shell = tmp("scope");
     let script = shell.join("noop.py");
-    std::fs::write(&script, "#!/usr/bin/env python3\nimport json\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\n").unwrap();
+    std::fs::write(&script, "#!/usr/bin/env python3\nimport json, sys\nprint('CHECK ' + json.dumps({'ok': True}), flush=True)\nif sys.argv[1:2] == ['source-check']: print('EVIDENCE ' + json.dumps({'groups': []}), flush=True)\n").unwrap();
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
     println!("\n=== scope startup cost (ms), trivial checker, {N} runs ===");

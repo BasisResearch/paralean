@@ -1,11 +1,9 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/ae-service)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.65s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running tests/network.rs (impl/p2/target/debug/deps/network-089da5d95a69d89e)
 
 running 1 test
 
-thread '<unnamed>' (3447269) panicked at crates/ae-service/tests/network.rs:1489:9:
+thread '<unnamed>' (328975) panicked at crates/ae-service/tests/network.rs:1489:9:
 assertion failed: staged_parts(b, &source, &event).await as u64 <=
     paralean_store::ae::MAX_EVENT_PARTS
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
@@ -21,6 +19,6 @@ test panicked: assertion failed: staged_parts(b, &source, &event).await as u64 <
 failures:
     endless_event_parts_are_capped_and_archived
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 4.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 5.24s
 
 error: test failed, to rerun pass `-p paralean-ae-service --test network`

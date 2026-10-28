@@ -1,6 +1,6 @@
 # Helpers for files that carry deployment secrets. Source it; do not execute it.
 #
-# garage.toml holds Garage's RPC secret and admin token, credentials.sh the S3 key, and
+# garage.toml holds Garage's RPC secret, admin and metrics tokens, credentials.sh the S3 key, and
 # fdb.cluster FoundationDB's connection string (FDB has no other client authentication;
 # its trace logs repeat the string). They are written under umask 077, but a file or
 # directory created by an older script keeps its old mode, so every start re-applies it.
@@ -14,6 +14,17 @@ make_private() {
     for f in "$d"/*; do [ -f "$f" ] && chmod 600 "$f"; done
   done
   return 0
+}
+
+# ensure_metrics_token CREDENTIALS : load a credentials.sh, first adding the bearer token
+# Garage's admin /metrics endpoint requires (W2-40) when the file predates it. Without
+# `metrics_token` in garage.toml, /metrics answers every local client.
+ensure_metrics_token() {
+  if ! grep -q '^export PARALEAN_GARAGE_METRICS_TOKEN=' "$1"; then
+    ( umask 077
+      printf 'export PARALEAN_GARAGE_METRICS_TOKEN=%s\n' "$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')" >> "$1" )
+  fi
+  . "$1"
 }
 
 # import_app_key ADMIN_PORT : register $PARALEAN_S3_ACCESS_KEY/$PARALEAN_S3_SECRET_KEY with

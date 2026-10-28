@@ -1,10 +1,9 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.33s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
      Running tests/file_paths.rs (impl/p2/target/debug/deps/file_paths-5d42ed3fa350de26)
 
 running 1 test
 
-thread '<unnamed>' (3463302) panicked at crates/store/tests/file_paths.rs:21:9:
+thread '<unnamed>' (332941) panicked at crates/store/tests/file_paths.rs:21:9:
 "../../.bashrc": Ok(PublishOutcome { marker: 60e1b90ae896, fresh: true })
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test t1_refuses_a_marker_with_an_unsafe_file_path ... FAILED
@@ -18,6 +17,6 @@ test panicked: "../../.bashrc": Ok(PublishOutcome { marker: 60e1b90ae896, fresh:
 failures:
     t1_refuses_a_marker_with_an_unsafe_file_path
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.09s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.35s
 
 error: test failed, to rerun pass `-p paralean-store --test file_paths`

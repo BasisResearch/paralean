@@ -169,6 +169,36 @@ def main() -> int:
             ("router_environment_bounded_read",
              "read_regular(path, MAX_ENVIRONMENT_FILE, follow_symlinks=True)", "path.read_bytes()",
              tests.RouterBoundsTests, "test_environment_digest_does_not_block_on_planted_fifo"),
+            # PARALEAN_LSP_DEBUG: Lean's stderr is drained in chunks, one bounded line at a time.
+            ("router_stderr_chunked_read", "        while chunk := await stderr.read(STDERR_CHUNK):",
+             "        while chunk := await stderr.readline():",
+             tests.RouterBoundsTests, "test_debug_stderr_forwarding_keeps_lean_running"),
+            ("router_stderr_line_bound", "            return (line + more)[:MAX_STDERR_LINE], True",
+             "            return line + more, False",
+             tests.RouterBoundsTests, "test_debug_stderr_forwarding_bounds_long_lines"),
+            # Malformed but readable registry records are skipped, and the search is answered.
+            ("router_registry_marker_fields", ' and well_formed(entry)]', "]",
+             tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
+            ("router_registry_symbol_reply", ' and well_formed(entry)]', "]",
+             tests.RouterBoundsTests, "test_symbol_request_is_answered_despite_malformed_records"),
+            ("router_registry_revision_fields",
+             '                if (isinstance(revision, dict) and isinstance(revision.get("id", path.stem), str) and\n'
+             '                        strings(revision.get("parents", [])) and isinstance(revision.get("group"), (str, type(None)))):',
+             "                if isinstance(revision, dict):",
+             tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
+            ("router_registry_public_names",
+             'if not isinstance(capsule, dict) or not isinstance(capsule.get("publicNames", []), list):',
+             "if not isinstance(capsule, dict):",
+             tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
+            ("router_registry_capsule_fields", "            if not is_int(start) or not isinstance(source, str):",
+             "            if False:", tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
+            ("router_registry_name_shape", "                if name(original) is None:\n                    continue\n", "",
+             tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
+            ("router_registry_source_path",
+             "            try:\n                source = (work_root / source).resolve()\n"
+             "            except (OSError, ValueError, RuntimeError):\n                continue\n",
+             "            source = (work_root / source).resolve()\n",
+             tests.RouterBoundsTests, "test_registry_symbols_skip_malformed_entries"),
         ]
         for index, (name, needle, replacement, test_class, method) in enumerate(router_cases):
             if ROUTER_SOURCE.count(needle) != 1:

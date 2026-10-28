@@ -30,6 +30,9 @@ MAX_LSP_HEADER_BYTES = 8 * 1024
 MAX_WORKER_FILE = 64 * 1024 * 1024
 # Environment inputs are records, revisions, trust and key files.
 MAX_ENVIRONMENT_FILE = 1024 * 1024
+# Lean's stderr (PARALEAN_LSP_DEBUG) is read in chunks and forwarded one bounded line at a time.
+STDERR_CHUNK = 64 * 1024
+MAX_STDERR_LINE = 16 * 1024
 
 
 def frame(message):
@@ -287,8 +290,24 @@ class Workspace:
             await self.write(init)
 
     async def forward_stderr(self, stderr):
-        while line := await stderr.readline():
-            self.proxy.debug(self.name, "lean stderr:", line.decode(errors="replace").rstrip())
+        # Drain in bounded chunks: readline() raises on a line over the stream limit, and
+        # a stderr pipe nobody reads blocks the Lean worker. Long lines are truncated.
+        def keep(line, more, truncated):
+            if truncated or len(line) + len(more) <= MAX_STDERR_LINE:
+                return (line if truncated else line + more), truncated
+            return (line + more)[:MAX_STDERR_LINE], True
+        def emit(line, truncated):
+            text = line.decode(errors="replace").rstrip()
+            self.proxy.debug(self.name, "lean stderr:", text + (" [truncated]" if truncated else ""))
+        line, truncated = b"", False
+        while chunk := await stderr.read(STDERR_CHUNK):
+            *complete, rest = chunk.split(b"\n")
+            for part in complete:
+                emit(*keep(line, part, truncated))
+                line, truncated = b"", False
+            line, truncated = keep(line, rest, truncated)
+        if line or truncated:
+            emit(line, truncated)
 
     async def write(self, message):
         async with self.write_lock:
@@ -547,26 +566,47 @@ class Proxy:
         return result
 
     def registry_symbols(self, ws, query):
-        """Rebuild the public symbol cache from the copy's publication records."""
+        """Rebuild the public symbol cache from the copy's publication records.
+
+        The records are the worker's own files: an entry with a malformed field is skipped
+        rather than raising, so one bad record cannot leave a symbol request unanswered."""
         store = pathlib.Path(ws.env_overrides["PARALEAN_STORE"])
         records = store / "p3/records"
         if not records.is_dir():
             return []
+        query = query if isinstance(query, str) else ""
         def read_json(relative):
             # The store is the worker's cache: bounded, no symlinks, no FIFOs.
             try:
                 return json.loads(read_beneath(store, relative, MAX_WORKER_FILE))
             except (OSError, ValueError, RecursionError):
                 return None
+        def is_int(value):
+            return isinstance(value, int) and not isinstance(value, bool)
+        def strings(value):
+            return isinstance(value, list) and all(isinstance(item, str) for item in value)
+        def lineage_rows(marker):
+            # (name, lamport, author), comparable with the (lamport, author) fallback key.
+            rows = marker.get("lineageKeys", [])
+            if not isinstance(rows, list):
+                return None
+            return [row for row in rows if isinstance(row, list) and len(row) == 3 and
+                    is_int(row[1]) and isinstance(row[2], str)]
+        def well_formed(marker):
+            return (isinstance(marker.get("group"), str) and isinstance(marker.get("author", ""), str) and
+                    is_int(marker.get("lamport", 0)) and isinstance(marker.get("file", ""), str) and
+                    strings(marker.get("revisions", [])) and lineage_rows(marker) is not None)
         entries = [read_json("p3/records/" + path.name) for path in records.glob("*.json")]
-        markers = [entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "marker"]
+        markers = [entry for entry in entries
+                   if isinstance(entry, dict) and entry.get("kind") == "marker" and well_formed(entry)]
         tombs = [entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "tombstone"]
         revisions = {}
         revision_dir = store / "p3/revisions"
         if revision_dir.is_dir():
             for path in revision_dir.glob("*.json"):
                 revision = read_json("p3/revisions/" + path.name)
-                if isinstance(revision, dict):
+                if (isinstance(revision, dict) and isinstance(revision.get("id", path.stem), str) and
+                        strings(revision.get("parents", [])) and isinstance(revision.get("group"), (str, type(None)))):
                     revisions[revision.get("id", path.stem)] = revision
         def ancestors(rid, seen=None):
             seen = set() if seen is None else seen
@@ -587,27 +627,39 @@ class Proxy:
         live = [marker for marker in markers if marker.get("group") not in superseded and
                 not any(t.get("target") == marker.get("group") and t.get("author") == marker.get("author") and t.get("file") == marker.get("file") for t in tombs)]
         def name(value):
-            return ".".join(str(component) for component in value) if isinstance(value, list) else str(value)
+            # A Lean name: a string, or its components (strings and numbers); else None.
+            if isinstance(value, str):
+                return value
+            if isinstance(value, list) and value and all(isinstance(c, str) or is_int(c) for c in value):
+                return ".".join(str(component) for component in value)
+            return None
         entries = []
         for marker in live:
             pid = marker.get("pid")
             capsule = read_json(f"meta/{pid}.json") if pid else None
             if not isinstance(capsule, dict):
                 capsule = read_json(f"p3/capsules/{marker.get('capsule')}.json")
-            if not isinstance(capsule, dict):
+            if not isinstance(capsule, dict) or not isinstance(capsule.get("publicNames", []), list):
+                continue
+            body = capsule.get("capsule", {})
+            start = body.get("startLine", 1) if isinstance(body, dict) else None
+            source = marker.get("file", body.get("file", "") if isinstance(body, dict) else None)
+            if not is_int(start) or not isinstance(source, str):
                 continue
             for original in capsule.get("publicNames", []):
-                key = next(((row[1], row[2]) for row in marker.get("lineageKeys", []) if name(row[0]) == name(original)),
+                if name(original) is None:
+                    continue
+                key = next(((row[1], row[2]) for row in lineage_rows(marker) if name(row[0]) == name(original)),
                            (marker.get("lamport", 0), marker.get("author", "")))
-                entries.append((marker, capsule, original, key))
+                entries.append((marker, (source, start), original, key))
         winners = {}
-        for marker, capsule, original, key in entries:
+        for marker, location, original, key in entries:
             spelling = name(original)
             rank = (key, (marker.get("lamport", 0), marker.get("author", "")))
             if spelling not in winners or rank < winners[spelling][0]:
                 winners[spelling] = (rank, marker.get("group"))
         symbols = []
-        for marker, capsule, original, key in entries:
+        for marker, (source, start), original, key in entries:
             spelling = name(original)
             if winners[spelling][1] != marker.get("group"):
                 parts = spelling.rsplit(".", 1)
@@ -616,11 +668,14 @@ class Proxy:
             if query.lower() not in spelling.lower():
                 continue
             work_root = pathlib.Path(ws.env_overrides["PARALEAN_WORK_ROOT"]).resolve()
-            source = (work_root / marker.get("file", capsule.get("capsule", {}).get("file", ""))).resolve()
+            try:
+                source = (work_root / source).resolve()
+            except (OSError, ValueError, RuntimeError):
+                continue
             if source != work_root and work_root not in source.parents:
                 continue
             source_uri = self.public_uri(file_uri(source))
-            line = max(0, int(capsule.get("capsule", {}).get("startLine", 1)) - 1)
+            line = max(0, start - 1)
             symbols.append({"name": spelling, "kind": 12,
                             "location": {"uri": source_uri, "range": {"start": {"line": line, "character": 0},
                                                                           "end": {"line": line, "character": 0}}},

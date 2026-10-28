@@ -28,8 +28,10 @@ impl FakeChecker {
     }
 
     fn config(&self, warm: bool) -> CheckerConfig {
-        // The framing rules, not the sandbox, are under test here.
+        // The framing rules of one checker process, not the sandbox, are under test here
+        // (kernel-check's output is read by the same rules; the split is tested in split.rs).
         CheckerConfig {
+            split: false,
             mode: "fork".into(),
             env: if warm { vec![("PARALEAN_P3_WARM_BIN".into(), self.script.display().to_string())] } else { vec![] },
             default_memory_mb: 256,

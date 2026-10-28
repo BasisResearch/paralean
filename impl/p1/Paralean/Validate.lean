@@ -116,9 +116,17 @@ structure CheckResult where
   diags : Array String := #[]
   deriving ToJson
 
-unsafe def checkGroup (store : Store) (gids : Array String) (declId : String)
-    (targets : Array TargetContract := #[]) : IO CheckResult := do
-  let fail (msg : String) : CheckResult := { declId, ok := false, diags := #[msg] }
+/-- The replay a check ran: its catalogue, closure, source replay and kernel results. -/
+structure CheckReplay where
+  cat : Catalog
+  closure : Array String
+  source : SourceReplay
+  kernel : Array KernelRes
+
+/-- `checkGroup`, also returning the replay it ran (`none` if it stopped before one). -/
+unsafe def checkGroupFull (store : Store) (gids : Array String) (declId : String)
+    (targets : Array TargetContract := #[]) : IO (CheckResult × Option CheckReplay) := do
+  let fail (msg : String) : CheckResult × Option CheckReplay := ({ declId, ok := false, diags := #[msg] }, none)
   let file : FileRec := { (default : FileRec) with workspace := "validator", file := "<job>", groups := gids }
   let cat ← try Catalog.load store #[file] catch e => return fail s!"load: {e}"
   let some root := cat.order.find? (fun g => (cat.get! g).declId == declId)
@@ -169,9 +177,13 @@ unsafe def checkGroup (store : Store) (gids : Array String) (declId : String)
   let targetOk := if targets.isEmpty then none else some (targets.all declares)
   for t in targets do
     unless declares t do diags := diags.push s!"the group does not declare target {t.name} with the pinned statement"
-  return { declId, gid := root, ok := diags.isEmpty, closure := clo.map (cat.get! · |>.declId)
-           axioms := ((kr.find? (·.gid == root)).map (·.axioms)).getD #[]
-           publicNames := (replayed.map (·.publicNames)).getD (cat.get! root).publicNames
-           statements, targetOk, diags }
+  return ({ declId, gid := root, ok := diags.isEmpty, closure := clo.map (cat.get! · |>.declId)
+            axioms := ((kr.find? (·.gid == root)).map (·.axioms)).getD #[]
+            publicNames := (replayed.map (·.publicNames)).getD (cat.get! root).publicNames
+            statements, targetOk, diags }, some { cat, closure := clo, source := sr, kernel := kr })
+
+unsafe def checkGroup (store : Store) (gids : Array String) (declId : String)
+    (targets : Array TargetContract := #[]) : IO CheckResult :=
+  (·.1) <$> checkGroupFull store gids declId targets
 
 end Paralean

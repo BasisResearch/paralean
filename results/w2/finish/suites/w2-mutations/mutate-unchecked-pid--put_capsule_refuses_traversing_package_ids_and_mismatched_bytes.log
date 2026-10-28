@@ -1,5 +1,5 @@
    Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.76s
      Running unittests src/main.rs (impl/p2/target/debug/deps/plr-ae99bb867e600d1e)
 
 running 1 test
@@ -9,7 +9,7 @@ failures:
 
 ---- cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes stdout ----
 
-thread 'cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes' (3462378) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote/src/cache.rs:226:13:
+thread 'cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes' (332765) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote/src/cache.rs:226:13:
 "../pwned" accepted
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

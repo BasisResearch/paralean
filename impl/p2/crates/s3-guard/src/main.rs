@@ -31,9 +31,10 @@
 //! A request goes to the first upstream that accepts the connection, so the gateway rides
 //! through the loss of a node; the request body is buffered for that.
 
+use std::collections::HashMap;
 use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -47,12 +48,66 @@ use sha2::{Digest, Sha256};
 use hyper_util::client::legacy::{connect::HttpConnector, Client};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use tokio::net::{TcpListener, UnixStream};
-use tokio::sync::Semaphore;
 
 type Body = BoxBody<Bytes, hyper::Error>;
 
 const MAX_BODY: usize = 65 * 1024 * 1024; // 64 MiB chunk plus domain/encoding
 const MAX_CONNECTIONS: usize = 16;
+/// One source address may hold only part of the pool, so it cannot lock out the others.
+const MAX_CONNECTIONS_PER_SOURCE: usize = 4;
+
+/// Connection admission: at most `total` connections, `per_source` of them from one address.
+/// A connection over either bound is refused at once; a slot is released when dropped.
+struct Admission {
+    total: usize,
+    per_source: usize,
+    held: Mutex<(usize, HashMap<IpAddr, usize>)>,
+}
+
+struct Slot {
+    owner: Arc<Admission>,
+    source: IpAddr,
+}
+
+impl Admission {
+    fn new(total: usize, per_source: usize) -> Arc<Self> {
+        Arc::new(Admission { total, per_source, held: Mutex::new((0, HashMap::new())) })
+    }
+    /// The gateway's limits: `MAX_CONNECTIONS` in all, `MAX_CONNECTIONS_PER_SOURCE` per address.
+    fn gateway() -> Arc<Self> {
+        let per_source = if cfg!(feature = "mutate-no-per-source-admission") { usize::MAX } else { MAX_CONNECTIONS_PER_SOURCE };
+        Admission::new(MAX_CONNECTIONS, per_source)
+    }
+    fn try_admit(self: &Arc<Self>, source: IpAddr) -> Option<Slot> {
+        let source = source.to_canonical();
+        let mut held = self.held.lock().unwrap();
+        let (total, sources) = &mut *held;
+        let n = sources.entry(source).or_insert(0);
+        if *total >= self.total || *n >= self.per_source {
+            if *n == 0 {
+                sources.remove(&source);
+            }
+            return None;
+        }
+        *n += 1;
+        *total += 1;
+        Some(Slot { owner: self.clone(), source })
+    }
+}
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        let mut held = self.owner.held.lock().unwrap();
+        let (total, sources) = &mut *held;
+        *total -= 1;
+        if let Some(n) = sources.get_mut(&self.source) {
+            *n -= 1;
+            if *n == 0 {
+                sources.remove(&self.source);
+            }
+        }
+    }
+}
 
 /// Decode a query key before matching S3 subresources. A malformed escape or
 /// non-UTF-8 key fails closed, and a remaining '%' cannot hide a second decode.
@@ -389,10 +444,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     eprintln!("s3-guard: listening on {listen}, upstream {upstream}");
     let client: Client<HttpConnector, Full<Bytes>> = Client::builder(TokioExecutor::new()).build_http();
     let upstreams: Arc<Vec<String>> = Arc::new(upstream.split(',').map(str::to_string).collect());
-    let slots = Arc::new(Semaphore::new(MAX_CONNECTIONS));
+    let admission = Admission::gateway();
     loop {
-        let (stream, _) = listener.accept().await?;
-        let Ok(permit) = slots.clone().try_acquire_owned() else { continue };
+        let (stream, peer) = listener.accept().await?;
+        let Some(permit) = admission.try_admit(peer.ip()) else { continue };
         let client = client.clone();
         let upstreams = upstreams.clone();
         let gc = gc.clone();
@@ -463,6 +518,30 @@ mod tests {
         assert!(content_matches(&Method::PUT, &uri, b"test"));
         assert!(!content_matches(&Method::PUT, &uri, b"rot"));
         assert!(!content_matches(&Method::PUT, &uri, b""));
+    }
+    #[test]
+    fn one_source_cannot_hold_every_connection_slot() {
+        let admission = Admission::gateway();
+        let ip = |s: &str| s.parse::<IpAddr>().unwrap();
+        let mut a: Vec<Slot> = (0..MAX_CONNECTIONS_PER_SOURCE).map(|_| admission.try_admit(ip("127.0.0.2")).unwrap()).collect();
+        assert!(admission.try_admit(ip("127.0.0.2")).is_none(), "one source exceeded its connection cap");
+        // The IPv4-mapped spelling of the same address is the same source.
+        assert!(admission.try_admit(ip("::ffff:127.0.0.2")).is_none());
+        // Other sources still get in, up to the global bound of 16.
+        let mut others = Vec::new();
+        for i in 0..(MAX_CONNECTIONS - MAX_CONNECTIONS_PER_SOURCE) {
+            others.push(admission.try_admit(ip(&format!("127.0.1.{}", i / 2))).expect("another source was locked out"));
+        }
+        assert_eq!(MAX_CONNECTIONS, 16);
+        assert!(admission.try_admit(ip("127.0.9.9")).is_none(), "the global bound was exceeded");
+        // A released slot is admitted again.
+        a.pop();
+        let again = admission.try_admit(ip("127.0.0.2"));
+        assert!(again.is_some());
+        assert!(admission.try_admit(ip("127.0.9.9")).is_none());
+        drop((again, a, others));
+        assert_eq!(admission.held.lock().unwrap().0, 0);
+        assert!(admission.held.lock().unwrap().1.is_empty());
     }
     #[tokio::test]
     async fn streamed_body_limit_is_enforced() {

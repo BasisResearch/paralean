@@ -6,6 +6,7 @@ set -euo pipefail
 umask 077
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
+. "$here/private.sh"
 P="$PARALEAN_P2_PREFIX"
 mkdir -p "$P"/{dl,bin,lib,fdb/data,fdb/log,run}
 
@@ -47,11 +48,12 @@ if [ ! -f "$P/garage/credentials.sh" ]; then
   cat > "$P/garage/credentials.sh" <<CREDS
 export PARALEAN_GARAGE_RPC_SECRET=$(hex 32)
 export PARALEAN_GARAGE_ADMIN_TOKEN=$(hex 32)
+export PARALEAN_GARAGE_METRICS_TOKEN=$(hex 32)
 export PARALEAN_S3_ACCESS_KEY=GK$(hex 12)
 export PARALEAN_S3_SECRET_KEY=$(hex 32)
 CREDS
 fi
-. "$P/garage/credentials.sh"
+ensure_metrics_token "$P/garage/credentials.sh"
 cat > "$P/garage/garage.toml" <<TOML
 metadata_dir = "$P/garage/meta"
 data_dir = "$P/garage/data"
@@ -72,6 +74,7 @@ root_domain = ".s3.localhost"
 [admin]
 api_bind_addr = "127.0.0.1:$PARALEAN_GARAGE_ADMIN_PORT"
 admin_token = "$PARALEAN_GARAGE_ADMIN_TOKEN"
+metrics_token = "$PARALEAN_GARAGE_METRICS_TOKEN"
 TOML
 
 # --- Rust toolchain.

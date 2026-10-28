@@ -17,6 +17,7 @@ detected mutate-no-work-gc
 detected mutate-allow-delete
 detected mutate-unbounded-body
 detected mutate-allow-overwrite
+detected mutate-no-per-source-admission
 detected mutate-receive-no-cancel-check
 detected mutate-receive-no-dep-check
 detected mutate-no-statement-pin-check
@@ -34,4 +35,8 @@ detected mutate-gc-off-by-default
 detected private_backend_mode
 detected private_secret_files
 detected private_backend_tcp
-W2 security mutations: 36/36 detected
+detected metrics_token_required
+detected metrics_unauthenticated_refused
+detected ws_receipt_private_dir
+detected ws_plan_private_dir
+W2 security mutations: 41/41 detected

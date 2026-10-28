@@ -50,12 +50,13 @@ EOF
     ( umask 077; cat > "$H/garage/credentials.sh" <<CREDS
 export PARALEAN_GARAGE_RPC_SECRET=$(hex 32)
 export PARALEAN_GARAGE_ADMIN_TOKEN=$(hex 32)
+export PARALEAN_GARAGE_METRICS_TOKEN=$(hex 32)
 export PARALEAN_S3_ACCESS_KEY=GK$(hex 12)
 export PARALEAN_S3_SECRET_KEY=$(hex 32)
 CREDS
     )
   fi
-  . "$H/garage/credentials.sh"
+  ensure_metrics_token "$H/garage/credentials.sh"
 else
   [ "$PARALEAN_FDB_PROCS" = 1 ] && [ "$PARALEAN_GARAGE_NODES" = 1 ] || {
     echo "the default cluster is single-process; set PARALEAN_INSTANCE for a multi-process cluster" >&2; exit 1; }
@@ -159,6 +160,7 @@ root_domain = ".s3.localhost"
 [admin]
 api_bind_addr = "127.0.0.1:$((PARALEAN_GARAGE_ADMIN_PORT + j))"
 admin_token = "$PARALEAN_GARAGE_ADMIN_TOKEN"
+metrics_token = "$PARALEAN_GARAGE_METRICS_TOKEN"
 TOML
     "$here/proc.sh" garage start "$j"
   done

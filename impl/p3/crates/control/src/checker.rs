@@ -67,6 +67,10 @@ pub struct CheckerConfig {
     pub bwrap: PathBuf,
     /// `systemd-run`, which creates the scope.
     pub systemd_run: PathBuf,
+    /// W2-13: split the check. `source-check` (which elaborates capsules) contributes only
+    /// evidence; `kernel-check`, a fresh process that elaborates nothing, gives the verdict.
+    /// Production configuration always sets it.
+    pub split: bool,
 }
 
 impl CheckerConfig {
@@ -99,6 +103,7 @@ impl CheckerConfig {
             max_tasks: DEFAULT_MAX_TASKS,
             bwrap: PathBuf::from("/usr/bin/bwrap"),
             systemd_run: PathBuf::from("/usr/bin/systemd-run"),
+            split: true,
         })
     }
 
@@ -108,6 +113,7 @@ impl CheckerConfig {
             bin, mode: "stock".into(), lean_githash: lean_githash.into(), env: vec![],
             default_memory_mb: 4096, sandbox: true, cgroup: true, max_tasks: DEFAULT_MAX_TASKS,
             bwrap: PathBuf::from("/usr/bin/bwrap"), systemd_run: PathBuf::from("/usr/bin/systemd-run"),
+            split: true,
         }
     }
 
@@ -460,11 +466,27 @@ impl Drop for WarmProcess {
 
 impl WarmPool {
     #[allow(clippy::too_many_arguments)]
+    /// Check through a warm process. With `split`, the warm process is only the frontend:
+    /// its evidence goes to a cold `kernel-check`, whose verdict is returned (W2-13).
+    #[allow(clippy::too_many_arguments)]
     pub async fn run(
         &self, cfg: &CheckerConfig, store: &Path, gids: &[String], decl: &str,
         targets: &[TargetArg], deadline: Duration, memory_mb: u64,
-        mut cancel: watch::Receiver<bool>,
+        cancel: watch::Receiver<bool>,
     ) -> Result<CheckOutcome, NoVerdict> {
+        let start = Instant::now();
+        let (outcome, evidence) = self.run_frontend(cfg, store, gids, decl, targets, deadline, memory_mb, cancel.clone()).await?;
+        if !split_active(cfg) { return Ok(outcome) }
+        let evidence = evidence.ok_or_else(|| NoVerdict::Crashed("warm frontend returned no evidence".into()))?;
+        kernel_phase(cfg, store, gids, decl, targets, deadline.saturating_sub(start.elapsed()), memory_mb, cancel, &evidence).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn run_frontend(
+        &self, cfg: &CheckerConfig, store: &Path, gids: &[String], decl: &str,
+        targets: &[TargetArg], deadline: Duration, memory_mb: u64,
+        mut cancel: watch::Receiver<bool>,
+    ) -> Result<(CheckOutcome, Option<String>), NoVerdict> {
         use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
         if *cancel.borrow() { return Err(NoVerdict::Cancelled); }
         let idle = self.idle.lock().unwrap().pop();
@@ -521,7 +543,8 @@ impl WarmPool {
                     return Err(NoVerdict::Crashed(error.to_string()));
                 }
                 let raw: Raw = serde_json::from_value(v["result"].clone()).map_err(|e| NoVerdict::Crashed(e.to_string()))?;
-                return raw.outcome();
+                let evidence = v.get("evidence").map(|e| e.to_string());
+                return Ok((raw.outcome()?, evidence));
             }
         };
         let mut tick = tokio::time::interval(Duration::from_millis(50));
@@ -588,7 +611,43 @@ pub struct TargetArg {
     pub statement: String,
 }
 
-/// Run `check-group` on `store` for group `decl`.
+/// The evidence file `kernel-check` reads, in the job's input store.
+pub const EVIDENCE_FILE: &str = "evidence.json";
+
+/// W2-13 is in force: the verdict comes from `kernel-check`.
+fn split_active(cfg: &CheckerConfig) -> bool {
+    cfg.split && !cfg!(feature = "mutate-verdict-from-frontend")
+}
+
+/// The job's flags for `check-group`, `source-check` and `kernel-check`.
+fn job_args(cfg: &CheckerConfig, store: &Path, gids: &[String], decl: &str, targets: &[TargetArg]) -> Vec<String> {
+    let store = if sandbox_active(cfg) { "/work".to_string() } else { store.display().to_string() };
+    let mut args = vec!["--store".into(), store, "--gids".into(), gids.join(","), "--decl".into(), decl.into()];
+    let targets: Vec<String> = targets.iter().map(|t| format!("{}={}", t.name, t.statement)).collect();
+    if !targets.is_empty() {
+        args.push("--targets".into());
+        args.push(targets.join(","));
+    }
+    args
+}
+
+/// The verdict in a checker's output: its last `CHECK` line, never an acceptance from a
+/// process that failed.
+fn verdict(out: &str, err: &str, st: std::process::ExitStatus) -> Result<CheckOutcome, NoVerdict> {
+    let Some(line) = out.lines().rev().find_map(|l| l.strip_prefix("CHECK ")) else {
+        return Err(NoVerdict::Crashed(format!("{st}: {}", err.lines().last().unwrap_or(""))));
+    };
+    let raw: Raw = serde_json::from_str(line).map_err(|e| NoVerdict::Crashed(format!("bad CHECK line: {e}")))?;
+    if raw.ok && !st.success() {
+        return Err(NoVerdict::Crashed(format!("checker reported acceptance but exited {st}")));
+    }
+    raw.outcome()
+}
+
+/// Check group `decl` of `store`. With `split` (production), `source-check` replays the
+/// capsules in one sandbox and contributes only its evidence; a fresh sandbox then runs
+/// `kernel-check`, which elaborates no capsule, and its verdict is returned (W2-13).
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     cfg: &CheckerConfig,
     store: &Path,
@@ -597,14 +656,55 @@ pub async fn run(
     targets: &[TargetArg],
     deadline: Duration,
     memory_mb: u64,
-    mut cancel: watch::Receiver<bool>,
+    cancel: watch::Receiver<bool>,
 ) -> Result<CheckOutcome, NoVerdict> {
-    let targets_arg: Vec<String> = targets.iter().map(|t| format!("{}={}", t.name, t.statement)).collect();
-    let Launch { mut cmd, seccomp, scope } = checker_command(cfg, store, &cfg.bin, memory_mb)?;
-    cmd.arg("check-group").arg("--store").arg(if sandbox_active(cfg) { Path::new("/work") } else { store }).arg("--gids").arg(gids.join(",")).arg("--decl").arg(decl);
-    if !targets_arg.is_empty() {
-        cmd.arg("--targets").arg(targets_arg.join(","));
+    let args = job_args(cfg, store, gids, decl, targets);
+    if !split_active(cfg) {
+        let (out, err, st) = run_process(cfg, store, "check-group", &args, deadline, memory_mb, cancel).await?;
+        return verdict(&out, &err, st);
     }
+    let start = Instant::now();
+    let (out, err, st) = run_process(cfg, store, "source-check", &args, deadline, memory_mb, cancel.clone()).await?;
+    if !st.success() {
+        return Err(NoVerdict::Crashed(format!("source-check exited {st}: {}", err.lines().last().unwrap_or(""))));
+    }
+    let evidence = out.lines().rev().find_map(|l| l.strip_prefix("EVIDENCE "))
+        .ok_or_else(|| NoVerdict::Crashed("source-check printed no evidence".into()))?;
+    kernel_phase(cfg, store, gids, decl, targets, deadline.saturating_sub(start.elapsed()), memory_mb, cancel, evidence).await
+}
+
+/// The trusted half: write the frontend's evidence (untrusted data) into the input store
+/// and run `kernel-check` in a fresh process.
+#[allow(clippy::too_many_arguments)]
+async fn kernel_phase(
+    cfg: &CheckerConfig, store: &Path, gids: &[String], decl: &str, targets: &[TargetArg],
+    deadline: Duration, memory_mb: u64, cancel: watch::Receiver<bool>, evidence: &str,
+) -> Result<CheckOutcome, NoVerdict> {
+    if deadline.is_zero() { return Err(NoVerdict::Timeout) }
+    let path = store.join(EVIDENCE_FILE);
+    std::fs::write(&path, evidence).map_err(|e| NoVerdict::Crashed(format!("write evidence: {e}")))?;
+    let mut args = job_args(cfg, store, gids, decl, targets);
+    args.push("--evidence".into());
+    args.push(if sandbox_active(cfg) { format!("/work/{EVIDENCE_FILE}") } else { path.display().to_string() });
+    let (out, err, st) = run_process(cfg, store, "kernel-check", &args, deadline, memory_mb, cancel).await?;
+    verdict(&out, &err, st)
+}
+
+/// Run one checker command (`check-group`, `source-check` or `kernel-check`) to its exit
+/// under the deadline, memory, output and cancellation limits; returns stdout, stderr and
+/// the exit status.
+#[allow(clippy::too_many_arguments)]
+async fn run_process(
+    cfg: &CheckerConfig,
+    store: &Path,
+    command: &str,
+    args: &[String],
+    deadline: Duration,
+    memory_mb: u64,
+    mut cancel: watch::Receiver<bool>,
+) -> Result<(String, String, std::process::ExitStatus), NoVerdict> {
+    let Launch { mut cmd, seccomp, scope } = checker_command(cfg, store, &cfg.bin, memory_mb)?;
+    cmd.arg(command).args(args);
     cmd.envs(cfg.env.iter().cloned())
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -653,16 +753,7 @@ pub async fn run(
                 let out = match captured_out { Some(bytes) => bytes, None => out_task.await.unwrap_or_default() };
                 let err = match captured_err { Some(bytes) => bytes, None => err_task.await.unwrap_or_default() };
                 if !cfg!(feature = "mutate-unbounded-checker-output") && (out.len() > MAX_OUTPUT_BYTES || err.len() > MAX_OUTPUT_BYTES) { return Err(NoVerdict::Output); }
-                let out = String::from_utf8_lossy(&out);
-                let err = String::from_utf8_lossy(&err);
-                let Some(line) = out.lines().rev().find_map(|l| l.strip_prefix("CHECK ")) else {
-                    return Err(NoVerdict::Crashed(format!("{st}: {}", err.lines().last().unwrap_or(""))));
-                };
-                let raw: Raw = serde_json::from_str(line).map_err(|e| NoVerdict::Crashed(format!("bad CHECK line: {e}")))?;
-                if raw.ok && !st.success() {
-                    return Err(NoVerdict::Crashed(format!("checker reported acceptance but exited {st}")));
-                }
-                return raw.outcome();
+                return Ok((String::from_utf8_lossy(&out).into_owned(), String::from_utf8_lossy(&err).into_owned(), st));
             }
             bytes = &mut out_task, if captured_out.is_none() => {
                 let bytes = bytes.unwrap_or_default();

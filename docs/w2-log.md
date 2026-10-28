@@ -250,3 +250,25 @@ Re-verification found three more problems, all fixed:
   mechanism, but not by its own core, which never existed.
 
 Final tree: `59a0346` (pushed as `w2-security`); this line is added in the following commit.
+
+## Addendum: residual issues (2026-10-28)
+
+- **W2-13 fixed.** The validator splits each check. `source-check` contributes only
+  evidence; `kernel-check`, a fresh sandboxed process that elaborates no capsule, gives
+  the verdict (`Paralean/KernelCheck.lean`, `checker.rs`).
+  - On the 97 core fixtures it agrees with the old checker. With forged evidence it still
+    rejects every negative fixture.
+  - P3 tests: 114 passed, 0 failed, 4 ignored.
+  - `forged_frontend_acceptance_cannot_pass_the_kernel_check` passes, and
+    `mutate-verdict-from-frontend` is detected.
+  - Cost: about 0.6–0.8 s more per check.
+- **W2-12 accepted, not fixed.** P5's coding agents are trusted in the operating mode, so
+  hostile workers are outside the threat model. No worker sandbox was added.
+- **Smaller residuals fixed:**
+  - `ws.py` stages its receipt and plan privately (W2-20).
+  - The S3 gateway allows at most 4 connections per source, within the global 16.
+  - Garage `/metrics` requires a token (W2-40).
+  - The LSP router's stderr forwarding is bounded and `registry_symbols` skips malformed
+    records (folded into W2-52).
+- **Results:** W2 security mutations 41/41; P5 tests 95 (2 skipped); editor-bridge
+  mutants 55/55; s3-guard tests 8/8.

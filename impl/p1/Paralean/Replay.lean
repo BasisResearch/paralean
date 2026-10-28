@@ -100,6 +100,9 @@ structure KernelRes where
   diags : Array Diag
   /-- Transitive axioms of the group's members, read from the kernel environment. -/
   axioms : Array Name := #[]
+  /-- Reserved constants re-realized for this group (W2-13: handed to `kernel-check` as
+  untrusted data, which the kernel checks again). -/
+  extra : Array ConstantInfo := #[]
 
 def kernelExMsg (e : Kernel.Exception) : IO String := do
   (e.toMessageData {}).toString
@@ -321,7 +324,7 @@ unsafe def kernelReplay (store : Store) (cat : Catalog) (gids : Array String) (s
             diags := diags.push (mk "axiom" s!"{ci.name} depends on disallowed axiom {a}")
         if let .axiomInfo _ := ci then
           diags := diags.push (mk "new-axiom" s!"{ci.name} is an axiom")
-      out := out.push { gid, ok := diags.isEmpty, added, realized := nReal, diags, axioms := groupAxs }
+      out := out.push { gid, ok := diags.isEmpty, added, realized := nReal, diags, axioms := groupAxs, extra }
   return (out, sr)
 
 end Paralean

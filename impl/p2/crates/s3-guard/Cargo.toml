@@ -14,11 +14,12 @@ bytes = "1"
 sha2 = "0.10"
 
 [features]
-# Guard-removal mutations: W2's (allow-delete, unbounded-body, allow-overwrite) and W4's GC
-# principal cases, all for scripts/check-s3-guard-mutations.sh.
+# Guard-removal mutations: W2's (allow-delete, unbounded-body, allow-overwrite,
+# no-per-source-admission) and W4's GC principal cases, all for scripts/check-s3-guard-mutations.sh.
 mutate-allow-delete = []
 mutate-unbounded-body = []
 mutate-allow-overwrite = []
+mutate-no-per-source-admission = []
 mutate-no-gc-principal-check = []
 mutate-no-bucket-delete-check = []
 mutate-no-query-key-decode = []

@@ -17,9 +17,13 @@ fn require_lean() {
         String::from_utf8_lossy(&output.stderr));
 }
 
+/// Appended to every mock checker: in the `source-check` phase of a split check (W2-13) it
+/// also prints the (empty) evidence, so the same body runs in both sandboxed phases.
+const EVIDENCE_FOOTER: &str = "\nimport sys as _sys, json as _json\nif len(_sys.argv) > 1 and _sys.argv[1] == 'source-check':\n    print('EVIDENCE ' + _json.dumps({'groups': []}), flush=True)\n";
+
 fn script(root: &Path, name: &str, body: &str) -> PathBuf {
     let p = root.join(name);
-    std::fs::write(&p, body).unwrap();
+    std::fs::write(&p, format!("{body}{EVIDENCE_FOOTER}")).unwrap();
     std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o700)).unwrap();
     p
 }
@@ -41,7 +45,15 @@ import json, os, resource
 expected = [(resource.RLIMIT_FSIZE, 128 << 20),
             (resource.RLIMIT_NOFILE, 256), (resource.RLIMIT_CORE, 0),
             (resource.RLIMIT_NPROC, 64), (resource.RLIMIT_CPU, 12)]
-errors = [str(key) for key, value in expected if resource.getrlimit(key) != (value, value)]
+import sys
+# The trusted kernel-check phase (W2-13) gets what remains of the job's deadline.
+if sys.argv[1:2] == ['kernel-check']:
+    cpu = resource.getrlimit(resource.RLIMIT_CPU)
+    expected = [e for e in expected if e[0] != resource.RLIMIT_CPU]
+    errors = [] if cpu[0] == cpu[1] and 0 < cpu[0] <= 12 else ['RLIMIT_CPU']
+else:
+    errors = []
+errors += [str(key) for key, value in expected if resource.getrlimit(key) != (value, value)]
 # RLIMIT_AS is a 16 GiB backstop, not the job's memory limit (the cgroup is).
 if resource.getrlimit(resource.RLIMIT_AS) != (16 << 30, 16 << 30): errors.append('RLIMIT_AS')
 if any(k in os.environ for k in ['PARALEAN_KEYS', 'PARALEAN_S3_SECRET_KEY', 'PARALEAN_FDB_CLUSTER', 'PARALEAN_GARAGE_ADMIN_TOKEN']):
@@ -400,7 +412,10 @@ async fn native_lean_tactic_cannot_reach_host() {
     std::fs::write(direct.join("Attack.lean"), &source).unwrap();
     let wrapper = root.join("lean-attack.sh");
     std::fs::write(&wrapper, r#"#!/bin/sh
-# Elaborate the attack in the checker's store directory with the toolchain's own lean.
+# Elaborate the attack in the checker's store directory with the toolchain's own lean,
+# in both phases of the split check (W2-13); the frontend phase also prints evidence.
+phase="$1"
+[ "$phase" = source-check ] && echo 'EVIDENCE {"groups":[]}'
 while [ $# -gt 0 ]; do [ "$1" = --store ] && store="$2"; shift; done
 cd "$store" || exit 1
 if lean Attack.lean > lean.out 2>&1 && [ -f attack-ran ]; then

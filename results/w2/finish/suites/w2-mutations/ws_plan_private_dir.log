@@ -1,0 +1,20 @@
+F
+======================================================================
+FAIL: test_publish_does_not_follow_planted_links (__main__.PublishStagingTest.test_publish_does_not_follow_planted_links)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-dv9r9jb1/test-ws.py", line 80, in test_publish_does_not_follow_planted_links
+    self.check_staged()
+    ~~~~~~~~~~~~~~~~~^^
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-dv9r9jb1/test-ws.py", line 71, in check_staged
+    self.assertEqual(sentinel.read_text(), "outside sentinel", name)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '[{"group": "11111111111111111111111111111[113 chars]3"}]' != 'outside sentinel'
+- [{"group": "1111111111111111111111111111111111111111111111111111111111111111"}, {"group": "3333333333333333333333333333333333333333333333333333333333333333"}]
++ outside sentinel
+ : plan.json
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+FAILED (failures=1)

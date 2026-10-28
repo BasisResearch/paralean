@@ -1,5 +1,4 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.89s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
      Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-a582757db3a02d79)
 
 running 1 test
@@ -9,7 +8,7 @@ failures:
 
 ---- pce::tests::hostile_counts_are_bounded_before_container_allocation stdout ----
 
-thread 'pce::tests::hostile_counts_are_bounded_before_container_allocation' (3425156) panicked at crates/store/src/pce.rs:320:13:
+thread 'pce::tests::hostile_counts_are_bounded_before_container_allocation' (312852) panicked at crates/store/src/pce.rs:320:13:
 oversized allocation reached element decoder
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
@@ -17,6 +16,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     pce::tests::hostile_counts_are_bounded_before_container_allocation
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
 
 error: test failed, to rerun pass `-p paralean-store --lib`
