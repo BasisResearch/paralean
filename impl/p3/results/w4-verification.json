@@ -1,0 +1,69 @@
+{
+  "implementation_commit": "296e08b9a6d32dc9258f7a1d71268444461b7a24",
+  "base_commit": "fee94d9be23d9e9902cb006b1e8cdfaa3bcf809c",
+  "branch": "w4-scale",
+  "date_utc": "2026-10-20",
+  "p3": {
+    "combined_run_passed": 61,
+    "final_history_run_passed": 12,
+    "overlap": 11,
+    "distinct_tests_passed": 62,
+    "benchmark_passed": true
+  },
+  "implementation_mutation_cases": {
+    "controller": 9,
+    "gc": 6,
+    "history": 15,
+    "s3-guard": 3
+  },
+  "implementation_mutation_total": 33,
+  "s3_guard": {
+    "unit_tests_passed": 3,
+    "signed_live_checks_passed": 7
+  },
+  "p5": {
+    "tests_run": 28,
+    "passed": 26,
+    "environment_skipped": 2
+  },
+  "tla": {
+    "positive": 23,
+    "negative_expected_outcomes": 119,
+    "hardened": 29,
+    "wide_preserved": 4,
+    "wide_rerun": false,
+    "new_models": {
+      "W4Scale": {
+        "distinct_states": 428800,
+        "witnesses": 6,
+        "mutations": 10
+      },
+      "W4History": {
+        "distinct_states": 3780,
+        "witnesses": 7,
+        "mutations": 11
+      }
+    },
+    "archive_verify_passed": true
+  },
+  "lean": {
+    "local_transition_lemmas_passed": 6,
+    "version": "4.32.0",
+    "full_veil_rerun": false
+  },
+  "benchmark_report": "w4-scale.json",
+  "benchmark_method": "one shared-host sample; private live FDB; direct controller API; debug build; no validation RPC",
+  "instance": {
+    "name": "w4-scale",
+    "port_base": 29500,
+    "services_stopped": true,
+    "data_retained": true
+  },
+  "limits": [
+    "fixed shard topology; 8 MiB snapshot cap per shard; no online resharding or legacy migration",
+    "replay records above 90 KiB retained in snapshots; grace stamping needs headroom",
+    "immutable replay IDs and global protocol/routing records retained indefinitely",
+    "P2/S3 object GC not implemented: distributed retirement and disconnected-peer roots remain required",
+    "bounded TLA and local Lean lemmas do not prove Rust refinement or full-system liveness"
+  ]
+}

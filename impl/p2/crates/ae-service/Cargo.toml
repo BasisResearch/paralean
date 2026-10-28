@@ -16,3 +16,10 @@ ae-wire = { path = "../ae-wire" }
 tokio.workspace = true
 ed25519-dalek = "2"
 rand = "0.8"
+
+[dev-dependencies]
+libtest-mimic = "0.8.2"
+
+[[test]]
+name = "network"
+harness = false

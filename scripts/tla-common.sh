@@ -7,7 +7,10 @@ TLA_SCENARIOS=(Chain Collision Revision Revert Rejected Quorums Integrated
   CheckpointReuse ExportRejected Receipts Targets TargetsLagging:Targets
   TargetsLive:Targets Fencing FencingLive:Fencing Certificates
   CertificatesLagging:Certificates CertificatesLive:Certificates Workspace
-  WorkspacePending:Workspace TargetHomes Ingress TargetsStatement:Targets)
+  WorkspacePending:Workspace TargetHomes Ingress TargetsStatement:Targets ReplayIdentity
+  ExportLookup ExportLookupResidual CatalogueExchange CheckpointConflicts AgentAuthority
+  StorePositions W4Scale W4History EditorPublication:EditorWiring EditorRename:EditorWiring
+  CapsuleReplay:EditorWiring)
 
 # Larger-scope instances of the same models. Too slow for the default suite;
 # run with `check-tla.sh --wide`. Logs go to .runs/tla/wide/.

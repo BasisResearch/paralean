@@ -1,0 +1,10 @@
+/data/home/kirancodes/Documents/code/paralean-integrate-w/verification/veil/Paralean/InitializerIdentity.lean:79:34: warning: try 'simp' instead of 'simpa'
+
+Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
+'ParaleanInitializerIdentity.exact_implies_observable' does not depend on any axioms
+'ParaleanInitializerIdentity.private_literal_changes' depends on axioms: [propext]
+'ParaleanInitializerIdentity.rendered_declaration_unchanged' depends on axioms: [propext]
+'ParaleanInitializerIdentity.quotient_cannot_certify_exact' depends on axioms: [propext]
+'ParaleanInitializerIdentity.concrete_module_change' depends on axioms: [propext]
+'ParaleanInitializerIdentity.singleton_hygiene_match_sound' depends on axioms: [propext]
+'ParaleanInitializerIdentity.singleton_hygiene_match_perm' depends on axioms: [propext, Quot.sound]

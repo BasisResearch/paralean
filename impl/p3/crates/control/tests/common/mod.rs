@@ -20,6 +20,23 @@ use paralean_validator_api::rpc;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// The stock test harness returns directly into process exit while FDB's network
+/// thread is still running (docs/w2-chaos-notes.md). Finish every selected test, then
+/// stop and join FDB before libtest-mimic exits. The guard also covers a harness panic.
+pub fn run_tests(trials: Vec<libtest_mimic::Trial>) {
+    struct StopNetwork;
+    impl Drop for StopNetwork {
+        fn drop(&mut self) {
+            paralean_store::meta::shutdown();
+        }
+    }
+    let stop = StopNetwork;
+    let args = libtest_mimic::Arguments::from_args();
+    let result = libtest_mimic::run(&args, trials);
+    drop(stop);
+    result.exit();
+}
+
 pub fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../..").canonicalize().unwrap()
 }

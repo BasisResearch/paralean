@@ -1,0 +1,1 @@
+{"application_delete_denied": true, "authenticated_gc_object_delete": true, "forged_gc_signature_denied": true, "gc_bucket_delete_denied": true, "gc_bulk_delete_denied": true, "gc_denied_by_default": true, "gc_encoded_bulk_delete_denied": true, "gc_protected_kind_denied_0": true, "gc_protected_kind_denied_1": true, "gc_unlisted_prefix_denied": true}

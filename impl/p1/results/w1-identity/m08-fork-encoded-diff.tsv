@@ -1,0 +1,3 @@
+line	captured_id	exported_id	names_equal	refs_equal	levels_equal	captured_exprs	exported_exprs	captured_private	exported_private	captured_hygiene	exported_hygiene	captured_mathlib	exported_mathlib	captured_paralean_export	exported_paralean_export	captured_literal_paralean_export	exported_literal_paralean_export	byte_delta
+23	a8cb7e159c05835c27d06bbba29c36f44c4c2d109500e484fc3ec53e442e1218	a8cb7e159c05835c27d06bbba29c36f44c4c2d109500e484fc3ec53e442e1218	1	1	1	66	66	0	0	0	0	1	1	0	0	0	0	0
+37	f5a1a2428cd23c4930dd18c0dfed5c2b5e8d81c1429f48e99e1b0315f9f22bfa	62bf00187bdb737f38cb7f91c14a0b1829895e0eddb9cf93d5c9a60ff0169a29	1	1	1	409	412	1	1	0	0	1	1	0	1	0	1	26

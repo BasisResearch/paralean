@@ -1,0 +1,11 @@
+test_incomplete_inventory_keeps_both_buffers (__main__.RealLeanRenameTests.test_incomplete_inventory_keeps_both_buffers) ... Executing <Task pending name='Task-2' coro=<RealLeanRenameTests.test_incomplete_inventory_keeps_both_buffers() running at /data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p4/tests/rename_real_lean_test.py:133> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.14/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.14/asyncio/base_events.py:181] created at /usr/lib/python3.14/asyncio/runners.py:109> took 0.646 seconds
+ok
+test_two_real_workers_commit_declaration_and_imported_use (__main__.RealLeanRenameTests.test_two_real_workers_commit_declaration_and_imported_use) ... Executing <Task pending name='Task-13' coro=<RealLeanRenameTests.test_two_real_workers_commit_declaration_and_imported_use() running at /data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p4/tests/rename_real_lean_test.py:127> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.14/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.14/asyncio/base_events.py:181] created at /usr/lib/python3.14/asyncio/runners.py:109> took 0.348 seconds
+ok
+test_wrong_dependent_anchor_keeps_both_buffers (__main__.RealLeanRenameTests.test_wrong_dependent_anchor_keeps_both_buffers) ... Executing <Task pending name='Task-26' coro=<RealLeanRenameTests.test_wrong_dependent_anchor_keeps_both_buffers() running at /data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p4/tests/rename_real_lean_test.py:130> wait_for=<Future pending cb=[Task.task_wakeup()] created at /usr/lib/python3.14/asyncio/base_events.py:459> cb=[_run_until_complete_cb() at /usr/lib/python3.14/asyncio/base_events.py:181] created at /usr/lib/python3.14/asyncio/runners.py:109> took 0.347 seconds
+ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 4.568s
+
+OK

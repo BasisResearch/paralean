@@ -1,5 +1,7 @@
 //! A command that declares two public names is one target publication: both owner
 //! records, epochs, receipt bindings, and heads must agree at the T1 transaction.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -31,7 +33,7 @@ async fn assign_group(c: &Cluster, names: &[Name; 2], owner: WorkspaceId) -> Vec
     epochs
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn two_names_in_one_group_publish_with_one_bound_receipt() {
     let c = Cluster::start("two-targets", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -81,7 +83,7 @@ async fn futures_prepare(writer: &Writer, names: &[Name; 2]) -> Vec<PreparedTarg
     result
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn pending_two_name_proof_is_fenced_on_handover() {
     let c = Cluster::start("two-target-handover", Opts::default()).await;
     let old = c.worker(0, 8192, &core_store()).await;
@@ -138,7 +140,7 @@ async fn pending_two_name_proof_is_fenced_on_handover() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn joint_assignment_rejects_subset_and_expires_together() {
     let c = Cluster::start("joint-expiry", Opts { lease_ms: 800, ..Opts::default() }).await;
     let old = c.worker_without_heartbeat(0, 8192, &core_store()).await;
@@ -167,7 +169,7 @@ async fn joint_assignment_rejects_subset_and_expires_together() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn stale_joint_assignment_request_cannot_overwrite_handover() {
     let c = Cluster::start("joint-stale-request", Opts { lease_ms: 800, ..Opts::default() }).await;
     let former = c.kf.workspace("w0").unwrap().0;
@@ -210,7 +212,7 @@ async fn stale_joint_assignment_request_cannot_overwrite_handover() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() {
     let c = Cluster::start("target-api-overlap", Opts { lease_ms: 3000, ..Opts::default() }).await;
     let old = c.worker_without_heartbeat(0, 8192, &core_store()).await;
@@ -278,7 +280,7 @@ async fn singleton_group_and_work_apis_reject_overlaps_before_target_mutation() 
 
 /// W2 A-4: assignment pins the target's statement, a later assignment cannot replace it,
 /// and the controller stamps the pinned statement into the job whatever the worker asks.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn assignment_pins_the_statement_the_controller_stamps() {
     let c = Cluster::start("pinned-statement", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -295,4 +297,16 @@ async fn assignment_pins_the_statement_the_controller_stamps() {
     w.publish_deps(&g).await.unwrap();
     let (_, job) = w.validate(&g, "pinned-statement/1", &[(name.clone(), wrong)], 0).await.unwrap();
     assert_eq!(job.body.targets[0].statement, hex::decode(&pinned).unwrap());
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("two_names_in_one_group_publish_with_one_bound_receipt", || { two_names_in_one_group_publish_with_one_bound_receipt(); Ok(()) }),
+        libtest_mimic::Trial::test("pending_two_name_proof_is_fenced_on_handover", || { pending_two_name_proof_is_fenced_on_handover(); Ok(()) }),
+        libtest_mimic::Trial::test("joint_assignment_rejects_subset_and_expires_together", || { joint_assignment_rejects_subset_and_expires_together(); Ok(()) }),
+        libtest_mimic::Trial::test("stale_joint_assignment_request_cannot_overwrite_handover", || { stale_joint_assignment_request_cannot_overwrite_handover(); Ok(()) }),
+        libtest_mimic::Trial::test("singleton_group_and_work_apis_reject_overlaps_before_target_mutation", || { singleton_group_and_work_apis_reject_overlaps_before_target_mutation(); Ok(()) }),
+        libtest_mimic::Trial::test("assignment_pins_the_statement_the_controller_stamps", || { assignment_pins_the_statement_the_controller_stamps(); Ok(()) }),
+    ]);
 }

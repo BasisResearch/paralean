@@ -1,0 +1,9 @@
+{
+  "gate": "safe-refusal",
+  "reason": "Dependency inventory has duplicate groups or packages",
+  "workspaces": 2,
+  "sourceFiles": 5,
+  "signedUseHasReference": true,
+  "projectedUseHasReference": false,
+  "targetGroup": "e1852a67ff42f05d86a8469d64dd8dd95a4dd95d4dec2004c207529006d53436"
+}

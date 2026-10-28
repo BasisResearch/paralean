@@ -8,8 +8,9 @@ run_cmd do
     `ParaleanGroups, `ParaleanGroupComposition, `ParaleanDelivery, `ParaleanArtifacts,
     `ParaleanAdmission, `ParaleanRecovery, `ParaleanPublicationDiscovery,
     `ParaleanCompletionRecovery, `ParaleanProtocol, `ParaleanProtocolGuardChecks,
-    `ParaleanLeanNames, `ParaleanPublicationReceipts, `ParaleanTargetNames,
-    `ParaleanCatalogFencing, `ParaleanAckCertificates, `ParaleanCatalogCertificates, `ParaleanHardened, `ParaleanWorkspaces]
+    `ParaleanLeanNames, `ParaleanInitializerIdentity, `ParaleanPublicationReceipts, `ParaleanTargetNames,
+    `ParaleanCatalogFencing, `ParaleanAckCertificates, `ParaleanCatalogCertificates, `ParaleanHardened, `ParaleanWorkspaces, `ParaleanCheckpointConflicts,
+    `Paralean.ControllerGc]
   let allowed := #[`propext, `Classical.choice, `Quot.sound]
   let mut count : Nat := 0
   -- Private declarations are named `_private.<module>.0.<name>`; match the user name.

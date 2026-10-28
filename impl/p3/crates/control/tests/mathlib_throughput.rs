@@ -1,6 +1,8 @@
 //! Full M01--M18 validator measurement. Input stores are P1 captures at the pinned
 //! fork/Mathlib versions. Run with PARALEAN_P3_MATHLIB_STORES=/.../mathlib and
 //! PARALEAN_P3_WARM_BIN=/.../paralean-warm, --ignored --nocapture --test-threads=1.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 mod common;
 
 use std::collections::BTreeSet;
@@ -11,8 +13,7 @@ use paralean_control::{checker::base_id, p1, worker::WorkerNode};
 use paralean_store::{receipt::{JobEnvelope, Policy, SignedJob}, *};
 use paralean_validator_api::{rpc, ValidatorRequest, ValidatorResponse};
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "full 18-module Mathlib benchmark; needs captured stores and warm checker"]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn mathlib_throughput() {
     let stores = std::path::PathBuf::from(std::env::var("PARALEAN_P3_MATHLIB_STORES").expect("Mathlib stores"));
     let report = std::env::var("PARALEAN_P3_THROUGHPUT_REPORT").expect("report path");
@@ -119,5 +120,25 @@ async fn mathlib_throughput() {
         rows.push(row);
         std::fs::write(&report, serde_json::to_vec_pretty(&rows).unwrap()).unwrap();
     }
-    if only.is_empty() { assert_eq!(rows.len(), 18); }
+    if only.is_empty() {
+        assert_eq!(rows.len(), 18);
+        assert_eq!(rows.iter().map(|r| r["groups"].as_u64().unwrap()).sum::<u64>(), 1105,
+            "the full pinned Mathlib sample must contain 1,105 groups");
+    }
+    // A timing report is not certification. Keep the report even on failure,
+    // but do not let a rejected or unpublished group produce a green test.
+    for row in &rows {
+        assert!(row["failures"].as_array().unwrap().is_empty(),
+            "{} certification failures: {}", row["module"], row["failures"]);
+        assert_eq!(row["accepted"], row["groups"], "{} acceptance", row["module"]);
+        assert_eq!(row["published"].as_u64().unwrap() + row["duplicate"].as_u64().unwrap(),
+            row["groups"].as_u64().unwrap(), "{} publication", row["module"]);
+    }
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("mathlib_throughput", || { mathlib_throughput(); Ok(()) }).with_ignored_flag(true),
+    ]);
 }

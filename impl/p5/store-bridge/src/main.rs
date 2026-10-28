@@ -46,7 +46,7 @@ async fn run(args: Vec<String>) -> R<Value> {
     let space = keyspace(&dep);
     let cmd = args.first().map(String::as_str).ok_or("missing command")?;
     match cmd {
-        "assign-target" | "observe-target" | "fence-unfinished" | "validate-target" |
+        "policy-state" | "revoke-validator" | "revoke-agent-key" | "assign-target" | "observe-target" | "fence-unfinished" | "validate-target" |
         "publish-target" | "verify-target" | "checkpoint-targets" => targets::run(&args).await,
         "put" => {
             let task = task_id(need(&args, "--task")?)?;
@@ -145,13 +145,11 @@ async fn run(args: Vec<String>) -> R<Value> {
         _ => Err("usage: paralean-p5-store put --task ID --file JSON --expected N | get --task ID --out FILE | list".into()),
     }
 }
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().skip(1).collect();
-    let result = run(args).await;
-    // Join the native FDB network thread before process teardown, as P2's CLI
-    // does. The upstream lifecycle API arrived with the P2 robustness changes.
-    paralean_store::meta::shutdown();
+    // Drop the runtime, then join the native FDB network thread before process
+    // teardown, as P2's CLI does (docs/w2-chaos-notes.md).
+    let result = paralean_store::meta::run_main(run(args));
     match result {
         Ok(value) => { println!("{value}"); ExitCode::SUCCESS }
         Err(error) => { eprintln!("paralean-p5-store: {error}"); ExitCode::from(2) }

@@ -1,0 +1,3 @@
+source replay: 50/50 groups reproduce their declaration ID (3827 ms)
+kernel replay: 50/50 groups accepted; 155 declarations added, 1 reserved names re-realized (189 ms)
+isolated replay (exact deps only): 50/50

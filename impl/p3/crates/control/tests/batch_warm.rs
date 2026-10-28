@@ -1,5 +1,7 @@
 //! A batch may use receipts from earlier jobs in that batch. The warm checker must
 //! discard every job's declarations and options while keeping its base import loaded.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -41,7 +43,7 @@ fn accepted(r: &ValidatorResponse) -> bool {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn batch_retries_joined_standalone_dependency_refusal() {
     // A standalone dependent can queue behind a prerequisite before the batch
     // obtains the prerequisite receipt. Both callers then share its request slot,
@@ -102,7 +104,7 @@ async fn batch_retries_joined_standalone_dependency_refusal() {
     assert!(c.store.marker(&dependent.decl).await.unwrap().is_none());
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn dependent_batch_requires_earlier_accepted_receipts_and_deduplicates() {
     let c = Cluster::start("batch-deps", Opts { validators: vec![Mode::Real], validator_max_running: 1, ..Opts::default() }).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -170,7 +172,7 @@ async fn dependent_batch_requires_earlier_accepted_receipts_and_deduplicates() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn warm_process_rechecks_same_declaration_without_leaking_environment() {
     let Some(mut checker) = fork_checker() else {
         eprintln!("skipped: fork P1 checker not installed");
@@ -238,4 +240,13 @@ async fn warm_process_rechecks_same_declaration_without_leaking_environment() {
     let last = job(&c, w.id(), &w.groups, group, "warm/replaced-process", vec![]);
     assert!(accepted(&batch(&c, &[last]).await[0]));
     assert_eq!(c.validators[0].warm_pool.spawned.load(Ordering::SeqCst), 2, "timeout must replace the process");
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("batch_retries_joined_standalone_dependency_refusal", || { batch_retries_joined_standalone_dependency_refusal(); Ok(()) }),
+        libtest_mimic::Trial::test("dependent_batch_requires_earlier_accepted_receipts_and_deduplicates", || { dependent_batch_requires_earlier_accepted_receipts_and_deduplicates(); Ok(()) }),
+        libtest_mimic::Trial::test("warm_process_rechecks_same_declaration_without_leaking_environment", || { warm_process_rechecks_same_declaration_without_leaking_environment(); Ok(()) }),
+    ]);
 }

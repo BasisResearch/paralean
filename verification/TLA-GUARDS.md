@@ -1,5 +1,36 @@
 # Admission and freshness guard coverage
 
+## Editor/controller boundary (W5)
+
+`EditorWiring` has separate publication, rename and capsule-replay scenarios.
+It abstracts receipt verification, dependency discovery and Lean source replay
+as verdicts supplied by those subsystems. The model checks that the boundary
+requires these verdicts; it does not prove their implementations or arbitrary
+editor-client behavior. Rename's atomic state is the controller's buffer map.
+The authorization verdict includes the frozen target, owning workspace and
+current dispatch epoch; an explicit request by a different registered workspace
+does not satisfy it. Runtime source mutations test these concrete checks.
+
+| Check | Mutation | Required invariant failure |
+|---|---|---|
+| Receipt before publishing | `editor_no_receipt` | `PublicationSafe` |
+| Explicit user/agent action or policy | `editor_no_action` | `PublicationSafe` |
+| Exact document, environment and generation stamp | `editor_stale_publish` | `PublicationSafe` |
+| Policy advancement fences old sessions | `editor_no_policy_fence` | `SessionFenced` |
+| Every rename participant prepared | `rename_missing_participant` | `RenameSafe` |
+| Complete dependency inventory | `rename_incomplete_inventory` | `RenameSafe` |
+| Valid semantic edit plans | `rename_invalid_plan` | `RenameSafe` |
+| Rename plan stamps still current | `rename_stale_plan` | `RenameSafe` |
+| All affected buffers change together | `rename_partial_commit` | `RenameAtomic` |
+| Legacy metadata replay verified | `recapture_unverified` | `OverlaySafe` |
+| Exact original capsule identity | `recapture_wrong_identity` | `OverlaySafe` |
+
+`editor_publish_work`, `editor_rename_work`, and `editor_recapture_work` require
+counterexamples to their `Never*` invariants in the unmutated model. Thus the
+positive checks cannot pass solely by disabling publication, rename or replay.
+
+## Store protocol guards
+
 `scripts/check-tla-negative.sh` removes each effective admission or freshness
 check below. It requires the named invariant or temporal error. A parser failure,
 unrelated error, or arbitrary nonzero exit does not satisfy a check. Every
@@ -230,6 +261,85 @@ live replica at checkpoint commit, before any record for that snapshot can be pu
 so the conjunct never decides readiness. That reflects the modelled write order
 and certificate granularity, not that object certificates are unnecessary.
 
+## W4 controller verification
+
+### W4 history replay after compaction
+
+`W4History.tla` models one request and one poll token as a local induction step
+for controller-history compaction. A terminal work entry and its order entry
+leave the current snapshot in the same fenced FDB transaction that writes its
+immutable work replay row. A stable poll token moves to an immutable marker for
+its original worker and first selection in that transaction; a first `NoWork`
+token may move separately after logical grace. Pending work cannot move. The
+marker preserves the first selection, while a late poll returns `Work` only if
+that job remains pending with the same worker and assignment epoch. A duplicate
+request checks the replay row's exact descriptor. Global J3 cancellation overlays
+the immutable original terminal result, so a duplicate after cancellation
+returns `Cancelled`. Turning off GC prevents new compaction but leaves replay
+reads active. Crash clears a process's preparation; it cannot expose a partial
+marker/head transaction. Retained old snapshot chunks remain roots under the
+separate W4 snapshot GC model; this history model does not roll them back.
+
+The bounded positive instance passes 3,780 distinct states with two workers,
+two payload choices and two logical ticks. Seven reachability witnesses require
+work and poll compaction, late work and poll retries, a retry after GC is turned
+off, term handover and a duplicate after post-compaction cancellation. Eleven
+guard mutations independently violate named properties: stale compactor fence,
+terminal-state admission, missing work/poll replay marker, omitted work/poll
+replay lookup, descriptor mismatch, wrong poll worker, work/poll grace and
+missing J3 cancellation overlay. The model's one-request step lifts to a batch
+only if every replay row and the shared pruned head commit in **one FDB
+transaction**; disjoint marker keys alone are insufficient. Two-request crash
+and unknown-commit integration tests are required to check that implementation
+boundary. The model does not prove FDB atomicity, a total storage bound or
+safe retirement of replay rows.
+
+### W4 leases and snapshot collection
+
+`W4Scale.tla` is a bounded, two-shard model for controller metadata. Each shard
+has a monotone FoundationDB counter, lease holder, term and expiry counter.
+Acquisition after expiry increments the term, including when the same process
+reacquires. Stage records the term; publish transactionally checks holder,
+unexpired counter and staged term. A stale pending save can be abandoned and
+staged under a new term. No action reads wall time, so clock skew can only
+change when monitors advance counters and when takeover happens; it cannot make
+a stale term valid. The model does not prove a bound on how quickly a monitor
+ticks or a standby takes over.
+
+The GC domain is **controller snapshot incarnations**, not P2 protocol objects,
+catalogue certificates or S3 keys. A snapshot incarnation may be reclaimed only
+after a shard-local logical grace and a transactionally fresh root check. The
+roots modeled are current shard heads, in-flight saves, retained references,
+checkpoints, catalogue references, outstanding demands and (since the W3/W4
+integration) W3 tombstone lineage: a tombstoned position leaves the live view,
+but its record, certificates and anchor marker stay roots. Their dependency
+closure crosses shard boundaries. A later authorized save may reuse the same
+content hash as a collected incarnation; `NoResurrection` concerns the deleted
+incarnation, not byte-level hash uniqueness. Recovery fetches require an explicit
+demand and a live incarnation. Desktop index loss and subsequent requested
+recovery are reachable. The recovery witness explicitly fetches a live root,
+loses the desktop's local index, then requests and fetches that root again;
+the witness flag is set only by the post-loss fetch. Physical protocol-object deletion remains deferred by
+the grow-only contract in [store.md](../docs/store.md#p2-obligations-from-this-choice)
+and [plan.md](../docs/plan.md).
+
+The positive `W4Scale.cfg` instance checks root closure, incarnation
+non-resurrection, the independent stale-publication observer, demanded fetches,
+logical grace and absence of deleted outstanding demands. W4 alone explored
+428,800 distinct states; with the tombstone root it explores 856,832. The
+negative suite requires witnesses for handover, publication after handover,
+cross-shard dependent publication, collection, retained roots, tombstoning and
+desktop recovery. Removing either the term or expiry check violates
+`NoStalePublish`; removing dependency closure or any one of pending, checkpoint,
+catalogue, retained or tombstone roots (`w4_no_tombstone_root`) violates `RootsLive`;
+removing demand protection violates `NoDemandDeleted`; removing grace violates
+`GraceKept`; allowing unsolicited fetch violates `NoUnrequestedFetch`.
+
+This finite instance proves safety for its bounded identities and schedules.
+The handover publication is a reachability witness, not a temporal liveness
+proof. It does not establish a real-time takeover bound, arbitrary dependency
+depth, safe deletion of P2 objects, or a global production GC root inventory.
+
 ## Liveness
 
 | Scenario | Property | Fairness | Model |
@@ -298,3 +408,82 @@ acknowledged but whose writer was fenced out before committing it; recovery
 adopts a record only with its parents, so that committed record was never
 adoptable. `CommitCert` now reads the parents' certificates and requires each
 to be committed (`ParentsCommittedOK`).
+
+## Source replay and export lookup
+
+W1 adds three finite, safety-only models of the Lean identity boundary. They
+abstract kernel terms as distinct values; they do not model the elaborator or
+prove cryptographic collision resistance.
+
+| Model | Guard or association | Mutation | Required counterexample |
+|---|---|---|---|
+| `ReplayIdentity` | Replayed content must equal stored content | `replay_without_exact_identity` | `AcceptedExact` |
+| `ExportLookup` | Associate generated declarations by raw hygiene key | `lookup_positional_queue` | `AttemptedKey` |
+| `ExportLookup` | A key must have exactly one exported candidate | `lookup_no_uniqueness` | `AcceptedUnique` |
+| `ExportLookup` | An exported declaration cannot serve two captured members | `lookup_no_reuse_guard` | `AcceptedNotReused` |
+| `ExportLookup` | The matched declaration must still have exact stored content | `lookup_no_exact_identity` | `AcceptedExact` |
+| `ExportLookupResidual` | Every exact-key candidate is reserved, including failed and ambiguous owners | `residual_no_exact_reservation` | `NoExactCandidateStolen` |
+| `ExportLookupResidual` derived fixture | Residual fallback is allowed only when the captured full key has no exported candidates | `residual_no_fullkey_guard` | `NoAmbiguousAccepted` |
+| `ExportLookupResidual` | A residual stem has one unmatched captured member | `residual_no_capture_uniqueness` | `NoTwoAccepted` |
+| `ExportLookupResidual` | A residual stem has one available exported candidate | `residual_no_candidate_uniqueness` | `NoMultiAccepted` |
+| `ExportLookupResidual` | Residual matching still requires exact stored content | `residual_no_exact_body` | `AcceptedExact` |
+
+The replay model has witnesses for sensitive content succeeding in its original
+module, failing in a synthetic module, and ordinary content succeeding in the
+synthetic module. The lookup model has three successful initializer matches and
+witnesses for changed literal content, ambiguous candidates, and declaration
+reuse being rejected.
+
+The residual model adds the stock F10 scope-ordinal drift witness and rejection
+witnesses for a failed exact owner, attempted theft of its candidate, an
+ambiguous exact owner and attempted theft of its candidates, two unmatched
+captures, two residual candidates, and changed content. Exact-key reservation
+is computed over all captured members, independently of whether their bodies
+later validate. With that global reservation, phase ordering is a scheduling
+choice rather than a separate safety guard; the reservation-removal mutation
+tests the safety condition. A generated variant of the residual model adds a
+third unclaimed exported candidate under the ambiguous owner's stem. The
+variant passes all configured invariants; removing only the fallback's
+`FullMatches(g) = {}` guard then admits the ambiguous owner with that third
+candidate, violating `NoAmbiguousAccepted`. The script derives both cases in
+temporary copies, so the pristine TLA model and its hash remain unchanged.
+
+Both model and implementation reserve every full-key candidate before content
+validation. The model marks a candidate used only after successful content
+validation; `exportIdentity` also marks an associated candidate used before
+`verifyExport` checks its body. The implementation is therefore stricter about
+reuse after a content failure; the model's acceptance invariants do not claim
+that every modeled acceptance is realized by the implementation. Raw-key matching is a
+lookup operation, not a quotient of kernel literals. See
+[the W1 identity analysis](../docs/w1-identity.md) for the concrete Lean evidence
+and the limits of module-independent identity.
+
+# W3 store/registry guard additions
+
+The following finite models are part of the default positive and negative
+suites. Each mutation changes a guard or projection while retaining an
+independent oracle.
+
+| Model | Removed rule | Negative case | Oracle |
+|---|---|---|---|
+| CheckpointConflicts | known-head freshness | `checkpoint_no_current` | `CommitCurrent` |
+| CheckpointConflicts | duplicate binding rejection (with freshness disabled to expose its independent effect) | `checkpoint_no_buildable` | `CommittedBuildable` |
+| CheckpointConflicts | selected dependency closure | `checkpoint_no_dependencies` | `CommittedDeps` |
+| AgentAuthority | registered author key | `agent_no_registry` | `PublishedAuthorized` |
+| AgentAuthority | key revocation | `agent_no_revocation` | `PublishedAuthorized` |
+| AgentAuthority | controller fence | `agent_no_controller_fence` | `DeletedAuthorized` |
+| AgentAuthority | original controller source | `agent_no_controller_source` | `DeletedAuthorized` |
+| StorePositions | own-replica certificates | `position_foreign_certificate` | `LocalCertOnly` |
+| StorePositions | position-specific deletion | `position_group_wide_delete` | `ReinsertVisible` |
+| StorePositions | certified prior deletion for moves | `position_move_without_delete` | `MoveCertified` |
+| StorePositions | registry preservation on deletion | `position_registry_erasure` | `TombstoneNeutral` |
+| CatalogueExchange | original source proof | `catalogue_no_proof` | `OnlySourceCertified` |
+| CatalogueExchange | certified parent first | `catalogue_no_parent` | `ParentClosed` |
+| CatalogueExchange | receiver payload acknowledgement | `catalogue_no_ack` | `LocallyAcknowledged` |
+| CatalogueExchange | source-qualified certificate namespace | `catalogue_local_certificate` | `FenceIsolation` |
+
+`catalogue_relay` is a reachability witness for a replicated child record.
+Catalogue fairness checks eventual delivery of committed records, without
+requiring that a source creates a new commit. Cryptographic signatures and hash
+implementations are abstracted by valid proof membership; Rust tests independently
+corrupt signatures while keeping the signed object IDs unchanged.

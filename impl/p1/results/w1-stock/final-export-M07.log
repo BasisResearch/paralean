@@ -1,0 +1,4 @@
+export: 1 modules, 2 groups, 967 bytes of source
+  Mathlib.ParaleanExport.Tactic.FieldSimp.Attr: 2 groups; imports #[Mathlib.Init]
+stock lake build: OK (4556 ms)
+verify: 1/1 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)

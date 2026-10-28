@@ -30,7 +30,8 @@ const USAGE: &str = "usage: plr <command> [args]
                                                    controller-issued target job; owner/epoch/head snapshot
   publish --cache C --ws W --plan FILE            T1 for each planned record, in order
   target-get --name NAME                           inspect the owner, epoch and published head
-  tombstone --cache C --ws W --file F --target G --lamport L
+  tombstone --cache C --ws W --file F --target G --position MARKER --lamport L [--controller]
+  move --cache C --ws W --file F --target G --position MARKER --lamport L [--anchor GROUP]
   pull --cache C [--only G,..] [--seed S --max N] [--save FILE] [--replay FILE]
   fetch-group --cache C GROUP                      payload on demand (remote%)
   fetch-pkg --cache C GROUP                        a published group's records on demand
@@ -92,11 +93,10 @@ fn ms(t: Instant) -> f64 {
     t.elapsed().as_secs_f64() * 1000.0
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let a: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-    match run(&a).await {
+    match paralean_store::meta::run_main(run(&a)) {
         Ok(v) => {
             println!("{v}");
             ExitCode::SUCCESS
@@ -117,6 +117,7 @@ async fn run(a: &[&str]) -> R<Value> {
         Some("publish") => publish(&a[1..]).await,
         Some("target-get") => target_get(&a[1..]).await,
         Some("tombstone") => tombstone(&a[1..]).await,
+        Some("move") => move_position(&a[1..]).await,
         Some("pull") => pull(&a[1..]).await,
         Some("fetch-group") => fetch_group(&a[1..]).await,
         Some("fetch-pkg") => fetch_pkg_cmd(&a[1..]).await,
@@ -144,6 +145,7 @@ fn keys_init(a: &[&str]) -> R<Value> {
         kf.workspaces.insert(n.to_string(), sign::KeyEntry { id: WorkspaceId::random().hex(), public: hex::encode(s.public()), seed: Some(hex::encode(s.seed())) });
         kf.add_job_issuer(n, &Signer::generate());
     }
+    kf.register_workspace_agents();
     let checker = receipt::checker()?;
     kf.policies = vec![paralean_store::receipt::Policy::v1().id().hex()];
     kf.checkers = vec![checker.id().hex()];
@@ -245,14 +247,30 @@ async fn validate(a: &[&str]) -> R<Value> {
                     .await.map_err(es)
             }
         };
-        let lease = match call(ControlRequest::Register {
-            worker: wid.hex(),
-            capacity_mb: 8192,
-        })
-        .await?
-        {
-            ControlResponse::Registered { lease_ms } => lease_ms,
-            other => return Err(format!("controller registration: {other:?}")),
+        // With fixed controller shards (W4) each shard keeps its own worker
+        // registry, and a target is validated by its own shard. Register with
+        // every configured endpoint; one accepting shard is enough to start.
+        let endpoints: Vec<String> = controller.split(',').map(str::trim)
+            .filter(|s| !s.is_empty()).map(str::to_string).collect();
+        let register = |endpoint: String| {
+            let signer = signer.clone();
+            let request = ControlRequest::Register { worker: wid.hex(), capacity_mb: 8192 };
+            async move {
+                call_controller(&endpoint, &request, &signer, &authority, Duration::from_secs(15)).await
+            }
+        };
+        let mut lease = None;
+        let mut refusal = None;
+        for endpoint in &endpoints {
+            match register(endpoint.clone()).await {
+                Ok(ControlResponse::Registered { lease_ms }) => {
+                    lease = Some(lease.map_or(lease_ms, |l: u64| l.min(lease_ms)))
+                }
+                other => refusal = Some(format!("{other:?}")),
+            }
+        }
+        let Some(lease) = lease else {
+            return Err(format!("controller registration: {}", refusal.unwrap_or_default()));
         };
         let mut requests = Vec::new();
         for target in targets.split(',').filter(|s| !s.is_empty()) {
@@ -275,23 +293,35 @@ async fn validate(a: &[&str]) -> R<Value> {
             hex::encode(rand::random::<[u8; 16]>())
         );
         let heartbeat = tokio::spawn({
-            let controller = controller.to_string();
             let signer = signer.clone();
             let authority = authority;
             let worker = wid.hex();
             async move {
                 loop {
                     tokio::time::sleep(Duration::from_millis((lease / 3).max(100))).await;
-                    let _: std::io::Result<ControlResponse> = call_controller(
-                        &controller,
-                        &ControlRequest::Heartbeat {
-                            worker: worker.clone(),
-                        },
-                        &signer,
-                        &authority,
-                        Duration::from_secs(10),
-                    )
-                    .await;
+                    for endpoint in &endpoints {
+                        let beat = call_controller(
+                            endpoint,
+                            &ControlRequest::Heartbeat {
+                                worker: worker.clone(),
+                            },
+                            &signer,
+                            &authority,
+                            Duration::from_secs(10),
+                        )
+                        .await;
+                        // A shard that expired or never saw this worker re-registers it.
+                        if matches!(beat, Ok(ControlResponse::Unknown)) {
+                            let _ = call_controller(
+                                endpoint,
+                                &ControlRequest::Register { worker: worker.clone(), capacity_mb: 8192 },
+                                &signer,
+                                &authority,
+                                Duration::from_secs(10),
+                            )
+                            .await;
+                        }
+                    }
                 }
             }
         });
@@ -463,17 +493,67 @@ async fn tombstone(a: &[&str]) -> R<Value> {
     let ws = need(a, "--ws")?;
     let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
     let target = Id::from_hex(need(a, "--target")?).ok_or("bad target")?;
+    let position = flag(a, "--position").and_then(Id::from_hex);
+    let target_marker = match position {
+        Some(id) => st.marker_variant(&target, &id).await.map_err(es)?,
+        None => st.marker_base(&target).await.map_err(es)?.map(|(_, m)| m),
+    }.ok_or("unknown tombstone target")?;
     let t = Tombstone {
         file_path: need(a, "--file")?.to_string(),
         target,
         lamport: need(a, "--lamport")?.parse().map_err(es)?,
-        author: AgentId(wid.0),
+        author: if a.contains(&"--controller") { controller_agent_id(&st.ring.authority) } else { target_marker.author },
         receipt: None,
+        position,
     };
     t.check().map_err(|e| format!("--file: {e}"))?;
-    // T8 atomically checks the author's authority and certifies the tombstone.
-    let fresh = Writer::new(st, wid, signer).tombstone(&t).await.map_err(es)?;
+    // T8 checks the exact signed controller grant and current fence inside its transaction.
+    // Worker key files have no authority seed, so --controller requires the controller's
+    // full key file in PARALEAN_KEYS.
+    let writer = Writer::new(st.clone(), wid, signer);
+    let fresh = if a.contains(&"--controller") {
+        let authority = kf.authority_signer().ok_or("--controller requires the controller's key file")?;
+        let grant = Controller::new(st, authority).deletion_grant(&t).await.map_err(es)?;
+        writer.tombstone_authorized(&t, Some(grant)).await.map_err(es)?
+    } else {
+        writer.tombstone(&t).await.map_err(es)?
+    };
     Ok(json!({"tombstone": t.id().hex(), "fresh": fresh}))
+}
+
+async fn move_position(a: &[&str]) -> R<Value> {
+    let (st, kf) = open()?;
+    let ws = need(a, "--ws")?;
+    let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
+    let group = Id::from_hex(need(a, "--target")?).ok_or("bad target")?;
+    let position = Id::from_hex(need(a, "--position")?).ok_or("bad position")?;
+    let new_lamport: u64 = need(a, "--lamport")?.parse().map_err(es)?;
+    let old = st.marker_variant(&group, &position).await.map_err(es)?.ok_or("unknown position")?;
+    let file = need(a, "--file")?;
+    if old.file_path != file || new_lamport <= old.lamport + 1 { return Err("move has invalid file or Lamport time".into()); }
+    let mut next = old.clone();
+    next.lamport = new_lamport;
+    if let Some(anchor) = flag(a, "--anchor") {
+        let ag = Id::from_hex(anchor).ok_or("bad anchor group")?;
+        let d = discover(&st).await.map_err(es)?;
+        let ap = d.positions.iter().filter(|((g, _), p)| *g == ag && p.marker.file_path == file
+            && !d.tombstones.values().any(|t| t.tombstone.target == ag && t.tombstone.position.is_none_or(|id| id == p.marker_id)))
+            .map(|(_, p)| p).min_by_key(|p| (p.marker.lamport, p.marker.author.0, p.marker_id))
+            .ok_or("anchor has no live position")?;
+        next.anchor = Anchor::After(ag);
+        next.root_path = ap.marker.root_path.clone();
+    } else {
+        next.anchor = Anchor::FileStart;
+        next.root_path.clear();
+    }
+    next.root_path.push((group, new_lamport, old.author));
+    let deletion = Tombstone { file_path: file.into(), target: group, position: Some(position),
+        lamport: new_lamport - 1, author: old.author, receipt: None };
+    let w = Writer::new(st, wid, signer);
+    w.tombstone(&deletion).await.map_err(es)?;
+    let fresh = w.move_position(&next, &deletion).await.map_err(es)?;
+    Ok(json!({"group": group.hex(), "old": position.hex(), "tombstone": deletion.id().hex(),
+        "marker": next.id().hex(), "fresh": fresh}))
 }
 
 // ---------------------------------------------------------------- anti-entropy
@@ -549,21 +629,26 @@ async fn pull(a: &[&str]) -> R<Value> {
     let t = Instant::now();
     // A response: the records some replica returned. `--replay` serves an earlier saved
     // response (a lagging replica); `--save` records this one.
+    let current = discover(&st).await.map_err(es)?;
     let (resp_markers, resp_tombs): (Vec<Id>, Vec<Id>) = if let Some(f) = flag(a, "--replay") {
         let v: Value = serde_json::from_str(&std::fs::read_to_string(f).map_err(es)?).map_err(es)?;
         let ids = |k: &str| -> R<Vec<Id>> { v[k].as_array().ok_or(k.to_string())?.iter().map(id_of).collect() };
-        (ids("groups")?, ids("tombstones")?)
+        let markers = if v["positions"].is_array() { ids("positions")? } else {
+            ids("groups")?.iter().filter_map(|g| current.groups.get(g).map(|p| p.marker_id)).collect()
+        };
+        (markers, ids("tombstones")?)
     } else {
         // Certificate discovery excludes raw, uncertified tombstones.
-        let d = discover(&st).await.map_err(es)?;
-        (d.groups.keys().copied().collect(), d.tombstones.keys().copied().collect())
+        (current.positions.keys().map(|(_, marker)| *marker).collect(), current.tombstones.keys().copied().collect())
     };
     if let Some(f) = flag(a, "--save") {
-        let v = json!({"groups": resp_markers.iter().map(|g| g.hex()).collect::<Vec<_>>(), "tombstones": resp_tombs.iter().map(|t| t.hex()).collect::<Vec<_>>()});
+        let v = json!({"groups": current.groups.keys().map(Id::hex).collect::<Vec<_>>(),
+            "positions": resp_markers.iter().map(Id::hex).collect::<Vec<_>>(),
+            "tombstones": resp_tombs.iter().map(Id::hex).collect::<Vec<_>>()});
         std::fs::write(f, v.to_string()).map_err(es)?;
     }
     // Stale-response check: a response must cover every record this copy already knows.
-    let known_groups = known_ids(&c, "group")?;
+    let known_groups = known_ids(&c, "id-m")?;
     let known_tombs = known_ids(&c, "id-t")?;
     let rm: BTreeSet<Id> = resp_markers.iter().copied().collect();
     let rt: BTreeSet<Id> = resp_tombs.iter().copied().collect();
@@ -577,7 +662,8 @@ async fn pull(a: &[&str]) -> R<Value> {
     let mut new_tombs: Vec<Id> = rt.difference(&known_tombs).copied().collect();
     if let Some(only) = flag(a, "--only") {
         let keep: BTreeSet<String> = only.split(',').map(String::from).collect();
-        new_groups.retain(|g| keep.contains(&g.hex()));
+        new_groups.retain(|mid| keep.contains(&mid.hex()) || current.positions.iter()
+            .any(|((g, m), _)| m == mid && keep.contains(&g.hex())));
         new_tombs.retain(|t| keep.contains(&t.hex()));
     }
     let mut order: Vec<(bool, Id)> = new_groups.iter().map(|g| (true, *g)).chain(new_tombs.iter().map(|t| (false, *t))).collect();
@@ -592,12 +678,13 @@ async fn pull(a: &[&str]) -> R<Value> {
     let mut delivered = Vec::new();
     for (is_marker, id) in order {
         if is_marker {
-            let (mid, m) = st.marker(&id).await.map_err(es)?.ok_or("marker vanished")?;
-            if st.certs(&id).await.map_err(es)?.is_empty() {
+            let ((group, mid), p) = current.positions.iter().find(|((_, mid), _)| *mid == id).ok_or("marker vanished")?;
+            let m = &p.marker;
+            if st.certs(group).await.map_err(es)?.iter().all(|c| c.body.marker != *mid) {
                 continue; // never deliver an uncertified marker
             }
-            bytes += deliver_marker(&st, &c, &mid, &m, "records").await?;
-            delivered.push(json!(["marker", id.hex()]));
+            bytes += deliver_marker(&st, &c, mid, m, "records").await?;
+            delivered.push(json!(["marker", group.hex()]));
         } else {
             let tb = st.tombstone(&id).await.map_err(es)?.ok_or("tombstone vanished")?;
             if st.tcerts(&id).await.map_err(es)?.is_empty() {
@@ -633,6 +720,7 @@ fn known_ids(c: &Cache, what: &str) -> R<BTreeSet<Id>> {
             "group" if n.starts_with("m-") => {
                 out.insert(id_of(&v["group"])?);
             }
+            "id-m" if n.starts_with("m-") => { out.insert(id_of(&v["id"])?); }
             "id-t" if n.starts_with("t-") => {
                 out.insert(id_of(&v["id"])?);
             }

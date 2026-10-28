@@ -21,10 +21,23 @@ captures command groups, replays them from a local content-addressed store, expo
 to a clean stock build and renders `remote%` working copies. Its
 [gate report](docs/p1-gate.md) records G1 to G6 passing on
 21 fixture files and an 18-module Mathlib sample; to reproduce it, see
-[impl/p1/README.md](impl/p1/README.md). P1 also runs on a minimal Lean fork
+[impl/p1/README.md](impl/p1/README.md). On that Mathlib sample, replay and validator
+certification cover all 1,105 groups. Exact relocated export identity is a separate
+claim: 1,121/1,142 corpus groups verify, including all 85 core declaration groups; the
+remaining 21 exports contain changed module-name literals and are rejected
+([w1-log](docs/w1-log.md)). P1 also runs on a minimal Lean fork
 (`fork/build.sh`; `PARALEAN_LEAN=fork` for the P1 scripts) that replaces the prototype's
 library workarounds with native hooks. P2 storage (`impl/p2`) runs on self-hosted
-FoundationDB and Garage. There is no network service or distributed LSP yet.
+FoundationDB and Garage, with a network anti-entropy service between deployments.
+Store/registry feature evidence and the OPEN-19/OPEN-20 decisions are in
+[w3-log](docs/w3-log.md). Controllers support independent fixed shards,
+store-ordered leases and disabled-by-default history compaction and snapshot GC.
+Protocol objects and durable replay records remain retained; the optional GC S3
+principal is authenticated by Garage and cannot delete P2 content
+([w4-log](docs/w4-log.md)). The LSP/controller integration and reproducible SSH
+latency gate live in `impl/p4` and `impl/p5`; [w5-log](docs/w5-log.md) records their
+evidence. How the four workstreams were reconciled is in the
+[integration log](docs/integrate-w-log.md).
 
 The proposed fork base is Lean `nightly-2026-10-03`, paired with its successful
 Mathlib nightly CI revision. Verification separately uses pinned Veil on Lean 4.32.0.

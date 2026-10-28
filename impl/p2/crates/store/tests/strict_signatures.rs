@@ -33,7 +33,7 @@ async fn antientropy_import_strict_signature_vectors() {
         let receiver = Writer::new(st, e.w[0].id, signer.clone());
         let mut c = cert.clone();
         c.sig = case.signature;
-        let item = Item::Tombstone { tombstone: t.preimage(), certs: vec![c.to_bytes()] };
+        let item = Item::Tombstone { tombstone: t.preimage(), certs: vec![c.to_bytes()], controller_grant: None };
         let outcome = import(&receiver, &item).await.unwrap();
         if case.expected {
             assert!(matches!(outcome, Outcome::Deferred(_)), "{}: {outcome:?}", case.name);

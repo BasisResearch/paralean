@@ -1,0 +1,4 @@
+export: 1 modules, 50 groups, 29363 bytes of source
+  Mathlib.ParaleanExport.Data.List.Defs: 50 groups; imports #[Batteries.Data.List.Basic, Batteries.Logic, Mathlib.Basic.SProd, Mathlib.Control.Functor, Mathlib.Data.Nat.Notation]
+stock lake build: OK (5031 ms)
+verify: 48/48 declaration groups identical in the stock-built oleans; 2 effect-only groups (build-checked)

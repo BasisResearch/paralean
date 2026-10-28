@@ -385,7 +385,9 @@ impl Marker {
     }
 }
 
-/// Tombstone (§11.4): `{filePath, target : group, lamport, author, receiptID?}`.
+/// Tombstone (§11.4): a legacy group deletion or a position-specific deletion.
+/// `position` is the exact marker ID. Its absence preserves the original v0
+/// preimage and its group-wide meaning during recovery.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Tombstone {
     pub file_path: String,
@@ -393,6 +395,7 @@ pub struct Tombstone {
     pub lamport: u64,
     pub author: AgentId,
     pub receipt: Option<Id>,
+    pub position: Option<Id>,
 }
 
 impl Pce for Tombstone {
@@ -403,15 +406,26 @@ impl Pce for Tombstone {
         e.uvarint(self.lamport);
         self.author.encode(e);
         e.option(&self.receipt, |e, x| x.encode(e));
+        if let Some(position) = self.position {
+            e.byte(1);
+            position.encode(e);
+        }
     }
     fn decode(d: &mut Dec<'_>) -> DResult<Self> {
         get_format(d)?;
+        let file_path = decode_file_path(d)?;
+        let target = Id::decode(d)?;
+        let lamport = d.uvarint()?;
+        let author = AgentId::decode(d)?;
+        let receipt = d.option(Id::decode)?;
+        let position = if d.remaining() == 0 { None } else {
+            match d.byte()? {
+                1 => Some(Id::decode(d)?),
+                tag => return Err(DecodeError::UnknownTag { what: "tombstone position", tag }),
+            }
+        };
         Ok(Tombstone {
-            file_path: decode_file_path(d)?,
-            target: Id::decode(d)?,
-            lamport: d.uvarint()?,
-            author: AgentId::decode(d)?,
-            receipt: d.option(Id::decode)?,
+            file_path, target, lamport, author, receipt, position,
         })
     }
 }
@@ -975,7 +989,7 @@ mod tests {
             assert!(m.check().is_err());
             assert!(matches!(Marker::from_pce(&m.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
             assert!(Marker::from_preimage(&m.preimage()).is_err());
-            let t = Tombstone { file_path: bad.into(), target: id(1), lamport: 2, author: AgentId::derive("a"), receipt: None };
+            let t = Tombstone { file_path: bad.into(), target: id(1), lamport: 2, author: AgentId::derive("a"), receipt: None, position: None };
             assert!(t.check().is_err());
             assert!(matches!(Tombstone::from_pce(&t.to_pce()), Err(DecodeError::Invalid(_))), "{bad:?} decoded");
         }

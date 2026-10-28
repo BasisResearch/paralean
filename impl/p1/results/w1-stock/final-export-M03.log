@@ -1,0 +1,4 @@
+export: 1 modules, 83 groups, 38475 bytes of source
+  Mathlib.ParaleanExport.Data.Nat.Factorial.Basic: 83 groups; imports #[Mathlib.Data.Nat.Basic, Mathlib.Tactic.Common, Mathlib.Tactic.CrossRefAttribute, Mathlib.Tactic.Monotonicity.Attr, Mathlib.Tactic.Attr.Core]
+stock lake build: OK (6186 ms)
+verify: 78/78 declaration groups identical in the stock-built oleans; 5 effect-only groups (build-checked)

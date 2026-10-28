@@ -371,6 +371,7 @@ fn random_keys(n: usize) -> KeyFile {
             sign::KeyEntry { id: WorkspaceId::random().hex(), public: hex::encode(s.public()), seed: Some(hex::encode(s.seed())) },
         );
     }
+    kf.register_workspace_agents();
     kf
 }
 

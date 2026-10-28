@@ -231,11 +231,11 @@ def run(args):
                     resolved_item = editor.response(editor.send("completionItem/resolve", old_completion_item))
                     assert resolved_item["label"] == old_completion_item["label"], resolved_item
 
-            rename = editor.response(editor.send("textDocument/rename", {
+            rename_id = editor.send("textDocument/rename", {
                 "textDocument": {"uri": uri_a}, "position": {"line": line_shift + 1, "character": 8},
-                "newName": "gamma"}))
-            assert isinstance(rename, dict) and uri_a in json.dumps(rename)
-            assert "gamma" in json.dumps(rename), rename
+                "newName": "gamma"})
+            refused = editor.take(lambda x: x.get("id") == rename_id)
+            assert refused.get("error", {}).get("code") == -32602, refused
             symbols = editor.response(editor.send("workspace/symbol", {"query": "alpha"}))
             assert isinstance(symbols, list), symbols
             second_symbols = editor.response(editor.send("workspace/symbol", {"query": "beta"}))

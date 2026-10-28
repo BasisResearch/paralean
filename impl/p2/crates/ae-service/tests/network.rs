@@ -1,6 +1,8 @@
 //! Real TCP anti-entropy between three logical deployments with distinct FDB roots,
 //! S3 prefixes, replicas, writers and transport keys. Run via scripts/test.sh on an
 //! owned P2 instance; all three can share that instance's physical FDB and Garage.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 #[path = "../../store/tests/common/mod.rs"]
 mod common;
@@ -45,13 +47,23 @@ impl Net {
             .iter()
             .map(|name| StoreConfig::from_env(name).unwrap())
             .collect();
-        let keys: Vec<_> = (0..3)
+        let mut keys: Vec<_> = (0..3)
             .map(|i| {
                 let mut keys = KeyFile::demo_prefixed(&format!("{label}/{i}/"), 3);
                 keys.add_validator("v0", &Signer::derive(&format!("{label}/{i}/validator")));
                 keys
             })
             .collect();
+        // These three cases deliberately publish the same marker layout with two
+        // receipt issuers. B's controller explicitly registers A's AgentID to B's
+        // writer key; equal author fields are therefore authenticated on both sides.
+        if matches!(label, "net-marker-variants" | "net-base-marker-guards" | "net-variant-race") {
+            let (a_writer, _) = keys[0].workspace("w0").unwrap();
+            let (b_writer, b_signer) = keys[1].workspace("w0").unwrap();
+            let author = AgentId::derive(&format!("agent/{}", a_writer.hex()));
+            let controller = keys[1].authority_signer().unwrap();
+            keys[1].agent_keys.push(AgentKeyGrant::sign(author, b_writer, b_signer.public(), &controller));
+        }
         let identities: Vec<_> = names
             .iter()
             .enumerate()
@@ -164,7 +176,7 @@ async fn until_group(puller: &mut Puller, destination: &Env, group: Id) {
     panic!("group {group:?} did not arrive over the network");
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn three_deployment_group_and_tombstone_relay_preserves_origin_evidence() {
     let net = Net::new("net-relay", None).await;
     let a = &net.envs[0];
@@ -257,7 +269,7 @@ async fn three_deployment_group_and_tombstone_relay_preserves_origin_evidence() 
     assert_eq!(before, after, "evidence replay must not echo indefinitely");
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn target_home_publication_reaches_third_deployment_without_local_target_key() {
     let target = Name::parse("Target.network");
     let net = Net::new("net-home", Some(target.clone())).await;
@@ -324,7 +336,7 @@ async fn target_home_publication_reaches_third_deployment_without_local_target_k
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle() {
     let target = Name::parse("Target.foreign-network");
     let net = Net::new("net-wrong-home", Some(target.clone())).await;
@@ -345,7 +357,7 @@ async fn pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle() {
     assert!(foreign.store.target(&target).await.unwrap().is_none());
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn server_rejects_a_stale_generation_before_serving_changes() {
     let net = Net::new("net-stale-generation", None).await;
     let current = net.envs[0].store.ae_identity().await.unwrap().generation;
@@ -379,7 +391,7 @@ async fn server_rejects_a_stale_generation_before_serving_changes() {
     assert!(response.object.is_empty());
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn pinned_federation_rejects_changed_roster_and_wrong_peer_key() {
     let net = Net::new("net-config-fence", None).await;
     let b = &net.envs[1];
@@ -416,7 +428,7 @@ async fn pinned_federation_rejects_changed_roster_and_wrong_peer_key() {
     );
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn scheduled_pull_observes_publication_after_service_start_and_stops_cleanly() {
     let net = Net::new("net-scheduled", None).await;
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
@@ -461,7 +473,7 @@ async fn scheduled_pull_observes_publication_after_service_start_and_stops_clean
     net.envs[1].audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn receipt_only_marker_variants_converge_and_keep_both_certificates() {
     let net = Net::new("net-marker-variants", None).await;
     let a = &net.envs[0];
@@ -574,7 +586,7 @@ async fn receipt_only_marker_variants_converge_and_keep_both_certificates() {
     a.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards() {
     let net = Net::new("net-base-marker-guards", None).await;
     let a = &net.envs[0];
@@ -729,7 +741,7 @@ async fn lower_receipt_variant_does_not_redirect_base_certification_or_tombstone
     c.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite() {
     let net = Net::new("net-marker-layout", None).await;
     let a = &net.envs[0];
@@ -743,7 +755,7 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
     pb.receipt = Receipt::sign(receipt_body, &b.validator);
     pb.marker.receipt = pb.receipt.id();
     pb.marker.lamport = 2;
-    pb.marker.author = AgentId::derive("different layout author");
+    pb.marker.author = AgentId(b.w[0].id.0);
     pb.marker.root_path = vec![(pb.group.id(), 2, pb.marker.author)];
     a.w[0].publish(&pa).await.unwrap();
     b.w[0].publish(&pb).await.unwrap();
@@ -849,7 +861,7 @@ async fn incompatible_marker_layout_reports_exact_ids_and_field_without_overwrit
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge() {
     let net = Net::new("net-variant-race", None).await;
     let a = &net.envs[0];
@@ -892,7 +904,7 @@ async fn simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge() {
     c.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn catalogue_relay_retains_the_original_source_and_commit_proof() {
     let net = Net::new("net-catalogue", None).await;
     let a = &net.envs[0];
@@ -955,7 +967,7 @@ async fn catalogue_relay_retains_the_original_source_and_commit_proof() {
     a.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn malformed_source_receipt_cannot_be_imported_and_repair_allows_retry() {
     let net = Net::new("net-invalid-receipt", None).await;
     let a = &net.envs[0];
@@ -1004,7 +1016,7 @@ async fn malformed_source_receipt_cannot_be_imported_and_repair_allows_retry() {
     b.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn bounded_pages_and_restart_replay_deferred_missing_object() {
     let net = Net::new("net-cursor", None).await;
     let a = &net.envs[0];
@@ -1111,7 +1123,7 @@ async fn bounded_pages_and_restart_replay_deferred_missing_object() {
     until_group(&mut restarted, b, newest.group.id()).await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn restarted_puller_resumes_a_persisted_metadata_fragment_cursor() {
     let net = Net::new("net-fragment-restart", None).await;
     let a = &net.envs[0];
@@ -1238,7 +1250,7 @@ async fn restarted_puller_resumes_a_persisted_metadata_fragment_cursor() {
     b.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn chunked_group_fetches_deduplicated_chunk_and_retries_missing_source() {
     use paralean_store::group_chunks::{chunked_group, ChunkRef};
 
@@ -1342,7 +1354,7 @@ async fn chunked_group_fetches_deduplicated_chunk_and_retries_missing_source() {
 /// W2 A-2, federated: the pinned local member's controller signed a job and then
 /// cancelled its request. A group item hand-built from the worker's receipt and the
 /// worker's own certificate on the local replica is rejected by T9 at that deployment.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn federated_import_rejects_a_cancelled_local_request() {
     let net = Net::new("net-cancelled", None).await;
     let a = &net.envs[0];
@@ -1463,7 +1475,7 @@ async fn staged_parts(env: &Env, source: &str, event: &AeEvent) -> usize {
 /// W2 A-12. A peer that never completes an event cannot grow the receiver's FDB past
 /// the per-event part cap: the part that would pass it archives the event as terminal
 /// and clears what was staged.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn endless_event_parts_are_capped_and_archived() {
     let net = Net::new("net-endless-parts", None).await;
     let source = net.identities[0].deployment.clone();
@@ -1490,7 +1502,7 @@ async fn endless_event_parts_are_capped_and_archived() {
 /// W2 A-12. Object references are capped before anything is fetched: an event whose
 /// references declare more than the per-event object cap is terminal on staging, and
 /// the receiver never asks for (or stores) any of its objects.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn oversized_declared_objects_are_terminal_before_fetch() {
     let net = Net::new("net-huge-refs", None).await;
     let source = net.identities[0].deployment.clone();
@@ -1513,7 +1525,7 @@ async fn oversized_declared_objects_are_terminal_before_fetch() {
 /// W2 A-12. Events within the per-event cap are bounded per source: once the active events
 /// of one source declare `MAX_SOURCE_OBJECT_BYTES`, further references wait (retryable,
 /// nothing staged) instead of being fetched.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn declared_objects_are_bounded_per_source() {
     let net = Net::new("net-source-cap", None).await;
     let source = net.identities[0].deployment.clone();
@@ -1538,4 +1550,138 @@ async fn declared_objects_are_bounded_per_source() {
     let blocked = pending.iter().find(|p| p.event.key == hostile_event(waiting[0]).key).unwrap();
     assert!(blocked.last_error.as_deref().is_some_and(|e| e.contains("pending objects")), "{blocked:?}");
     assert!(b.store.ae_terminal_page(&source, None, 10).await.unwrap().entries.is_empty());
+}
+
+// Stage exact network materialization through the durable receiver queue. The
+// optional mutation changes only a signature, preserving the content-addressed
+// body and event IDs, so hash checking cannot mask the signature guard under test.
+async fn stage_catalogue(net: &Net, id: Id, attack: Option<&str>) -> paralean_store::ae::AeEvent {
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let page = a.store.ae_page(None, 128, 1024 * 1024).await.unwrap();
+    let event = page.events.into_iter().find(|event| matches!(event.kind,
+        AeKind::Catalogue { id: record, .. } if record == id)).expect("catalogue event");
+    let mut parts = Vec::new();
+    let mut after = None;
+    loop {
+        let page = a.store.ae_materialize(&event, after, 1024 * 1024).await.unwrap();
+        parts.extend(page.parts);
+        if page.complete { break; }
+        after = page.next_part;
+    }
+    let mut changed = false;
+    for (_, part) in &mut parts {
+        match part {
+            AePart::ObjectRef { kind, id, .. } => {
+                let bytes = a.store.s3.get(*kind, id).await.unwrap().unwrap();
+                b.store.s3.put(*kind, &bytes).await.unwrap();
+            }
+            AePart::CertificateFragment { kind, bytes, .. }
+                if attack == Some("rcert") && kind == "rcert" => {
+                let mut cert = CommitCert::from_bytes(bytes).unwrap();
+                cert.sig[0] ^= 1;
+                *bytes = cert.to_bytes();
+                changed = true;
+            }
+            AePart::CertificateFragment { kind, bytes, .. }
+                if attack == Some("ocert") && kind.starts_with("ocert/") => {
+                let mut cert = ObjectCert::from_bytes(bytes).unwrap();
+                cert.sig[0] ^= 1;
+                *bytes = cert.to_bytes();
+                changed = true;
+            }
+            AePart::MetaFragment { kind, bytes, .. }
+                if attack == Some("token") && kind == "token" => {
+                let mut token = TokenEntry::from_pce(bytes).unwrap();
+                token.token.sig[0] ^= 1;
+                *bytes = token.to_pce();
+                changed = true;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(changed, attack.is_some());
+    let origin = &net.identities[0].deployment;
+    let generation = a.store.ae_identity().await.unwrap().generation;
+    // A retry fetches a new, complete page after discarding failed materialization.
+    b.store.ae_save_progress(origin, generation, None, &[], &[event.key.clone()], &[]).await.unwrap();
+    let rows: Vec<_> = parts.into_iter().map(|(seq, part)| (event.key.clone(), seq, part)).collect();
+    b.store.ae_save_progress(origin, generation, None, &[], &[], &rows).await.unwrap();
+    event
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn catalogue_guards_reject_forged_source_token_and_object_proofs() {
+    let net = Net::new("catalogue-proofs", None).await;
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let token = a.ctl.rotate(a.w[0].id, b"catalogue-proof").await.unwrap();
+    let cp = common::one_snapshot(a, 0, "proofs", token, None).await;
+    let id = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    let origin = &net.identities[0].deployment;
+    for attack in ["rcert", "token", "ocert"] {
+        let event = stage_catalogue(&net, id, Some(attack)).await;
+        let outcome = b.w[SYNC].ae_import_staged(origin, &event).await.unwrap();
+        assert!(matches!(outcome, paralean_store::antientropy::Outcome::Rejected(_)),
+            "forged {attack} accepted: {outcome:?}");
+        assert!(b.store.meta.get(b.store.meta.keys.xcatalog(origin, &id)).await.unwrap().is_none());
+        assert!(b.store.record(&id).await.unwrap().is_none());
+    }
+    let event = stage_catalogue(&net, id, None).await;
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &event).await.unwrap(), paralean_store::antientropy::Outcome::Present);
+    assert!(b.store.foreign_record(origin, &id).await.unwrap().is_some());
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn catalogue_child_waits_for_parent_and_ignores_receiver_fence() {
+    let net = Net::new("catalogue-parent", None).await;
+    let (a, b) = (&net.envs[0], &net.envs[1]);
+    let token = a.ctl.rotate(a.w[0].id, b"source").await.unwrap();
+    let cp = common::one_snapshot(a, 0, "parent", token, None).await;
+    let parent = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    let cp = common::one_snapshot(a, 0, "child", token, Some(parent)).await;
+    let child = a.w[0].commit_checkpoint(&cp).await.unwrap();
+    // Source and destination fences can both have moved since the historical commit.
+    a.ctl.rotate(a.w[1].id, b"source-moved").await.unwrap();
+    b.ctl.rotate(b.w[0].id, b"receiver-1").await.unwrap();
+    b.ctl.rotate(b.w[1].id, b"receiver-2").await.unwrap();
+    let fence = b.store.meta.fence().await.unwrap();
+    let origin = &net.identities[0].deployment;
+    let child_event = stage_catalogue(&net, child, None).await;
+    let outcome = b.w[SYNC].ae_import_staged(origin, &child_event).await.unwrap();
+    assert!(matches!(outcome, paralean_store::antientropy::Outcome::Deferred(_)), "{outcome:?}");
+    assert!(b.store.foreign_record(origin, &child).await.unwrap().is_none());
+    let parent_event = stage_catalogue(&net, parent, None).await;
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &parent_event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.w[SYNC].ae_import_staged(origin, &child_event).await.unwrap(), paralean_store::antientropy::Outcome::Applied);
+    assert_eq!(b.store.meta.fence().await.unwrap(), fence);
+    assert!(b.store.record(&parent).await.unwrap().is_none());
+    assert!(b.store.record(&child).await.unwrap().is_none());
+    assert_eq!(b.store.foreign_catalogue_page(origin, None, 100).await.unwrap().records.len(), 2);
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("three_deployment_group_and_tombstone_relay_preserves_origin_evidence", || { three_deployment_group_and_tombstone_relay_preserves_origin_evidence(); Ok(()) }),
+        libtest_mimic::Trial::test("target_home_publication_reaches_third_deployment_without_local_target_key", || { target_home_publication_reaches_third_deployment_without_local_target_key(); Ok(()) }),
+        libtest_mimic::Trial::test("pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle", || { pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle(); Ok(()) }),
+        libtest_mimic::Trial::test("server_rejects_a_stale_generation_before_serving_changes", || { server_rejects_a_stale_generation_before_serving_changes(); Ok(()) }),
+        libtest_mimic::Trial::test("pinned_federation_rejects_changed_roster_and_wrong_peer_key", || { pinned_federation_rejects_changed_roster_and_wrong_peer_key(); Ok(()) }),
+        libtest_mimic::Trial::test("scheduled_pull_observes_publication_after_service_start_and_stops_cleanly", || { scheduled_pull_observes_publication_after_service_start_and_stops_cleanly(); Ok(()) }),
+        libtest_mimic::Trial::test("receipt_only_marker_variants_converge_and_keep_both_certificates", || { receipt_only_marker_variants_converge_and_keep_both_certificates(); Ok(()) }),
+        libtest_mimic::Trial::test("lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards", || { lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards(); Ok(()) }),
+        libtest_mimic::Trial::test("incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite", || { incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite(); Ok(()) }),
+        libtest_mimic::Trial::test("simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge", || { simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge(); Ok(()) }),
+        libtest_mimic::Trial::test("catalogue_relay_retains_the_original_source_and_commit_proof", || { catalogue_relay_retains_the_original_source_and_commit_proof(); Ok(()) }),
+        libtest_mimic::Trial::test("malformed_source_receipt_cannot_be_imported_and_repair_allows_retry", || { malformed_source_receipt_cannot_be_imported_and_repair_allows_retry(); Ok(()) }),
+        libtest_mimic::Trial::test("bounded_pages_and_restart_replay_deferred_missing_object", || { bounded_pages_and_restart_replay_deferred_missing_object(); Ok(()) }),
+        libtest_mimic::Trial::test("restarted_puller_resumes_a_persisted_metadata_fragment_cursor", || { restarted_puller_resumes_a_persisted_metadata_fragment_cursor(); Ok(()) }),
+        libtest_mimic::Trial::test("chunked_group_fetches_deduplicated_chunk_and_retries_missing_source", || { chunked_group_fetches_deduplicated_chunk_and_retries_missing_source(); Ok(()) }),
+        libtest_mimic::Trial::test("federated_import_rejects_a_cancelled_local_request", || { federated_import_rejects_a_cancelled_local_request(); Ok(()) }),
+        libtest_mimic::Trial::test("endless_event_parts_are_capped_and_archived", || { endless_event_parts_are_capped_and_archived(); Ok(()) }),
+        libtest_mimic::Trial::test("oversized_declared_objects_are_terminal_before_fetch", || { oversized_declared_objects_are_terminal_before_fetch(); Ok(()) }),
+        libtest_mimic::Trial::test("declared_objects_are_bounded_per_source", || { declared_objects_are_bounded_per_source(); Ok(()) }),
+        libtest_mimic::Trial::test("catalogue_guards_reject_forged_source_token_and_object_proofs", || { catalogue_guards_reject_forged_source_token_and_object_proofs(); Ok(()) }),
+        libtest_mimic::Trial::test("catalogue_child_waits_for_parent_and_ignores_receiver_fence", || { catalogue_child_waits_for_parent_and_ignores_receiver_fence(); Ok(()) }),
+    ]);
 }

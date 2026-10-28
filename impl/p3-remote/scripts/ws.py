@@ -5,6 +5,7 @@
     ws.py publish DIR FILE      capture, then per new group: stage, validate, plan, publish
     ws.py sync DIR [PULL-ARGS]  anti-entropy (plr pull) and working-file update
     ws.py delete DIR FILE NAME  tombstone a live declaration of FILE
+    ws.py move DIR FILE NAME [AFTER]  move a live declaration to file start or after NAME
     ws.py hash DIR FILE...      published-projection hashes
     ws.py check DIR FILE...     elaborate working files; errors and axioms
 
@@ -158,8 +159,29 @@ def main():
     elif cmd == "delete":
         t = run([BIN, "ws-delete", "--dir", d, "--file", sys.argv[3], "--name", sys.argv[4]], d)
         r = run([PLR, "tombstone", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"], "--file", sys.argv[3],
-                 "--target", t["target"], "--lamport", str(t["lamport"])], d)
+                 "--target", t["target"], "--position", t["position"], "--lamport", str(t["lamport"])], d)
         emit("tombstone", r)
+        sync(d)
+    elif cmd == "move":
+        pending = os.path.join(d, "pending-move.json")
+        if os.path.exists(pending):
+            m = json.load(open(pending))
+            if m["file"] != sys.argv[3]:
+                raise SystemExit(f"finish pending move of {m['file']} before moving another file")
+        else:
+            plan = [BIN, "ws-move", "--dir", d, "--file", sys.argv[3], "--name", sys.argv[4]]
+            if len(sys.argv) > 5:
+                plan += ["--after", sys.argv[5]]
+            m = run(plan, d)
+            with open(pending, "w") as f:
+                json.dump(m, f)
+        args = [PLR, "move", "--cache", cache(d), "--ws", os.environ["PARALEAN_AGENT"],
+                "--file", sys.argv[3], "--target", m["target"], "--position", m["position"],
+                "--lamport", str(m["lamport"])]
+        if m["anchor"] is not None:
+            args += ["--anchor", m["anchor"]]
+        emit("move", run(args, d))
+        os.remove(pending)
         sync(d)
     elif cmd == "hash":
         p = subprocess.run([BIN, "ws-hash", "--write", os.path.join(d, "projection"), *sys.argv[3:]],

@@ -28,6 +28,14 @@ Additional capstones:
 
 Freshness belongs to the successful commit event. Later discoveries can make the checkpoint stale. They do not alter its exact contents or dependency meanings.
 
+`Paralean/CheckpointConflicts.lean` makes the universal negative result explicit
+at the storage-coupled `CommitStep` label:
+`every_unresolved_checkpoint_rejected` rules out **every successor** for any
+snapshot containing a name with two distinct known heads. It does not assume a
+particular successful workflow. This is a theorem about the generated protocol;
+the Rust T5 boundary is checked separately by adversarial and mutation fixtures,
+not by a claimed machine-checked refinement of Rust.
+
 ## Adequacy and execution
 
 `publish_enabled_iff` and `commit_enabled_iff` prove both directions of enabledness against generated actions. Satisfying the guards supplies an actual successor; rejecting every operation cannot satisfy these theorems. `resolved_group_current` derives freshness from per-name resolution of competing known groups. `resolved_group_commit_enabled` supplies its successful commit.

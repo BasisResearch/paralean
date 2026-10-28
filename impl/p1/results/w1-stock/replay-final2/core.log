@@ -1,0 +1,8 @@
+materialized: 4 initializer groups imported as stock-built modules
+source replay: 103/103 groups reproduce their declaration ID (14025 ms)
+  [info:materialized] Fixtures/F10SimpAttrDecl.lean:4: initializer group imported as a stock-built module
+  [info:materialized] Fixtures/F13InitDecl.lean:6: initializer group imported as a stock-built module
+  [info:materialized] Fixtures/F13InitDecl.lean:8: initializer group imported as a stock-built module
+  [info:materialized] Fixtures/F13InitDecl.lean:10: initializer group imported as a stock-built module
+kernel replay: 103/103 groups accepted; 318 declarations added, 15 reserved names re-realized (200 ms)
+isolated replay (exact deps only): 103/103

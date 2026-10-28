@@ -1,0 +1,3 @@
+source replay: 7/7 groups reproduce their declaration ID (467 ms)
+kernel replay: 7/7 groups accepted; 6 declarations added, 0 reserved names re-realized (10 ms)
+isolated replay (exact deps only): 7/7

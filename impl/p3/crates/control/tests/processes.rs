@@ -4,6 +4,8 @@
 //! publishes the proof. The killed worker's state is gone with it, so this checks the
 //! liveness side; the safety side (a stale owner's publication is fenced) is
 //! `adversarial::stale_owner_after_lease_expiry_cannot_publish`.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -56,7 +58,6 @@ fn spawn(args: &[&str], env: &[(&str, String)], log: &std::path::Path) -> Proc {
     Proc(cmd.spawn().unwrap())
 }
 
-#[test]
 fn processes_refuse_key_files_with_seeds_of_other_roles() {
     // A full key file (the authority seed, every validator and workspace seed) is refused
     // by every process role before it opens the store or listens.
@@ -88,7 +89,7 @@ async fn worker_call(addr: &str, req: ControlRequest, signer: &Signer, authority
     rpc::call_authenticated(addr, &req, signer, &authority.public(), Duration::from_secs(30)).await.ok()
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
     let tmp = scratch("validation-failover");
     let dep = deployment("validation-failover");
@@ -179,7 +180,7 @@ async fn leader_killed_during_validation_recovers_j1_without_client_retry() {
     assert!(matches!(status, ValidatorResponse::Status { checks_run: 1, .. }), "validator repeated the check: {status:?}");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn leader_killed_after_durable_assignment_redelivers_once() {
     let tmp = scratch("controller-failover");
     let dep = deployment("controller-failover");
@@ -283,7 +284,7 @@ async fn leader_killed_after_durable_assignment_redelivers_once() {
     heartbeat.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn expired_owner_reassignment_survives_crash_before_snapshot() {
     let tmp = scratch("expiry-t4-crash");
     let dep = deployment("expiry-t4-crash");
@@ -373,7 +374,7 @@ async fn expired_owner_reassignment_survives_crash_before_snapshot() {
     assert_eq!(store.target(&name).await.unwrap().unwrap().owner, final_id);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn killed_owner_is_replaced_and_the_target_published() {
     let tmp = scratch("procs");
     let dep = deployment("procs");
@@ -439,4 +440,15 @@ async fn killed_owner_is_replaced_and_the_target_published() {
     let a = audit::audit(&store).await.unwrap();
     a.assert_ok();
     assert_eq!(a.counts["markers"], 4, "the target and its three dependencies");
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("processes_refuse_key_files_with_seeds_of_other_roles", || { processes_refuse_key_files_with_seeds_of_other_roles(); Ok(()) }),
+        libtest_mimic::Trial::test("leader_killed_during_validation_recovers_j1_without_client_retry", || { leader_killed_during_validation_recovers_j1_without_client_retry(); Ok(()) }),
+        libtest_mimic::Trial::test("leader_killed_after_durable_assignment_redelivers_once", || { leader_killed_after_durable_assignment_redelivers_once(); Ok(()) }),
+        libtest_mimic::Trial::test("expired_owner_reassignment_survives_crash_before_snapshot", || { expired_owner_reassignment_survives_crash_before_snapshot(); Ok(()) }),
+        libtest_mimic::Trial::test("killed_owner_is_replaced_and_the_target_published", || { killed_owner_is_replaced_and_the_target_published(); Ok(()) }),
+    ]);
 }

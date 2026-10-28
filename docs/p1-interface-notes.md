@@ -31,8 +31,11 @@ Each item gives the evidence and the choice P1 made.
 
 ## 2. Identity normalization
 
-A declaration ID must not depend on the module a group was elaborated in. P1 encodes
-identity after these normalizations; all were needed to make replay reproduce IDs:
+Declaration identity is invariant under the following renamings of declaration
+references and kernel-irrelevant names. This is not a universal claim that
+elaborating arbitrary source in a different module preserves identity: module
+names can also occur as observable data inside terms. P1 encodes identity after
+these normalizations:
 
 | Module-dependent spelling | Example | Normalization |
 |---|---|---|
@@ -45,7 +48,12 @@ identity after these normalizations; all were needed to make replay reproduce ID
 | auto-named instance | stock `instInhabitedProdNat_fix`, `instFoo_1` | none needed: an anonymous `instance` gets the canonical name `instInhabitedProdNat_<8 hex>` at capture (§6), which the capsule writes explicitly; derived instances keep the deriving handler's spelling, and export keeps module roots so Lean regenerates it |
 
 Hygienic *name literals inside terms* (e.g. `register_simp_attr`'s `initFn` bodies)
-cannot be normalized; such groups are module-dependent and reported.
+remain exact data. A normalization that identifies distinct observable values
+cannot certify exact term identity. Such groups can be module-dependent even
+when their declaration names normalize equally. Source replay may reproduce
+their bytes by restoring the original module context; that does not establish
+identity after relocation into an export module. The argument, precise scope,
+and executable evidence are in [W1's identity analysis](w1-identity.md).
 
 ## 3. Constant references
 

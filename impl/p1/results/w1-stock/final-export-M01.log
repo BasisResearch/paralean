@@ -1,0 +1,4 @@
+export: 1 modules, 213 groups, 98718 bytes of source
+  Mathlib.ParaleanExport.Order.Basic: 213 groups; imports #[Mathlib.Data.Subtype, Mathlib.Order.Defs.LinearOrder, Mathlib.Order.Defs.Prop, Mathlib.Order.Notation, Mathlib.Tactic.Spread, Mathlib.Tactic.Convert, Mathlib.Tactic.Inhabit, Mathlib.Tactic.SimpRw, Mathlib.Tactic.GCongr, Mathlib.Tactic.FastInstance]
+stock lake build: OK (12212 ms)
+verify: 198/198 declaration groups identical in the stock-built oleans; 15 effect-only groups (build-checked)

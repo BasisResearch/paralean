@@ -61,6 +61,18 @@ pub enum GuardFailure {
     ManifestUncertified(Id),
     #[error("parent record {0:?} is not committed")]
     ParentUncommitted(Id),
+    #[error("checkpoint snapshot {0:?} is missing or corrupt")]
+    CheckpointSnapshotMissing(Id),
+    #[error("checkpoint selects two groups declaring {0}")]
+    CheckpointDuplicateName(Name),
+    #[error("checkpoint includes only part of atomic group {0:?}")]
+    CheckpointPartialGroup(Id),
+    #[error("checkpoint group {group:?} omits dependency capsule {capsule:?}")]
+    CheckpointDependencyMissing { group: Id, capsule: Id },
+    #[error("checkpoint group {group:?} is not the sole live head for {name}")]
+    CheckpointNotCurrent { group: Id, name: Name },
+    #[error("checkpoint registry metadata is too large or cannot be decoded in one transaction")]
+    CheckpointRegistryUnreadable,
     #[error("catalog key holds different bytes")]
     RecordMismatch,
     // --- T6
@@ -76,6 +88,12 @@ pub enum GuardFailure {
     TombstoneNotNewer { lamport: u64, target: u64 },
     #[error("tombstone author is not the target's author (OPEN-19 v0 default)")]
     TombstoneNotAuthor,
+    #[error("agent {0} has no active controller-registered key for this certificate")]
+    AgentKeyNotRegistered(String),
+    #[error("agent key {} is revoked", hex::encode(.0))]
+    AgentKeyRevoked([u8; 32]),
+    #[error("controller deletion grant is invalid or fenced out")]
+    ControllerDeleteDenied,
     #[error("target group declares target name {0}; TargetNames has no deletion")]
     TombstoneOfTarget(Name),
     #[error("tombstone names receipt {0:?}, absent from the store")]

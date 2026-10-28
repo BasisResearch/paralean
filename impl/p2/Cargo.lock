@@ -1653,6 +1653,7 @@ version = "0.2.0"
 dependencies = [
  "ae-wire",
  "ed25519-dalek",
+ "libtest-mimic",
  "paralean-store",
  "rand 0.8.8",
  "tokio",
@@ -1666,6 +1667,7 @@ dependencies = [
  "ed25519-dalek",
  "hex",
  "libc",
+ "libtest-mimic",
  "paralean-ae-service",
  "paralean-store",
  "rand 0.8.8",
@@ -1680,6 +1682,7 @@ dependencies = [
  "foundationdb",
  "hex",
  "libc",
+ "libtest-mimic",
  "paralean-store",
  "paralean-validator-api",
  "rand 0.8.8",

@@ -91,6 +91,29 @@ mutate-unchecked-publish-path = []
 # subprocess exit test detects the missing stop/join; the old stress-worker crash is
 # still not attributed to this bug without a stack.
 mutate-no-network-shutdown = []
+mutate-catalogue-no-source-proof = []
+mutate-catalogue-no-token-proof = []
+mutate-catalogue-no-parent = []
+mutate-catalogue-no-object-proof = []
+mutate-checkpoint-no-buildable = []
+mutate-checkpoint-no-current = []
+mutate-checkpoint-partial-group = []
+mutate-checkpoint-no-deps = []
+mutate-no-agent-registry = []
+mutate-no-controller-fence = []
+mutate-agent-no-revocation = []
+mutate-agent-foreign-rotation = []
+mutate-agent-historical-t8 = []
+mutate-controller-no-source = []
+mutate-controller-no-origin = []
+mutate-position-group-wide-delete = []
+mutate-position-receive-conflict = []
+mutate-position-no-tombstone-guard = []
+mutate-position-bad-root = []
+mutate-position-no-anchor = []
+mutate-position-lineage = []
+mutate-position-cross-file = []
+mutate-position-author = []
 
 [dev-dependencies]
 proptest = "1"
@@ -128,4 +151,12 @@ harness = false
 
 [[test]]
 name = "file_paths"
+harness = false
+
+[[test]]
+name = "authority"
+harness = false
+
+[[test]]
+name = "positions"
 harness = false

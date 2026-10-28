@@ -120,8 +120,24 @@ unsafe def capture (dir : FilePath) (file : String) (log : String → IO Unit)
       | none => throw <| IO.userError s!"capture: dependency {(d.take 12).toString} of {g.short} is neither published nor in this batch"
     out := out.push (Json.mkObj [("pid", pid), ("group", g.declId), ("capsule", cid), ("deps", toJson deps),
       ("names", toJson (g.publicNames.map toString)), ("line", g.capsule.startLine)])
+  -- Read-only source inventory for editor transactions. A published element is listed
+  -- with its signed capsule ID but never becomes a staging candidate again.
+  let mut groups := #[]
+  for pid in r.groups do
+    let alreadyPublished := published.contains pid
+    let g ← if alreadyPublished then Remote.getMetaIO pid else cache.getMeta pid
+    let capsule ← if alreadyPublished then
+      match (← Remote.pkgIndex.get)[pid]? with
+      | some (_, cid) => pure cid
+      | none => throw <| IO.userError s!"capture: published package {pid} has no capsule index"
+      else pure (capsuleIdOf (← IO.FS.readBinFile (cache.metaPath pid)))
+    groups := groups.push (Json.mkObj [("pid", toJson pid), ("group", toJson g.declId),
+      ("capsule", toJson capsule), ("deps", toJson (g.deps ++ g.feDeps)),
+      ("names", toJson (g.publicNames.map toString)), ("line", toJson g.capsule.startLine),
+      ("alreadyPublished", toJson alreadyPublished), ("fieldRefs", toJson g.fieldRefs)])
   let rejected := r.diags.filter (·.severity == "reject") |>.map toString
-  return Json.mkObj [("packages", Json.arr out), ("rejected", toJson rejected), ("rejectedPids", toJson r.rejected)]
+  return Json.mkObj [("packages", Json.arr out), ("groups", Json.arr groups),
+    ("rejected", toJson rejected), ("rejectedPids", toJson r.rejected)]
 
 /-! ## Placement of new records -/
 
@@ -232,7 +248,7 @@ unsafe def plan (dir : FilePath) (file : String) (receiptsPath : FilePath) (plan
       | some p => (none, p)
       | none =>
         -- nearest element or earlier record of this batch above it, by its lineage root
-        let above := (elems.filter (·.1 < line)).map (fun (l, gr) => (l, gr, ((v.known.byGroup[gr]?).map (·.rootPath)).getD #[]))
+        let above := (elems.filter (·.1 < line)).map (fun (l, gr) => (l, gr, ((v.positions.find? (·.group == gr)).map (·.rootPath)).getD #[]))
           ++ (batch.filter (·.1 < line))
         match (above.qsort (·.1 < ·.1)).back? with
         | some (_, _, p) =>
@@ -447,10 +463,13 @@ def hash (file : String) (source : Bool := false) : IO (String × String) := do
 Historical/tombstoned markers remain in the log but are not snapshot contents. -/
 def liveHeads : IO Json := do
   let v ← Remote.view
-  let live := v.known.markers.filter fun m => v.live.contains m.group
+  let live := v.positions.filter fun m => v.live.contains m.group
   let revisions := (live.flatMap (·.revisions)).toList.mergeSort (· < ·)
+  let conflictedGroups := (v.losers.foldl (fun s (_, loser, winner) => (s.insert loser).insert winner)
+    ({} : Std.HashSet String)).toList.mergeSort (· < ·)
   return Json.mkObj [("groups", toJson ((live.map (·.group)).qsort (· < ·))),
-    ("revisions", toJson revisions), ("files", toJson v.files)]
+    ("revisions", toJson revisions), ("files", toJson v.files),
+    ("conflictedGroups", toJson conflictedGroups)]
 
 def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   let mut st ← State.load dir
@@ -462,7 +481,31 @@ def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   let lam := max st.lamport maxKnown + 1
   st := { st with lamport := lam }
   st.save dir
-  return Json.mkObj [("target", m.group), ("lamport", lam), ("file", file)]
+  return Json.mkObj [("target", m.group), ("position", m.id), ("lamport", lam), ("file", file)]
+
+/-- Plan a same-file move. The remote command publishes an exact-position
+tombstone, then a new marker variant of the same group. -/
+def move (dir : FilePath) (file : String) (name : Name) (after : Option Name) : IO Json := do
+  let mut st ← State.load dir
+  let v ← Remote.view
+  let elems := v.elements file
+  let some m := elems.find? fun m =>
+      (v.metas[m.pid]?.any fun g => (g.publicNames.map (renameName (v.renames.getD m.pid {}))).contains name)
+    | throw <| IO.userError s!"no live declaration {name} in {file}"
+  let anchor ← match after with
+    | none => pure none
+    | some n =>
+      let some a := elems.find? fun a =>
+          (v.metas[a.pid]?.any fun g => (g.publicNames.map (renameName (v.renames.getD a.pid {}))).contains n)
+        | throw <| IO.userError s!"no live anchor {n} in {file}"
+      if a.group == m.group then throw <| IO.userError "a declaration cannot move after itself"
+      pure (some a.group)
+  let maxKnown := v.known.markers.foldl (fun n r => max n r.lamport) (v.known.tombs.foldl (fun n t => max n t.lamport) 0)
+  let lam := max st.lamport maxKnown + 2
+  st := { st with lamport := lam }
+  st.save dir
+  return Json.mkObj [("target", m.group), ("position", m.id), ("lamport", lam),
+    ("file", file), ("anchor", match anchor with | some a => Json.str a | none => Json.null)]
 
 /-- Elaborate a working file as the fork would (with `Paralean.Remote`); report errors and
 every axiom used by a constant of the file, and any axiom the file itself declares. -/

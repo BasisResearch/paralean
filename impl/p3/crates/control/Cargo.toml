@@ -53,6 +53,8 @@ mutate-shared-rpc-pool = []
 mutate-no-per-source-admission = []
 mutate-unchecked-gid = []
 mutate-unscoped-validator-slots = []
+# W2-32 over the merged W4 catalog: J1-J3 keys and the validation shard routes unscoped.
+mutate-unscoped-job-keys = ["paralean-store/mutate-unscoped-job-keys"]
 mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-role-keys-unchecked = []
@@ -60,7 +62,108 @@ mutate-validator-checks-issuer-targets = []
 mutate-recover-every-tick = []
 mutate-unbounded-poll-responses = []
 mutate-no-work-gc = []
-mutate-keep-old-snapshot-chunks = []
+mutate-no-unowned-reassign = []
+mutate-history-no-work-replay = []
+mutate-history-no-poll-replay = []
+mutate-history-no-cancel-overlay = []
+mutate-history-no-grace = []
+mutate-history-no-term-fence = []
+mutate-history-omit-work-marker = []
+mutate-history-omit-poll-marker = []
+mutate-history-no-fair-scan = []
+mutate-history-prune-active = []
+mutate-history-no-opt-in = []
+mutate-history-no-work-identity = []
+mutate-history-no-poll-worker = []
+mutate-history-no-row-conflict = []
+mutate-history-no-terminal-grace = []
+mutate-history-no-poll-epoch = []
+mutate-no-term-fence = []
+mutate-no-logical-expiry = []
+mutate-no-shard-catalog = []
+mutate-no-task-claim-check = []
+mutate-no-shard-topology = []
+mutate-no-validation-catalog = []
+mutate-no-receipt-shard-check = []
+mutate-gc-no-head-check = []
+mutate-gc-no-retention-check = []
+mutate-gc-no-grace-check = []
+mutate-gc-no-opt-in-check = []
+mutate-gc-no-candidate-check = []
+mutate-gc-modulo-schedule = []
 
 [dev-dependencies]
+libtest-mimic = "0.8.2"
 paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }
+
+[[test]]
+name = "adversarial"
+harness = false
+
+[[test]]
+name = "auth"
+harness = false
+
+[[test]]
+name = "batch_warm"
+harness = false
+
+[[test]]
+name = "control"
+harness = false
+
+[[test]]
+name = "durable"
+harness = false
+
+[[test]]
+name = "fork"
+harness = false
+
+[[test]]
+name = "gc"
+harness = false
+
+[[test]]
+name = "mathlib_throughput"
+harness = false
+
+[[test]]
+name = "measure"
+harness = false
+
+[[test]]
+name = "p5_claims"
+harness = false
+
+[[test]]
+name = "processes"
+harness = false
+
+[[test]]
+name = "strict_signatures"
+harness = false
+
+[[test]]
+name = "targets"
+harness = false
+
+[[test]]
+name = "w4_dependencies"
+harness = false
+
+[[test]]
+name = "w4_history"
+harness = false
+
+[[test]]
+name = "w4_processes"
+harness = false
+
+[[test]]
+name = "w4_scale"
+harness = false
+
+[[test]]
+name = "w4_workers"
+harness = false

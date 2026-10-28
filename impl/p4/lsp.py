@@ -16,6 +16,10 @@ import signal
 import sys
 import urllib.parse
 
+from rename_transaction import (RenameRefused, affected_documents, anchor_covered,
+                                definition_location, definition_names_group, extract_edits,
+                                plan_buffer, source_digest)
+
 
 def frame(message):
     data = json.dumps(message, separators=(",", ":")).encode()
@@ -81,6 +85,9 @@ class Workspace:
             if not isinstance(config, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in config.items()):
                 raise ValueError("workspace environment JSON must be a string-to-string object")
             overrides.update(config)
+        bound = getattr(self, "bound_env", None)
+        if bound is not None and any(overrides.get(key) != value for key, value in bound.items()):
+            raise ValueError("workspace environment overrides a pinned P5 worker setting")
         return overrides
 
     def environment_digest(self):
@@ -182,8 +189,26 @@ class Workspace:
         await asyncio.wait_for(self.ready.wait(), 30)
         self.proxy.debug("replace ready", self.name, self.generation)
 
+    async def fence_policy(self):
+        """Make the old worker and all its pending responses inert before sync."""
+        async with self.start_lock:
+            self.generation += 1
+            self.ready.clear()
+            for item in self.pending.values():
+                future = item[5]
+                if not future.done():
+                    future.set_result(None)
+            self.pending.clear()
+            old = self.process
+            if old and old.returncode is None:
+                self.stop_process()
+                asyncio.create_task(old.wait())
+            self.process = None
+
     async def start(self):
         async with self.start_lock:
+            if self.proxy.bridge is not None and self.name not in self.proxy.bridge.policy_ready:
+                raise EnvironmentInvalid("Authoritative store policy unavailable")
             if self.process and self.process.returncode is None:
                 return
             self.refresh_environment()
@@ -224,6 +249,8 @@ class Workspace:
         async with self.change_lock:
             await self.start()
             await asyncio.wait_for(self.ready.wait(), 15)
+            if self.proxy.bridge is not None and self.name not in self.proxy.bridge.policy_ready:
+                raise EnvironmentInvalid("Authoritative store policy unavailable")
             if client_id in self.proxy.cancelled:
                 raise ValueError("request cancelled before worker dispatch")
             version = self.open_documents.get(document, {}).get("version") if document else None
@@ -246,6 +273,8 @@ class Workspace:
     async def notify(self, message):
         await self.start()
         await asyncio.wait_for(self.ready.wait(), 15)
+        if self.proxy.bridge is not None and self.name not in self.proxy.bridge.policy_ready:
+            raise EnvironmentInvalid("Authoritative store policy unavailable")
         await self.write(message)
 
     async def read_loop(self, generation, process):
@@ -270,7 +299,7 @@ class Workspace:
                 if "id" in message and "method" not in message:
                     await self.proxy.worker_response(self, message)
                 else:
-                    await self.proxy.worker_message(self, message)
+                    await self.proxy.worker_message(self, message, generation)
         except (EOFError, asyncio.IncompleteReadError, ConnectionError, BrokenPipeError):
             pass
         except EnvironmentInvalid as exc:
@@ -319,6 +348,8 @@ class Proxy:
         self.cancelled = set()
         self.stopping = False
         self.environment_epoch = 0
+        self.mutation_lock = asyncio.Lock()
+        self.bridge = None
 
     def debug(self, *items):
         if os.environ.get("PARALEAN_LSP_DEBUG"):
@@ -527,7 +558,7 @@ class Proxy:
             spelling = name(original)
             if winners[spelling][1] != marker.get("group"):
                 parts = spelling.rsplit(".", 1)
-                suffix = "✝pl" + marker.get("group", "")[:8]
+                suffix = "✝pl" + marker.get("group", "")
                 spelling = (parts[0] + "." if len(parts) == 2 else "") + parts[-1] + suffix
             if query.lower() not in spelling.lower():
                 continue
@@ -558,6 +589,13 @@ class Proxy:
                          if not (value[0] is ws and value[3] == uri)}
 
     async def worker_response(self, ws, message):
+        if self.bridge is not None:
+            await self.bridge.policy_events[ws.name].wait()
+        if self.bridge is not None and ws.name not in self.bridge.policy_ready:
+            item = ws.pending.pop(message.get("id"), None)
+            if item is not None and not item[5].done():
+                item[5].set_result(None)
+            return
         if ws.refresh_environment():
             await ws.replace_worker()
             return
@@ -595,7 +633,13 @@ class Proxy:
         if not future.done():
             future.set_result(output)
 
-    async def worker_message(self, ws, message):
+    async def worker_message(self, ws, message, generation=None):
+        if self.bridge is not None:
+            await self.bridge.policy_events[ws.name].wait()
+        if generation is not None and generation != ws.generation:
+            return
+        if self.bridge is not None and ws.name not in self.bridge.policy_ready:
+            return
         if ws.refresh_environment():
             await ws.replace_worker()
             return
@@ -661,8 +705,9 @@ class Proxy:
         if method == "initialize":
             self.initialize = message
             for ws in self.workspaces.values():
-                asyncio.create_task(ws.start())
-            await self.send({"jsonrpc": "2.0", "id": client_id, "result": {"capabilities": {"textDocumentSync": 2, "hoverProvider": True, "completionProvider": {"triggerCharacters": ["."], "resolveProvider": True}, "renameProvider": True, "definitionProvider": True, "referencesProvider": True, "documentSymbolProvider": True, "workspaceSymbolProvider": True, "executeCommandProvider": {"commands": ["paralean/killWorker", "paralean/setEnvironment"]}}, "serverInfo": {"name": "Paralean LSP"}}})
+                if self.bridge is None or ws.name in self.bridge.policy_ready:
+                    asyncio.create_task(ws.start())
+            await self.send({"jsonrpc": "2.0", "id": client_id, "result": {"capabilities": {"textDocumentSync": 2, "hoverProvider": True, "completionProvider": {"triggerCharacters": ["."], "resolveProvider": True}, "renameProvider": True, "definitionProvider": True, "referencesProvider": True, "documentSymbolProvider": True, "workspaceSymbolProvider": True, "executeCommandProvider": {"commands": ["paralean/killWorker", "paralean/setEnvironment"]}, "experimental": {"paraleanRenameTransaction": True}}, "serverInfo": {"name": "Paralean LSP"}}})
             return
         if method == "shutdown":
             await self.send({"jsonrpc": "2.0", "id": client_id, "result": None})
@@ -673,6 +718,10 @@ class Proxy:
                 ws.stop_process()
             return
         if method == "initialized":
+            return
+        if method == "paralean/renameTransaction":
+            if client_id is not None:
+                await self.start_active_request(client_id, self.rename_transaction(message))
             return
         if method == "workspace/executeCommand" and params.get("command") == "paralean/killWorker":
             name = (params.get("arguments") or [None])[0]
@@ -724,42 +773,23 @@ class Proxy:
                     pass
             return
         if method in ("textDocument/didOpen", "textDocument/didChange", "textDocument/didClose", "textDocument/didSave"):
-            ws, uri = self.document(params)
-            if ws is None:
-                return
-            wire = copy.deepcopy(message)
-            wire["params"] = self.map_in(params, ws)
-            doc = wire["params"]["textDocument"]
-            if method == "textDocument/didOpen":
-                ws.open_documents[uri] = {"version": doc["version"], "text": doc["text"], "public_uri": params["textDocument"]["uri"]}
-                if params["textDocument"]["uri"].startswith("paralean:"):
-                    ws.public_mode = "paralean"
-            elif method == "textDocument/didChange":
-                state = ws.open_documents.get(uri)
-                if state is None or doc["version"] <= state["version"]:
-                    return
-                text = state["text"]
-                for change in wire["params"]["contentChanges"]:
-                    if "range" not in change:
-                        text = change["text"]
-                    else:
-                        text = apply_change(text, change)
-                state.update(version=doc["version"], text=text)
-                self.drop_document_sessions(ws, uri)
-            elif method == "textDocument/didClose":
-                closed = ws.open_documents.pop(uri, None)
-                ws.file_workers_seen.discard(uri)
-                self.drop_document_sessions(ws, uri)
-                if closed:
-                    await self.send({"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": {"uri": closed["public_uri"], "diagnostics": []}})
-            if ws.refresh_environment():
-                await ws.replace_worker()
-            asyncio.create_task(self.deliver_change(ws, wire, uri, method))
+            async with self.mutation_lock:
+                await self._dispatch_document_change(message, method, params)
+            return
+        if method in ("paralean/capture", "paralean/publish") and self.bridge is not None:
+            if client_id is not None:
+                await self.start_active_request(client_id, self.bridge_request(message))
+            return
+        if method in ("paralean/capture", "paralean/publish"):
+            await self.error(client_id, -32001, "Controller bridge unavailable")
             return
         if method in ("workspace/symbol", "paralean/search"):
             if client_id is None:
                 return
             await self.start_active_request(client_id, self.aggregate_symbols(message))
+            return
+        if method == "textDocument/rename" and len(self.workspaces) > 1:
+            await self.error(client_id, -32602, "Use paralean/renameTransaction with a complete dependency inventory")
             return
         ws, uri = self.document(params)
         if method == "completionItem/resolve":
@@ -823,6 +853,216 @@ class Proxy:
         expected_version = ws.open_documents[document]["version"] if document else None
         await self.start_active_request(client_id, self.route_request(ws, wire, client_id, document, expected_version))
 
+    async def _dispatch_document_change(self, message, method, params):
+        ws, uri = self.document(params)
+        if ws is None:
+            return
+        wire = copy.deepcopy(message)
+        wire["params"] = self.map_in(params, ws)
+        doc = wire["params"]["textDocument"]
+        accepted = False
+        if method == "textDocument/didOpen":
+            ws.open_documents[uri] = {"version": doc["version"], "text": doc["text"], "public_uri": params["textDocument"]["uri"]}
+            if params["textDocument"]["uri"].startswith("paralean:"):
+                ws.public_mode = "paralean"
+            accepted = True
+        elif method == "textDocument/didChange":
+            state = ws.open_documents.get(uri)
+            if state is None or doc["version"] <= state["version"]:
+                return
+            text = state["text"]
+            for change in wire["params"]["contentChanges"]:
+                if "range" not in change:
+                    text = change["text"]
+                else:
+                    text = apply_change(text, change)
+            state.update(version=doc["version"], text=text)
+            self.drop_document_sessions(ws, uri)
+            accepted = True
+        elif method == "textDocument/didClose":
+            closed = ws.open_documents.pop(uri, None)
+            ws.file_workers_seen.discard(uri)
+            self.drop_document_sessions(ws, uri)
+            if closed:
+                await self.send({"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": {"uri": closed["public_uri"], "diagnostics": []}})
+                accepted = True
+        if accepted and self.bridge is not None:
+            self.bridge.observe(ws, uri, method)
+        if ws.refresh_environment():
+            await ws.replace_worker()
+        asyncio.create_task(self.deliver_change(ws, wire, uri, method))
+
+    async def bridge_request(self, message):
+        client_id = message["id"]
+        params = message.get("params", {})
+        ws, uri = self.document(params)
+        if ws is None or uri not in ws.open_documents:
+            await self.error(client_id, -32602, "Request requires an open workspace document")
+            return
+        try:
+            if message["method"] == "paralean/capture":
+                result = await self.bridge.capture(ws, uri, params.get("version"))
+            else:
+                result = await self.bridge.publish(ws, uri, params.get("version"), params.get("target"),
+                                                   params.get("owner"), params.get("epoch"),
+                                                   policy=params.get("policy"))
+            await self.send({"jsonrpc": "2.0", "id": client_id, "result": result})
+        except (OSError, ValueError, RuntimeError) as exc:
+            await self.error(client_id, -32001, str(exc))
+
+    async def rename_transaction(self, message):
+        """Commit all affected editor buffers together after every worker plans."""
+        client_id = message["id"]
+        params = message.get("params", {})
+        try:
+            if self.bridge is not None and hasattr(self.bridge, "poll_policy"):
+                await self.bridge.poll_policy()
+            async with self.mutation_lock:
+                if self.bridge is None or not hasattr(self.bridge, "rename_inventory"):
+                    raise RenameRefused("Complete dependency inventory is unavailable")
+                group = params.get("group")
+                new_name = params.get("newName")
+                if not isinstance(group, str) or not group or not isinstance(new_name, str) or not new_name:
+                    raise RenameRefused("Rename requires a target group and new name")
+                inventory = self.bridge.rename_inventory()
+                affected = affected_documents(inventory, group)
+                origin_ws, origin_uri = self.resolve(params.get("uri", ""))
+                if origin_ws is None or (origin_ws.name, origin_uri) not in affected or not any(
+                        record["group"] == group for record in affected[(origin_ws.name, origin_uri)]["groups"]):
+                    raise RenameRefused("Rename origin does not declare the target group")
+                snapshots = {}
+                by_workspace = {}
+                for (name, uri), captured in affected.items():
+                    ws = self.workspaces.get(name)
+                    state = ws.open_documents.get(uri) if ws else None
+                    if ws is None or state is None or ws.refresh_environment():
+                        raise RenameRefused("An affected workspace or environment changed")
+                    if (captured.get("version"), captured.get("environment"), captured.get("generation"),
+                            captured.get("source_sha256")) != (state["version"], ws.environment, ws.generation,
+                                                                   source_digest(state["text"])):
+                        raise RenameRefused("An affected source capture is stale")
+                    snapshots[(name, uri)] = (ws.environment, ws.generation, state["version"], source_digest(state["text"]))
+                    by_workspace.setdefault(name, set()).add(uri)
+                anchors = params.get("anchors")
+                if not isinstance(anchors, list) or len(anchors) != len(by_workspace):
+                    raise RenameRefused("Exactly one anchor is required per affected workspace")
+                anchor_by_workspace = {}
+                for anchor in anchors:
+                    if not isinstance(anchor, dict):
+                        raise RenameRefused("Malformed rename anchor")
+                    ws, uri = self.resolve(anchor.get("uri", ""))
+                    if ws is None or ws.name not in by_workspace or uri not in by_workspace[ws.name] or ws.name in anchor_by_workspace:
+                        raise RenameRefused("Rename anchor is outside affected sources")
+                    position = anchor.get("position")
+                    if not isinstance(position, dict) or type(position.get("line")) is not int or type(position.get("character")) is not int:
+                        raise RenameRefused("Rename anchor position is invalid")
+                    anchor_by_workspace[ws.name] = (uri, position)
+                if anchor_by_workspace[origin_ws.name][0] != origin_uri or anchor_by_workspace[origin_ws.name][1] != params.get("position"):
+                    raise RenameRefused("Origin anchor does not match requested position")
+                planned = {}
+                target_location = None
+                origin_group = next(record for record in affected[(origin_ws.name, origin_uri)]["groups"]
+                                    if record["group"] == group)
+                for name in [origin_ws.name] + sorted(set(by_workspace) - {origin_ws.name}):
+                    if client_id in self.cancelled:
+                        raise RenameRefused("Rename cancelled")
+                    ws = self.workspaces[name]
+                    anchor_uri, position = anchor_by_workspace[name]
+                    definition = {"jsonrpc": "2.0", "method": "textDocument/definition", "params": {
+                        "textDocument": {"uri": self.to_worker_uri(ws, anchor_uri)},
+                        "position": position}}
+                    definition_id, definition_future = await ws.request(
+                        definition, client_id, anchor_uri,
+                        expected_version=ws.open_documents[anchor_uri]["version"])
+                    self.requests.setdefault(client_id, []).append((ws, definition_id))
+                    try:
+                        definition_response = await asyncio.wait_for(definition_future, 30)
+                    finally:
+                        self.requests[client_id] = [item for item in self.requests.get(client_id, [])
+                                                    if item != (ws, definition_id)]
+                    if definition_response is None or "error" in definition_response:
+                        raise RenameRefused("Worker could not identify rename anchor")
+                    definition_uri, definition_range = definition_location(definition_response.get("result"))
+                    definition_owner, definition_actual = self.resolve(definition_uri)
+                    if definition_owner is not origin_ws or definition_actual != origin_uri:
+                        raise RenameRefused("Anchor definition is outside the target source")
+                    if name == origin_ws.name:
+                        definition_names_group(origin_ws.open_documents[origin_uri]["text"],
+                                               definition_range, origin_group.get("names"), origin_group.get("line"))
+                        target_location = (definition_actual, definition_range)
+                    elif (definition_actual, definition_range) != target_location:
+                        raise RenameRefused("Anchor resolves to a different declaration member")
+                    wire = {"jsonrpc": "2.0", "method": "textDocument/rename", "params": {
+                        "textDocument": {"uri": self.to_worker_uri(ws, anchor_uri)},
+                        "position": position, "newName": new_name}}
+                    worker_id, future = await ws.request(wire, client_id, anchor_uri,
+                                                         expected_version=ws.open_documents[anchor_uri]["version"])
+                    self.requests.setdefault(client_id, []).append((ws, worker_id))
+                    try:
+                        response = await asyncio.wait_for(future, 30)
+                    finally:
+                        self.requests[client_id] = [item for item in self.requests.get(client_id, [])
+                                                    if item != (ws, worker_id)]
+                    if response is None or "error" in response:
+                        raise RenameRefused("An affected worker rejected rename")
+                    expected = {self.workspaces[owner].open_documents[uri]["public_uri"]:
+                                self.workspaces[owner].open_documents[uri]["version"]
+                                for owner, uri in affected}
+                    edits = extract_edits(response.get("result"), expected)
+                    own_public = {ws.open_documents[uri]["public_uri"] for uri in by_workspace[name]}
+                    if not own_public.issubset(edits):
+                        raise RenameRefused("Worker plan omitted an affected source")
+                    anchor_public = ws.open_documents[anchor_uri]["public_uri"]
+                    if not anchor_covered(ws.open_documents[anchor_uri]["text"], position, edits[anchor_public]):
+                        raise RenameRefused("Worker plan does not edit the named anchor")
+                    for public_uri, changes in edits.items():
+                        owner, uri = self.resolve(public_uri)
+                        if owner is None or (owner.name, uri) not in affected:
+                            raise RenameRefused("Worker plan edited outside dependency closure")
+                        key = (owner.name, uri)
+                        current = owner.open_documents[uri]["text"]
+                        updated = plan_buffer(current, changes)
+                        if updated == current:
+                            raise RenameRefused("Worker plan leaves an affected source unchanged")
+                        if key in planned and planned[key] != updated:
+                            raise RenameRefused("Workers disagree on a shared source edit")
+                        planned[key] = updated
+                if client_id in self.cancelled or set(planned) != set(affected):
+                    raise RenameRefused("Rename cancelled or plan incomplete")
+                if hasattr(self.bridge, "assert_policy_fresh"):
+                    await self.bridge.assert_policy_fresh([self.workspaces[name] for name in sorted(by_workspace)])
+                # The authoritative probe above yields to worker exits and
+                # external environment changes. Recheck every source and the
+                # complete dependency inventory immediately before commit.
+                if self.bridge.rename_inventory() != inventory:
+                    raise RenameRefused("Dependency inventory changed during rename")
+                for (name, uri), stamp in snapshots.items():
+                    ws = self.workspaces[name]
+                    state = ws.open_documents.get(uri)
+                    if ws.refresh_environment() or state is None or (
+                            ws.environment, ws.generation, state["version"], source_digest(state["text"])) != stamp:
+                        raise RenameRefused("Affected source changed during rename")
+                committed = []
+                # No await in this loop: readers see the complete replacement.
+                for name, uri in sorted(planned):
+                    ws = self.workspaces[name]
+                    state = ws.open_documents[uri]
+                    state["version"] += 1
+                    state["text"] = planned[(name, uri)]
+                    committed.append({"workspace": name, "uri": state["public_uri"],
+                                      "version": state["version"], "text": state["text"]})
+                for name, uri in sorted(planned):
+                    ws = self.workspaces[name]
+                    self.drop_document_sessions(ws, uri)
+                    self.bridge.observe(ws, uri, "textDocument/didChange")
+                    asyncio.create_task(self.deliver_change(ws, {}, uri, "textDocument/didChange"))
+                await self.send({"jsonrpc": "2.0", "method": "$/paralean/buffersCommitted",
+                                 "params": {"documents": committed}})
+                await self.send({"jsonrpc": "2.0", "id": client_id, "result": {"documents": committed}})
+        except (RenameRefused, EnvironmentInvalid, OSError, ValueError, TypeError, KeyError,
+                IndexError, ConnectionError, BrokenPipeError, asyncio.TimeoutError) as exc:
+            await self.error(client_id, -32800, str(exc))
+
     async def route_request(self, ws, message, client_id, document, expected_version):
         if client_id in self.cancelled:
             await self.error(client_id, -32800, "Request cancelled")
@@ -836,6 +1076,8 @@ class Proxy:
         result = None
         for attempt in range(2 if retryable and document else 1):
             try:
+                if self.bridge is not None:
+                    await self.bridge.policy_events[ws.name].wait()
                 worker_id, future = await ws.request(message, client_id, document, expected_version=expected_version)
             except EnvironmentInvalid:
                 await self.error(client_id, -32001, "Workspace environment invalid")
@@ -920,23 +1162,35 @@ class Proxy:
 
     async def deliver_change(self, ws, wire, uri, method):
         try:
-            async with ws.change_lock:
-                await ws.start()
-                await asyncio.wait_for(ws.ready.wait(), 15)
-                state = ws.open_documents.get(uri)
-                if method in ("textDocument/didOpen", "textDocument/didChange"):
-                    if not state or state.get("sent_generation") == ws.generation and state.get("sent_version") == state["version"]:
+            while True:
+                if self.bridge is not None:
+                    await self.bridge.policy_events[ws.name].wait()
+                    if ws.name not in self.bridge.policy_ready:
                         return
-                    if state.get("sent_generation") == ws.generation:
-                        wire = {"jsonrpc": "2.0", "method": "textDocument/didChange", "params": {"textDocument": {"uri": self.to_worker_uri(ws, uri), "version": state["version"]}, "contentChanges": [{"text": state["text"]}]}}
-                    else:
-                        wire = {"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {"textDocument": {"uri": self.to_worker_uri(ws, uri), "languageId": "lean4", "version": state["version"], "text": state["text"]}}}
-                elif method == "textDocument/didClose" and state:
+                try:
+                    async with ws.change_lock:
+                        await ws.start()
+                        await asyncio.wait_for(ws.ready.wait(), 15)
+                        if self.bridge is not None and ws.name not in self.bridge.policy_ready:
+                            continue
+                        state = ws.open_documents.get(uri)
+                        if method in ("textDocument/didOpen", "textDocument/didChange"):
+                            if not state or state.get("sent_generation") == ws.generation and state.get("sent_version") == state["version"]:
+                                return
+                            if state.get("sent_generation") == ws.generation:
+                                wire = {"jsonrpc": "2.0", "method": "textDocument/didChange", "params": {"textDocument": {"uri": self.to_worker_uri(ws, uri), "version": state["version"]}, "contentChanges": [{"text": state["text"]}]}}
+                            else:
+                                wire = {"jsonrpc": "2.0", "method": "textDocument/didOpen", "params": {"textDocument": {"uri": self.to_worker_uri(ws, uri), "languageId": "lean4", "version": state["version"], "text": state["text"]}}}
+                        elif method == "textDocument/didClose" and state:
+                            return
+                        await ws.write(wire)
+                        if state:
+                            state["sent_generation"] = ws.generation
+                            state["sent_version"] = state["version"]
                     return
-                await ws.write(wire)
-                if state:
-                    state["sent_generation"] = ws.generation
-                    state["sent_version"] = state["version"]
+                except EnvironmentInvalid:
+                    if self.bridge is None or self.bridge.policy_events[ws.name].is_set():
+                        return
         except (OSError, ValueError, ConnectionError, BrokenPipeError, asyncio.TimeoutError):
             self.debug("change queued for worker replay", ws.name, method, uri)
 
@@ -970,6 +1224,9 @@ async def main():
     parser.add_argument("--workspace-env", action="append", default=[], help="NAME=JSON_FILE of per-worker environment variables")
     parser.add_argument("--worker-command", action="append", default=[], help="NAME=JSON_ARGV for this workspace's worker transport")
     parser.add_argument("--worker-root", action="append", default=[], help="NAME=ABS_PATH visible to that workspace's worker")
+    parser.add_argument("--p5-task", help="frozen P5 task for explicit editor capture and publication")
+    parser.add_argument("--p5-state", help="P5 task state directory containing the provisioned workspaces")
+    parser.add_argument("--p5-ssh-map", help="JSON map of pinned SSH endpoints for P5 remote policy resync")
     parser.add_argument("--lean-cmd", nargs="+", default=["lake", "env", "lean", "--server"])
     args = parser.parse_args()
     environments = dict(item.split("=", 1) for item in args.environment)
@@ -1011,6 +1268,18 @@ async def main():
     stores = [pathlib.Path(ws.env_overrides["PARALEAN_STORE"]).resolve() for ws in proxy.workspaces.values()]
     if len(stores) != len(set(stores)):
         parser.error("each workspace must use a distinct PARALEAN_STORE")
+    if bool(args.p5_task) != bool(args.p5_state):
+        parser.error("--p5-task and --p5-state must be supplied together")
+    if args.p5_ssh_map and not args.p5_task:
+        parser.error("--p5-ssh-map requires --p5-task")
+    bridge = None
+    feed = None
+    if args.p5_task:
+        from controller_bridge import attach_p5, policy_feed
+        ssh_map = json.loads(pathlib.Path(args.p5_ssh_map).read_text()) if args.p5_ssh_map else None
+        bridge = attach_p5(proxy, pathlib.Path(args.p5_task), pathlib.Path(args.p5_state), ssh_map)
+        await bridge.poll_policy()
+        feed = asyncio.create_task(policy_feed(bridge))
     loop = asyncio.get_running_loop()
     reader = asyncio.StreamReader()
     protocol = asyncio.StreamReaderProtocol(reader)
@@ -1031,6 +1300,14 @@ async def main():
         pass
     finally:
         proxy.stopping = True
+        if feed is not None:
+            feed.cancel()
+            try:
+                await feed
+            except asyncio.CancelledError:
+                pass
+        if bridge is not None:
+            await bridge.close()
         for ws in proxy.workspaces.values():
             ws.stop_process()
 

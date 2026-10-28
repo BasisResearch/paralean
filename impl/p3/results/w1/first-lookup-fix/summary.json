@@ -1,0 +1,19 @@
+{
+  "modules": 18,
+  "groups": 1105,
+  "accepted": 1105,
+  "published": 1105,
+  "duplicate": 0,
+  "validation_s": 1920.177071361,
+  "upload_s": 41.020674591,
+  "publish_s": 527.5857964510001,
+  "total_s": 2545.914954106,
+  "failures": [],
+  "store_audits_passed": 18,
+  "checker": "cf5d2ccbf9c24d1989913c5134946d4f5f37c6f9ed5a07707477b6b7f7c74396",
+  "lean_githash": "99967f1ee50a1ee82bb178359ad95b723c8196a2",
+  "max_observed_checker_rss_kb": 1620308,
+  "unchanged_base_sha256": "4056a52ff9c810896ef18392a5989e60be7e075abbe089cbf22f8c9018b73548",
+  "timing_scope": "Summed per-module elapsed times on a shared host.",
+  "audit_scope": "Each report row is written only after c.audit_ok() succeeds."
+}

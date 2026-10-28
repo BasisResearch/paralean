@@ -174,6 +174,113 @@ async fn t4_reassign_bumps_epoch_keeps_head() {
 // ------------------------------------------------------------------ T5
 
 #[tokio::main(flavor = "current_thread")]
+async fn t5_unresolved_collision_rejects_every_checkpoint_path() {
+    let e = Env::new("t5-collision", 2);
+    let name = Name::parse("Collision.x");
+    let a = e.plain_package(0, "Collision.x", "collision-a");
+    let b = e.plain_package(1, "Collision.x", "collision-b");
+    e.w[0].publish(&a).await.unwrap();
+    e.w[1].publish(&b).await.unwrap();
+    let token = e.ctl.rotate(e.w[0].id, b"collision-fence").await.unwrap();
+
+    for (tag, chosen) in [("a", rev_id(&a)), ("b", rev_id(&b))] {
+        let cp = fixture::checkpoint(e.w[0].id, vec![chosen], None, token, tag);
+        let g = guard_of(e.w[0].commit_checkpoint(&cp).await);
+        assert!(matches!(g, GuardFailure::CheckpointNotCurrent { name: ref n, .. } if n == &name), "{g:?}");
+        let record = e.w[0].sign_record(cp.snapshot.id(), None, token);
+        assert!(matches!(guard_of(e.w[0].commit_record(&record).await),
+            GuardFailure::CheckpointNotCurrent { .. }), "direct T5 must enforce current");
+        assert!(e.store.record(&record.id()).await.unwrap().is_none());
+        assert!(e.store.meta.get(e.store.meta.keys.rcert(&record.id())).await.unwrap().is_none());
+    }
+
+    let both = fixture::checkpoint(e.w[0].id, vec![rev_id(&a), rev_id(&b)], None, token, "both");
+    assert_eq!(guard_of(e.w[0].commit_checkpoint(&both).await), GuardFailure::CheckpointDuplicateName(name.clone()));
+
+    // Deleting the losing position resolves the live-head conflict without
+    // removing its group or revision from the registry.
+    e.w[1].tombstone(&fixture::tombstone_of(&b.marker, 2)).await.unwrap();
+    let winner = fixture::checkpoint(e.w[0].id, vec![rev_id(&a)], None, token, "resolved");
+    let catalog = e.w[0].commit_checkpoint(&winner).await.unwrap();
+    assert!(e.store.meta.get(e.store.meta.keys.rcert(&catalog)).await.unwrap().is_some());
+    assert_eq!(guard_of(e.w[0].commit_checkpoint(&both).await), GuardFailure::CheckpointDuplicateName(name));
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn t5_partial_atomic_group_cannot_hide_a_colliding_name() {
+    let e = Env::new("t5-atomic", 2);
+    let mut a = e.plain_package(0, "Atomic.a", "atomic-a");
+    let hidden = Name::parse("Atomic.shared");
+    let second = Revision {
+        group: a.group.id(), name: hidden.clone(), parents: vec![],
+        capsule: a.capsule.id(), workspace: e.w[0].id,
+    };
+    a.revisions.push(second.clone());
+    a.marker.revisions = a.revisions.iter().map(|r| r.id()).collect();
+    a.marker.revisions.sort();
+    let b = e.plain_package(1, "Atomic.shared", "atomic-b");
+    e.w[0].publish(&a).await.unwrap();
+    e.w[1].publish(&b).await.unwrap();
+    let token = e.ctl.rotate(e.w[0].id, b"atomic-fence").await.unwrap();
+    let partial = fixture::checkpoint(e.w[0].id, vec![a.revisions[0].id()], None, token, "partial");
+    assert_eq!(guard_of(e.w[0].commit_checkpoint(&partial).await),
+        GuardFailure::CheckpointPartialGroup(a.group.id()));
+    let full = fixture::checkpoint(e.w[0].id, vec![a.revisions[0].id(), second.id()], None, token, "full");
+    assert!(matches!(guard_of(e.w[0].commit_checkpoint(&full).await),
+        GuardFailure::CheckpointNotCurrent { name, .. } if name == hidden));
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn t5_duplicate_selected_names_fail_buildable_first() {
+    let e = Env::new("t5-duplicate", 2);
+    let name = Name::parse("Duplicate.x");
+    let a = e.plain_package(0, "Duplicate.x", "duplicate-a");
+    let b = e.plain_package(1, "Duplicate.x", "duplicate-b");
+    e.w[0].publish(&a).await.unwrap();
+    e.w[1].publish(&b).await.unwrap();
+    let token = e.ctl.rotate(e.w[0].id, b"duplicate-fence").await.unwrap();
+    let cp = fixture::checkpoint(e.w[0].id, vec![rev_id(&a), rev_id(&b)], None, token, "duplicate");
+    assert_eq!(guard_of(e.w[0].commit_checkpoint(&cp).await), GuardFailure::CheckpointDuplicateName(name));
+}
+
+#[tokio::main(flavor = "current_thread")]
+async fn t5_dependency_closure_rejects_omitted_colliding_group() {
+    let e = Env::new("t5-deps", 2);
+    let mut b = e.plain_package(0, "Dependency.x", "dependency-b");
+    b.capsule = Opaque::new(Kind::Capsule,
+        serde_json::json!({"declId": b.group.id().hex()}).to_string().into_bytes());
+    b.revisions[0].capsule = b.capsule.id();
+    b.marker.revisions = vec![b.revisions[0].id()];
+    let mut bjob = b.job.body.clone();
+    bjob.capsule = b.capsule.id();
+    b.job = SignedJob::sign(bjob, &e.authority());
+    b.receipt = fixture::receipt_for(&b.job, &e.validator, Verdict::Accepted);
+    b.marker.receipt = b.receipt.id();
+    e.w[0].publish(&b).await.unwrap();
+    let mut a = e.plain_package(0, "Task.y", "dependent-a");
+    let mut job = a.job.body.clone();
+    job.deps = vec![b.capsule.id()];
+    a.job = SignedJob::sign(job, &e.authority());
+    a.receipt = fixture::receipt_for(&a.job, &e.validator, Verdict::Accepted);
+    a.marker.receipt = a.receipt.id();
+    e.w[0].publish(&a).await.unwrap();
+    let c = e.plain_package(1, "Dependency.x", "dependency-c");
+    e.w[1].publish(&c).await.unwrap();
+    let token = e.ctl.rotate(e.w[0].id, b"deps-fence").await.unwrap();
+
+    let omitted = fixture::checkpoint(e.w[0].id, vec![rev_id(&a)], None, token, "omitted");
+    assert_eq!(guard_of(e.w[0].commit_checkpoint(&omitted).await),
+        GuardFailure::CheckpointDependencyMissing { group: a.group.id(), capsule: b.capsule.id() });
+    let included = fixture::checkpoint(e.w[0].id, vec![rev_id(&a), rev_id(&b)], None, token, "included");
+    assert!(matches!(guard_of(e.w[0].commit_checkpoint(&included).await),
+        GuardFailure::CheckpointNotCurrent { name, .. } if name == Name::parse("Dependency.x")));
+
+    e.w[1].tombstone(&fixture::tombstone_of(&c.marker, 2)).await.unwrap();
+    let catalog = e.w[0].commit_checkpoint(&included).await.unwrap();
+    assert!(e.store.meta.get(e.store.meta.keys.rcert(&catalog)).await.unwrap().is_some());
+}
+
+#[tokio::main(flavor = "current_thread")]
 async fn t5_fenced_commit_and_its_guards() {
     let faults = Faults::none();
     let e = Env::with_faults("t5", 2, faults.clone());
@@ -411,5 +518,9 @@ fn main() {
         libtest_mimic::Trial::test("s3_checksum_delete_and_corruption", || { s3_checksum_delete_and_corruption(); Ok(()) }),
         libtest_mimic::Trial::test("paginated_scan_follows_partial_batches", || { paginated_scan_follows_partial_batches(); Ok(()) }),
         libtest_mimic::Trial::test("t1_requires_the_pinned_target_statement", || { t1_requires_the_pinned_target_statement(); Ok(()) }),
+        libtest_mimic::Trial::test("t5_unresolved_collision_rejects_every_checkpoint_path", || { t5_unresolved_collision_rejects_every_checkpoint_path(); Ok(()) }),
+        libtest_mimic::Trial::test("t5_partial_atomic_group_cannot_hide_a_colliding_name", || { t5_partial_atomic_group_cannot_hide_a_colliding_name(); Ok(()) }),
+        libtest_mimic::Trial::test("t5_duplicate_selected_names_fail_buildable_first", || { t5_duplicate_selected_names_fail_buildable_first(); Ok(()) }),
+        libtest_mimic::Trial::test("t5_dependency_closure_rejects_omitted_colliding_group", || { t5_dependency_closure_rejects_omitted_colliding_group(); Ok(()) }),
     ]);
 }

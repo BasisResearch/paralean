@@ -31,6 +31,7 @@ pub enum Txn {
     T2Certify,
     T3Rotate,
     T4Reassign,
+    AgentAuthority,
     T5Commit,
     T5Stage,
     T6ObjectCert,
@@ -39,6 +40,7 @@ pub enum Txn {
     P3Job,
     T8Tombstone,
     T9ReceiveGroup,
+    T11MovePosition,
     T10ReceiveTombstone,
     Ae,
 }

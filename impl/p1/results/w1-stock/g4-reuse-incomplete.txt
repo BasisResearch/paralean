@@ -1,0 +1,3 @@
+All generated Lean sources, export OLeans, and lakefiles are byte-identical to the completed full G4 measurement.
+3b2d1ff821364156b9acc26ad65606e6d82f68721645e3cc1bc7fd68c2a37519  /data/home/kirancodes/Documents/code/paralean-w1-lean-bugs/impl/p1/results/w1-stock/g4-artifacts-prepatch.tsv
+3b2d1ff821364156b9acc26ad65606e6d82f68721645e3cc1bc7fd68c2a37519  /data/home/kirancodes/Documents/code/paralean-w1-lean-bugs/impl/p1/results/w1-stock/g4-artifacts-final.tsv

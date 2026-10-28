@@ -1,3 +1,5 @@
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 mod common;
 #[path = "../../../../../verification/fixtures/ed25519_cases.rs"]
 mod vectors;
@@ -7,7 +9,7 @@ use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_store::*;
 use paralean_validator_api::ValidatorResponse;
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn validator_envelope_strict_signature_vectors() {
     let cfg = StoreConfig::from_env(&common::deployment("strict-validator")).unwrap();
     let kf = KeyFile::demo(1);
@@ -37,4 +39,11 @@ async fn validator_envelope_strict_signature_vectors() {
         }
     }
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("validator_envelope_strict_signature_vectors", || { validator_envelope_strict_signature_vectors(); Ok(()) }),
+    ]);
 }

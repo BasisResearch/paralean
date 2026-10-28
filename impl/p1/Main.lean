@@ -15,7 +15,8 @@ def usage : String := "usage:
   paralean ws-init --dir D --agent A | ws-capture --dir D FILE | ws-sync --dir D |
            ws-capture-server --dir D               (one document, stamped JSON lines) |
            ws-plan --dir D --file F --receipts JSON --out PLAN | ws-hash [--write DIR] [--source 1] FILE... |
-           ws-delete --dir D --file F --name N [or --name-json JSON] | ws-live |
+           ws-delete --dir D --file F --name N [or --name-json JSON] |
+           ws-move --dir D --file F --name N [--after N] | ws-live |
            ws-check --dir D FILE... | ws-export --dir D --out DIR
            (working copies, P3; PARALEAN_STORE = D/cache; see impl/p3-remote/scripts/ws.sh)
 "
@@ -32,6 +33,52 @@ partial def parseFlags (args : List String) (acc : Std.HashMap String String := 
                     else parseFlags (v :: tl) acc (rest.push k)
   | [k] => (acc, rest.push k)
   | [] => (acc, rest)
+
+/-- Re-elaborate a legacy capsule and its exact pinned dependency closure in a fresh
+process. The caller uses only the returned field spans; published bytes stay immutable. -/
+partial def recaptureClosure (pid : String) (seen : Std.HashSet String)
+    (order : Array String) (metas : Std.HashMap String GroupRec) :
+    IO (Std.HashSet String × Array String × Std.HashMap String GroupRec) := do
+  if seen.contains pid then return (seen, order, metas)
+  let g ← Remote.getMetaIO pid
+  Remote.checkReceipt g
+  let mut state := (seen.insert pid, order, metas.insert pid g)
+  for d in g.deps ++ g.feDeps do
+    state ← recaptureClosure d state.1 state.2.1 state.2.2
+  return (state.1, state.2.1.push pid, state.2.2)
+
+unsafe def recaptureOne (root : FilePath) (pid : String) : IO (Array FieldRef) := do
+  Remote.recapturing.set true
+  let actual ← Remote.storeRoot
+  unless actual == root do throw <| IO.userError "recapture: store root changed"
+  let (_, order, metas) ← recaptureClosure pid {} #[] {}
+  let cat : Catalog := { order, metas }
+  let imports := order.foldl (fun acc id => (cat.get! id).capsule.imports.foldl
+    (fun acc m => if acc.contains m then acc else acc.push m) acc) #[]
+  let replay ← sourceReplay cat order imports
+  unless replay.results.size == order.size && replay.results.all (·.ok) do
+    throw <| IO.userError s!"recapture: original capsule closure did not reproduce signed content: \
+      {(replay.results.filter (!·.ok)).map (fun r => (r.gid, r.diags.map toString))}"
+  let some original := metas[pid]? | throw <| IO.userError "recapture: missing original capsule"
+  let some result := replay.results.find? (·.gid == pid) | throw <| IO.userError "recapture: missing replay result"
+  let some fresh := result.replayed | throw <| IO.userError "recapture: command yielded no group"
+  unless fresh.declId == original.declId && fresh.capsule.text == original.capsule.text do
+    throw <| IO.userError "recapture: replay changed declaration identity or capsule source"
+  let some refs := fresh.fieldRefs | throw <| IO.userError "recapture: no resolved-field metadata"
+  let bytes := original.capsule.text.toUTF8
+  let mut stop := 0
+  for ref in refs do
+    unless stop ≤ ref.start && ref.start < ref.stop && ref.stop ≤ bytes.size do
+      throw <| IO.userError "recapture: invalid or overlapping field span"
+    unless ref.start > 0 && bytes.extract (ref.start - 1) ref.start == ".".toUTF8 do
+      throw <| IO.userError "recapture: field span is not preceded by a dot"
+    let .str _ field := ref.target | throw <| IO.userError "recapture: field target has no final identifier"
+    let some written := String.fromUTF8? (bytes.extract ref.start ref.stop)
+      | throw <| IO.userError "recapture: invalid field UTF-8"
+    unless written == field || written == s!"«{field}»" do
+      throw <| IO.userError "recapture: field token disagrees with resolved target"
+    stop := ref.stop
+  return refs
 
 unsafe def main (args : List String) : IO UInt32 := do
   -- The base library must be the one this binary was built against: a different
@@ -65,6 +112,12 @@ unsafe def main (args : List String) : IO UInt32 := do
     Fork.setHooks {}
   enableInitializersExecution
   match args with
+  | "recapture-one" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some root := flags["store"]? | IO.eprintln usage; return 2
+    let some pid := flags["pid"]? | IO.eprintln usage; return 2
+    IO.println (toJson (← recaptureOne root pid)).compress
+    return 0
   | "ws-capture-server" :: rest =>
     let (flags, _) := parseFlags rest
     let some dir := flags["dir"]? | IO.eprintln usage; return 2
@@ -379,6 +432,13 @@ unsafe def main (args : List String) : IO UInt32 := do
       | _, some s => pure s.toName
       | _, _ => throw <| IO.userError "ws-delete requires --name or --name-json"
     IO.println (← Copy.delete dir f n).compress
+    return 0
+  | "ws-move" :: rest =>
+    let (flags, _) := parseFlags rest
+    let some dir := flags["dir"]? | IO.eprintln usage; return 2
+    let some f := flags["file"]? | IO.eprintln usage; return 2
+    let some name := flags["name"]? | IO.eprintln usage; return 2
+    IO.println (← Copy.move dir f name.toName (flags["after"]?.map String.toName)).compress
     return 0
   | ["ws-live"] =>
     IO.println (← Copy.liveHeads).compress

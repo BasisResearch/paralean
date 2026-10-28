@@ -1,0 +1,92 @@
+{
+  "gate": "pass",
+  "transport": "ssh",
+  "host": "aws-dev",
+  "endpoint": "127.0.0.1:22955",
+  "samples": 10,
+  "one_way_added_delay_ms": 0,
+  "remote_root": "/data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/w5/ssh-baseline/remote",
+  "editor_root": "/data/home/kirancodes/Documents/code/paralean-w5-lsp-wiring/.runs/w5/ssh-baseline/editor",
+  "latencies": {
+    "edit_error": {
+      "p50_ms": 206.27,
+      "p95_ms": 455.2,
+      "samples_ms": [
+        655.21,
+        208.57,
+        205.84,
+        204.68,
+        206.7,
+        204.9,
+        204.72,
+        210.74,
+        205.35,
+        206.78
+      ]
+    },
+    "edit_clean": {
+      "p50_ms": 205.1,
+      "p95_ms": 206.65,
+      "samples_ms": [
+        203.95,
+        205.56,
+        205.16,
+        204.47,
+        204.16,
+        205.26,
+        205.04,
+        206.3,
+        206.93,
+        204.22
+      ]
+    },
+    "hover": {
+      "p50_ms": 1.98,
+      "p95_ms": 7.24,
+      "samples_ms": [
+        2.05,
+        9.78,
+        2.13,
+        1.9,
+        1.71,
+        2.31,
+        1.79,
+        1.74,
+        4.13,
+        1.79
+      ]
+    },
+    "goals": {
+      "p50_ms": 1.56,
+      "p95_ms": 1.83,
+      "samples_ms": [
+        1.67,
+        1.67,
+        1.58,
+        1.67,
+        1.53,
+        1.49,
+        1.41,
+        1.38,
+        1.96,
+        1.54
+      ]
+    },
+    "completion": {
+      "p50_ms": 180.98,
+      "p95_ms": 547.77,
+      "samples_ms": [
+        822.83,
+        171.61,
+        165.66,
+        175.35,
+        150.8,
+        211.57,
+        179.79,
+        194.07,
+        182.2,
+        182.18
+      ]
+    }
+  }
+}

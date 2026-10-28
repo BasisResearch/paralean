@@ -1,0 +1,59 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.50s
+     Running tests/auth.rs (impl/p2/target/debug/deps/auth-8d9d18fbcbf88fbf)
+
+running 2 tests
+test controller_rejects_unsigned_unknown_and_replayed_rpc ... ok
+test validator_rejects_unsigned_unknown_and_replayed_rpc ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.97s
+
+     Running tests/control.rs (impl/p2/target/debug/deps/control-95fdf065a3ba2a0f)
+
+running 6 tests
+test cancellation_stops_checks_and_publication ... ok
+test checker_memory_limit_gives_no_receipt ... ok
+test duplicate_and_retried_jobs_are_deduplicated ... ok
+test queues_apply_backpressure ... ok
+test validator_timeouts_give_no_receipt ... ok
+test work_is_admitted_within_each_workers_memory ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.16s
+
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-bb6ba5e71b4a032c)
+
+running 11 tests
+test different_topology_is_rejected_before_a_leader_can_write ... ok
+test elapsed_wall_time_alone_cannot_expire_a_lease ... ok
+test expired_same_holder_cannot_reuse_old_term_or_write_during_gap ... ok
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced ... ok
+test legacy_controller_state_requires_offline_migration ... ok
+test queued_target_claim_blocks_another_shards_assignment ... ok
+test replay_of_external_assignment_commits_the_controller_shard_claim ... ok
+test shard_terms_and_target_catalog_are_independent ... ok
+test submitted_work_routes_before_another_shard_can_claim_target ... ok
+test target_free_job_routes_its_cancellation_to_issuing_shard ... ok
+test unowned_fence_can_be_taken_by_later_registered_worker ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+     Running tests/processes.rs (impl/p2/target/debug/deps/processes-2801ecd9e941a68a)
+
+running 4 tests
+test expired_owner_reassignment_survives_crash_before_snapshot ... ok
+test killed_owner_is_replaced_and_the_target_published ... ok
+test leader_killed_after_durable_assignment_redelivers_once ... ok
+test leader_killed_during_validation_recovers_j1_without_client_retry ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.57s
+
+     Running tests/targets.rs (impl/p2/target/debug/deps/targets-4486674a5781b551)
+
+running 5 tests
+test joint_assignment_rejects_subset_and_expires_together ... ok
+test pending_two_name_proof_is_fenced_on_handover ... ok
+test singleton_group_and_work_apis_reject_overlaps_before_target_mutation ... ok
+test stale_joint_assignment_request_cannot_overwrite_handover ... ok
+test two_names_in_one_group_publish_with_one_bound_receipt ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 92.84s

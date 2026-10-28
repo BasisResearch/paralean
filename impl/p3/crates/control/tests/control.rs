@@ -1,5 +1,7 @@
 //! Controller and validator operation against the live services: retry deduplication,
 //! validator timeouts and memory limits, cancellation, backpressure, memory admission.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -33,7 +35,7 @@ fn validate_req(w: &paralean_control::worker::WorkerNode, g: &paralean_control::
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn duplicate_and_retried_jobs_are_deduplicated() {
     let c = Cluster::start("dedup", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -94,7 +96,7 @@ async fn duplicate_and_retried_jobs_are_deduplicated() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn validator_timeouts_give_no_receipt() {
     // Every validator hangs: no verdict within the deadline, nothing recorded.
     let o = Opts { validators: vec![Mode::Sleep, Mode::Sleep], deadline_ms: 700, attempts: 2, ..Opts::default() };
@@ -123,7 +125,7 @@ async fn validator_timeouts_give_no_receipt() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn checker_memory_limit_gives_no_receipt() {
     let o = Opts { validators: vec![Mode::Memory], memory_mb: 200, deadline_ms: 30_000, attempts: 1, ..Opts::default() };
     let c = Cluster::start("memory", o).await;
@@ -141,7 +143,7 @@ async fn checker_memory_limit_gives_no_receipt() {
     w.validate(&g, "mem/2", &[], 0).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn cancellation_stops_checks_and_publication() {
     let o = Opts { validators: vec![Mode::Sleep], deadline_ms: 60_000, attempts: 1, ..Opts::default() };
     let c = Cluster::start("cancel", o).await;
@@ -179,7 +181,7 @@ async fn cancellation_stops_checks_and_publication() {
     assert!(w.poll().await.unwrap().is_none());
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn queues_apply_backpressure() {
     let o = Opts {
         validators: vec![Mode::Sleep],
@@ -236,7 +238,7 @@ async fn queues_apply_backpressure() {
     assert_eq!(first.await.unwrap(), ControlResponse::Cancelled);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn work_is_admitted_within_each_workers_memory() {
     let c = Cluster::start("admit", Opts::default()).await;
     let small = c.worker(0, 1000, &core_store()).await;
@@ -266,7 +268,7 @@ async fn work_is_admitted_within_each_workers_memory() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn request_ids_are_scoped_per_workspace() {
     // Worker w1 claims the request ID w0 will use for a dependency (`dep/<decl>` is
     // guessable) and the authority cancels w1's request. Neither the claim (J1, the
@@ -299,7 +301,7 @@ async fn request_ids_are_scoped_per_workspace() {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn inconclusive_recovery_is_bounded() {
     // An envelope (J1) whose client is gone and that no validator decides: a validator
     // address that accepts and drops every connection. Each takeover re-dispatches it once,
@@ -352,7 +354,7 @@ async fn inconclusive_recovery_is_bounded() {
         "recovery dispatches per leader (cumulative connection counts)");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn dropped_validation_still_finishes_and_releases_its_resources() {
     // The RPC server drops a handler future at its execution limit (and a client may go
     // away). Two checks are dropped: one running, one waiting in the queue. Both still
@@ -403,7 +405,7 @@ async fn dropped_validation_still_finishes_and_releases_its_resources() {
     assert!(left.is_empty(), "scratch directories left behind: {left:?}");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn validator_slots_are_scoped_by_issuer_and_workspace() {
     // One request ID in envelopes for two workspaces, and from a job issuer and the
     // controller for one workspace: each envelope gets its own receipt.
@@ -443,4 +445,20 @@ async fn validator_slots_are_scoped_by_issuer_and_workspace() {
         }
     }
     assert_eq!(checks_run(&c), 3);
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("duplicate_and_retried_jobs_are_deduplicated", || { duplicate_and_retried_jobs_are_deduplicated(); Ok(()) }),
+        libtest_mimic::Trial::test("validator_timeouts_give_no_receipt", || { validator_timeouts_give_no_receipt(); Ok(()) }),
+        libtest_mimic::Trial::test("checker_memory_limit_gives_no_receipt", || { checker_memory_limit_gives_no_receipt(); Ok(()) }),
+        libtest_mimic::Trial::test("cancellation_stops_checks_and_publication", || { cancellation_stops_checks_and_publication(); Ok(()) }),
+        libtest_mimic::Trial::test("queues_apply_backpressure", || { queues_apply_backpressure(); Ok(()) }),
+        libtest_mimic::Trial::test("work_is_admitted_within_each_workers_memory", || { work_is_admitted_within_each_workers_memory(); Ok(()) }),
+        libtest_mimic::Trial::test("request_ids_are_scoped_per_workspace", || { request_ids_are_scoped_per_workspace(); Ok(()) }),
+        libtest_mimic::Trial::test("inconclusive_recovery_is_bounded", || { inconclusive_recovery_is_bounded(); Ok(()) }),
+        libtest_mimic::Trial::test("dropped_validation_still_finishes_and_releases_its_resources", || { dropped_validation_still_finishes_and_releases_its_resources(); Ok(()) }),
+        libtest_mimic::Trial::test("validator_slots_are_scoped_by_issuer_and_workspace", || { validator_slots_are_scoped_by_issuer_and_workspace(); Ok(()) }),
+    ]);
 }

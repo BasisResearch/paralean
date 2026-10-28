@@ -183,6 +183,7 @@ pub fn tomb_json(tid: &Id, t: &Tombstone) -> Value {
         "id": tid.hex(),
         "file": t.file_path,
         "target": t.target.hex(),
+        "position": t.position.map(|p| p.hex()),
         "lamport": t.lamport,
         "author": t.author.hex(),
     })
@@ -248,7 +249,7 @@ mod tests {
         assert!(checked_marker_json(&Id([4; 32]), &m, &Id([5; 32]), &"ab".repeat(32)).is_err());
         let ok = Marker { file_path: "Test/File.lean".into(), ..m.clone() };
         assert!(checked_marker_json(&Id([4; 32]), &ok, &Id([5; 32]), &"ab".repeat(32)).is_ok());
-        let t = Tombstone { file_path: ".git/config".into(), target: Id([1; 32]), lamport: 2, author: m.author, receipt: None };
+        let t = Tombstone { file_path: ".git/config".into(), target: Id([1; 32]), lamport: 2, author: m.author, receipt: None, position: None };
         assert!(checked_tomb_json(&Id([6; 32]), &t).is_err());
     }
 }

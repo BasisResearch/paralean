@@ -50,6 +50,7 @@ structure Tomb where
   id : String
   file : String
   target : String
+  position : Option String := none
   lamport : Nat
   author : String
   deriving Inhabited, Repr, BEq
@@ -100,8 +101,12 @@ def Marker.ofJson (j : Json) : Except String Marker := do
            capsule := ← jId j "capsule", pid := ← jId j "pid" }
 
 def Tomb.ofJson (j : Json) : Except String Tomb := do
+  -- A position names a marker variant: when present it is a content ID like `id`.
+  let position ← match j.getObjVal? "position" with
+    | .ok .null | .error _ => pure none
+    | .ok _ => some <$> jId j "position"
   return { id := ← jId j "id", file := ← jFile j "file", target := ← jId j "target"
-           lamport := ← jNat j "lamport", author := ← jStr j "author" }
+           position, lamport := ← jNat j "lamport", author := ← jStr j "author" }
 
 def Rev.ofJson (j : Json) : Except String Rev := do
   return { id := ← jStr j "id", group := ← jStr j "group", name := ← jName (← j.getObjVal? "name")
@@ -142,8 +147,9 @@ def Known.load (root : FilePath) (subs : List String := ["records"]) : IO Known 
       unless n.endsWith ".json" do continue
       if n.startsWith "m-" then
         let m ← ofExcept e.path (Marker.ofJson (← readJson e.path))
-        unless k.byGroup.contains m.group do
-          k := { k with markers := k.markers.push m, byGroup := k.byGroup.insert m.group m }
+        unless k.markers.any (·.id == m.id) do
+          k := { k with markers := k.markers.push m,
+                        byGroup := if k.byGroup.contains m.group then k.byGroup else k.byGroup.insert m.group m }
       else if n.startsWith "t-" then
         let t ← ofExcept e.path (Tomb.ofJson (← readJson e.path))
         unless k.tombs.any (·.id == t.id) do k := { k with tombs := k.tombs.push t }
@@ -154,7 +160,7 @@ def Known.load (root : FilePath) (subs : List String := ["records"]) : IO Known 
         let r ← ofExcept e.path (Rev.ofJson (← readJson e.path))
         k := { k with revs := k.revs.insert r.id r }
   -- deterministic order (directory order is not)
-  k := { k with markers := k.markers.qsort (fun a b => a.group < b.group),
+  k := { k with markers := k.markers.qsort (fun a b => a.group < b.group || (a.group == b.group && a.id < b.id)),
                 tombs := k.tombs.qsort (fun a b => a.id < b.id) }
   return k
 

@@ -19,6 +19,7 @@ import Paralean.CompletionRecoveryExecution
 import Paralean.ProtocolExecution
 import Paralean.ProtocolGuardChecks
 import Paralean.LeanNames
+import Paralean.InitializerIdentity
 import Paralean.PublicationReceipts
 import Paralean.TargetNames
 import Paralean.CatalogFencing
@@ -27,3 +28,5 @@ import Paralean.CatalogCertificates
 import Paralean.Hardened
 import Paralean.HardenedExecution
 import Paralean.Workspaces
+import Paralean.CheckpointConflicts
+import Paralean.ControllerGc

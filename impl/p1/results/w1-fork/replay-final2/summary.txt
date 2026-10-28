@@ -1,0 +1,5 @@
+source: 1225/1225
+kernel: 1225/1225
+isolated: 1225/1225
+corpus_sets: 22
+diagnostic_probe: 1

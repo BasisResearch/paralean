@@ -1,0 +1,261 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p2/crates/store)
+   Compiling paralean-ae-service v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p2/crates/ae-service)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p3/crates/control)
+   Compiling paralean-cli v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p2/crates/cli)
+   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-integrate-w/impl/p3-remote)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.36s
+     Running unittests src/lib.rs (target/debug/deps/ae_wire-fc0a5e2b4c4d9403)
+
+running 9 tests
+test tests::oversized_declared_body_is_rejected_before_allocation ... ok
+test tests::shutdown_aborts_and_joins_in_flight_handler ... ok
+test tests::tampered_body_is_rejected_after_signature_check ... ok
+test tests::signed_response_must_bind_fresh_nonce_and_request_hash ... ok
+test tests::unknown_or_bad_signer_with_large_declared_body_is_rejected_before_body ... ok
+test tests::wrong_client_signer_is_rejected_before_handler ... ok
+test tests::wrong_server_signer_is_rejected ... ok
+test tests::binary_pages_round_trip_with_authenticated_peer ... ok
+test tests::silent_peer_times_out ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running unittests src/main.rs (target/debug/deps/garage_netsplit-bf22c223ef0970a7)
+
+running 6 tests
+test tests::loopback_source_ip_identifies_node_on_real_tcp_connection ... ok
+test tests::malformed_state_is_rejected ... ok
+test tests::peers_on_same_side_keep_transferring ... ok
+test tests::split_cuts_exactly_the_crossing_links ... ok
+test tests::new_connection_during_cut_hangs_then_closes_on_heal ... ok
+test tests::open_link_blackholes_and_heal_closes_it ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running unittests src/main.rs (target/debug/deps/netsplit-ee89c8d6aaf0ae18)
+
+running 1 test
+test tests::cut_rule ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/paralean_ae_service-8a47fd7cc18ae31a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/network.rs (target/debug/deps/network-dae7d5e12b4d19ce)
+
+running 17 tests
+test catalogue_guards_reject_forged_source_token_and_object_proofs ... ok
+test catalogue_child_waits_for_parent_and_ignores_receiver_fence ... ok
+test chunked_group_fetches_deduplicated_chunk_and_retries_missing_source ... ok
+test bounded_pages_and_restart_replay_deferred_missing_object ... ok
+test catalogue_relay_retains_the_original_source_and_commit_proof ... ok
+test pinned_federation_rejects_changed_roster_and_wrong_peer_key ... ok
+test pinned_target_home_rejects_a_foreign_write_on_an_old_store_handle ... ok
+test malformed_source_receipt_cannot_be_imported_and_repair_allows_retry ... ok
+test lower_receipt_variant_does_not_redirect_base_certification_or_tombstone_guards ... ok
+test restarted_puller_resumes_a_persisted_metadata_fragment_cursor ... ok
+test server_rejects_a_stale_generation_before_serving_changes ... ok
+test incompatible_marker_layout_reports_exact_ids_and_field_without_overwrite ... ok
+test scheduled_pull_observes_publication_after_service_start_and_stops_cleanly ... ok
+test target_home_publication_reaches_third_deployment_without_local_target_key ... ok
+test simultaneous_receipt_variants_retry_stale_t9_precheck_and_converge ... ok
+test three_deployment_group_and_tombstone_relay_preserves_origin_evidence ... ok
+test receipt_only_marker_variants_converge_and_keep_both_certificates ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.99s
+
+     Running unittests src/main.rs (target/debug/deps/paralean_p2-cec82932e11afdb4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/multiprocess.rs (target/debug/deps/multiprocess-24f5acfb97c05450)
+
+running 1 test
+test concurrent_writers_multi_process ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.99s
+
+     Running unittests src/main.rs (target/debug/deps/plr-b5b4962a2b5cf215)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/paralean_store-28db15243a33d3af)
+
+running 16 tests
+test group_chunks::tests::conflicting_lengths_and_unbounded_refs_are_rejected ... ok
+test group_chunks::tests::reserved_prefix_is_fail_closed ... ok
+test group_chunks::tests::valid_wrapper_preserves_order_and_deduplicates_transfer_refs ... ok
+test group_chunks::tests::legacy_opaque_group_has_unknown_chunk_coverage ... ok
+test id::tests::matches_p1_lean_sha256 ... ok
+test id::tests::preimage_shape_and_hash ... ok
+test id::tests::sha256_vectors ... ok
+test objects::tests::roundtrips_and_strictness ... ok
+test objects::tests::names ... ok
+test id::tests::p1_group_id_matches ... ok
+test pce::tests::nat_and_sets ... ok
+test pce::tests::rejects_non_minimal_and_trailing ... ok
+test pce::tests::uvarint_matches_leb128_and_p1 ... ok
+test group_chunks::tests::maximum_distinct_refs_fit_one_fdb_index_value ... ok
+test objects::tests::signed_roundtrip ... ok
+test receipt::tests::envelope_roundtrip_and_strictness ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/antientropy.rs (target/debug/deps/antientropy-dc72290618a120a2)
+
+running 10 tests
+test foreign_target_names_and_certificate_copies_refused ... ok
+test marker_conflict_is_reported_not_overwritten ... ok
+test deferred_until_dependencies_arrive ... ok
+test corrupt_payloads_at_rest_are_repaired_or_wait ... ok
+test moved_position_and_tombstone_converge_between_replicas ... ok
+test received_groups_need_a_receipt_valid_here ... ok
+test receiver_rejects_corrupt_forged_and_untrusted ... ok
+test receive_faults_resolve ... ok
+test sync_converges_between_two_clusters ... ok
+test any_exchange_order_converges_to_the_union has been running for over 60 seconds
+test any_exchange_order_converges_to_the_union ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 121.15s
+
+     Running tests/authority.rs (target/debug/deps/authority-b414e17ade16e416)
+
+running 9 tests
+test foreign_controller_cannot_claim_another_origins_writer_certificate ... ok
+test forged_author_and_revoked_agent_key_fail_at_t1 ... ok
+test controller_delete_requires_local_signature_and_current_fence ... ok
+test old_signer_cannot_make_fresh_tombstone_under_rotated_ring ... ok
+test rotated_agent_key_writes_and_old_certificates_remain_verifiable ... ok
+test tombstone_item_without_grant_keeps_legacy_wire_bytes ... ok
+test received_controller_delete_uses_source_fence_even_with_shared_controller_key ... ok
+test rotated_writer_key_is_accepted_by_immutable_federation_roster_only_with_home_grant ... ok
+test controller_delete_relay_keeps_origin_authority ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+
+     Running tests/faults.rs (target/debug/deps/faults-dad5f2f4d0b38f40)
+
+running 10 tests
+test corrupt_bytes_on_read_count_as_missing ... ok
+test duplicate_and_reordered_retries ... ok
+test crash_between_payload_and_metadata_then_restart ... ok
+test publisher_crash_right_after_publish_leaves_head_discoverable ... ok
+test concurrent_writers_multi_threaded ... ok
+test rotation_and_reassignment_between_read_and_commit ... ok
+test s3_put_timeouts_with_and_without_landing ... ok
+test paginated_scan_across_concurrent_publications ... ok
+test crash_during_checkpoint_then_retry ... ok
+test unknown_commit_result_on_every_transaction ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.03s
+
+     Running tests/fixtures.rs (target/debug/deps/fixtures-424e62849799a653)
+
+running 9 tests
+test fixture_repair_copy_after_rotation ... ok
+test fixture_orphan_commit_rejected ... ok
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+test fixture_target_published_just_before_handover ... ok
+test fixture_put_before_rotation_acked_after ... ok
+test fixture_stale_writer_after_rotation ... ok
+test fixture_zombie_record_never_adopted ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.41s
+
+     Running tests/guards.rs (target/debug/deps/guards-e9e1414401a0cb6d)
+
+running 17 tests
+test s3_checksum_delete_and_corruption ... ok
+test t1_rejects_non_owner ... ok
+test t1_rejects_stale_epoch_after_reassignment ... ok
+test paginated_scan_follows_partial_batches ... ok
+test t1_publish_writes_marker_cert_head_atomically ... ok
+test t2_certify_requires_published_and_certified ... ok
+test t4_reassign_bumps_epoch_keeps_head ... ok
+test t1_head_compare_and_swap ... ok
+test t3_rotation_issues_each_rank_once ... ok
+test t1_rejects_unadmitted_parent_bad_receipt_and_duplicates ... ok
+test t5_duplicate_selected_names_fail_buildable_first ... ok
+test t5_partial_atomic_group_cannot_hide_a_colliding_name ... ok
+test t6_object_certificate_follows_acknowledgement ... ok
+test t7_repair_is_unfenced_signed_and_needs_existing_bytes ... ok
+test t5_dependency_closure_rejects_omitted_colliding_group ... ok
+test t5_fenced_commit_and_its_guards ... ok
+test t5_unresolved_collision_rejects_every_checkpoint_path ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s
+
+     Running tests/positions.rs (target/debug/deps/positions-46964742ff0689bc)
+
+running 11 tests
+test move_rejects_changed_lineage ... ok
+test controller_deleted_position_cannot_be_reinserted_by_author ... ok
+test certified_move_preserves_registry_and_converges_with_tombstone ... ok
+test move_rejects_cross_file_placement ... ok
+test move_rejects_forged_root_path ... ok
+test move_rejects_uncertified_anchor ... ok
+test tombstone_position_preimage_preserves_legacy_bytes ... ok
+test move_rejects_uncertified_tombstone ... ok
+test committed_anchored_move_retries_after_anchor_tombstone ... ok
+test rendered_name_uses_lineage_winner_and_moves_derived_namespace ... ok
+test unknown_committed_move_retries_after_agent_revocation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+
+     Running tests/property.rs (target/debug/deps/property-f3546ea09b18f0e1)
+
+running 1 test
+test random_interleavings_keep_store_invariants ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.32s
+
+     Running tests/tombstones.rs (target/debug/deps/tombstones-386e0906c22f18ef)
+
+running 6 tests
+test fixture_uncertified_tombstone_is_ignored ... ok
+test t8_named_receipt_respects_revocation ... ok
+test fixture_concurrent_revision_and_tombstone ... ok
+test fixture_tombstoned_and_superseded_leave_the_rendered_file ... ok
+test t8_tombstone_guards ... ok
+test tombstone_faults_resolve ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.95s
+
+     Running unittests src/main.rs (target/debug/deps/s3_guard-d2cb60c888df9a1c)
+
+running 4 tests
+test tests::gc_never_deletes_p2_content_or_unlisted_keys ... ok
+test tests::gc_key_only_allows_signed_object_delete_candidate ... ok
+test tests::refuses_deletes_and_config ... ok
+test tests::decodes_query_keys_before_denying_destructive_subresources ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ae_wire
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests paralean_ae_service
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests paralean_store
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

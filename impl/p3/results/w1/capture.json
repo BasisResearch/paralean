@@ -1,0 +1,128 @@
+[
+  {
+    "module": "M01",
+    "source": "Mathlib.Order.Basic",
+    "seconds": 6.939949358813465,
+    "exit_code": 0,
+    "groups": 213
+  },
+  {
+    "module": "M02",
+    "source": "Mathlib.Algebra.Group.Defs",
+    "seconds": 1.5840331236831844,
+    "exit_code": 0,
+    "groups": 30
+  },
+  {
+    "module": "M03",
+    "source": "Mathlib.Data.Nat.Factorial.Basic",
+    "seconds": 6.077777417842299,
+    "exit_code": 0,
+    "groups": 83
+  },
+  {
+    "module": "M04",
+    "source": "Mathlib.Data.Nat.MaxPowDiv",
+    "seconds": 1.067153480835259,
+    "exit_code": 0,
+    "groups": 13
+  },
+  {
+    "module": "M05",
+    "source": "Mathlib.Data.Nat.BitIndices",
+    "seconds": 3.3052737661637366,
+    "exit_code": 0,
+    "groups": 19
+  },
+  {
+    "module": "M06",
+    "source": "Mathlib.Data.Set.Notation",
+    "seconds": 1.252381554339081,
+    "exit_code": 0,
+    "groups": 4
+  },
+  {
+    "module": "M07",
+    "source": "Mathlib.Tactic.FieldSimp.Attr",
+    "seconds": 0.7554389918223023,
+    "exit_code": 0,
+    "groups": 2
+  },
+  {
+    "module": "M08",
+    "source": "Mathlib.Tactic.ByCases",
+    "seconds": 0.8722630166448653,
+    "exit_code": 0,
+    "groups": 3
+  },
+  {
+    "module": "M09",
+    "source": "Mathlib.Data.PNat.Equiv",
+    "seconds": 1.015040511265397,
+    "exit_code": 0,
+    "groups": 2
+  },
+  {
+    "module": "M10",
+    "source": "Mathlib.Algebra.PEmptyInstances",
+    "seconds": 0.8221928640268743,
+    "exit_code": 0,
+    "groups": 2
+  },
+  {
+    "module": "M11",
+    "source": "Mathlib.Data.Ineq",
+    "seconds": 0.6087649581022561,
+    "exit_code": 0,
+    "groups": 11
+  },
+  {
+    "module": "M12",
+    "source": "Mathlib.Algebra.Field.ZMod",
+    "seconds": 4.48741104407236,
+    "exit_code": 0,
+    "groups": 4
+  },
+  {
+    "module": "M13",
+    "source": "Mathlib.Order.Lattice",
+    "seconds": 4.947879732586443,
+    "exit_code": 0,
+    "groups": 115
+  },
+  {
+    "module": "M14",
+    "source": "Mathlib.Data.List.Defs",
+    "seconds": 2.1174316881224513,
+    "exit_code": 0,
+    "groups": 50
+  },
+  {
+    "module": "M15",
+    "source": "Mathlib.SetTheory.Lists",
+    "seconds": 3.7525810981169343,
+    "exit_code": 0,
+    "groups": 56
+  },
+  {
+    "module": "M16",
+    "source": "Mathlib.Logic.Relation",
+    "seconds": 4.62045664479956,
+    "exit_code": 0,
+    "groups": 211
+  },
+  {
+    "module": "M17",
+    "source": "Mathlib.Tactic.Attr.Register",
+    "seconds": 1.4226760771125555,
+    "exit_code": 0,
+    "groups": 22
+  },
+  {
+    "module": "M18",
+    "source": "Mathlib.Logic.Function.Basic",
+    "seconds": 4.262141782324761,
+    "exit_code": 0,
+    "groups": 265
+  }
+]

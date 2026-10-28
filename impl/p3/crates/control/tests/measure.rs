@@ -1,6 +1,8 @@
 //! Costs (ignored by default; `scripts/test.sh --test measure -- --ignored --nocapture`):
 //! validate and publish every group of the core fixture store F01–F13 in dependency order
 //! through the controller and two validators, and report check latency and payload bytes.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -10,8 +12,7 @@ use common::*;
 use paralean_control::p1;
 use paralean_store::*;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-#[ignore]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn measure_validation_costs() {
     let c = Cluster::start("measure", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -67,4 +68,11 @@ async fn measure_validation_costs() {
         println!("  not published: {f}");
     }
     c.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("measure_validation_costs", || { measure_validation_costs(); Ok(()) }).with_ignored_flag(true),
+    ]);
 }

@@ -1,0 +1,17 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/positions.rs (target/debug/deps/positions-9f1accc5b449294e)
+
+running 11 tests
+test tombstone_position_preimage_preserves_legacy_bytes ... ok
+test move_rejects_uncertified_tombstone ... ok
+test move_rejects_cross_file_placement ... ok
+test move_rejects_forged_root_path ... ok
+test move_rejects_changed_lineage ... ok
+test controller_deleted_position_cannot_be_reinserted_by_author ... ok
+test move_rejects_uncertified_anchor ... ok
+test certified_move_preserves_registry_and_converges_with_tombstone ... ok
+test rendered_name_uses_lineage_winner_and_moves_derived_namespace ... ok
+test unknown_committed_move_retries_after_agent_revocation ... ok
+test committed_anchored_move_retries_after_anchor_tombstone ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s

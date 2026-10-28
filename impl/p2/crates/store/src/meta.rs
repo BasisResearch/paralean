@@ -9,8 +9,11 @@
 //! aborts. A writer never proceeds past an unresolved outcome: if the loop gives up it
 //! returns `StoreError::Unresolved`, never a guard failure.
 //!
-//! No code path in this crate clears a key (`clear`/`clear_range` are never called): the
-//! key spaces are grow-only, which the paginated-scan argument of store.md needs.
+//! Protocol key spaces are grow-only, which the paginated-scan argument of store.md
+//! needs: nothing clears a marker, certificate, tombstone, grant, fence, catalogue or
+//! registry key. The only clears are the anti-entropy work queues in `ae.rs` (pending
+//! events and their parts, once archived as terminal records); they hold no lineage.
+//! W4's controller GC clears only its own `controller/shard/*` chunks and retirements.
 
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -25,7 +28,7 @@ use crate::error::{GuardFailure, Result, StoreError};
 use crate::ae::{append_event, AeKind};
 use crate::ae::config_in_txn;
 use crate::faults::{CommitFault, Faults, Txn};
-use crate::id::{sha256, Id, Kind, WorkspaceId};
+use crate::id::{sha256, AgentId, Id, Kind, WorkspaceId};
 use crate::objects::*;
 use crate::pce::{Dec, Enc, Pce};
 
@@ -60,6 +63,22 @@ pub fn shutdown() {
 /// into process exit, as the CLI did before it stopped the thread explicitly.
 #[cfg(feature = "mutate-no-network-shutdown")]
 pub fn shutdown() {}
+
+/// Run a binary's async `main` on a multi-threaded Tokio runtime, drop the runtime (every
+/// task, database and future it owns), then stop and join FDB's network thread, also when
+/// `main` unwinds. Returning into `exit()` with that thread running can crash in
+/// libfdb_c's exit-time destructors (docs/w2-chaos-notes.md).
+pub fn run_main<T>(main: impl std::future::Future<Output = T>) -> T {
+    struct Stop;
+    impl Drop for Stop {
+        fn drop(&mut self) { shutdown() }
+    }
+    let _stop = Stop;
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().expect("start the Tokio runtime");
+    let out = rt.block_on(main);
+    drop(rt);
+    out
+}
 
 #[cfg(test)]
 mod lifecycle_tests {
@@ -120,6 +139,15 @@ impl Keys {
     }
     pub fn tombstone(&self, id: &Id) -> Vec<u8> {
         self.root.pack(&("tombstone", b(&id.0)))
+    }
+    pub fn agent_key(&self, agent: &AgentId, public: &[u8; 32]) -> Vec<u8> {
+        self.root.pack(&("agent", b(&agent.0), b(public)))
+    }
+    pub fn agent_revoke(&self, public: &[u8; 32]) -> Vec<u8> {
+        self.root.pack(&("arevoke", b(public)))
+    }
+    pub fn delete_grant(&self, tombstone: &Id) -> Vec<u8> {
+        self.root.pack(&("deletegrant", b(&tombstone.0)))
     }
     pub fn group_chunks(&self, id: &Id) -> Vec<u8> { self.root.pack(&("gchunks", b(&id.0))) }
     pub fn cert(&self, g: &Id, w: &WorkspaceId) -> Vec<u8> {
@@ -281,7 +309,45 @@ pub(crate) async fn get(trx: &Transaction, key: &[u8]) -> Result<Option<Vec<u8>>
     Ok(trx.get(key, false).await?.map(|v| v.to_vec()))
 }
 
-async fn range(trx: &Transaction, begin: Vec<u8>, end: Vec<u8>, limit: usize) -> Result<FdbValues> {
+/// Admission is checked in the mutation transaction. A controller-signed grant in the
+/// configured key file may bootstrap its FDB slot, but the claimed author alone never does.
+pub(crate) async fn active_agent_key(
+    trx: &Transaction, k: &Keys, ring: &crate::sign::KeyRing,
+    agent: AgentId, workspace: WorkspaceId, public: [u8; 32],
+) -> Result<()> {
+    active_agent_key_from(trx, k, ring, agent, workspace, public, ring.authority).await
+}
+
+async fn active_agent_key_from(
+    trx: &Transaction, k: &Keys, ring: &crate::sign::KeyRing,
+    agent: AgentId, workspace: WorkspaceId, public: [u8; 32], expected_issuer: [u8; 32],
+) -> Result<()> {
+    let configured = ring.agent_keys.iter().find(|grant| {
+        grant.parts().is_some_and(|(a, w, p, issuer)|
+            a == agent && w == workspace && p == public &&
+            (issuer == expected_issuer || cfg!(feature = "mutate-agent-foreign-rotation")) && grant.verify())
+    });
+    let key = k.agent_key(&agent, &public);
+    let stored = get(trx, &key).await?;
+    match (stored, configured) {
+        (Some(bytes), _) => {
+            let persisted: crate::authority::AgentKeyGrant = serde_json::from_slice(&bytes)
+                .map_err(|_| GuardFailure::AgentKeyNotRegistered(agent.hex()))?;
+            if !persisted.parts().is_some_and(|(a, w, p, issuer)| a == agent && w == workspace && p == public &&
+                (issuer == expected_issuer || cfg!(feature = "mutate-agent-foreign-rotation")) && persisted.verify()) {
+                return Err(GuardFailure::AgentKeyNotRegistered(agent.hex()).into());
+            }
+        }
+        (None, Some(grant)) => trx.set(&key, &grant.encoded()),
+        (None, None) => return Err(GuardFailure::AgentKeyNotRegistered(agent.hex()).into()),
+    }
+    if !cfg!(feature = "mutate-agent-no-revocation") && get(trx, &k.agent_revoke(&public)).await?.is_some() {
+        return Err(GuardFailure::AgentKeyRevoked(public).into());
+    }
+    Ok(())
+}
+
+pub(crate) async fn range(trx: &Transaction, begin: Vec<u8>, end: Vec<u8>, limit: usize) -> Result<FdbValues> {
     let opt = RangeOption {
         limit: Some(limit),
         mode: StreamingMode::WantAll,
@@ -472,6 +538,69 @@ impl Meta {
             None => 0,
             Some(v) => dec_u64(&v)?,
         })
+    }
+
+    /// Controller registration/rotation. The key slot is immutable; old keys remain
+    /// historical evidence until separately revoked for new author writes.
+    pub async fn register_agent_key(&self, grant: crate::authority::AgentKeyGrant, authority: [u8; 32]) -> Result<bool> {
+        let (_, _, public, issuer) = grant.parts().ok_or_else(|| StoreError::Invalid("bad agent key registration".into()))?;
+        if issuer != authority || !grant.verify() { return Err(StoreError::Invalid("agent key registration lacks controller signature".into())); }
+        let agent = crate::id::AgentId::from_hex(&grant.agent).expect("validated above");
+        let key = self.keys.agent_key(&agent, &public);
+        let bytes = Arc::new(grant.encoded());
+        self.run(Txn::AgentAuthority, Box::new(move |trx| {
+            let (key, bytes) = (key.clone(), bytes.clone());
+            Box::pin(async move {
+                match get(trx, &key).await? {
+                    Some(old) if old == *bytes => Ok(Step::Done(false)),
+                    Some(_) => Err(StoreError::Invalid("agent key slot holds another grant".into())),
+                    None => { trx.set(&key, &bytes); Ok(Step::Commit(true)) }
+                }
+            })
+        })).await
+    }
+
+    /// Read-only view of `active_agent_key`'s admission rule for schedulers and
+    /// editors: whether a controller grant binds `agent` to `public` for
+    /// `workspace` (persisted, or configured and still bootstrappable), and
+    /// whether that key is revoked. Admission itself is still decided in T1/T8.
+    pub async fn agent_key_state(
+        &self, ring: &crate::sign::KeyRing, agent: AgentId, workspace: WorkspaceId, public: [u8; 32],
+    ) -> Result<(bool, bool)> {
+        let (slot, revoke) = (self.keys.agent_key(&agent, &public), self.keys.agent_revoke(&public));
+        let ring = ring.clone();
+        self.read(move |trx| {
+            let (slot, revoke, ring) = (slot.clone(), revoke.clone(), ring.clone());
+            Box::pin(async move {
+                let matches = |grant: &crate::authority::AgentKeyGrant| grant.parts().is_some_and(|(a, w, p, issuer)|
+                    a == agent && w == workspace && p == public && issuer == ring.authority) && grant.verify();
+                let registered = match get(trx, &slot).await? {
+                    Some(bytes) => serde_json::from_slice::<crate::authority::AgentKeyGrant>(&bytes)
+                        .is_ok_and(|grant| matches(&grant)),
+                    None => ring.agent_keys.iter().any(matches),
+                };
+                Ok((registered, get(trx, &revoke).await?.is_some()))
+            })
+        })
+        .await
+    }
+
+    /// Revocation is grow-only and conflicts with T1/T8/T10 reads of this key.
+    pub async fn revoke_agent_key(&self, revocation: crate::authority::AgentKeyRevocation, authority: [u8; 32]) -> Result<bool> {
+        if !revocation.verify(&authority) { return Err(StoreError::Invalid("agent key revocation lacks controller signature".into())); }
+        let public = revocation.public().expect("validated above");
+        let key = self.keys.agent_revoke(&public);
+        let bytes = Arc::new(revocation.encoded());
+        self.run(Txn::AgentAuthority, Box::new(move |trx| {
+            let (key, bytes) = (key.clone(), bytes.clone());
+            Box::pin(async move {
+                match get(trx, &key).await? {
+                    Some(old) if old == *bytes => Ok(Step::Done(false)),
+                    Some(_) => Err(StoreError::Invalid("agent key already revoked with another record".into())),
+                    None => { trx.set(&key, &bytes); Ok(Step::Commit(true)) }
+                }
+            })
+        })).await
     }
 
     pub async fn target(&self, name: &Name) -> Result<Option<TargetRecord>> {
@@ -717,6 +846,106 @@ impl Meta {
         .await
     }
 
+    // ============================================================ T11 move position
+
+    /// Certify a new placement of an existing group after the old placement was
+    /// tombstoned. The registry marker and revisions stay unchanged.
+    pub(crate) async fn t11_move_position(&self, marker: Marker, old_marker: Marker, anchor_marker: Option<Marker>, old: Tombstone,
+        value: Vec<u8>, cert: Vec<u8>, writer: WorkspaceId, ring: Arc<crate::sign::KeyRing>) -> Result<bool> {
+        let k = self.keys.clone();
+        let marker = Arc::new(marker);
+        let old_marker = Arc::new(old_marker);
+        let anchor_marker = Arc::new(anchor_marker);
+        let old = Arc::new(old);
+        let value = Arc::new(value);
+        let cert = Arc::new(cert);
+        self.run(Txn::T11MovePosition, Box::new(move |trx| {
+            let (k, marker, old_marker, anchor_marker, old, value, cert, ring) =
+                (k.clone(), marker.clone(), old_marker.clone(), anchor_marker.clone(), old.clone(), value.clone(), cert.clone(), ring.clone());
+            Box::pin(async move {
+                let g = marker.group;
+                let mid = marker.id();
+                let vk = k.marker_variant(&g, &mid);
+                let ck = k.variant_cert(&g, &mid, &writer);
+                if let Some(v) = get(trx, &vk).await? {
+                    if envelope_object_id(&v)? == mid {
+                        if let Some(bytes) = get(trx, &ck).await? {
+                            let prior = Cert::from_bytes(&bytes)?;
+                            if prior.body.group == g && prior.body.marker == mid && prior.body.writer == writer
+                                && ring.verify_writer(&writer, &prior.id(), &prior.sig) {
+                                return Ok(Step::Done(false));
+                            }
+                        }
+                    }
+                    return Err(GuardFailure::BadPackage("move position already occupied".into()).into());
+                }
+                let certificate = Cert::from_bytes(&cert)?;
+                let public = *ring.writer(&writer).ok_or_else(|| GuardFailure::AgentKeyNotRegistered(marker.author.hex()))?;
+                if certificate.body.group != g || certificate.body.marker != mid || certificate.body.writer != writer
+                    || !certificate.verify(&public) {
+                    return Err(GuardFailure::BadPackage("move certificate does not bind writer".into()).into());
+                }
+                if !cfg!(feature = "mutate-no-agent-registry") {
+                    active_agent_key(trx, &k, &ring, marker.author, writer, public).await?;
+                }
+                let base = get(trx, &k.marker(&g)).await?.ok_or(GuardFailure::NotPublished(g))?;
+                let base_id = envelope_object_id(&base)?;
+                let (b0, e0) = k.certs_of(&g).range();
+                if range(trx, b0, e0, 1).await?.is_empty() { return Err(GuardFailure::Uncertified(g).into()); }
+                // A move needs certified deletion of an exact position. The old
+                // tombstone must have committed before this transaction.
+                let old_pos = old.position.ok_or_else(|| GuardFailure::BadPackage("move requires position tombstone".into()))?;
+                if old_marker.id() != old_pos || old_marker.group != g ||
+                    (!cfg!(feature = "mutate-position-lineage") &&
+                        (marker.revisions != old_marker.revisions || marker.receipt != old_marker.receipt ||
+                            marker.lineage_keys != old_marker.lineage_keys)) || marker.author != old_marker.author {
+                    return Err(GuardFailure::BadPackage("move changed lineage".into()).into());
+                }
+                if old.target != g || (!cfg!(feature = "mutate-position-cross-file") && old.file_path != marker.file_path) || old_pos == mid
+                    || marker.lamport <= old.lamport || (!cfg!(feature = "mutate-position-author") && old.author != marker.author) {
+                    return Err(GuardFailure::BadPackage("move lineage or Lamport order differs".into()).into());
+                }
+                let old_key = if old_pos == base_id { k.marker(&g) } else { k.marker_variant(&g, &old_pos) };
+                let old_value = get(trx, &old_key).await?.ok_or(GuardFailure::NotPublished(g))?;
+                if envelope_object_id(&old_value)? != old_pos { return Err(GuardFailure::BadPackage("old position differs".into()).into()); }
+                let old_stored = get(trx, &k.tombstone(&old.id())).await?.ok_or_else(|| GuardFailure::BadPackage("move tombstone absent".into()))?;
+                if !cfg!(feature = "mutate-position-no-tombstone-guard") &&
+                    (envelope_object_id(&old_stored)? != old.id() || get(trx, &k.tcert(&old.id(), &writer)).await?.is_none()) {
+                    return Err(GuardFailure::BadPackage("move tombstone uncertified".into()).into());
+                }
+                // The supplied old marker is bound to its immutable store ID above.
+                if !cfg!(feature = "mutate-position-bad-root") &&
+                    (marker.root_path.last() != Some(&(g, marker.lamport, marker.author))
+                        || (matches!(marker.anchor, Anchor::FileStart) && marker.root_path.len() != 1)) {
+                    return Err(GuardFailure::BadPackage("move root path does not end at new position".into()).into());
+                }
+                if !cfg!(feature = "mutate-position-no-anchor") { match (&marker.anchor, anchor_marker.as_ref()) {
+                    (Anchor::FileStart, None) => {}
+                    (Anchor::After(anchor_group), Some(anchor)) if anchor.group == *anchor_group
+                        && anchor.file_path == marker.file_path && anchor.group != g
+                        && marker.root_path.len() == anchor.root_path.len() + 1
+                        && marker.root_path[..anchor.root_path.len()] == anchor.root_path => {
+                        let anchor_base = get(trx, &k.marker(anchor_group)).await?.map(|v| envelope_object_id(&v)).transpose()?;
+                        let key = if anchor_base == Some(anchor.id()) { k.marker(anchor_group) }
+                            else { k.marker_variant(anchor_group, &anchor.id()) };
+                        let stored = get(trx, &key).await?.ok_or(GuardFailure::NotPublished(*anchor_group))?;
+                        if envelope_object_id(&stored)? != anchor.id() {
+                            return Err(GuardFailure::BadPackage("move anchor marker changed".into()).into());
+                        }
+                        let (b, e) = if anchor_base == Some(anchor.id()) { k.certs_of(anchor_group).range() }
+                            else { k.root.subspace(&("vcer", b(&anchor_group.0), b(&anchor.id().0))).range() };
+                        if range(trx, b, e, 1).await?.is_empty() { return Err(GuardFailure::Uncertified(*anchor_group).into()); }
+                    }
+                    _ => return Err(GuardFailure::BadPackage("move anchor path differs".into()).into()),
+                }}
+                trx.set(&vk, &value);
+                trx.set(&ck, &cert);
+                append_event(trx, &k, &AeKind::GroupVariant { group: g, marker: mid, cert: certificate.id() }, 0);
+                Ok(Step::Commit(true))
+            })
+        })).await
+    }
+
     // ============================================================ T8 tombstone
 
     /// Publish a tombstone (§11.4): the tombstone key and the publisher's tombstone
@@ -812,6 +1041,7 @@ pub(crate) struct PublishArgs {
     pub writer: WorkspaceId,
     pub group: Id,
     pub marker_id: Id,
+    pub author: AgentId,
     pub marker_value: Vec<u8>,
     pub revisions: Vec<(Id, Revision, Vec<u8>)>,
     pub receipt_id: Id,
@@ -885,6 +1115,15 @@ async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs) -> Result<Step<Pu
             return Ok(Step::Done(PublishOutcome { marker: a.marker_id, fresh: false }));
         }
         return Err(GuardFailure::AlreadyPublished { group: a.group, existing }.into());
+    }
+    let cert = Cert::from_bytes(&a.cert_value)?;
+    let public = *a.ring.writer(&a.writer).ok_or_else(|| GuardFailure::AgentKeyNotRegistered(a.author.hex()))?;
+    if cert.body.group != a.group || cert.body.marker != a.marker_id || cert.body.writer != a.writer ||
+        !cert.verify(&public) {
+        return Err(GuardFailure::BadPackage("publisher certificate does not bind the claimed writer".into()).into());
+    }
+    if !cfg!(feature = "mutate-no-agent-registry") {
+        active_agent_key(trx, k, &a.ring, a.author, a.writer, public).await?;
     }
     // P3 staging rule (receipt.rs, OPEN-7): the receipt verifies under a configured validator
     // key, is accepted, names this group, and is bound to a controller-issued envelope with
@@ -1009,17 +1248,17 @@ pub(crate) struct TombstoneArgs {
     /// The names and workspaces of the target's revisions (read and verified by the writer).
     pub target_names: Vec<Name>,
     pub target_workspaces: Vec<WorkspaceId>,
+    pub ring: Arc<crate::sign::KeyRing>,
+    pub controller_grant: Option<crate::authority::ControllerDeleteGrant>,
 }
 
 /// The tombstone rules shared by T8 and the anti-entropy receive (T10). Workspaces models a
 /// tombstone as a revision of its target: the target is published (its revision ancestors
 /// are admitted), in the same file, and older (`ts e < ts d` for everything the author
-/// knows). OPEN-19's v0 default restricts deletion to the element's author (the controller
-/// path is not implemented): the tombstone's `author` is the target marker's, and the
-/// deleting writer (`deleter`, who signs the tombstone certificate) is the workspace of the
-/// target's revisions, since P2 has no registry binding agent IDs to workspaces. TargetNames
-/// has no deletion, so a group declaring a target name cannot be tombstoned (P2's choice;
-/// see docs/p2-log.md).
+/// knows). The deleting writer must have an active controller-signed AgentID registration,
+/// or present an exact controller deletion grant at the current local fence. Received
+/// historical deletions verify their grant against the certified source controller.
+/// TargetNames has no deletion, so a group declaring a target name cannot be tombstoned.
 pub(crate) async fn tombstone_guards(
     trx: &Transaction,
     k: &Keys,
@@ -1028,16 +1267,28 @@ pub(crate) async fn tombstone_guards(
     names: &[Name],
     workspaces: &[WorkspaceId],
     deleter: &WorkspaceId,
+    deleter_public: [u8; 32],
+    ring: &crate::sign::KeyRing,
+    grant: Option<&crate::authority::ControllerDeleteGrant>,
+    foreign_controller: bool,
+    agent_issuer: [u8; 32],
 ) -> Result<()> {
     let g = t.target;
     if !cfg!(feature = "mutate-tombstone-no-target-check") {
-        let Some(mv) = get(trx, &k.marker(&g)).await? else {
+        let base_key = k.marker(&g);
+        let base_id = get(trx, &base_key).await?.map(|v| envelope_object_id(&v)).transpose()?;
+        let marker_key = if t.position.is_some() && base_id != Some(m.id()) {
+            k.marker_variant(&g, &m.id())
+        } else { base_key.clone() };
+        let Some(mv) = get(trx, &marker_key).await? else {
             return Err(GuardFailure::NotPublished(g).into());
         };
-        if envelope_object_id(&mv)? != m.id() || m.group != g {
+        if envelope_object_id(&mv)? != m.id() || m.group != g
+            || t.position.is_some_and(|position| position != m.id()) {
             return Err(GuardFailure::BadPackage("tombstone target's marker differs".into()).into());
         }
-        let (b0, e0) = k.certs_of(&g).range();
+        let (b0, e0) = if marker_key == base_key { k.certs_of(&g).range() }
+            else { k.root.subspace(&("vcer", b(&g.0), b(&m.id().0))).range() };
         if range(trx, b0, e0, 1).await?.is_empty() {
             return Err(GuardFailure::Uncertified(g).into());
         }
@@ -1048,8 +1299,35 @@ pub(crate) async fn tombstone_guards(
     if t.lamport <= m.lamport {
         return Err(GuardFailure::TombstoneNotNewer { lamport: t.lamport, target: m.lamport }.into());
     }
-    if (t.author != m.author || !workspaces.contains(deleter)) && !cfg!(feature = "mutate-tombstone-no-author-check") {
+    let controller = if let Some(grant) = grant {
+        let issuer: [u8; 32] = hex::decode(&grant.issuer).ok().and_then(|v| v.try_into().ok())
+            .ok_or(GuardFailure::ControllerDeleteDenied)?;
+        if (!foreign_controller && issuer != ring.authority) ||
+            (foreign_controller && issuer != ring.authority && !ring.agent_authorities.contains(&issuer)) {
+            return Err(GuardFailure::ControllerDeleteDenied.into());
+        }
+        if !grant.verify(&t.id(), &issuer) { return Err(GuardFailure::ControllerDeleteDenied.into()); }
+        if t.author != crate::authority::controller_agent_id(&issuer) {
+            return Err(GuardFailure::ControllerDeleteDenied.into());
+        }
+        if !foreign_controller {
+            let current = get(trx, &k.fence()).await?.map(|v| dec_u64(&v)).transpose()?.unwrap_or(0);
+            if grant.fence != current && !cfg!(feature = "mutate-no-controller-fence") {
+                return Err(GuardFailure::ControllerDeleteDenied.into());
+            }
+        }
+        true
+    } else { false };
+    if !controller && (t.author != m.author || !workspaces.contains(deleter)) && !cfg!(feature = "mutate-tombstone-no-author-check") {
         return Err(GuardFailure::TombstoneNotAuthor.into());
+    }
+    if !cfg!(feature = "mutate-no-agent-registry") {
+        let agent = if controller {
+            ring.agent_keys.iter().find_map(|entry| entry.parts().and_then(|(agent, writer, public, _)|
+                (writer == *deleter && public == deleter_public && entry.verify()).then_some(agent)))
+                .ok_or_else(|| GuardFailure::AgentKeyNotRegistered(t.author.hex()))?
+        } else { t.author };
+        active_agent_key_from(trx, k, ring, agent, *deleter, deleter_public, agent_issuer).await?;
     }
     for n in names {
         if config_in_txn(trx, k).await?.as_ref().is_some_and(|cfg| cfg.target_homes.contains_key(n)) {
@@ -1084,8 +1362,19 @@ async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<
         }
         return Err(GuardFailure::TombstoneExists { tombstone: a.tombstone_id }.into());
     }
-    tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.writer).await?;
+    let cert = TombstoneCert::from_bytes(&a.cert_value)?;
+    let public = a.ring.writer(&a.writer)
+        .ok_or_else(|| GuardFailure::AgentKeyNotRegistered(a.tombstone.author.hex()))?;
+    let cert_valid = if cfg!(feature = "mutate-agent-historical-t8") {
+        a.ring.verify_writer(&a.writer, &cert.id(), &cert.sig)
+    } else { cert.verify(public) };
+    if cert.body.tombstone != a.tombstone_id || cert.body.target != a.tombstone.target || cert.body.writer != a.writer ||
+        !cert_valid {
+        return Err(GuardFailure::BadPackage("tombstone certificate does not bind the writer".into()).into());
+    }
+    tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.writer, *public, &a.ring, a.controller_grant.as_ref(), false, a.ring.authority).await?;
     trx.set(&tk, &a.value);
+    if let Some(grant) = &a.controller_grant { trx.set(&k.delete_grant(&a.tombstone_id), &grant.encoded()); }
     if !cfg!(feature = "mutate-tombstone-cert-outside") {
         trx.set(&ck, &a.cert_value);
     }
@@ -1098,6 +1387,11 @@ async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs) -> Result<Step<
 pub(crate) struct ReceiveGroupArgs {
     pub group: Id,
     pub marker_id: Id,
+    pub author: AgentId,
+    pub author_writer: WorkspaceId,
+    pub author_public: [u8; 32],
+    pub author_replica: crate::id::ReplicaId,
+    pub ring: Arc<crate::sign::KeyRing>,
     pub marker_value: Vec<u8>,
     pub revisions: Vec<(Id, Revision, Vec<u8>)>,
     pub receipt_id: Id,
@@ -1116,7 +1410,6 @@ pub(crate) struct ReceiveGroupArgs {
     pub local_issuers: Vec<[u8; 32]>,
     /// The groups the job's dependency capsules name (T1's dependency guard).
     pub dep_groups: Vec<Id>,
-    pub ring: Arc<crate::sign::KeyRing>,
     pub replica: crate::id::ReplicaId,
     /// This deployment's receiver certificate (key, value).
     pub cert: (Vec<u8>, Vec<u8>),
@@ -1150,12 +1443,29 @@ async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs) -> Result<St
             }
             let member = &cfg.members[home];
             if !a.evidence.iter().any(|(_, value)| Cert::from_bytes(value).ok().is_some_and(|c|
-                c.body.group == a.group && c.body.marker == a.marker_id && c.body.replica == member.replica && member.writers.contains_key(&c.body.writer))) {
+                c.body.group == a.group && c.body.marker == a.marker_id && c.body.replica == member.replica &&
+                member.verify_writer(&a.ring, &c.body.writer, &c.id(), &c.sig))) {
                 return Err(StoreError::Invalid("target publication lacks home certificate".into()));
             }
         }
     } else if a.target_home.is_some() {
         return Err(StoreError::Invalid("target home supplied without pinned federation".into()));
+    }
+    if !cfg!(feature = "mutate-no-agent-registry") {
+        if a.ring.ambiguous_writer_origins.contains(&a.author_writer) {
+            return Err(GuardFailure::AgentKeyNotRegistered(a.author.hex()).into());
+        }
+        let issuer = if let Some(cfg) = &federation {
+            cfg.members.values().find(|member| member.replica == a.author_replica &&
+                a.evidence.iter().any(|(_, bytes)| Cert::from_bytes(bytes).ok().is_some_and(|cert|
+                    cert.body.group == a.group && cert.body.marker == a.marker_id &&
+                    cert.body.writer == a.author_writer && cert.body.replica == a.author_replica &&
+                    a.ring.signing_writer_key(&a.author_writer, &cert.id(), &cert.sig) == Some(a.author_public) &&
+                    member.verify_writer(&a.ring, &a.author_writer, &cert.id(), &cert.sig))))
+                .map(|member| member.authority)
+        } else { a.ring.writer_origins.get(&a.author_writer).copied() };
+        let issuer = issuer.ok_or_else(|| GuardFailure::AgentKeyNotRegistered(a.author.hex()))?;
+        active_agent_key_from(trx, k, &a.ring, a.author, a.author_writer, a.author_public, issuer).await?;
     }
     let mk = k.marker(&a.group);
     let mut publication_new = false;
@@ -1287,12 +1597,16 @@ pub(crate) struct ReceiveTombstoneArgs {
     /// The writer of a verified sender certificate who is the target's author workspace,
     /// i.e. the deleter (OPEN-19 default), if any.
     pub deleter: WorkspaceId,
+    pub deleter_public: [u8; 32],
+    pub deleter_replica: crate::id::ReplicaId,
+    pub ring: Arc<crate::sign::KeyRing>,
+    pub controller_grant: Option<crate::authority::ControllerDeleteGrant>,
     pub cert: (Vec<u8>, Vec<u8>),
     pub evidence: Vec<(Vec<u8>, Vec<u8>)>,
 }
 
 async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Result<Step<bool>> {
-    let _federation = config_in_txn(trx, k).await?;
+    let federation = config_in_txn(trx, k).await?;
     let tk = k.tombstone(&a.tombstone_id);
     let mut publication_new = false;
     if let Some(v) = get(trx, &tk).await? {
@@ -1300,8 +1614,40 @@ async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneArgs) -> Resu
             return Err(StoreError::Invalid("tombstone key holds another object".into()));
         }
     } else {
-        tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.deleter).await?;
+        if a.ring.ambiguous_writer_origins.contains(&a.deleter) {
+            return Err(GuardFailure::AgentKeyNotRegistered(a.tombstone.author.hex()).into());
+        }
+        let source_issuer = if let Some(cfg) = &federation {
+            cfg.members.values().find(|member| member.replica == a.deleter_replica &&
+                a.evidence.iter().any(|(_, bytes)| TombstoneCert::from_bytes(bytes).ok().is_some_and(|cert|
+                    cert.body.tombstone == a.tombstone_id && cert.body.writer == a.deleter &&
+                    cert.body.replica == a.deleter_replica &&
+                    a.ring.signing_writer_key(&a.deleter, &cert.id(), &cert.sig) == Some(a.deleter_public) &&
+                    member.verify_writer(&a.ring, &a.deleter, &cert.id(), &cert.sig))))
+                .map(|member| member.authority)
+        } else { a.ring.writer_origins.get(&a.deleter).copied() };
+        let source_issuer = source_issuer.ok_or_else(|| GuardFailure::AgentKeyNotRegistered(a.tombstone.author.hex()))?;
+        if let Some(grant) = &a.controller_grant {
+            let grant_issuer: Option<[u8; 32]> = hex::decode(&grant.issuer).ok().and_then(|v| v.try_into().ok());
+            let source_bound = a.evidence.iter().filter_map(|(_, bytes)| TombstoneCert::from_bytes(bytes).ok()).any(|cert| {
+                if cert.body.tombstone != a.tombstone_id || cert.body.target != a.tombstone.target { return false; }
+                let Some(public) = a.ring.signing_writer_key(&cert.body.writer, &cert.id(), &cert.sig) else { return false };
+                let origin_matches = grant_issuer.is_some_and(|issuer| !a.ring.ambiguous_writer_origins.contains(&cert.body.writer) &&
+                    federation.as_ref().map_or_else(
+                        || a.ring.writer_origins.get(&cert.body.writer).copied() == Some(issuer),
+                        |cfg| cfg.members.values().any(|member| member.replica == cert.body.replica &&
+                            member.authority == issuer && member.verify_writer(&a.ring, &cert.body.writer, &cert.id(), &cert.sig))));
+                let registered_source = a.ring.agent_keys.iter().any(|entry| entry.parts().is_some_and(|(_, workspace, key, issuer)|
+                    workspace == cert.body.writer && key == public && grant.issuer == hex::encode(issuer) && entry.verify()));
+                registered_source && (origin_matches || cfg!(feature = "mutate-controller-no-origin"))
+            });
+            if !source_bound && !cfg!(feature = "mutate-controller-no-source") {
+                return Err(GuardFailure::ControllerDeleteDenied.into());
+            }
+        }
+        tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.deleter, a.deleter_public, &a.ring, a.controller_grant.as_ref(), true, source_issuer).await?;
         trx.set(&tk, &a.value);
+        if let Some(grant) = &a.controller_grant { trx.set(&k.delete_grant(&a.tombstone_id), &grant.encoded()); }
         publication_new = true;
     }
     let mut changed = publication_new;
@@ -1343,6 +1689,9 @@ pub(crate) struct CommitArgs {
     pub record: SignedRecord,
     pub record_value: Vec<u8>,
     pub rcert_value: Vec<u8>,
+    pub snapshot: Option<Snapshot>,
+    pub ring: Arc<crate::sign::KeyRing>,
+    pub replica: crate::id::ReplicaId,
 }
 
 async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> Result<Step<bool>> {
@@ -1375,6 +1724,11 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
         if get(trx, &k.ocert(Kind::Snapshot, &rec.snapshot)).await?.is_none() {
             return Err(GuardFailure::ManifestUncertified(rec.snapshot).into());
         }
+        let snapshot = a.snapshot.as_ref().ok_or(GuardFailure::CheckpointSnapshotMissing(rec.snapshot))?;
+        if snapshot.id() != rec.snapshot || snapshot.workspace != rec.workspace {
+            return Err(GuardFailure::CheckpointSnapshotMissing(rec.snapshot).into());
+        }
+        crate::checkpoint_guard::check(trx, k, snapshot, &a.ring, a.replica).await?;
         // Every parent is committed: its commit and manifest certificates exist.
         if let Some(p) = rec.predecessor.filter(|_| !cfg!(feature = "mutate-no-parent-check")) {
             if get(trx, &k.rcert(&p)).await?.is_none() {

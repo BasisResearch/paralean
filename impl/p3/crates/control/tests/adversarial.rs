@@ -3,6 +3,8 @@
 //! use `publish_skipping_staging_check`, so the publication transaction's own receipt check
 //! is what refuses them; impl/p3/scripts/check-mutations.sh removes each check and requires
 //! the named test to fail.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -34,7 +36,7 @@ async fn refused_both_ways(w: &Writer, pkg: &Package, want: impl Fn(&GuardFailur
     assert!(!published(&w.store, &pkg.group.id()).await, "{what}: published");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn end_to_end_target_work_publishes_with_bound_receipts() {
     let c = Cluster::start("e2e", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -71,7 +73,7 @@ async fn end_to_end_target_work_publishes_with_bound_receipts() {
     assert!(a.suspect_receipts.is_empty());
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn forged_receipts_fail_closed() {
     let c = Cluster::start("forged", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -112,7 +114,7 @@ async fn forged_receipts_fail_closed() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn receipt_for_another_group_policy_checker_base_or_target_fails_closed() {
     let c = Cluster::start("othergroup", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -156,7 +158,7 @@ async fn receipt_for_another_group_policy_checker_base_or_target_fails_closed() 
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn receipt_under_an_unpinned_policy_fails_closed() {
     // The controller stamps a policy the publishers do not pin: the validator enforces it
     // and signs, but no worker stages and T1 refuses.
@@ -198,7 +200,7 @@ async fn receipt_under_an_unpinned_policy_fails_closed() {
     .await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn receipt_for_another_epoch_fails_closed() {
     let c = Cluster::start("epoch", Opts::default()).await;
     let w0 = c.worker(0, 8192, &core_store()).await;
@@ -234,7 +236,7 @@ async fn receipt_for_another_epoch_fails_closed() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn receipt_for_another_or_cancelled_request_fails_closed() {
     let c = Cluster::start("request", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -264,7 +266,7 @@ async fn receipt_for_another_or_cancelled_request_fails_closed() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn revoked_or_retired_validator_key_fails_closed() {
     let c = Cluster::start("revoke", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -313,7 +315,7 @@ async fn revoked_or_retired_validator_key_fails_closed() {
     w.writer.publish(&p).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn worker_that_skips_validation_cannot_publish() {
     let c = Cluster::start("skip", Opts::default()).await;
     let neg = negative_store(&c.tmp.join("neg"));
@@ -359,7 +361,7 @@ async fn worker_that_skips_validation_cannot_publish() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn stale_owner_after_lease_expiry_cannot_publish() {
     let c = Cluster::start("stale", Opts { lease_ms: 800, ..Opts::default() }).await;
     let a = c.worker_without_heartbeat(0, 8192, &core_store()).await;
@@ -416,7 +418,7 @@ async fn stale_owner_after_lease_expiry_cannot_publish() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn dependency_must_be_published_with_a_receipt() {
     let c = Cluster::start("deps", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -435,7 +437,7 @@ async fn dependency_must_be_published_with_a_receipt() {
     c.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn published_means_a_certificate_that_verifies() {
     // A key under `cert/<group>/` is not a certificate: `published_receipt` (and so the
     // validator's dependency check) needs one that verifies under a ring writer for the
@@ -469,7 +471,7 @@ async fn published_means_a_certificate_that_verifies() {
     published_receipt(&c.store, &small.decl).await.expect("certified again");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn validator_enforces_the_envelope_policy() {
     let o = Opts {
         policy: strict_policy(),
@@ -498,7 +500,7 @@ async fn validator_enforces_the_envelope_policy() {
     w.writer.publish(&w.package(&g, r, j, vec![])).await.unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn changed_target_statement_is_rejected() {
     let c = Cluster::start("statement", Opts::default()).await;
     let w = c.worker(0, 8192, &core_store()).await;
@@ -526,7 +528,7 @@ async fn changed_target_statement_is_rejected() {
     assert!(matches!(r.body.verdict, Verdict::Rejected(_)), "{:?}", r.body.verdict);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn hostile_capsule_gid_is_refused_before_any_write() {
     // The capsule's `gid` names the metadata file the validator writes outside the checker
     // sandbox and an entry of `--gids`. A path or a comma there is refused, nothing is
@@ -560,7 +562,7 @@ async fn hostile_capsule_gid_is_refused_before_any_write() {
     assert!(left.is_empty(), "scratch directories left behind: {left:?}");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn job_issuer_keys_sign_target_free_envelopes_only() {
     let issuer = Signer::derive("p3-issuer-0");
     let c = Cluster::start("issuer", Opts { job_issuers: vec![issuer.clone()], ..Opts::default() }).await;
@@ -628,4 +630,25 @@ async fn job_issuer_keys_sign_target_free_envelopes_only() {
     let pt = w.writer.prepare_target(&t).await.unwrap();
     refused_both_ways(&w.writer, &w.package(&g, r, j, vec![pt]), |f| *f == GuardFailure::ReceiptBinding(BindingFault::JobNotIssued), "issuer-signed target envelope").await;
     c.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("end_to_end_target_work_publishes_with_bound_receipts", || { end_to_end_target_work_publishes_with_bound_receipts(); Ok(()) }),
+        libtest_mimic::Trial::test("forged_receipts_fail_closed", || { forged_receipts_fail_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("receipt_for_another_group_policy_checker_base_or_target_fails_closed", || { receipt_for_another_group_policy_checker_base_or_target_fails_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("receipt_under_an_unpinned_policy_fails_closed", || { receipt_under_an_unpinned_policy_fails_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("receipt_for_another_epoch_fails_closed", || { receipt_for_another_epoch_fails_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("receipt_for_another_or_cancelled_request_fails_closed", || { receipt_for_another_or_cancelled_request_fails_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("revoked_or_retired_validator_key_fails_closed", || { revoked_or_retired_validator_key_fails_closed(); Ok(()) }),
+        libtest_mimic::Trial::test("worker_that_skips_validation_cannot_publish", || { worker_that_skips_validation_cannot_publish(); Ok(()) }),
+        libtest_mimic::Trial::test("stale_owner_after_lease_expiry_cannot_publish", || { stale_owner_after_lease_expiry_cannot_publish(); Ok(()) }),
+        libtest_mimic::Trial::test("dependency_must_be_published_with_a_receipt", || { dependency_must_be_published_with_a_receipt(); Ok(()) }),
+        libtest_mimic::Trial::test("published_means_a_certificate_that_verifies", || { published_means_a_certificate_that_verifies(); Ok(()) }),
+        libtest_mimic::Trial::test("validator_enforces_the_envelope_policy", || { validator_enforces_the_envelope_policy(); Ok(()) }),
+        libtest_mimic::Trial::test("changed_target_statement_is_rejected", || { changed_target_statement_is_rejected(); Ok(()) }),
+        libtest_mimic::Trial::test("hostile_capsule_gid_is_refused_before_any_write", || { hostile_capsule_gid_is_refused_before_any_write(); Ok(()) }),
+        libtest_mimic::Trial::test("job_issuer_keys_sign_target_free_envelopes_only", || { job_issuer_keys_sign_target_free_envelopes_only(); Ok(()) }),
+    ]);
 }

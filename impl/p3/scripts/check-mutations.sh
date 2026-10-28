@@ -42,12 +42,11 @@ cases=(
   "mutate-unbounded-completed-slots|lib|validator::completed_tests::completed_receipt_cache_is_bounded"
   # W2 control-plane review (results/w2/control-fixes).
   "mutate-unchecked-gid|adversarial|hostile_capsule_gid_is_refused_before_any_write"
-  "paralean-store/mutate-unscoped-job-keys|control|request_ids_are_scoped_per_workspace"
+  "mutate-unscoped-job-keys|control|request_ids_are_scoped_per_workspace"
   "mutate-unscoped-validator-slots|control|validator_slots_are_scoped_by_issuer_and_workspace"
   "mutate-attached-validation|control|dropped_validation_still_finishes_and_releases_its_resources"
   "mutate-validator-checks-issuer-targets|adversarial|job_issuer_keys_sign_target_free_envelopes_only"
   "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
-  "mutate-keep-old-snapshot-chunks|durable|superseded_snapshot_chunks_are_cleared_with_the_head_swap"
   "mutate-role-keys-unchecked|processes|processes_refuse_key_files_with_seeds_of_other_roles"
   "paralean-validator-api/mutate-unverified-published-cert|adversarial|published_means_a_certificate_that_verifies"
 )

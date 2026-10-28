@@ -18,3 +18,10 @@ paralean-ae-service = { path = "../ae-service" }
 ae-wire = { path = "../ae-wire" }
 ed25519-dalek = "2"
 libc = "0.2"
+
+[dev-dependencies]
+libtest-mimic = "0.8.2"
+
+[[test]]
+name = "multiprocess"
+harness = false

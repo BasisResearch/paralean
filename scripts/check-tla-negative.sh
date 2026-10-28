@@ -123,6 +123,54 @@ run_expected_missing_witness() {
 cases=()
 defcase() { cases+=("$1"); }
 
+# W5: editor publication, policy fencing, atomic rename and private recapture.
+editor_mutation() {
+  local label="$1" old="$2" replacement="$3" invariant="$4" config="$5"
+  prepare_case "$label"
+  edit_once "$neg/$label/EditorWiring.tla" "$old" "$replacement"
+  run_expected_failure "$label" EditorWiring "Invariant $invariant is violated" "$config"
+}
+defcase editor_no_receipt
+case_editor_no_receipt() { editor_mutation editor_no_receipt 'ReceiptOK == receipt' 'ReceiptOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_no_action
+case_editor_no_action() { editor_mutation editor_no_action 'ActionOK == authorized' 'ActionOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_stale_publish
+case_editor_stale_publish() { editor_mutation editor_stale_publish 'FreshOK == captured = Stamp' 'FreshOK == TRUE' PublicationSafe EditorPublication; }
+defcase editor_no_policy_fence
+case_editor_no_policy_fence() { editor_mutation editor_no_policy_fence 'FenceSession == FALSE' 'FenceSession == TRUE' SessionFenced EditorPublication; }
+defcase rename_missing_participant
+case_rename_missing_participant() { editor_mutation rename_missing_participant 'AllPrepared == prepared = Workspaces' 'AllPrepared == TRUE' RenameSafe EditorRename; }
+defcase rename_incomplete_inventory
+case_rename_incomplete_inventory() { editor_mutation rename_incomplete_inventory 'InventoryOK == complete' 'InventoryOK == TRUE' RenameSafe EditorRename; }
+defcase rename_invalid_plan
+case_rename_invalid_plan() { editor_mutation rename_invalid_plan 'PlansOK == validPlans' 'PlansOK == TRUE' RenameSafe EditorRename; }
+defcase rename_stale_plan
+case_rename_stale_plan() { editor_mutation rename_stale_plan 'FreshOK == captured = Stamp' 'FreshOK == TRUE' RenameSafe EditorRename; }
+defcase rename_partial_commit
+case_rename_partial_commit() { editor_mutation rename_partial_commit 'RenameSet == Workspaces' 'RenameSet == {"a"}' RenameAtomic EditorRename; }
+defcase recapture_unverified
+case_recapture_unverified() { editor_mutation recapture_unverified 'ReplayOK == replayVerified' 'ReplayOK == TRUE' OverlaySafe CapsuleReplay; }
+defcase recapture_wrong_identity
+case_recapture_wrong_identity() { editor_mutation recapture_wrong_identity 'IdentityOK == capsuleMatches' 'IdentityOK == TRUE' OverlaySafe CapsuleReplay; }
+defcase editor_publish_work
+case_editor_publish_work() {
+  prepare_case editor_publish_work
+  printf '%s\n' 'INVARIANT NeverPublished' >> "$neg/editor_publish_work/EditorPublication.cfg"
+  run_expected_failure editor_publish_work EditorWiring 'Invariant NeverPublished is violated' EditorPublication
+}
+defcase editor_rename_work
+case_editor_rename_work() {
+  prepare_case editor_rename_work
+  printf '%s\n' 'INVARIANT NeverRenamed' >> "$neg/editor_rename_work/EditorRename.cfg"
+  run_expected_failure editor_rename_work EditorWiring 'Invariant NeverRenamed is violated' EditorRename
+}
+defcase editor_recapture_work
+case_editor_recapture_work() {
+  prepare_case editor_recapture_work
+  printf '%s\n' 'INVARIANT NeverOverlay' >> "$neg/editor_recapture_work/CapsuleReplay.cfg"
+  run_expected_failure editor_recapture_work EditorWiring 'Invariant NeverOverlay is violated' CapsuleReplay
+}
+
 # ---------------------------------------------------------------------------
 # Reachability witnesses: each invariant must be violated.
 witness_items=(
@@ -148,6 +196,38 @@ witness_items=(
   'target_home_publication TargetHomes NeverPublished'
   'target_home_receive TargetHomes NeverRemoteReceived'
   'target_home_handover TargetHomes NeverReassignedPublication'
+  'replay_original ReplayIdentity NeverOriginalAccepted'
+  'replay_synthetic_rejection ReplayIdentity NeverSyntheticRejected'
+  'replay_ordinary ReplayIdentity NeverOrdinarySyntheticAccepted'
+  'lookup_reordered_ref ExportLookup NeverRefAccepted'
+  'lookup_reordered_trace ExportLookup NeverTraceAccepted'
+  'lookup_reordered_option ExportLookup NeverOptionAccepted'
+  'lookup_literal_rejected ExportLookup NeverLiteralRejected'
+  'lookup_ambiguous_rejected ExportLookup NeverAmbiguousRejected'
+  'lookup_reuse_rejected ExportLookup NeverReusedRejected'
+  'residual_f10_recovered ExportLookupResidual NeverDriftAccepted'
+  'residual_exact_owner_body_rejected ExportLookupResidual NeverOwnerRejected'
+  'residual_early_rejected ExportLookupResidual NeverEarlyRejected'
+  'residual_full_ambiguous_rejected ExportLookupResidual NeverAmbiguousRejected'
+  'residual_ambiguous_owner_reserved ExportLookupResidual NeverAmbigEarlyRejected'
+  'residual_two_captures_rejected ExportLookupResidual NeverTwoRejected'
+  'residual_two_candidates_rejected ExportLookupResidual NeverMultiRejected'
+  'residual_changed_body_rejected ExportLookupResidual NeverChangedRejected'
+  'catalogue_relay CatalogueExchange NeverRelayedChild'
+  'w4_handover W4Scale NeverHandover'
+  'w4_handover_publish W4Scale NeverHandoverPublished'
+  'w4_cross_shard W4Scale NeverDependentPublished'
+  'w4_collect W4Scale NeverCollected'
+  'w4_desktop_recovery W4Scale NeverRecovered'
+  'w4_retained W4Scale NeverRetained'
+  'w4_tombstoned W4Scale NeverTombstoned'
+  'history_compacted W4History NeverCompacted'
+  'history_poll_compacted W4History NeverPollCompacted'
+  'history_late_work W4History NeverReplayedAfterCompact'
+  'history_late_poll W4History NeverLatePoll'
+  'history_replay_gc_off W4History NeverReplayWithGcOff'
+  'history_handover W4History NeverHandover'
+  'history_cancelled_replay W4History NeverCancelledReplay'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -164,7 +244,307 @@ for item in "${witness_items[@]}"; do
   defcase "$label"
 done
 
+# W4 leases and controller-metadata collection. The observers remain intact
+# when the corresponding action guard is removed.
+defcase w4_no_term_fence
+case_w4_no_term_fence() {
+  prepare_case w4_no_term_fence
+  edit_once "$neg/w4_no_term_fence/W4Scale.tla" \
+    '  /\ TermOK(Home[o], w, o)' '  /\ TRUE'
+  run_expected_failure w4_no_term_fence W4Scale 'Invariant NoStalePublish is violated'
+}
+
+defcase w4_no_expiry
+case_w4_no_expiry() {
+  prepare_case w4_no_expiry
+  edit_once "$neg/w4_no_expiry/W4Scale.tla" \
+    'LeaseOK(s, w) == holder[s] = w /\ version[s] < expiry[s]' \
+    'LeaseOK(s, w) == holder[s] = w'
+  run_expected_failure w4_no_expiry W4Scale 'Invariant NoStalePublish is violated'
+}
+
+defcase w4_no_cross_shard_closure
+case_w4_no_cross_shard_closure() {
+  prepare_case w4_no_cross_shard_closure
+  edit_once "$neg/w4_no_cross_shard_closure/W4Scale.tla" \
+    'Protected == Closure(Closure(Closure(RootSet)))' 'Protected == RootSet'
+  run_expected_failure w4_no_cross_shard_closure W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_pending_root
+case_w4_no_pending_root() {
+  prepare_case w4_no_pending_root
+  edit_once "$neg/w4_no_pending_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup checkpoint \cup catalog'
+  run_expected_failure w4_no_pending_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_demand_root
+case_w4_no_demand_root() {
+  prepare_case w4_no_demand_root
+  edit_once "$neg/w4_no_demand_root/W4Scale.tla" \
+    '           \cup retained \cup UNION {demand[w] : w \in Workers}' \
+    '           \cup retained'
+  edit_once "$neg/w4_no_demand_root/W4Scale.cfg" \
+    'INVARIANTS RootsLive NoResurrection NoStalePublish NoUnrequestedFetch GraceKept NoDemandDeleted' \
+    'INVARIANTS NoDemandDeleted'
+  run_expected_failure w4_no_demand_root W4Scale 'Invariant NoDemandDeleted is violated'
+}
+
+defcase w4_no_grace
+case_w4_no_grace() {
+  prepare_case w4_no_grace
+  edit_once "$neg/w4_no_grace/W4Scale.tla" \
+    'OldEnough(o) == retired[o] > 0 /\ version[Home[o]] >= retired[o] + Grace' \
+    'OldEnough(o) == retired[o] > 0'
+  run_expected_failure w4_no_grace W4Scale 'Invariant GraceKept is violated'
+}
+
+defcase w4_no_checkpoint_root
+case_w4_no_checkpoint_root() {
+  prepare_case w4_no_checkpoint_root
+  edit_once "$neg/w4_no_checkpoint_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup catalog'
+  run_expected_failure w4_no_checkpoint_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_catalog_root
+case_w4_no_catalog_root() {
+  prepare_case w4_no_catalog_root
+  edit_once "$neg/w4_no_catalog_root/W4Scale.tla" \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint \cup catalog' \
+    'RootSet == (Range(roots) \ {None}) \cup pending \cup checkpoint'
+  run_expected_failure w4_no_catalog_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_no_retained_root
+case_w4_no_retained_root() {
+  prepare_case w4_no_retained_root
+  edit_once "$neg/w4_no_retained_root/W4Scale.tla" \
+    '           \cup retained \cup UNION {demand[w] : w \in Workers}' \
+    '           \cup UNION {demand[w] : w \in Workers}'
+  run_expected_failure w4_no_retained_root W4Scale 'Invariant RootsLive is violated'
+}
+
+# Integration: W3 tombstone lineage is a GC root like checkpoints and catalogue
+# records; without it a tombstoned, superseded snapshot can be collected.
+defcase w4_no_tombstone_root
+case_w4_no_tombstone_root() {
+  prepare_case w4_no_tombstone_root
+  edit_once "$neg/w4_no_tombstone_root/W4Scale.tla" \
+    'TombstoneRoots == tombstoned' 'TombstoneRoots == {}'
+  run_expected_failure w4_no_tombstone_root W4Scale 'Invariant RootsLive is violated'
+}
+
+defcase w4_unsolicited_fetch
+case_w4_unsolicited_fetch() {
+  prepare_case w4_unsolicited_fetch
+  edit_once "$neg/w4_unsolicited_fetch/W4Scale.tla" \
+    '  /\ o \in demand[w]' \
+    '  /\ TRUE'
+  run_expected_failure w4_unsolicited_fetch W4Scale 'Invariant NoUnrequestedFetch is violated'
+}
+
+# W4 history compaction: one atomic metadata transaction moves terminal work
+# and stable poll bindings to immutable replay rows before pruning the head.
+defcase history_no_fence
+case_history_no_fence() {
+  prepare_case history_no_fence
+  edit_once "$neg/history_no_fence/W4History.tla" \
+    'FenceOK(w) == LeaseOK(w) /\ begun[w] = term' \
+    'FenceOK(w) == TRUE'
+  run_expected_failure history_no_fence W4History 'Invariant FencedCompact is violated'
+}
+
+defcase history_no_terminal_check
+case_history_no_terminal_check() {
+  prepare_case history_no_terminal_check
+  edit_once "$neg/history_no_terminal_check/W4History.tla" \
+    'TerminalOK == status = "done"' 'TerminalOK == TRUE'
+  run_expected_failure history_no_terminal_check W4History 'Invariant PendingKept is violated'
+}
+
+defcase history_no_work_marker
+case_history_no_work_marker() {
+  prepare_case history_no_work_marker
+  edit_once "$neg/history_no_work_marker/W4History.tla" \
+    "  /\\ workReplay' = TRUE" "  /\\ workReplay' = FALSE"
+  run_expected_failure history_no_work_marker W4History 'Invariant ReplayCovered is violated'
+}
+
+defcase history_no_poll_marker
+case_history_no_poll_marker() {
+  prepare_case history_no_poll_marker
+  edit_once "$neg/history_no_poll_marker/W4History.tla" \
+    "  /\\ pollReplay' = (pollReplay \\/ pollSnapshot)" \
+    "  /\\ pollReplay' = pollReplay"
+  run_expected_failure history_no_poll_marker W4History 'Invariant PollCovered is violated'
+}
+
+defcase history_no_work_replay_lookup
+case_history_no_work_replay_lookup() {
+  prepare_case history_no_work_replay_lookup
+  edit_once "$neg/history_no_work_replay_lookup/W4History.tla" \
+    'WorkKnown == status # "absent" \/ workReplay' \
+    'WorkKnown == status # "absent"'
+  run_expected_failure history_no_work_replay_lookup W4History 'Invariant NoDuplicateWork is violated'
+}
+
+defcase history_no_poll_replay_lookup
+case_history_no_poll_replay_lookup() {
+  prepare_case history_no_poll_replay_lookup
+  edit_once "$neg/history_no_poll_replay_lookup/W4History.tla" \
+    'PollKnown == pollSnapshot \/ pollReplay' \
+    'PollKnown == pollSnapshot'
+  run_expected_failure history_no_poll_replay_lookup W4History 'Invariant NoDuplicatePoll is violated'
+}
+
+defcase history_no_identity_check
+case_history_no_identity_check() {
+  prepare_case history_no_identity_check
+  edit_once "$neg/history_no_identity_check/W4History.tla" \
+    '  /\ (~WorkKnown \/ p = StoredPayload)' '  /\ TRUE'
+  run_expected_failure history_no_identity_check W4History 'Invariant ExactIdentity is violated'
+}
+
+defcase history_no_poll_worker_check
+case_history_no_poll_worker_check() {
+  prepare_case history_no_poll_worker_check
+  edit_once "$neg/history_no_poll_worker_check/W4History.tla" \
+    '  /\ (~PollKnown \/ pollWorker = w)' '  /\ TRUE'
+  run_expected_failure history_no_poll_worker_check W4History 'Invariant NoWrongWorker is violated'
+}
+
+defcase history_no_work_grace
+case_history_no_work_grace() {
+  prepare_case history_no_work_grace
+  edit_once "$neg/history_no_work_grace/W4History.tla" \
+    '  /\ tick >= workFinishedTick + Grace' '  /\ TRUE'
+  run_expected_failure history_no_work_grace W4History 'Invariant LogicalGrace is violated'
+}
+
+defcase history_no_poll_grace
+case_history_no_poll_grace() {
+  prepare_case history_no_poll_grace
+  edit_once "$neg/history_no_poll_grace/W4History.tla" \
+    '  /\ tick >= pollStableTick + Grace' \
+    '  /\ TRUE'
+  run_expected_failure history_no_poll_grace W4History 'Invariant LogicalGrace is violated'
+}
+
+defcase history_no_cancel_overlay
+case_history_no_cancel_overlay() {
+  prepare_case history_no_cancel_overlay
+  edit_once "$neg/history_no_cancel_overlay/W4History.tla" \
+    'DuplicateResult == IF cancelled THEN "cancelled" ELSE "done"' \
+    'DuplicateResult == "done"'
+  run_expected_failure history_no_cancel_overlay W4History 'Invariant CancelOverlay is violated'
+}
+
 # ---------------------------------------------------------------------------
+# Source-qualified catalogue exchange guards.
+for spec in \
+  'catalogue_no_proof|SourceProof(r) == r \in sourceCert|SourceProof(r) == TRUE|OnlySourceCertified' \
+  'catalogue_no_parent|ParentReady(n, r) == Parent(r) \subseteq (copies[n] \cup local[n])|ParentReady(n, r) == TRUE|ParentClosed' \
+  'catalogue_no_ack|PayloadReady(n, r) == r \in payload[n]|PayloadReady(n, r) == TRUE|LocallyAcknowledged'; do
+  IFS='|' read -r label old new invariant <<< "$spec"
+  # Keep the oracle independent of the predicate removed by a mutation.
+  if [[ $label == catalogue_no_parent ]]; then
+    old='  /\ ParentReady(n, r)'
+    new='  /\ TRUE'
+  fi
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/CatalogueExchange.tla\" '$old' '$new'
+    finite_witness_config \"\$neg/$label/CatalogueExchange.cfg\" '$invariant'
+    run_expected_failure '$label' CatalogueExchange 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase catalogue_local_certificate
+case_catalogue_local_certificate() {
+  prepare_case catalogue_local_certificate
+  edit_once "$neg/catalogue_local_certificate/CatalogueExchange.tla" \
+    "  /\\ local' = local" "  /\\ local' = [local EXCEPT ![n] = @ \\cup {r}]"
+  finite_witness_config "$neg/catalogue_local_certificate/CatalogueExchange.cfg" FenceIsolation
+  run_expected_failure catalogue_local_certificate CatalogueExchange 'Invariant FenceIsolation is violated'
+}
+
+for spec in \
+  'position_foreign_certificate|UseForeignEvidence|LocalCertOnly' \
+  'position_group_wide_delete|GroupWideDelete|ReinsertVisible' \
+  'position_move_without_delete|SkipMoveGuard|MoveCertified'; do
+  IFS='|' read -r label flag invariant <<< "$spec"
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/StorePositions.cfg\" '  $flag = FALSE' '  $flag = TRUE'
+    run_expected_failure '$label' StorePositions 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase position_registry_erasure
+case_position_registry_erasure() {
+  prepare_case position_registry_erasure
+  edit_once "$neg/position_registry_erasure/StorePositions.tla" \
+    '  /\ r = Author[Target[d]]
+  /\ storedD'"'"' = [storedD EXCEPT ![r] = @ \cup {d}]
+  /\ certD'"'"' = [certD EXCEPT ![r] = @ \cup {d}]
+  /\ UNCHANGED <<stagedP, ackP, storedP, certP, foreignP, ackD,
+                 foreignD, registry, checkpoint>>' \
+    '  /\ r = Author[Target[d]]
+  /\ storedD'"'"' = [storedD EXCEPT ![r] = @ \cup {d}]
+  /\ certD'"'"' = [certD EXCEPT ![r] = @ \cup {d}]
+  /\ registry'"'"' = [registry EXCEPT ![r] = @ \ {GroupOf[Target[d]]}]
+  /\ UNCHANGED <<stagedP, ackP, storedP, certP, foreignP, ackD,
+                 foreignD, checkpoint>>'
+  edit_once "$neg/position_registry_erasure/StorePositions.cfg" \
+    'INVARIANTS TypeOK LocalCertOnly TombstoneNeutral MoveCertified CheckpointKept PositionExact ReinsertVisible NoFreshCollision LineageNameStable Converged' \
+    'INVARIANT TombstoneNeutral'
+  run_expected_failure position_registry_erasure StorePositions 'Invariant TombstoneNeutral is violated'
+}
+
+for spec in \
+  'agent_no_registry|RegistryGuard|PublishedAuthorized' \
+  'agent_no_revocation|RevocationGuard|PublishedAuthorized' \
+  'agent_no_controller_fence|FenceGuard|DeletedAuthorized' \
+  'agent_no_controller_source|SourceGuard|DeletedAuthorized'; do
+  IFS='|' read -r label flag invariant <<< "$spec"
+  eval "case_$label() {
+    prepare_case '$label'
+    edit_once \"\$neg/$label/AgentAuthority.cfg\" '  $flag = TRUE' '  $flag = FALSE'
+    run_expected_failure '$label' AgentAuthority 'Invariant $invariant is violated'
+  }"
+  defcase "$label"
+done
+
+defcase checkpoint_no_current
+case_checkpoint_no_current() {
+  prepare_case checkpoint_no_current
+  edit_once "$neg/checkpoint_no_current/CheckpointConflicts.cfg" '  CheckCurrent = TRUE' '  CheckCurrent = FALSE'
+  run_expected_failure checkpoint_no_current CheckpointConflicts 'Invariant CommitCurrent is violated'
+}
+
+defcase checkpoint_no_buildable
+case_checkpoint_no_buildable() {
+  prepare_case checkpoint_no_buildable
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" '  CheckBuildable = TRUE' '  CheckBuildable = FALSE'
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" '  CheckCurrent = TRUE' '  CheckCurrent = FALSE'
+  edit_once "$neg/checkpoint_no_buildable/CheckpointConflicts.cfg" \
+    'INVARIANTS TypeOK CommittedBuildable CommittedDeps CommitCurrent' 'INVARIANTS TypeOK CommittedBuildable'
+  run_expected_failure checkpoint_no_buildable CheckpointConflicts 'Invariant CommittedBuildable is violated'
+}
+
+defcase checkpoint_no_dependencies
+case_checkpoint_no_dependencies() {
+  prepare_case checkpoint_no_dependencies
+  edit_once "$neg/checkpoint_no_dependencies/CheckpointConflicts.cfg" '  CheckDeps = TRUE' '  CheckDeps = FALSE'
+  run_expected_failure checkpoint_no_dependencies CheckpointConflicts 'Invariant CommittedDeps is violated'
+}
+
 # Base protocol guards.
 defcase target_no_home
 case_target_no_home() {
@@ -256,6 +636,136 @@ case_unexportable_snapshot() {
   prepare_case unexportable_snapshot
   edit_once "$neg/unexportable_snapshot/Registry.tla" '                /\ S \in Exportable' '                /\ TRUE'
   run_expected_failure unexportable_snapshot ExportRejected 'Invariant NoUnexportableCheckpoint is violated'
+}
+
+# Omitting the exact stored-content check admits a replay from the synthetic
+# module even though its generated Name literal denotes a different value.
+defcase replay_without_exact_identity
+case_replay_without_exact_identity() {
+  prepare_case replay_without_exact_identity
+  edit_once "$neg/replay_without_exact_identity/ReplayIdentity.tla" \
+    '  /\ Produced(g, c) = Stored[g]' '  /\ TRUE'
+  run_expected_failure replay_without_exact_identity ReplayIdentity \
+    'Invariant AcceptedExact is violated'
+}
+
+# Positional matching loses source provenance when exported constNames are
+# sorted differently from command capture order.
+defcase lookup_positional_queue
+case_lookup_positional_queue() {
+  prepare_case lookup_positional_queue
+  edit_once "$neg/lookup_positional_queue/ExportLookup.tla" \
+    'Match(g, c) == CandidateKey[c] = CapturedKey[g]' \
+    'Match(g, c) == c = Positional[g]'
+  run_expected_failure lookup_positional_queue ExportLookup \
+    'Invariant AttemptedKey is violated'
+}
+
+# A duplicated raw hygiene key is an ambiguous source association even when
+# both candidate kernel values happen to have equal bytes.
+defcase lookup_no_uniqueness
+case_lookup_no_uniqueness() {
+  prepare_case lookup_no_uniqueness
+  edit_once "$neg/lookup_no_uniqueness/ExportLookup.tla" \
+    '  /\ Cardinality(Matches(g)) = 1' '  /\ TRUE'
+  run_expected_failure lookup_no_uniqueness ExportLookup \
+    'Invariant AcceptedUnique is violated'
+}
+
+defcase lookup_no_exact_identity
+case_lookup_no_exact_identity() {
+  prepare_case lookup_no_exact_identity
+  edit_once "$neg/lookup_no_exact_identity/ExportLookup.tla" \
+    '  /\ Body[c] = Stored[g]' '  /\ TRUE'
+  run_expected_failure lookup_no_exact_identity ExportLookup \
+    'Invariant AcceptedExact is violated'
+}
+
+# A single exported declaration must not be assigned to two captured groups,
+# even when both store the same body and the raw hygiene key is unique.
+defcase lookup_no_reuse_guard
+case_lookup_no_reuse_guard() {
+  prepare_case lookup_no_reuse_guard
+  edit_once "$neg/lookup_no_reuse_guard/ExportLookup.tla" \
+    '  /\ Unused(c)' '  /\ TRUE'
+  run_expected_failure lookup_no_reuse_guard ExportLookup \
+    'Invariant AcceptedNotReused is violated'
+}
+
+# Full-key candidates stay reserved even when their exact owner fails body
+# comparison or several exported constants share its key.
+defcase residual_no_exact_reservation
+case_residual_no_exact_reservation() {
+  prepare_case residual_no_exact_reservation
+  edit_once "$neg/residual_no_exact_reservation/ExportLookupResidual.tla" \
+    'UnusedStem(g) == {c \in StemMatches(g) : Unused(c) /\ ~FullClaimed(c)}' \
+    'UnusedStem(g) == {c \in StemMatches(g) : Unused(c)}'
+  run_expected_failure residual_no_exact_reservation ExportLookupResidual \
+    'Invariant NoExactCandidateStolen is violated'
+}
+
+# Derived fixture only: keep the pristine model unchanged. Two exported names
+# share an ambiguous full key; a third exported name has the same stem but a
+# different key. The residual captured member may use only that third name.
+derive_residual_ambiguous_extra() {
+  local d="$1/ExportLookupResidual.tla"
+  edit_once "$d" '"cOwner", "cAmbig1", "cAmbig2",' \
+    '"cOwner", "cAmbig1", "cAmbig2", "cAmbig3",'
+  edit_once "$d" '[] c = "cAmbig2" -> "ambigKey"' \
+    $'[] c = "cAmbig2" -> "ambigKey"\n                                        [] c = "cAmbig3" -> "freeAmbigKey"'
+  edit_once "$d" '[] c \in {"cAmbig1", "cAmbig2"} -> "ambigCommand"' \
+    '[] c \in {"cAmbig1", "cAmbig2", "cAmbig3"} -> "ambigCommand"'
+  edit_once "$d" '[] c \in {"cAmbig1", "cAmbig2"} -> "A"' \
+    '[] c \in {"cAmbig1", "cAmbig2", "cAmbig3"} -> "A"'
+}
+
+defcase residual_ambiguous_extra_baseline
+case_residual_ambiguous_extra_baseline() {
+  local d="$neg/residual_ambiguous_extra_baseline"
+  prepare_case residual_ambiguous_extra_baseline
+  derive_residual_ambiguous_extra "$d"
+  run_expected_pass residual_ambiguous_extra_baseline ExportLookupResidual \
+    'derived ambiguous full key and unique residual candidate'
+}
+
+defcase residual_no_fullkey_guard
+case_residual_no_fullkey_guard() {
+  local d="$neg/residual_no_fullkey_guard"
+  prepare_case residual_no_fullkey_guard
+  derive_residual_ambiguous_extra "$d"
+  edit_once "$d/ExportLookupResidual.tla" \
+    $'ResidualSuccess(g, c) ==\n  /\\ phase = "residual"\n  /\\ <<g, c>> \\in Pairs \\ attempted\n  /\\ FullMatches(g) = {}' \
+    $'ResidualSuccess(g, c) ==\n  /\\ phase = "residual"\n  /\\ <<g, c>> \\in Pairs \\ attempted\n  /\\ TRUE'
+  run_expected_failure residual_no_fullkey_guard ExportLookupResidual \
+    'Invariant NoAmbiguousAccepted is violated'
+}
+
+defcase residual_no_capture_uniqueness
+case_residual_no_capture_uniqueness() {
+  prepare_case residual_no_capture_uniqueness
+  edit_once "$neg/residual_no_capture_uniqueness/ExportLookupResidual.tla" \
+    '  /\ Cardinality(ResidualCaptures(g)) = 1' '  /\ TRUE'
+  run_expected_failure residual_no_capture_uniqueness ExportLookupResidual \
+    'Invariant NoTwoAccepted is violated'
+}
+
+defcase residual_no_candidate_uniqueness
+case_residual_no_candidate_uniqueness() {
+  prepare_case residual_no_candidate_uniqueness
+  edit_once "$neg/residual_no_candidate_uniqueness/ExportLookupResidual.tla" \
+    '  /\ Cardinality(UnusedStem(g)) = 1' '  /\ TRUE'
+  run_expected_failure residual_no_candidate_uniqueness ExportLookupResidual \
+    'Invariant NoMultiAccepted is violated'
+}
+
+defcase residual_no_exact_body
+case_residual_no_exact_body() {
+  prepare_case residual_no_exact_body
+  edit_once "$neg/residual_no_exact_body/ExportLookupResidual.tla" \
+    $'  /\\ Cardinality(UnusedStem(g)) = 1\n  /\\ Body[c] = Stored[g]' \
+    $'  /\\ Cardinality(UnusedStem(g)) = 1\n  /\\ TRUE'
+  run_expected_failure residual_no_exact_body ExportLookupResidual \
+    'Invariant AcceptedExact is violated'
 }
 
 defcase dependent_work_blocked

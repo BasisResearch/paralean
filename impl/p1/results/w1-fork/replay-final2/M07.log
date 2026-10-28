@@ -1,0 +1,5 @@
+materialized: 1 initializer groups imported as stock-built modules
+source replay: 2/2 groups reproduce their declaration ID (1593 ms)
+  [info:materialized] Mathlib/Tactic/FieldSimp/Attr.lean:16: initializer group imported as a stock-built module
+kernel replay: 2/2 groups accepted; 0 declarations added, 0 reserved names re-realized (2 ms)
+isolated replay (exact deps only): 2/2

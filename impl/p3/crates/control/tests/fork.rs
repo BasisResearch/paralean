@@ -2,6 +2,8 @@
 //! `Paralean/Fork.lean`) instead of the stock binary. Opt-in: set `PARALEAN_P3_FORK_BIN`
 //! and `PARALEAN_P3_FORK_PREFIX` (impl/p3/scripts/test.sh does when a fork build exists,
 //! and captures F01 and F04 with it into `.runs/p1-fork-core`).
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -9,7 +11,7 @@ use common::*;
 use paralean_control::controller::{ControlRequest, ControlResponse};
 use paralean_store::*;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn fork_validators_check_and_sign() {
     let Some(fork) = fork_checker() else {
         eprintln!("skipped: PARALEAN_P3_FORK_BIN / PARALEAN_P3_FORK_PREFIX not set");
@@ -53,4 +55,11 @@ async fn fork_validators_check_and_sign() {
     let r = paralean_validator_api::decode_receipt(&receipt).unwrap();
     assert!(matches!(r.body.verdict, Verdict::Rejected(_)));
     c.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("fork_validators_check_and_sign", || { fork_validators_check_and_sign(); Ok(()) }),
+    ]);
 }

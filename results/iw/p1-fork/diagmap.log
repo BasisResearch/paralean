@@ -1,0 +1,20 @@
+capture D:DiagMap.lean
+  effect 6920d2eb moduleDoc L1 members=0 pub=0 realized=0 deps=0 fe=0 bytes=148
+  decl 4c27891b declaration L6 members=1 pub=1 realized=0 deps=0 fe=0 bytes=271
+  decl 3582d1ff declaration L8 members=1 pub=1 realized=0 deps=1 fe=0 bytes=175
+  decl fc16cc41 declaration L11 members=1 pub=1 realized=0 deps=1 fe=0 bytes=356
+  decl 9c532dca declaration L13 members=1 pub=1 realized=0 deps=0 fe=0 bytes=292
+  decl f664d1d0 declaration L19 members=1 pub=1 realized=0 deps=1 fe=0 bytes=376
+  decl 1f265fc8 declaration L26 members=11 pub=4 realized=0 deps=0 fe=0 bytes=1590
+  decl b02eab38 declaration L29 members=1 pub=1 realized=0 deps=2 fe=0 bytes=319
+  => 8 groups, 6 skipped, 0 diagnostics (0 reject)
+capture-exit=0
+source replay: 8/8 groups reproduce their declaration ID (136 ms)
+kernel replay: 8/8 groups accepted; 15 declarations added, 0 reserved names re-realized (1 ms)
+isolated replay (exact deps only): 8/8
+replay-exit=0
+export: 1 modules, 8 groups, 2129 bytes of source
+  DiagMap: 8 groups; imports #[]
+stock lake build: OK (238 ms)
+verify: 7/7 declaration groups identical in the stock-built oleans; 1 effect-only groups (build-checked)
+export-exit=0

@@ -4,6 +4,9 @@
 //! crash points and the test SIGKILLs others mid-flight. Afterwards the audit, discovery and
 //! catalogue recovery must satisfy store.md's invariants.
 
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
+
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -22,7 +25,7 @@ fn deployment() -> String {
     )
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_writers_multi_process() {
     let dep = deployment();
     let cfg = StoreConfig::from_env(&dep).expect("run through scripts/test.sh");
@@ -136,4 +139,15 @@ async fn concurrent_writers_multi_process() {
             assert!(store.valid_rcert(&c, &r.body).await.unwrap().is_some());
         }
     }
+}
+
+// The audit opens FDB in this process: stop its network thread before exiting
+// (docs/w2-chaos-notes.md), after the test's runtime has dropped.
+fn main() {
+    let args = libtest_mimic::Arguments::from_args();
+    let conclusion = libtest_mimic::run(&args, vec![
+        libtest_mimic::Trial::test("concurrent_writers_multi_process", || { concurrent_writers_multi_process(); Ok(()) }),
+    ]);
+    paralean_store::meta::shutdown();
+    conclusion.exit();
 }

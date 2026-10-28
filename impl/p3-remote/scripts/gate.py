@@ -200,6 +200,8 @@ def main():
     try:
         if "--targets-only" in sys.argv[2:]:
             target_scenario(Copy("alice", "alice"), Copy("bob", "bob"))
+        elif "--move-only" in sys.argv[2:]:
+            move_scenario()
         else:
             scenario(rogue)
     finally:
@@ -357,7 +359,7 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
     agent_of = {v: k for k, v in names.items()}
     wcopy = alice if agent_of[winner["author"]] == "alice" else bob
     lcopy = bob if wcopy is alice else alice
-    fresh = "Shared.«dup✝pl" + loser["group"][:8] + "»"
+    fresh = "Shared.«dup✝pl" + loser["group"] + "»"
     ldiag = [l for l in lcopy.diagnostics().splitlines() if l.startswith("rename:")]
     lshared = lcopy.read("Shared.lean")
     lcheck = lcopy.check("Shared.lean")
@@ -420,6 +422,28 @@ def snap_copy():
     c = Copy.__new__(Copy)
     c.name, c.agent, c.dir = "snapshot", "carol", os.path.join(R, "snapshot")
     return c
+
+
+def move_scenario():
+    alice, bob = Copy("alice", "alice"), Copy("bob", "bob")
+    alice.write("Move.lean", "theorem Move.first : 1 = 1 := rfl\n\n"
+                "theorem Move.second : 2 = 2 := rfl\n")
+    alice.publish("Move.lean")
+    bob.sync()
+    before = bob.projection("Move.lean")
+    moved, _ = alice.ws("move", "Move.lean", "Move.second")
+    bob.sync()
+    after_a = alice.projection("Move.lean")
+    after_b = bob.projection("Move.lean")
+    records = alice.marker_of("Move.second")
+    check = bob.check("Move.lean")
+    result("position move reaches working copy with unchanged group identity",
+           "Move.first" in before and len(records) == 2 and
+           after_a == after_b and after_b.index("Move.second") < after_b.index("Move.first") and
+           not check["errors"] and bool(moved.get("move")),
+           marker_variants=len(records), same_projection=after_a == after_b,
+           moved_first=after_b.index("Move.second") < after_b.index("Move.first"),
+           errors=check["errors"])
 
 
 def target_scenario(alice, bob):

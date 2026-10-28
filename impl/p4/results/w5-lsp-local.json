@@ -1,0 +1,34 @@
+{
+  "gate": "p5-lsp-worker",
+  "worker": "scripted JSON-RPC editor",
+  "transport": "local",
+  "checks": {
+    "invalid_buffer_private": {
+      "ok": true,
+      "capture_rejection": "capture contains rejected declarations"
+    },
+    "did_change_ms": 319.22,
+    "explicit_receipt_publication": {
+      "ok": true,
+      "group": "41d74105617e0e3d52a3c97a971c6fcf0e3102c34be6c543eeb619652d4906ff",
+      "epoch": 0
+    },
+    "current_target_and_stock_export": {
+      "ok": true,
+      "catalog": "956da8109104a7f2cb7004d33b949183067aff21fb377c962ae46bc323f985f5"
+    },
+    "idle_controller_trust_push": {
+      "ok": true,
+      "generation": 6
+    },
+    "worker_cannot_revoke_policy": {
+      "ok": true
+    },
+    "idle_store_policy_push": {
+      "ok": true,
+      "generation": 8,
+      "old_session_rejected": "RPC session expired"
+    }
+  },
+  "ok": true
+}

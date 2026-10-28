@@ -1,0 +1,58 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-scale/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.65s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-6b1c6b0447df475e)
+
+running 2 tests
+test controller::gc_schedule_tests::gc_schedule_progresses_when_other_replica_takes_every_multiple_of_eight ... ok
+test gc::tests::stale_scanned_candidate_cannot_collect_new_retirement ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-bb6ba5e71b4a032c)
+
+running 11 tests
+test different_topology_is_rejected_before_a_leader_can_write ... ok
+test elapsed_wall_time_alone_cannot_expire_a_lease ... ok
+test expired_same_holder_cannot_reuse_old_term_or_write_during_gap ... ok
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced ... ok
+test legacy_controller_state_requires_offline_migration ... ok
+test queued_target_claim_blocks_another_shards_assignment ... ok
+test replay_of_external_assignment_commits_the_controller_shard_claim ... ok
+test shard_terms_and_target_catalog_are_independent ... ok
+test submitted_work_routes_before_another_shard_can_claim_target ... ok
+test target_free_job_routes_its_cancellation_to_issuing_shard ... ok
+test unowned_fence_can_be_taken_by_later_registered_worker ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.24s
+
+     Running tests/gc.rs (impl/p2/target/debug/deps/gc-92e059b5ebcc1cd7)
+
+running 4 tests
+test controller_monitor_collects_only_when_enabled_and_preserves_queued_work ... ok
+test gc_rechecks_current_head_and_rejects_stale_leader ... ok
+test gc_requires_opt_in_grace_and_unpinned_superseded_root ... ok
+test load_during_collection_and_new_incarnation_of_same_hash ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.21s
+
+     Running tests/w4_dependencies.rs (impl/p2/target/debug/deps/w4_dependencies-adc945d5eebebe58)
+
+running 1 test
+test dependency_across_shards_remains_required_after_handover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests/w4_processes.rs (impl/p2/target/debug/deps/w4_processes-745afe0404e50c03)
+
+running 1 test
+test opposing_wall_clock_skew_and_paused_leader_preserve_handover ... W4 realtime skew ±100 days, SIGSTOP takeover: 1.440s; queued request preserved; other shard stayed leader
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+
+     Running tests/w4_workers.rs (impl/p2/target/debug/deps/w4_workers-d5b4de7574c75a50)
+
+running 1 test
+test unresponsive_endpoint_does_not_starve_live_shard_heartbeats ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.78s

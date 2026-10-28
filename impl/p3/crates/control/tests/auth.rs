@@ -1,6 +1,8 @@
 //! Control-plane authentication is checked on real TCP connections. A signed request
 //! is bound to the server's fresh challenge, so recording one exchange is insufficient
 //! to impersonate its caller later.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -39,7 +41,7 @@ async fn replayed_request_is_rejected<Q: serde::Serialize + Clone + rpc::Service
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn controller_rejects_unsigned_unknown_and_replayed_rpc() {
     let c = Cluster::start("auth-controller", Opts::default()).await;
     let authority = c.kf.authority_signer().unwrap();
@@ -87,7 +89,7 @@ async fn controller_rejects_unsigned_unknown_and_replayed_rpc() {
     ));
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn validator_rejects_unsigned_unknown_and_replayed_rpc() {
     let c = Cluster::start("auth-validator", Opts::default()).await;
     let authority = c.kf.authority_signer().unwrap();
@@ -123,4 +125,12 @@ async fn validator_rejects_unsigned_unknown_and_replayed_rpc() {
     .await
     .unwrap();
     assert!(matches!(answer, ValidatorResponse::Status { .. }));
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("controller_rejects_unsigned_unknown_and_replayed_rpc", || { controller_rejects_unsigned_unknown_and_replayed_rpc(); Ok(()) }),
+        libtest_mimic::Trial::test("validator_rejects_unsigned_unknown_and_replayed_rpc", || { validator_rejects_unsigned_unknown_and_replayed_rpc(); Ok(()) }),
+    ]);
 }
