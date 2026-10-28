@@ -1,12 +1,12 @@
 uncaught exception: vector S_malleated_plus_L: Lean Ed25519 result differs
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/tmp/claude-2000/w2c/tmpr_wvc0w0', '27b64c11fd38032e954b6664276ed3a310f52076446908a4eb2697d6c366e420', 'cb236206700d9dfeaac28b3932016a3654722edcc2ee3356ac74bcd61fa52f91', '3a041e1e85e8fcfce8d008e31bc084e38edddb99a41249d77f6b9ec552f5483c', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '0efe7677d086cc1a67ba80b5dfb796d3ef492f131949fa464e614c12242f47a8', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmpdszhc3h9', 'ba64fe54486cb2d9287877b8b419dace7de83a01ed7d93a655eb32ce1d07d3ed', 'f5df11912d9a7c95986f54c672233999434a33673796e6f18c3baf2a89d7d104', '321f24e67c0616f1b7666f3cffadbf064b8dce93b6a2d5b6b080d54cef37c6d3', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '13550bc96d939a72ad66367d3b2a61c7e6ee72ef86716919c5d386d24c85bad0', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

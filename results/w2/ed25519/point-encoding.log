@@ -1,5 +1,14 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
-     Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-61ad12458b615a0c)
+   Compiling syn v2.0.119
+   Compiling zeroize v1.9.0
+   Compiling serde_core v1.0.229
+   Compiling sha2 v0.10.9
+   Compiling serde_json v1.0.151
+   Compiling curve25519-dalek-derive v0.1.1
+   Compiling curve25519-dalek v4.1.3
+   Compiling ed25519-dalek v2.2.0
+   Compiling paralean-crypto v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p2/crates/crypto)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.60s
+     Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-f6d45d411c877116)
 
 running 1 test
 test point_encoding_is_canonical ... ok

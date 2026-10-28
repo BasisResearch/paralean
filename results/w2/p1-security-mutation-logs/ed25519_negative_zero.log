@@ -1,12 +1,12 @@
 uncaught exception: vector negative_zero_A: noncanonical point decoded
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/tmp/claude-2000/w2c/tmpbi7va7ro', '4874b66447a47a9253d3917add4b16eb1868a419bffbbad983d22d32eb6e2bb0', '47f543d7704544d9e76db166fdf1da653db6c6a50e2ce8867606f1e05224c31c', '2ab28c4eabdfe5a6223c28f886cd5d8f8f7062e77b348e090f8bcd890ee276a8', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'e7222bfd38f5f358bb90e1bc9e82bb903b43f7f5f6df74ef0caa10aec36ca637', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmp91mqc2p9', 'cda4a34a6a2e8034b8dc573b9c805c22b4527fc4f32664ee7033fa32ecab502d', '5d3ec827521877771b6fd5285adf17d353d42566435d7f3cc7afb4031c76594c', '011f4f879447f476785bd52e2888ca69f143ce67bdd7b10c879f26b6511c370d', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'bbb5220abf175a655288c3a1fba028d34902e838c99a55730f976d2efc033457', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

@@ -1,5 +1,5 @@
 == Encode
-/data/home/kirancodes/tmp/claude-2000/w2c/w2-p1-mutations-oo89n2dy/payload_varint_canonical/Paralean/Encode.lean:461:92: warning: `List.asString` has been deprecated: Use `String.ofList` instead
+/tmp/w2-p1-mutations-4v7qooar/payload_varint_canonical/Paralean/Encode.lean:461:92: warning: `List.asString` has been deprecated: Use `String.ofList` instead
 
 Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.asString` to `String.ofList x`).
 == Model

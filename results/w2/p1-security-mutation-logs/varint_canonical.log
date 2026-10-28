@@ -1,12 +1,12 @@
 uncaught exception: nonminimal varint: accepted invalid input
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/tmp/claude-2000/w2c/tmp7xqtae8m', '0172ecd1d98b63857611f826d394fdfa5eb0105bb73d17447b4aeee2e46ed257', 'f7e8df067a55dfca38d0237e55c7392ba78961eb75412346db7da08abd193791', 'd9092a3937d4999586bc017268ef527eb6b13abc9e34f31ea2c124d0457d5585', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'c8d86cefa7af0f5aae3102cbb106cce330d1fd6e970593211ae187904ed746b5', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmp3a5r9d5e', '7ee8786d4e6df415c7dfcb5dd8a336747d5d592c1adb036b6afabc9f55824cdf', '9ed0e8593412ac3d64dad9282f170c1afe434f55911d5dfe39397d9d6e6d4f04', '1e2b9decadc4975c177b50e31aacca0b821947826c40ea557d04cea7fdcbb15f', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'df750e3b0b2bdaca700f75c8f8f5389b241fe49b4ef35893a64ed86ddc3e5df4', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

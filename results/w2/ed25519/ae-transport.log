@@ -1,8 +1,15 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
-     Running unittests src/lib.rs (impl/p2/target/debug/deps/ae_wire-ed4dd3b443991db4)
+   Compiling smallvec v1.16.2
+   Compiling ed25519-dalek v2.2.0
+   Compiling paralean-crypto v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p2/crates/crypto)
+   Compiling parking_lot_core v0.9.12
+   Compiling parking_lot v0.12.5
+   Compiling tokio v1.53.2
+   Compiling ae-wire v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p2/crates/ae-wire)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.95s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/ae_wire-fc214b0eca04da42)
 
 running 1 test
 test tests::transport_strict_signature_vectors ... ok
 
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.04s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.02s
 

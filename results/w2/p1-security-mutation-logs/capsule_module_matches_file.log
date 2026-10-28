@@ -1,5 +1,5 @@
 == Safety
-/data/home/kirancodes/tmp/claude-2000/w2c/w2-p1-mutations-oo89n2dy/capsule_module_matches_file/Paralean/Safety.lean:86:6: warning: Variable name `m` is not explicitly referenced.
+/tmp/w2-p1-mutations-4v7qooar/capsule_module_matches_file/Paralean/Safety.lean:86:6: warning: Variable name `m` is not explicitly referenced.
 
 Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
   [apply] _m

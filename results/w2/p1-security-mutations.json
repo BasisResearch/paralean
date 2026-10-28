@@ -44,6 +44,27 @@
       "log": "results/w2/p1-security-mutation-logs/cached_receipt_signature.log"
     },
     {
+      "name": "job_batch_tag",
+      "assertion": "job with trailing tag 2: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/job_batch_tag.log"
+    },
+    {
+      "name": "record_job_batch",
+      "assertion": "record with another batch: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/record_job_batch.log"
+    },
+    {
+      "name": "batch_file_filter",
+      "assertion": "unfiled batch marker: accepted invalid input",
+      "exit_code": 1,
+      "passed": true,
+      "log": "results/w2/p1-security-mutation-logs/batch_file_filter.log"
+    },
+    {
       "name": "ed25519_small_order",
       "assertion": "weak-key signature accepted",
       "exit_code": 1,

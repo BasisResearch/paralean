@@ -1,0 +1,12 @@
+uncaught exception: job with trailing tag 2: accepted invalid input
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmpgmn0uhon', '624d37947c9be006b42c409ea2be41997fc434d7933a477243199a50a4a7daf3', '469252117073007cbb195aae36bba3100643fb015f4b4d9309a2e384d0c391fa', '2ebfb2c0ea44b15ebaa0f06130ab61a8e98f3bbd7b34348cb03e6842534ae995', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', 'eafbb5cff28526dad84b7a9df8b5487d04f198f49988b4de6679cb03bfd174ad', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

@@ -1,5 +1,6 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
-     Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-0401d02e5bf85404)
+   Compiling paralean-crypto v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p2/crates/crypto)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-ff34e5f4bd618495)
 
 running 1 test
 test point_encoding_is_canonical ... FAILED
@@ -8,7 +9,7 @@ failures:
 
 ---- point_encoding_is_canonical stdout ----
 
-thread 'point_encoding_is_canonical' (3465643) panicked at crates/crypto/tests/vectors.rs:27:13:
+thread 'point_encoding_is_canonical' (2398710) panicked at crates/crypto/tests/vectors.rs:27:13:
 assertion failed: !paralean_crypto::canonical_point(&p)
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 

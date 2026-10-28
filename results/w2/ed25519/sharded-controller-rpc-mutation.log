@@ -1,12 +1,12 @@
-   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
-   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.11s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-463d183da86a5351)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.20s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-c83627b7074a1c4e)
 
 running 1 test
 
-thread '<unnamed>' (3501370) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:85:13:
-assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [100, 101, 110, 78, 124, 243, 206, 219, 169, 138, 159, 250, 117, 227, 240, 29, 109, 240, 64, 6, 139, 67, 106, 142, 54, 202, 223, 2, 190, 248, 74, 155, 154, 3, 153, 156, 60, 161, 36, 182, 120, 31, 11, 72, 143, 199, 181, 124, 123, 58, 78, 239, 6, 22, 118, 86, 199, 89, 225, 57, 171, 70, 39, 3] })
+thread '<unnamed>' (2427870) panicked at /data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p3/crates/control/tests/strict_signatures.rs:85:13:
+assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [87, 196, 253, 76, 219, 162, 185, 38, 0, 73, 43, 36, 83, 243, 89, 45, 94, 74, 69, 145, 122, 184, 25, 164, 16, 127, 94, 206, 130, 117, 14, 88, 228, 193, 214, 220, 11, 145, 107, 2, 168, 248, 185, 254, 152, 204, 162, 39, 92, 12, 122, 54, 64, 63, 207, 243, 242, 133, 20, 181, 192, 8, 46, 3] })
   left: true
  right: false
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
@@ -15,7 +15,7 @@ test sharded_controller_rpc_strict_signature_vectors ... FAILED
 failures:
 
 ---- sharded_controller_rpc_strict_signature_vectors ----
-test panicked: assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [100, 101, 110, 78, 124, 243, 206, 219, 169, 138, 159, 250, 117, 227, 240, 29, 109, 240, 64, 6, 139, 67, 106, 142, 54, 202, 223, 2, 190, 248, 74, 155, 154, 3, 153, 156, 60, 161, 36, 182, 120, 31, 11, 72, 143, 199, 181, 124, 123, 58, 78, 239, 6, 22, 118, 86, 199, 89, 225, 57, 171, 70, 39, 3] })
+test panicked: assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [87, 196, 253, 76, 219, 162, 185, 38, 0, 73, 43, 36, 83, 243, 89, 45, 94, 74, 69, 145, 122, 184, 25, 164, 16, 127, 94, 206, 130, 117, 14, 88, 228, 193, 214, 220, 11, 145, 107, 2, 168, 248, 185, 254, 152, 204, 162, 39, 92, 12, 122, 54, 64, 63, 207, 243, 242, 133, 20, 181, 192, 8, 46, 3] })
   left: true
  right: false
 

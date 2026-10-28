@@ -268,4 +268,150 @@ Readers that span transactions are outside the Lean model; the TLA model covers 
 
 ## Implementation
 
-(in progress; see the summary below)
+### Store (impl/p2)
+
+`impl/p2/crates/store/src/batch.rs` holds the intent and record formats, the T12 body,
+`Store::publish_batch` and T13. The T1 and T8 bodies in `meta.rs` take a `Mode`
+(`Single` or `Batch(id)`):
+- the batch binding is checked first;
+- in batch mode a member's own idempotence shortcut and its per-member event are
+  disabled.
+
+The T9 and T10 bodies take the same `Mode`. `antientropy::import` is split into a
+preparation step (decoding, staging rule, certificates, payload acknowledgement) and
+the T9/T10 transaction, so `import_batch` can prepare every member and then apply them
+all in T13. `export` emits `Item::Batch`. `ae.rs` materializes a `Batch` event as the
+record plus every member's parts and imports it through `import_batch`.
+`recovery::discover` closes its view under batches.
+
+Every T12 member runs the unchanged T1 or T8 guards, and FDB's read-your-writes gives
+the sequential semantics. The only code that is new to the safety argument is therefore:
+- the intent check;
+- the binding check;
+- the closure;
+- the batch receive.
+
+### Controller and validator (impl/p3)
+
+`ControlRequest::ValidateBatch` validates a batch through the controller:
+1. It signs the intent with the controller authority.
+2. It issues member envelopes bound to the intent, with target bindings stamped as
+   `Validate` stamps them: owner check, record epoch, pinned statement.
+3. It records the envelopes with J1 and dispatches one `ValidatorRequest::ValidateBatch`.
+4. It checks every receipt with `check_bound` and records it with J2.
+
+Member request IDs are `batch/<coordinator>/<request>`, so a coordinator cannot use up
+another workspace's request IDs. In the validator, an earlier receipt serves a later
+job's dependency only when both jobs carry the same `batch` value.
+
+### Working copies (impl/p3-remote, impl/p1)
+
+`plr pull` delivers a batch as one unit under `--only`, `--seed` and `--max`, and writes
+`b-<batch>.json` after its members. The Lean side changes as follows:
+- `Known.load` loads a batch-bound record only once that file lists it;
+- `P3.checkReceipt` requires a record's batch to equal its job's;
+- `Job.parse` accepts exactly one trailing batch field.
+
+New commands are `plr batch-intent`, `batch-validate`, `batch-sign`, `publish-batch` and
+`batch-share`. Each workspace signs only its own members, and the coordinator needs no
+member key.
+
+The renamed dependent must be captured against a member that is not yet published.
+The renaming copy validates the new declaration under a random staging ID. That ID is
+not an intent, so T1 and T12 can never publish the preview. It shares those records
+under `p3/staged/<S>`, and Bob captures with `PARALEAN_BATCH=<S>`. The usual checks all
+apply on that path:
+- the receipt's signature, issuer and binding;
+- the live strict check with revocation and cancellation;
+- the capsule and package IDs;
+- the command gate on every capsule command.
+
+`ws.py rename` runs the flow, and `ws-rename` rewrites the old declaration and its
+direct dependents.
+
+### Editor rename (impl/p4, impl/p5)
+
+The router's `paralean/renameTransaction` keeps W5's checks: inventory, stamps,
+anchors, worker plans and policy. When affected groups are published, it now publishes
+before it commits buffers. The bridge:
+1. captures the planned sources privately, dependents through a staged preview;
+2. pairs old and new declarations;
+3. builds a batch: new groups that replace the old ones, tombstones where a name
+   disappears, and revisions, including target proofs at the owner's epoch.
+
+The store bridge's `batch-validate` (controller keys) signs and validates it.
+`batch-sign` runs once per workspace with that workspace's key file only, and
+`batch-publish` runs T12. A refusal or an unresolved outcome changes no buffers. An
+unresolved batch is kept on disk for an idempotent re-run.
+
+## Results
+
+All runs used this branch's own instances and the final tree, except where noted.
+
+| Suite | Result |
+|---|---|
+| TLC default positive (`check-tla.sh`) | 38/38 pass, including AtomicBatch 4,427,772, AtomicBatchAE 9,866,304 and AtomicBatchStaged 16,949,910 distinct states |
+| TLC negative (`check-tla-negative.sh`) | 219/219 expected outcomes (193 earlier + 26 new: 19 guard mutations, 7 witnesses) |
+| TLC hardened (`check-tla-hardened.sh`) | 29/29 expected outcomes |
+| TLC wide | 4 retained from the archive: their parsed sources are unchanged, not rerun |
+| `archive-verification.sh` then `--verify` | pass (38 positive, 219 negative, 4 wide, 29 hardened) |
+| Veil (`check-veil.sh`) | 35 modules; the audit finds 7,415 declarations with stock axioms only |
+| P2 store, new `batches` suite (live, ap-main and ap-peer) | 11/11 |
+| P2 batch guard mutations (`check-mutations.sh`, `\|batches\|` cases, plus Ed25519 path) | 16/16 detected |
+| P3 full suite (`impl/p3/scripts/test.sh`, ap P3 cluster) | 119 passed, 0 failed, 4 ignored (114 before + 5 in `atomic_batches`) |
+| P3 batch mutations | 6/6 new detected; 7/7 existing cases whose code changed still detected |
+| plr unit tests | 7/7 |
+| P1 `p3_security.py`, `lean_security.py` | pass; `check_security_mutations.py` 27/27 (3 new) |
+| P3-remote gate (`remote-gate.py`, stock Lean, ap-main) | 18/19. The 4 new rename items pass. The failure is clean export, which needs a Mathlib checkout this clone lacks, as in W2 |
+| P4 `rename_transaction_test.py` | 31 passed (25 + 6) |
+| P4 `rename_mutation_test.py` | 22/22 killed (18 + 4) |
+| P5 `unittest discover` (bare shell) | 131 tests: 118 passed, 13 skipped (2 environment-gated as in W2, 11 live) |
+| P5 new: rename publication, rename mutants, live batch rename, store-bridge Rust mutants | 25/25, 26/26, 11/11, 7/7 |
+| P5 `mutate_editor_bridge.py`, `mutate_revoke_guard.py` | 55/55, 1/1 |
+| P5 `rename_gate.py` (the gate's rename check, standalone, ap-p5) | 11/11 checks |
+
+On the final tree:
+- the P2 workspace (excluding the P3 crates, which ran on their own cluster): 181 passed, 0 failed;
+- W2 security mutations (`check-w2-security.sh`): 41/41 detected;
+- Ed25519 per-path mutations (`check-ed25519.sh`): every path detected, including the new batch-intent path, with refreshed logs in `results/w2/ed25519`.
+
+The full P2 guard-mutation suite (`check-mutations.sh`, all cases) was started but had not finished when this log was written. Its 15 batch cases had passed earlier, on code unchanged since then.
+
+New mutations: 19 TLA, 16 P2, 6 P3, 3 P1, 4 P4 router, 26 P5 bridge and backend,
+and 7 store-bridge Rust features. That is 81 in total, and every one is detected.
+
+## Proposed documentation sentences
+
+For plan.md: "Atomic multi-group publication (T12/T13) publishes a cross-workspace
+rename of published declarations, with its revisions and deletions, all or nothing;
+readers, recovery, anti-entropy and working copies never see part of a batch. See
+docs/atomic-pub-log.md for the model, the bounds and the evidence."
+
+For README.md: "Atomic batch publication and the published cross-workspace rename:
+design, TLA/Veil models and live evidence in docs/atomic-pub-log.md."
+
+## Not done
+
+- **Staged protocol.** The staged protocol for batches beyond one transaction (more
+  than 128 members or 2 MiB of metadata) is designed and model-checked but not
+  implemented. Larger batches are refused before any write.
+- **Moves.** W3 moves are not batch members. A rename uses publication plus deletion,
+  and a moved position is a later T11.
+- **The full P5 `gate.py`.** It was not run: its recovery flow drives model workers,
+  and its LSP part needs the Paralean Lean fork, which this clone does not build.
+  - The rename check runs standalone (`rename_gate.py`) and through
+    `gate.py --rename-check`. Real-Lean LSP workers for a published rename also need
+    the fork: in the live P5 test only the workers' definition and rename answers are
+    scripted, while capture, validator, store and bridge are real.
+- **The router's inventory over P3 copies.** It still refuses a group that appears both
+  as source and as another copy's `remote%` element (W5's probe). The live test
+  supplies the inventory from real captures of the two source buffers.
+- **Working-copy rename coverage.** `ws-rename` rewrites only declarations that depend
+  *directly* on the renamed package. It refuses relocated or local-effect groups and
+  field notation without field metadata.
+- **No automatic resume.** An unresolved editor batch is kept on disk but is not
+  resumed automatically.
+- **Cancelling a batch member.** This does not interrupt the controller's in-flight RPC.
+  The validators and T1/T12 still refuse it.
+- **Not run:** the full P3 mutation suite (the new cases and those touching changed code
+  were), P1 G1–G6, fork-mode checks and SSH.

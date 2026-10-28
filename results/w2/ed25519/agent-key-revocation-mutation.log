@@ -1,10 +1,10 @@
-   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.98s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-736c212addde59dc)
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p2/crates/store)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.09s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-50831308648efa2c)
 
 running 1 test
 
-thread '<unnamed>' (3497989) panicked at crates/store/tests/strict_signatures.rs:145:9:
+thread '<unnamed>' (2426413) panicked at crates/store/tests/strict_signatures.rs:145:9:
 assertion `left == right` failed: verify: small_order_A_0
   left: true
  right: false
@@ -22,6 +22,6 @@ test panicked: assertion `left == right` failed: verify: small_order_A_0
 failures:
     agent_key_revocation_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.05s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.05s
 
 error: test failed, to rerun pass `-p paralean-store --test strict_signatures`

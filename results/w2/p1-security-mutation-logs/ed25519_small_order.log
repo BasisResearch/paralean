@@ -1,4 +1,4 @@
-/data/home/kirancodes/tmp/claude-2000/w2c/w2-p1-mutations-oo89n2dy/ed25519_small_order/Paralean/Ed25519.lean:205:17: warning: Variable name `R` is not explicitly referenced.
+/tmp/w2-p1-mutations-4v7qooar/ed25519_small_order/Paralean/Ed25519.lean:205:17: warning: Variable name `R` is not explicitly referenced.
 
 Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
   [apply] _R
@@ -6,13 +6,13 @@ Hint: The binding can be removed (if unused) or named `_` (if used implicitly). 
 Note: This linter can be disabled with `set_option linter.unusedVariables false`
 uncaught exception: weak-key signature accepted
 Traceback (most recent call last):
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 112, in <module>
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
     main()
     ~~~~^^
-  File "/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p1/tests/p3_security.py", line 108, in main
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
     subprocess.run(command, cwd=ROOT, env=env, check=True)
     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.14/subprocess.py", line 578, in run
     raise CalledProcessError(retcode, process.args,
                              output=stdout, stderr=stderr)
-subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/data/home/kirancodes/tmp/claude-2000/w2c/tmpxm29uo2c', '6b092421514b335de5cdb87a310c71ca7753e49dc54dfdb0f2589fdfae8a8a85', '34b4d7e59c0e087f170a62c55375317429089c32a083987d85f392c7bd301bd0', '544aa282ad41375f3597ea023366623a9bc9701fdfe59f949f3ac9e20207d729', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '395d2e6a3cb743cf01cfc6d1f025d7e0bffbaa69d503e583d829afd9788c217f', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-w2-security/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmppebhprel', '6ca26f880b4f6eaa159afdc27d9eda9068fdbb521fb6d55cc9568cfc004a235f', '5b71bb8de36e31c7063d76c48516e684628ac61b072ffb6f277154e931be439e', 'c5f7cf98bddb6ade33716945ac420d8986582dbcd9e27d2bf494792735d180f8', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '11de0bfccc319d7e89dfbfc1b32b3b6a20fbe019775025e3208bc3c1b8e94f13', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.

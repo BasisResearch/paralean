@@ -1,0 +1,18 @@
+/tmp/w2-p1-mutations-4v7qooar/record_job_batch/Paralean/P3.lean:463:49: warning: Variable name `staged` is not explicitly referenced.
+
+Hint: The binding can be removed (if unused) or named `_` (if used implicitly). Alternatively, prefix the name with `_` to silence this warning:
+  [apply] _staged
+
+Note: This linter can be disabled with `set_option linter.unusedVariables false`
+uncaught exception: record with another batch: accepted invalid input
+Traceback (most recent call last):
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 119, in <module>
+    main()
+    ~~~~^^
+  File "/data/home/kirancodes/Documents/code/paralean-atomic-pub/impl/p1/tests/p3_security.py", line 115, in main
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean', '--run', 'tests/P3Security.lean', '/tmp/tmp2f9oer4y', 'a30aacaaeda3229f58dcb4b78bab65bd8152bbf6eb99005532df6b84998d6de0', '55b8ea10663c11163f5767ecaa6d4e6ae3db505f524ea98e4bb7c4c199b4379d', '6174af81b9c89d8857461ec5964923bf6d3fe204bde59e8abc675add7e0aa7fb', '0101010101010101010101010101010101010101010101010101010101010101', '0202020202020202020202020202020202020202020202020202020202020202', '47c29f464539af9ab6223b0b1031fb5a5b291a832f77b5573046ec9c3836604f', 'ba54d72a3d1790caa1883125151b074972eb46efaa16ac66da2f2974a9c146e6', 'aae687e2ea709d93b6c200d6666a49556ae7c1fca57084c09645a4ce8dea14a2', '/data/home/kirancodes/Documents/code/paralean-atomic-pub/verification/fixtures/ed25519-strict-vectors.json']' returned non-zero exit status 1.
