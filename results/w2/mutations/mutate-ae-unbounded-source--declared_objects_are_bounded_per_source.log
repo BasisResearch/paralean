@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-86cf37e15e4342bd)
+
+running 1 test
+
+thread '<unnamed>' (2504977) panicked at crates/ae-service/tests/network.rs:1547:5:
+38654705664 bytes of references staged
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test declared_objects_are_bounded_per_source ... FAILED
+
+failures:
+
+---- declared_objects_are_bounded_per_source ----
+test panicked: 38654705664 bytes of references staged
+
+
+failures:
+    declared_objects_are_bounded_per_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 3.03s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

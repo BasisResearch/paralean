@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_validator_api-8a81906115d746a7)
+
+running 1 test
+test rpc::tests::oversized_frame_is_rejected_without_waiting_for_body ... FAILED
+
+failures:
+
+---- rpc::tests::oversized_frame_is_rejected_without_waiting_for_body stdout ----
+
+thread 'rpc::tests::oversized_frame_is_rejected_without_waiting_for_body' (2490720) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api/src/rpc.rs:188:9:
+oversized frame waited for attacker body
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    rpc::tests::oversized_frame_is_rejected_without_waiting_for_body
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.12s
+
+error: test failed, to rerun pass `-p paralean-validator-api --lib`

@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-235a1d4b10b3c605)
+
+running 1 test
+test tests::streamed_body_limit_is_enforced ... FAILED
+
+failures:
+
+---- tests::streamed_body_limit_is_enforced stdout ----
+
+thread 'tests::streamed_body_limit_is_enforced' (2500408) panicked at crates/s3-guard/src/main.rs:550:9:
+assertion failed: Limited::new(body, cap).collect().await.is_err()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::streamed_body_limit_is_enforced
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p s3-guard --bin s3-guard`

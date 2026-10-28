@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-a582757db3a02d79)
+
+running 1 test
+test pce::tests::hostile_counts_are_bounded_before_container_allocation ... FAILED
+
+failures:
+
+---- pce::tests::hostile_counts_are_bounded_before_container_allocation stdout ----
+
+thread 'pce::tests::hostile_counts_are_bounded_before_container_allocation' (2487278) panicked at crates/store/src/pce.rs:320:13:
+oversized allocation reached element decoder
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pce::tests::hostile_counts_are_bounded_before_container_allocation
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p paralean-store --lib`

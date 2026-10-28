@@ -1,0 +1,14 @@
+F..
+======================================================================
+FAIL: test_metrics_require_the_config_token (__main__.StorageBoundary.test_metrics_require_the_config_token)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-c4xgvisa/test-storage-boundary.py", line 115, in test_metrics_require_the_config_token
+    with self.assertRaisesRegex(ValueError, "metrics_token"):
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.043s
+
+FAILED (failures=1)

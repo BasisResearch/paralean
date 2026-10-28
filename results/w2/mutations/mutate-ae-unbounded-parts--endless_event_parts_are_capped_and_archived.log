@@ -1,0 +1,24 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests/network.rs (impl/p2/target/debug/deps/network-089da5d95a69d89e)
+
+running 1 test
+
+thread '<unnamed>' (2501891) panicked at crates/ae-service/tests/network.rs:1489:9:
+assertion failed: staged_parts(b, &source, &event).await as u64 <=
+    paralean_store::ae::MAX_EVENT_PARTS
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test endless_event_parts_are_capped_and_archived ... FAILED
+
+failures:
+
+---- endless_event_parts_are_capped_and_archived ----
+test panicked: assertion failed: staged_parts(b, &source, &event).await as u64 <=
+    paralean_store::ae::MAX_EVENT_PARTS
+
+
+failures:
+    endless_event_parts_are_capped_and_archived
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 20 filtered out; finished in 6.92s
+
+error: test failed, to rerun pass `-p paralean-ae-service --test network`

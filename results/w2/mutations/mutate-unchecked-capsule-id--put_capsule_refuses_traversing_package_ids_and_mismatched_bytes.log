@@ -1,0 +1,22 @@
+   Compiling paralean-remote v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.10s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/plr-119439b3f1ae0b2f)
+
+running 1 test
+test cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes ... FAILED
+
+failures:
+
+---- cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes stdout ----
+
+thread 'cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes' (2505652) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3-remote/src/cache.rs:232:9:
+bytes stored under another capsule ID
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-remote --bin plr`

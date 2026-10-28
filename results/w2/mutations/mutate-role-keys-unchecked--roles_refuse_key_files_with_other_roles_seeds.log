@@ -1,0 +1,22 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.50s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_control-be522d5f8e094679)
+
+running 1 test
+test keys::tests::roles_refuse_key_files_with_other_roles_seeds ... FAILED
+
+failures:
+
+---- keys::tests::roles_refuse_key_files_with_other_roles_seeds stdout ----
+
+thread 'keys::tests::roles_refuse_key_files_with_other_roles_seeds' (2494927) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/src/keys.rs:118:44:
+called `Result::unwrap_err()` on an `Ok` value: ()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keys::tests::roles_refuse_key_files_with_other_roles_seeds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paralean-control --lib`

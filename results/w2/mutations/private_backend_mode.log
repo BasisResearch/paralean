@@ -1,14 +1,14 @@
-F.
+.F.
 ======================================================================
 FAIL: test_private_socket_and_absent_tcp_are_required (__main__.StorageBoundary.test_private_socket_and_absent_tcp_are_required)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "/Users/kirancodes/tmp/w2-boundary-mutation-414t5k6q/test-storage-boundary.py", line 32, in test_private_socket_and_absent_tcp_are_required
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-rffsz5kc/test-storage-boundary.py", line 59, in test_private_socket_and_absent_tcp_are_required
     with self.assertRaisesRegex(ValueError, "socket parent must be owned by this user and mode 0700"):
          ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 AssertionError: ValueError not raised
 
 ----------------------------------------------------------------------
-Ran 2 tests in 0.003s
+Ran 3 tests in 2.565s
 
 FAILED (failures=1)

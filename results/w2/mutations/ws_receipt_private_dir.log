@@ -1,0 +1,23 @@
+/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-iwis_buz/ws.py:131: ResourceWarning: unclosed file <_io.TextIOWrapper name='/data/home/kirancodes/tmp/claude-2000/w2c/tmp36xkq69k/copy/receipt.json' mode='w' encoding='UTF-8'>
+  json.dump(v, open(rpath, "w"))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+F
+======================================================================
+FAIL: test_publish_does_not_follow_planted_links (__main__.PublishStagingTest.test_publish_does_not_follow_planted_links)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-iwis_buz/test-ws.py", line 80, in test_publish_does_not_follow_planted_links
+    self.check_staged()
+    ~~~~~~~~~~~~~~~~~^^
+  File "/data/home/kirancodes/tmp/claude-2000/w2c/w2-script-mutation-iwis_buz/test-ws.py", line 71, in check_staged
+    self.assertEqual(sentinel.read_text(), "outside sentinel", name)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: '{"accepted": true, "targets": ["T.x:bbbbb[67 chars]: 1}' != 'outside sentinel'
+- {"accepted": true, "targets": ["T.x:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"], "ms": 1}
++ outside sentinel
+ : receipt.json
+
+----------------------------------------------------------------------
+Ran 1 test in 0.018s
+
+FAILED (failures=1)

@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running unittests src/lib.rs (impl/p2/target/debug/deps/paralean_store-6b557d317ff24d64)
+
+running 1 test
+test sign::security_tests::debug_does_not_disclose_role_seeds ... FAILED
+
+failures:
+
+---- sign::security_tests::debug_does_not_disclose_role_seeds stdout ----
+
+thread 'sign::security_tests::debug_does_not_disclose_role_seeds' (2487163) panicked at crates/store/src/sign.rs:372:9:
+assertion failed: !text.contains(k.authority.as_ref().unwrap())
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    sign::security_tests::debug_does_not_disclose_role_seeds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p paralean-store --lib`

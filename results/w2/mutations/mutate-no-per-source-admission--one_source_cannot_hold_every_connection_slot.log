@@ -1,0 +1,21 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/main.rs (impl/p2/target/debug/deps/s3_guard-28cc5ef70dc839d3)
+
+running 1 test
+test tests::one_source_cannot_hold_every_connection_slot ... FAILED
+
+failures:
+
+---- tests::one_source_cannot_hold_every_connection_slot stdout ----
+
+thread 'tests::one_source_cannot_hold_every_connection_slot' (2500537) panicked at crates/s3-guard/src/main.rs:527:9:
+one source exceeded its connection cap
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::one_source_cannot_hold_every_connection_slot
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p s3-guard --bin s3-guard`

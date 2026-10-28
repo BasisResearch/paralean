@@ -1,0 +1,27 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.71s
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-9831ed9cb2c74a01)
+
+running 1 test
+
+thread '<unnamed>' (2508580) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/durable.rs:353:5:
+assertion `left == right` failed: a retried spilled token lost its first answer
+  left: NoWork
+ right: Work { request: "spill/1", target: "Spill.target", epoch: 0, memory_mb: 1 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test spilled_poll_tokens_keep_their_first_answer ... FAILED
+
+failures:
+
+---- spilled_poll_tokens_keep_their_first_answer ----
+test panicked: assertion `left == right` failed: a retried spilled token lost its first answer
+  left: NoWork
+ right: Work { request: "spill/1", target: "Spill.target", epoch: 0, memory_mb: 1 }
+
+
+failures:
+    spilled_poll_tokens_keep_their_first_answer
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.82s
+
+error: test failed, to rerun pass `-p paralean-control --test durable`

@@ -1,0 +1,23 @@
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.26s
+     Running tests/durable.rs (impl/p2/target/debug/deps/durable-09fdf057ba2c720c)
+
+running 1 test
+
+thread '<unnamed>' (2506533) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/durable.rs:288:36:
+called `Result::unwrap()` on an `Err` value: "validation request belongs to another shard"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test sharded_validation_routes_are_scoped_per_workspace ... FAILED
+
+failures:
+
+---- sharded_validation_routes_are_scoped_per_workspace ----
+test panicked: called `Result::unwrap()` on an `Err` value: "validation request belongs to another shard"
+
+
+failures:
+    sharded_validation_routes_are_scoped_per_workspace
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p paralean-control --test durable`
