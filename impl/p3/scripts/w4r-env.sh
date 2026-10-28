@@ -5,6 +5,7 @@ export PARALEAN_INSTANCE="${PARALEAN_INSTANCE:-w4r-a}"
 case "$PARALEAN_INSTANCE" in
   w4r-a) export PARALEAN_PORT_BASE=32100 ;;
   w4r-b) export PARALEAN_PORT_BASE=32200 ;;
+  w4r-c) export PARALEAN_PORT_BASE=32300 ;;
   w4r-*) : "${PARALEAN_PORT_BASE:?set PARALEAN_PORT_BASE for $PARALEAN_INSTANCE}" ;;
   *) echo "w4r-env.sh: refusing instance $PARALEAN_INSTANCE (not w4r-*)" >&2; return 1 ;;
 esac
