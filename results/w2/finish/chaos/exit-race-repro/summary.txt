@@ -1,0 +1,5 @@
+bin sha256 d3171fcc17f9f8a74a3c3bee9aa15383506cc7df73c7b27358d31ff14e2c5487; libfdb_c sha256 4d808af6dce1e5876d59bd8db691820096f206c3870e770fefac98a10b30aa40
+idle: runs 1000; signalled 11; other nonzero 0
+keep: runs 1000; signalled 0; other nonzero 0
+busy: runs 1000; signalled 0; other nonzero 0
+stop: runs 1000; signalled 0; other nonzero 0

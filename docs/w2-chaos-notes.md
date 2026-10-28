@@ -283,10 +283,88 @@ process lifecycle; the old stress-worker SIGSEGV still has no crash stack.
 `libtest-mimic` initially caused proptest's source-relative failure
 persistence to warn that it could not locate a Rust `main.rs` or `lib.rs`.
 After the full gates, the property suite was given an explicit regression
-file path under `impl/p2/crates/store/proptest-regressions/tests/`.
+file path. The finish pass points it at the existing
+`impl/p2/crates/store/tests/property.proptest-regressions`, so its three
+recorded shrunk cases still run first.
 A one-case property smoke passed without the warning
 (`results/w2/finish/chaos/property-persistence-smoke.log`). The mutation
 checker was updated to recognize padded libtest-mimic verdicts; two
 `mutate-no-owner-check` cases correctly reported `detected` in
 `results/w2/finish/chaos/mutation-parser-smoke.log`. Those two tooling edits
 do not change the store guards or the chaos harness's fault schedule.
+
+## Root cause of both SIGSEGVs (2026-10-28 UTC, `w2c-chaos`)
+
+**Cause.** A process that leaves `main` while the FoundationDB network thread
+still runs `fdb_run_network()` races libfdb_c's own exit-time destructors.
+glibc's `exit()` runs `_dl_call_fini` for libfdb_c, whose `__cxa_finalize`
+destroys and frees the client library's global objects. The network thread
+keeps executing in the same library and dereferences what was just freed.
+The crash needs no FDB fault. It needs only (a) no `fdb_stop_network()` and join
+before exit, and (b) the network thread busy at that moment. In practice (b) is
+the asynchronous destruction that dropping a `Database` queues on the network
+thread.
+
+**Reproducer.** `impl/p2/crates/store/examples/exit_race.rs` boots FDB exactly as
+P2 does (`meta::boot`), issues read-version requests from four threads for 50 ms
+and leaves `main` in one of four ways. `impl/p2/scripts/exit-race-repro.sh` runs
+it sequentially and captures a GDB backtrace from apport's core immediately after
+a crash, because apport keeps only its latest few cores. All runs used FDB client
+7.3.79 (`libfdb_c.so` SHA-256 `4d808af6…0aa40`) on a healthy six-process
+triple-redundant cluster with no injected fault.
+
+| Exit shape | Runs | SIGSEGV | Evidence |
+| --- | ---: | ---: | --- |
+| `idle`: drop the database, return without stopping FDB (the stock libtest harness after its last test; the pre-`667dcf6` CLI) | 1000 + 1000 (+1000) | **11 + 6** (+10) | `exit-race-repro/`, `exit-race-repro-healthy2/`; the bracketed run was an earlier, identical run whose directory the clean rerun replaced |
+| `keep`: as `idle`, but the database is leaked, so no destruction is queued | 1000 | 0 | `exit-race-repro/` |
+| `busy`: return with requests still in flight, database alive | 1000 | 0 | `exit-race-repro/` |
+| `idle+gap`: as `idle` with 20 ms between the drop and the return | 1000 | 0 | `exit-race-repro-gap20/` |
+| `stop`: drop, then `meta::shutdown()` (stop and join; the fix) | 1000 | **0** | `exit-race-repro/` |
+| `idle` / `idle+gap` with fdbserver 3 and 5 killed | 500 / 500 | 0 / 0 | `exit-race-repro-2down/` |
+
+The `idle` rate is about 1% (27/3000) with one sequential lane. Four parallel
+lanes crashed 0/400 times; the scheduling changes the window. The first
+exploratory run (2/100 sequential, then 2/200) is in this text only. The
+degraded-cluster rows do not show a wider window: 0/500 is weak evidence of a
+narrower one, so this note does not claim that faults raise the rate.
+
+Every captured core has the same two-thread shape (`exit-race-repro/idle-bt-*.txt`):
+
+```
+network thread: fdb_run_network → … → SIGSEGV at one fixed libfdb_c offset (…fcf6)
+main thread:    _dl_call_fini → libfdb_c fini → __cxa_finalize(libfdb_c) → destructor
+                → free()/_int_free_chunk (or a libfdb_c destructor frame)
+```
+
+The earlier rejected `atexit` fallback (`network-shutdown/gdb-child.log`) shows
+the same ordering from the other side. By the time any exit handler runs,
+libfdb_c's state may already be destroyed, so stopping FDB from an exit handler
+crashes in `fdb_stop_network()` itself. The stop must happen before `main`
+returns.
+
+**The 61/62 fixture failure.** The `seed-77003` fixture process printed
+`test result: ok. 9 passed` and was then killed by signal 11. That is this race:
+the stock libtest main drops each test's `Env` (and its `Database`), prints the
+summary and returns into `exit()` with the network thread running. It is not a
+store or pagination defect. Every FDB-using P2 suite now has an explicit
+`libtest-mimic` main that runs every trial, then calls `meta::shutdown()` before
+exiting (`tests/common/mod.rs::run_tests`). The 61/62 `t8_tombstone_guards`
+failure and the round-9 pagination setup failure are the separate ambiguous-commit
+test bugs described at the top of this file. Both were fixed earlier.
+
+**The stress-worker SIGSEGV (p2-rest run 1).** No core of that process exists,
+so its stack cannot be shown. Its binary predates `667dcf6` and had the `idle`
+exit shape: `#[tokio::main]` dropped the store, then returned into `exit()`
+without stopping FDB. The reproduced mechanism is therefore the precise
+explanation of the crash class, and `667dcf6` (now `crash::Teardown`) removes
+it. It also explains why 12,000 CLI exits with the stop removed did not crash:
+the current CLI drops its multi-threaded Tokio runtime (joining its worker
+threads) between destroying the database and exiting. The 20 ms gap row shows
+that such a gap closes the window. The historical crash happened during
+double disk-loss recovery; this investigation found no evidence that recovery
+was necessary rather than coincidental.
+
+**Remaining binaries.** The P3 controller/validator (`impl/p3/crates/control`),
+`p3-remote` and their FDB test suites also return from `main` without stopping
+FDB. They are fixed with the same pattern after the origin/main merge (see
+w2-log.md).
