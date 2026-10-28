@@ -284,6 +284,8 @@ pub struct ControlPlane {
     gc: GcConfig,
     gc_cursor: Mutex<Option<String>>,
     replay: ReplayConfig,
+    /// Generation of the request being handled, once its gate passed (see `save_state`).
+    gate_generation: Mutex<Option<u64>>,
     /// Head generation of the last load or save (dynamic topology: saves compare it).
     loaded_generation: Mutex<Option<u64>>,
     /// Validations in progress per bucket (dynamic topology), from routing to the end of
@@ -698,7 +700,7 @@ impl ControlPlane {
     }
 
     fn with_durable(cfg: ControllerConfig, durable: Durable, gc: GcConfig, replay: ReplayConfig) -> Arc<ControlPlane> {
-        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None), replay,
+        Arc::new(ControlPlane { cfg, state: Mutex::new(State::default()), durable, operation: tokio::sync::Mutex::new(()), seen_term: AtomicU64::new(0), gc, gc_cursor: Mutex::new(None), replay, gate_generation: Mutex::new(None),
             loaded_generation: Mutex::new(None), active: Arc::new(Mutex::new(HashMap::new())), moving: Mutex::new(HashSet::new()),
             move_steps_paused: std::sync::atomic::AtomicBool::new(false) })
     }
@@ -911,6 +913,7 @@ impl ControlPlane {
     /// controller writes for it names the generation.
     pub async fn handle_call(self: &Arc<Self>, call: ControlCall) -> ControlResponse {
         let aware = call.generation.is_some();
+        *self.gate_generation.lock().unwrap() = None;
         let req = call.request;
         // Before routing: shard lookups and W4's work-shard reservation key on the ID.
         if let Some(id) = request_id(&req) {
@@ -984,9 +987,14 @@ impl ControlPlane {
             ControlRequest::AssignGroup { request, .. } => !request.is_empty(),
             _ => false,
         };
+        *self.gate_generation.lock().unwrap() = None;
         if !gated { return Ok(()) }
         let current = self.durable.replay_generation().await.map_err(|e| inconclusive(&e))?;
-        let Err(reason) = crate::replay::check(generation, current.generation, self.replay.require_generation) else { return Ok(()) };
+        let Err(reason) = crate::replay::check(generation, current.generation, self.replay.require_generation) else {
+            // The save that commits this request's effects re-checks its generation.
+            *self.gate_generation.lock().unwrap() = Some(generation);
+            return Ok(());
+        };
         if let ControlRequest::Validate { worker, request, .. } = req {
             let st = self.state.lock().unwrap();
             if st.work.get(request).is_some_and(|j| matches!(j.state, WorkState::Running { worker: w, .. } if Some(w) == ws(worker))) {
@@ -1368,7 +1376,12 @@ impl ControlPlane {
             let (work, polls) = st.spill_over_caps(SPILL_BUDGET);
             (serde_json::to_vec(&st.snapshot()).map_err(|e| e.to_string())?, work, polls)
         };
-        self.save_bytes(&bytes, term, &work, &polls).await
+        // A gated request's effects commit only while its generation is still accepted.
+        let check = *self.gate_generation.lock().unwrap();
+        *self.durable.replay_check.lock().unwrap() = check;
+        let saved = self.save_bytes(&bytes, term, &work, &polls).await;
+        *self.durable.replay_check.lock().unwrap() = None;
+        saved
     }
 
     /// True on the first operation of a new term: this replica just took the lease. A
@@ -1893,6 +1906,7 @@ impl ControlPlane {
     /// reassigned immediately (T4), so its epoch moves even if the worker is still running.
     pub async fn expire_leases(self: &Arc<Self>) {
         let _guard = self.operation.lock().await;
+        *self.gate_generation.lock().unwrap() = None;
         let lease = match self.durable.acquire_or_renew().await { Ok(Some(l)) => l, _ => return };
         if self.durable.dynamic {
             if self.begin_locked(lease.term).await.is_err() { return }

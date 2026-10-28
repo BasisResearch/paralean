@@ -109,6 +109,8 @@ mutate-replay-advance-no-fence = []
 mutate-replay-retire-gen0 = []
 mutate-replay-dedupe-ignores-generation = []
 mutate-replay-poll-token-unchecked = []
+mutate-replay-per-shard-generation = []
+mutate-replay-no-commit-check = []
 # W4-rest design 2 (dynamic shard topology): one guard removal each, for
 # impl/p3/scripts/check-w4r-shard-mutations.sh; never enable otherwise.
 mutate-shard-export-keeps-source = []

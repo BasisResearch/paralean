@@ -146,9 +146,15 @@ fn handoff_chunk_key(store: &Store, id: u64, index: u32) -> Vec<u8> {
 pub fn shard_lease_key(store: &Store, shard: u32) -> Vec<u8> { root(store).pack(&("controller", "shard", shard as u64, "lease")) }
 fn shard_state_key(store: &Store, shard: u32) -> Vec<u8> { root(store).pack(&("controller", "shard", shard as u64, "state")) }
 pub(crate) fn work_replay_key_of(store: &Store, shard: u32, request: &str) -> Vec<u8> {
+    if let Some(g) = crate::replay::identity_generation(request) {
+        return crate::replay::replay_row_key_of(store, shard, g, "work", request);
+    }
     root(store).pack(&("controller", "shard", shard as u64, "history-work", Bytes::from(&sha256(request.as_bytes())[..])))
 }
 pub(crate) fn poll_replay_key_of(store: &Store, shard: u32, token: &str) -> Vec<u8> {
+    if let Some(g) = crate::replay::identity_generation(token) {
+        return crate::replay::replay_row_key_of(store, shard, g, "poll", token);
+    }
     root(store).pack(&("controller", "shard", shard as u64, "history-poll", Bytes::from(&sha256(token.as_bytes())[..])))
 }
 /// A dynamic shard's validation index is keyed by bucket first, so a move reads and

@@ -19,11 +19,15 @@ cases=(
   'mutate-replay-dedupe-ignores-generation|in_window_duplicates_are_deduplicated_after_compaction'
   'mutate-replay-poll-token-unchecked|retired_poll_tokens_cannot_take_new_work'
   'mutate-replay-accept-legacy|require_replay_generation_refuses_generation_zero'
+  # Integration with design 2: a deployment-wide window, re-checked at commit.
+  'mutate-replay-per-shard-generation|dynamic_generations_follow_requests_across_moves'
+  'mutate-replay-no-commit-check|replay::tests::saves_recheck_the_request_generation|lib'
 )
 failed=0
 for case in "${cases[@]}"; do
-  IFS='|' read -r feature test_name <<<"$case"
-  if output="$(cargo test -q -p paralean-control -j "$jobs" --features "$feature" --test w4r_replay -- --exact "$test_name" --test-threads=1 2>&1)"; then
+  IFS='|' read -r feature test_name target <<<"$case"
+  if [[ "${target:-}" == lib ]]; then selector=(--lib); else selector=(--test w4r_replay); fi
+  if output="$(cargo test -q -p paralean-control -j "$jobs" --features "$feature" "${selector[@]}" -- --exact "$test_name" --test-threads=1 2>&1)"; then
     echo "SURVIVED  $feature"
     failed=1
   elif grep -Eq "$test_name --- FAILED|test[[:space:]]+$test_name[[:space:]]+[.]{3} FAILED|^---- $test_name ----$" <<<"$output" &&

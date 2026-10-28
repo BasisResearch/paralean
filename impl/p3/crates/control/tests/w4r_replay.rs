@@ -330,6 +330,52 @@ async fn retirement_and_advance_need_the_fenced_leader() {
     assert!(successor.collect_replay_rows(new_term, &replay, &GcConfig::default()).await.is_err());
 }
 
+/// Design 2 x design 3: a request's bucket can move between shards, and its retries
+/// follow it. The generation window is deployment-wide, so a retry that lands at the
+/// destination after the source retired the request's row is refused, never executed.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn dynamic_generations_follow_requests_across_moves() {
+    use paralean_control::topology;
+    let keys = KeyFile::demo(2);
+    let store = Store::open(&StoreConfig::from_env(&deployment("w4r-dyn-replay")).unwrap(), keys.ring(), Faults::none()).unwrap();
+    topology::init_dynamic(&store, 2).await.unwrap();
+    let cfg = config(store.clone(), &keys);
+    let a = ControlPlane::new_dynamic_with_replay(cfg.clone(), 0, gc_on(1), horizon(1, false));
+    let b = ControlPlane::new_dynamic_with_replay(cfg.clone(), 1, gc_on(1), horizon(1, false));
+    let clock_a = Durable::new_dynamic(store.clone(), cfg.lease, 0);
+    let target = (0..100_000).map(|i| format!("Replay.Moved{i}"))
+        .find(|t| topology::name_bucket(&Name::parse(t)) == 5).unwrap();
+    let bucket = topology::name_bucket(&Name::parse(&target));
+    assert_eq!(topology::read_bucket(&store, bucket).await.unwrap().shard, 0);
+    let call = |cp: &Arc<ControlPlane>, g: u64, req: ControlRequest| { let cp = cp.clone(); async move { cp.handle_call(ControlCall::scoped(g, req)).await } };
+
+    assert_eq!(a.advance_replay().await.unwrap().generation, 1);
+    assert_eq!(b.advance_replay().await.unwrap().generation, 1, "the destination has its own generation");
+    assert_eq!(call(&a, 1, submit("moved", &target)).await, ControlResponse::Queued);
+    assert_eq!(call(&a, 1, cancel("moved")).await, ControlResponse::Cancelled);
+    clock_a.tick().await.unwrap();
+    while a.compact_history_once().await.unwrap().compacted_work > 0 {}
+
+    topology::begin_move(&store, 7, &[bucket], 0, 1).await.unwrap();
+    a.drive_moves_now().await.unwrap();
+    b.drive_moves_now().await.unwrap();
+    // In the window: the destination answers from the source's row.
+    assert_eq!(call(&b, 1, submit("moved", &target)).await, ControlResponse::Duplicate { state: "Cancelled".into() });
+
+    // The source (the lowest active shard) advances twice and retires generation 1.
+    for _ in 0..2 {
+        for _ in 0..H { clock_a.tick().await.unwrap(); }
+        a.advance_replay().await.unwrap();
+    }
+    b.advance_replay().await.unwrap();
+    for _ in 0..4 { clock_a.tick().await.unwrap(); a.collect_replay().await.unwrap(); }
+    assert!(clock_a.work_replay(&scoped_id(1, "moved")).await.unwrap().is_none(), "the source kept its row");
+    let r = call(&b, 1, submit("moved", &target)).await;
+    assert!(is_expired(&r), "a retry of a retired request was not refused at the destination: {r:?}");
+    let ControlResponse::Status { status } = b.handle(ControlRequest::Status).await else { panic!("no status") };
+    assert!(status["work"].as_array().unwrap().iter().all(|j| j["request"] != scoped_id(1, "moved")), "the retry executed again");
+}
+
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn retired_poll_tokens_cannot_take_new_work() {
     let c = case("w4r-poll", GcConfig::default(), horizon(2, false));
@@ -422,7 +468,7 @@ async fn workers_learn_and_follow_the_generation_over_rpc() {
     let now = c.clock.clock().await.unwrap();
     let key = c.store.meta.keys.root.pack(&("controller", "shard", 0u64, "replay-gen"));
     let trx = c.store.meta.db.create_trx().unwrap();
-    trx.set(&key, &serde_json::to_vec(&ReplayGen { generation: 3, started_tick: now }).unwrap());
+    trx.set(&key, &serde_json::to_vec(&ReplayGen { generation: 3, started_tick: now, clock_shard: None }).unwrap());
     trx.commit().await.unwrap();
     assert_eq!(c.generation().await, 3);
     assert_eq!(c.call(3, submit("w/two", "Replay.Worker.Two")).await, ControlResponse::Queued);
@@ -504,6 +550,7 @@ fn main() {
         libtest_mimic::Trial::test("retired_poll_tokens_cannot_take_new_work", || { retired_poll_tokens_cannot_take_new_work(); Ok(()) }),
         libtest_mimic::Trial::test("active_work_of_an_old_generation_still_finishes", || { active_work_of_an_old_generation_still_finishes(); Ok(()) }),
         libtest_mimic::Trial::test("require_replay_generation_refuses_generation_zero", || { require_replay_generation_refuses_generation_zero(); Ok(()) }),
+        libtest_mimic::Trial::test("dynamic_generations_follow_requests_across_moves", || { dynamic_generations_follow_requests_across_moves(); Ok(()) }),
         libtest_mimic::Trial::test("workers_learn_and_follow_the_generation_over_rpc", || { workers_learn_and_follow_the_generation_over_rpc(); Ok(()) }),
         libtest_mimic::Trial::test("replay_rows_with_and_without_a_horizon", || { replay_rows_with_and_without_a_horizon(); Ok(()) }).with_ignored_flag(true),
     ]);

@@ -69,6 +69,9 @@ pub struct Durable {
     /// A dynamic topology member (`crate::topology`); `shards` is then unused.
     pub dynamic: bool,
     pub(crate) move_limit: std::sync::atomic::AtomicUsize,
+    /// The replay generation of the request whose effects the next save commits (set by
+    /// the controller around that save); the save re-checks it in its transaction.
+    pub(crate) replay_check: std::sync::Mutex<Option<u64>>,
 }
 
 /// The outcome of writing a snapshot head (`Durable::write_snapshot_in`).
@@ -138,7 +141,8 @@ impl Durable {
     pub fn new_shard(store: Store, lease: Duration, shard: u32, shards: u32) -> Self {
         assert!(shards > 0 && shard < shards, "invalid controller shard topology");
         Durable { store, holder: hex::encode(rand::random::<[u8; 16]>()), lease_ms: (lease.as_millis() as u64).max(500), shard, shards,
-            dynamic: false, move_limit: std::sync::atomic::AtomicUsize::new(crate::topology::MOVE_LIMIT) }
+            dynamic: false, move_limit: std::sync::atomic::AtomicUsize::new(crate::topology::MOVE_LIMIT),
+            replay_check: std::sync::Mutex::new(None) }
     }
 
     pub(crate) fn lease_key(&self) -> Vec<u8> { self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "lease")) }
@@ -521,6 +525,8 @@ impl Durable {
             } else {
                 self.require_lease(&trx, term).await?
             };
+            let check = *self.replay_check.lock().unwrap();
+            if let Some(g) = check { self.require_replay_generation_in(&trx, g).await? }
             for (record, value) in work.iter().zip(&work_values) {
                 let key = self.work_replay_key(&record.request);
                 match trx.get(&key, false).await.map_err(|e| e.to_string())? {

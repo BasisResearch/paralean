@@ -58,6 +58,10 @@ impl Default for ReplayConfig {
 pub struct ReplayGen {
     pub generation: u64,
     pub started_tick: u64,
+    /// Dynamic topology: the shard whose clock `started_tick` is on (the lowest active
+    /// member advances the deployment-wide generation).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clock_shard: Option<u32>,
 }
 
 /// Cumulative retirement counters, `controller/shard/<n>/replay-stats`.
@@ -154,12 +158,43 @@ fn be_u64(v: &[u8]) -> Result<u64, String> {
     Ok(u64::from_be_bytes(v.try_into().map_err(|_| "invalid replay record")?))
 }
 
+/// Shard `shard`'s replay row of a generation-`g > 0` identity (any shard's, for the
+/// cross-shard lookups of a dynamic topology).
+pub(crate) fn replay_row_key_of(store: &paralean_store::Store, shard: u32, generation: u64, kind: &str, identity: &str) -> Vec<u8> {
+    store.meta.keys.root.subspace(&("controller", "shard", shard as u64, "replay-rows"))
+        .pack(&(generation, kind, foundationdb::tuple::Bytes::from(&sha256(identity.as_bytes())[..])))
+}
+
 impl Durable {
-    fn replay_gen_key(&self) -> Vec<u8> {
+    /// A fixed shard has its own generation. In a dynamic topology a request's bucket,
+    /// and so the shard that sees its retries, can move, so the generation (and when
+    /// each one stopped being accepted) is deployment-wide: a retry is judged by the
+    /// same window wherever it lands.
+    pub(crate) fn replay_gen_key(&self) -> Vec<u8> {
+        if self.dynamic && !cfg!(feature = "mutate-replay-per-shard-generation") {
+            return self.store.meta.keys.root.pack(&("controller", "replay-gen"));
+        }
         self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "replay-gen"))
     }
     fn replay_refused_key(&self, generation: u64) -> Vec<u8> {
+        if self.dynamic && !cfg!(feature = "mutate-replay-per-shard-generation") {
+            return self.store.meta.keys.root.pack(&("controller", "replay-refused", generation));
+        }
         self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "replay-refused", generation))
+    }
+    /// Dynamic topology: the tick of this shard's clock at which it first saw
+    /// `generation` refused. Its grace runs on its own clock from there.
+    fn replay_seen_refused_key(&self, generation: u64) -> Vec<u8> {
+        self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "replay-seen-refused", generation))
+    }
+
+    /// Inside a save: the request generation `g` must still be accepted at the commit
+    /// version. An advance that stops accepting `g` conflicts with this read, so a
+    /// request that passed the gate commits only while its rows cannot have been retired.
+    pub(crate) async fn require_replay_generation_in(&self, trx: &foundationdb::Transaction, g: u64) -> Result<(), String> {
+        if g == 0 || cfg!(feature = "mutate-replay-no-commit-check") { return Ok(()) }
+        let current = Self::read_replay_gen(trx, &self.replay_gen_key()).await?;
+        check(g, current.generation, false)
     }
     fn replay_stats_key(&self) -> Vec<u8> {
         self.store.meta.keys.root.pack(&("controller", "shard", self.shard as u64, "replay-stats"))
@@ -169,7 +204,7 @@ impl Durable {
     }
     /// The replay row of a generation-`g > 0` identity: `replay-rows/<g>/<kind>/<sha256>`.
     pub(crate) fn replay_row_key(&self, generation: u64, kind: &str, identity: &str) -> Vec<u8> {
-        self.replay_rows_subspace().pack(&(generation, kind, foundationdb::tuple::Bytes::from(&sha256(identity.as_bytes())[..])))
+        replay_row_key_of(&self.store, self.shard, generation, kind, identity)
     }
 
     async fn read_replay_gen(trx: &foundationdb::Transaction, key: &[u8]) -> Result<ReplayGen, String> {
@@ -208,8 +243,25 @@ impl Durable {
                 self.require_lease(&trx, term).await?
             };
             let current = Self::read_replay_gen(&trx, &key).await?;
+            let me = self.dynamic.then_some(self.shard);
+            if self.dynamic && !cfg!(feature = "mutate-replay-per-shard-generation") {
+                // Only the lowest active member advances the deployment-wide generation,
+                // on its own clock; a new designee restarts the horizon on its clock.
+                let topology = crate::topology::topology_in(&trx, &self.store).await?;
+                let designee = topology.members.iter()
+                    .find(|(_, s)| **s == crate::topology::MemberState::Active).map(|(n, _)| *n);
+                if designee != Some(self.shard) { return Ok(current) }
+                if current.generation != 0 && current.clock_shard != me {
+                    let next = ReplayGen { started_tick: tick, clock_shard: me, ..current };
+                    trx.set(&key, &serde_json::to_vec(&next).map_err(|e| e.to_string())?);
+                    match trx.commit().await {
+                        Ok(_) => return Ok(next),
+                        Err(e) => { trx = e.on_error().await.map_err(|e| e.to_string())?; continue }
+                    }
+                }
+            }
             let next = if current.generation == 0 {
-                ReplayGen { generation: 1, started_tick: tick }
+                ReplayGen { generation: 1, started_tick: tick, clock_shard: me }
             } else if tick >= current.started_tick.saturating_add(horizon) {
                 let generation = current.generation.checked_add(1).ok_or("replay generation exhausted")?;
                 // `G + 1` accepts `G + 1` and `G`: `G - 1` stops being accepted now.
@@ -217,7 +269,7 @@ impl Durable {
                 if stopped >= 1 {
                     trx.set(&self.replay_refused_key(stopped), &tick.to_be_bytes());
                 }
-                ReplayGen { generation, started_tick: tick }
+                ReplayGen { generation, started_tick: tick, clock_shard: me }
             } else {
                 return Ok(current);
             };
@@ -262,6 +314,7 @@ impl Durable {
                 }
             }
             let mut eligible: std::collections::BTreeMap<u64, bool> = std::collections::BTreeMap::new();
+            let mut wrote_seen = false;
             let mut stop = false;
             for (begin, end) in ranges {
                 if stop { break }
@@ -282,8 +335,20 @@ impl Durable {
                     let ok = match eligible.get(&generation) {
                         Some(ok) => *ok,
                         None => {
-                            let refused = trx.get(&self.replay_refused_key(generation), false).await.map_err(|e| e.to_string())?
+                            let mut refused = trx.get(&self.replay_refused_key(generation), false).await.map_err(|e| e.to_string())?
                                 .map(|v| be_u64(&v)).transpose()?;
+                            if self.dynamic && refused.is_some() {
+                                // The refusal tick is on the designee's clock; count this
+                                // shard's grace on its own clock from when it first saw it.
+                                let seen = self.replay_seen_refused_key(generation);
+                                refused = trx.get(&seen, false).await.map_err(|e| e.to_string())?
+                                    .map(|v| be_u64(&v)).transpose()?;
+                                if refused.is_none() {
+                                    trx.set(&seen, &tick.to_be_bytes());
+                                    wrote_seen = true;
+                                    refused = Some(tick);
+                                }
+                            }
                             let ok = generation == 0 || cfg!(feature = "mutate-replay-retire-no-grace")
                                 || refused.is_some_and(|t| tick >= t && tick - t >= replay.grace_ticks);
                             eligible.insert(generation, ok);
@@ -298,7 +363,7 @@ impl Durable {
                     trx.clear(&key);
                 }
             }
-            if report.deleted_rows == 0 { return Ok(report) }
+            if report.deleted_rows == 0 && !wrote_seen { return Ok(report) }
             let mut stats: ReplayStats = trx.get(&stats_key, false).await.map_err(|e| e.to_string())?
                 .map(|v| serde_json::from_slice(&v).map_err(|e| e.to_string())).transpose()?.unwrap_or_default();
             stats.deleted_rows = stats.deleted_rows.saturating_add(report.deleted_rows as u64);
@@ -316,6 +381,28 @@ impl Durable {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A request that passed the gate commits its effects only while its generation is
+    /// still accepted: the save re-reads the generation in its own transaction.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn saves_recheck_the_request_generation() {
+        use paralean_store::{Faults, KeyFile, Store, StoreConfig};
+        let deployment = format!("replay-commit-{}", hex::encode(rand::random::<[u8; 8]>()));
+        let store = Store::open(&StoreConfig::from_env(&deployment).unwrap(), KeyFile::demo(2).ring(), Faults::none()).unwrap();
+        let d = Durable::new(store, std::time::Duration::from_millis(500));
+        let term = d.acquire_or_renew().await.unwrap().unwrap().term;
+        for _ in 0..3 {
+            d.advance_replay_generation(term, 1).await.unwrap();
+            d.tick().await.unwrap();
+        }
+        assert_eq!(d.replay_generation().await.unwrap().generation, 3);
+        for (g, accepted) in [(1, false), (2, true), (3, true), (0, true)] {
+            *d.replay_check.lock().unwrap() = Some(g);
+            let saved = d.save(format!("state {g}").as_bytes(), term).await;
+            assert_eq!(saved.is_ok(), accepted, "generation {g}: {saved:?}");
+        }
+        *d.replay_check.lock().unwrap() = None;
+    }
 
     #[test]
     fn scoped_identities_are_injective_and_canonical() {
