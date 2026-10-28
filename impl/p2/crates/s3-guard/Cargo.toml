@@ -12,6 +12,9 @@ hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
 http-body-util = "0.1"
 bytes = "1"
 sha2 = "0.10"
+# Store-GC content deletes (--gc-fdb-cluster): the object-state transitions run in FDB.
+# Same version and features as paralean-store.
+foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_3", "embedded-fdb-include"] }
 
 [features]
 # Guard-removal mutations: W2's (allow-delete, unbounded-body, allow-overwrite,
@@ -24,3 +27,7 @@ mutate-no-gc-principal-check = []
 mutate-no-bucket-delete-check = []
 mutate-no-query-key-decode = []
 mutate-no-gc-prefix-check = []
+# W4-rest store GC (scripts/check-w4r-gc-mutations.sh): a content delete admitted without
+# the Doomed mark, or for any principal.
+mutate-storegc-guard-no-mark-check = []
+mutate-storegc-guard-any-principal = []

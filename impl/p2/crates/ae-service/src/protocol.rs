@@ -114,6 +114,9 @@ pub enum Response {
     Object { kind: Kind, id: Id, length: u64 },
     Missing { kind: Kind, id: Id },
     Error(String),
+    /// The source's store GC collected the object (doomed, deleting or gone): the receiver
+    /// archives the event instead of retrying (docs/w4-rest-log.md, Design 1).
+    Retired { kind: Kind, id: Id },
 }
 
 impl Pce for Response {
@@ -147,6 +150,10 @@ impl Pce for Response {
             Self::Error(s) => {
                 e.byte(5).string(s);
             }
+            Self::Retired { kind, id } => {
+                e.byte(6).string(kind.name());
+                id.encode(e);
+            }
         }
     }
 
@@ -177,6 +184,10 @@ impl Pce for Response {
                 id: Id::decode(d)?,
             },
             5 => Self::Error(d.string()?),
+            6 => Self::Retired {
+                kind: Kind::from_name(&d.string()?).ok_or(DecodeError::Invalid("object kind"))?,
+                id: Id::decode(d)?,
+            },
             tag => {
                 return Err(DecodeError::UnknownTag {
                     what: "anti-entropy RPC response",

@@ -121,6 +121,13 @@ pub enum GuardFailure {
     BatchConflict(Id),
     #[error("batch exceeds the single-transaction budget: {0}")]
     BatchTooLarge(String),
+    // --- W4-rest store GC (gc.rs; docs/w4-rest-log.md Design 1)
+    /// The object is doomed, being deleted or gone. A writer waits for `Gone`, re-PUTs (the
+    /// revival path, `Store::gc_revive`) and retries; nothing was written.
+    #[error("{kind:?} {id:?} is doomed, being deleted or gone (store GC); revive and retry")]
+    Collected { kind: Kind, id: Id },
+    #[error("catalogue record {0:?} was retired by the store GC")]
+    CatalogueRetired(Id),
 }
 
 #[derive(Debug, Error)]

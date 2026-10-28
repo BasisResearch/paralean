@@ -503,8 +503,27 @@ impl Meta {
     /// J1: the envelope stored for the job's (workspace, request), writing `job` if there
     /// is none.
     pub async fn issue_job(&self, job: &SignedJob) -> Result<SignedJob> {
-        let o = self.put_once(self.keys.job_request(&job.body.worker, &job.body.request), job.to_bytes()).await?;
-        Ok(SignedJob::from_bytes(&o.value)?)
+        // As `put_once`, plus the store GC references of the envelope's objects (referrer
+        // `jobreq/<workspace>/<request>`), written with the envelope.
+        let (k, job) = (self.keys.clone(), Arc::new(job.clone()));
+        let value = self.run(
+            Txn::P3Job,
+            Box::new(move |trx| {
+                let (k, job) = (k.clone(), job.clone());
+                Box::pin(async move {
+                    let key = k.job_request(&job.body.worker, &job.body.request);
+                    if let Some(v) = crate::meta::get(trx, &key).await? {
+                        return Ok(Step::Done(v));
+                    }
+                    crate::gc::job_refs_in(trx, &k, &job).await?;
+                    let bytes = job.to_bytes();
+                    trx.set(&key, &bytes);
+                    Ok(Step::Commit(bytes))
+                })
+            }),
+        )
+        .await?;
+        Ok(SignedJob::from_bytes(&value)?)
     }
 
     /// J2: the receipt stored for (`worker`, `request`), writing `receipt` if there is none.

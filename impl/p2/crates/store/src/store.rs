@@ -58,13 +58,17 @@ pub struct Store {
     pub deployment: String,
     pub faults: Arc<Faults>,
     pub page: usize,
+    /// How long a writer whose object the store GC is deleting waits for `Gone` before it
+    /// gives up (the revival path, gc.rs). Liveness only.
+    pub gc_wait: std::time::Duration,
 }
 
 impl Store {
     pub fn open(cfg: &StoreConfig, ring: KeyRing, faults: Arc<Faults>) -> Result<Store> {
         let meta = Meta::open(cfg.cluster_file.as_deref(), &cfg.deployment, faults.clone())?;
         let s3 = Payloads::new(&cfg.s3, faults.clone());
-        Ok(Store { meta, s3, ring: Arc::new(ring), replica: cfg.replica, deployment: cfg.deployment.clone(), faults, page: cfg.page })
+        Ok(Store { meta, s3, ring: Arc::new(ring), replica: cfg.replica, deployment: cfg.deployment.clone(), faults, page: cfg.page,
+            gc_wait: std::time::Duration::from_secs(30) })
     }
 
     /// The same deployment with another fault plan (e.g. one per simulated process).
@@ -82,7 +86,7 @@ impl Store {
     pub async fn stage_value(&self, object: Id, stored: Vec<u8>) -> Result<Vec<u8>> {
         let (env, blob) = meta::envelope_for(object, stored);
         if let Some(b) = blob {
-            self.s3.put(Kind::Blob, &b).await?;
+            self.put_payload(Kind::Blob, &b).await?;
         }
         Ok(env.encode())
     }

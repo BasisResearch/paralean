@@ -44,7 +44,13 @@ const USAGE: &str = "usage: paralean-p2 <command> [args]
   stress --worker I --ops N --seed S [--crash-p P] [--fault-p P] [--ack-log FILE]
                                                 random operations (multi-process tests); FILE gets one
                                                 line per acknowledged effect
-  verify-acks FILE...                           every acknowledged effect in the logs is in the store";
+  verify-acks FILE...                           every acknowledged effect in the logs is in the store
+  gc backfill                                   store GC: write missing references (run after every writer is GC-aware)
+  gc enable | gc disable                        set/clear gc/indexed (enable needs a completed backfill)
+  gc sweep [--grace N] [--delete]               one sweep pass (needs gc enable); --delete then drives deletes
+                                                through s3-guard's GC principal (PARALEAN_GC_S3_ACCESS_KEY/SECRET_KEY)
+  gc delete                                     drive deletes of doomed objects only
+  gc status                                     GC flags, clock and object-state counts (JSON)";
 
 type R<T> = std::result::Result<T, String>;
 
@@ -126,6 +132,58 @@ fn kind(s: &str) -> R<Kind> {
     Kind::from_name(s).ok_or(format!("unknown kind {s}"))
 }
 
+/// The GC principal's S3 client: the deployment's endpoint and prefix with
+/// `PARALEAN_GC_S3_ACCESS_KEY` / `PARALEAN_GC_S3_SECRET_KEY` (and optionally
+/// `PARALEAN_GC_S3_ENDPOINT`, e.g. a gateway started with `--gc-fdb-cluster`).
+fn gc_payloads(st: &Store) -> R<s3::Payloads> {
+    let dep = std::env::var("PARALEAN_DEPLOYMENT").unwrap_or_else(|_| "default".into());
+    let mut cfg = StoreConfig::from_env(&dep).map_err(|e| e.to_string())?.s3;
+    cfg.access_key = std::env::var("PARALEAN_GC_S3_ACCESS_KEY").map_err(|_| "PARALEAN_GC_S3_ACCESS_KEY is not set")?;
+    cfg.secret_key = std::env::var("PARALEAN_GC_S3_SECRET_KEY").map_err(|_| "PARALEAN_GC_S3_SECRET_KEY is not set")?;
+    if let Ok(endpoint) = std::env::var("PARALEAN_GC_S3_ENDPOINT") {
+        cfg.endpoint = endpoint;
+    }
+    Ok(s3::Payloads::new(&cfg, st.faults.clone()))
+}
+
+/// `gc ...`: the store GC is off unless `gc enable` ran after `gc backfill`, and a sweep runs
+/// only when asked for here.
+async fn gc_command(rest: &[&str]) -> R<ExitCode> {
+    let es = |e: StoreError| e.to_string();
+    let (st, _) = open(Faults::none())?;
+    let json = |v: serde_json::Value| println!("{}", serde_json::to_string_pretty(&v).unwrap());
+    match rest {
+        ["backfill"] => json(serde_json::to_value(gc::backfill(&st).await.map_err(es)?).unwrap()),
+        ["enable"] => {
+            gc::enable(&st).await.map_err(es)?;
+            println!("store GC enabled (gc/indexed set); sweeps run only when requested");
+        }
+        ["disable"] => {
+            gc::disable(&st).await.map_err(es)?;
+            println!("store GC disabled (gc/indexed cleared)");
+        }
+        ["status"] => json(serde_json::to_value(gc::status(&st).await.map_err(es)?).unwrap()),
+        ["delete"] => json(serde_json::to_value(gc::delete_doomed(&st, &gc_payloads(&st)?).await.map_err(es)?).unwrap()),
+        ["sweep", flags @ ..] => {
+            let mut cfg = GcConfig::default();
+            let mut delete = false;
+            let mut it = flags.iter();
+            while let Some(f) = it.next() {
+                match *f {
+                    "--grace" => cfg.grace = it.next().and_then(|s| s.parse().ok()).ok_or("--grace needs a number")?,
+                    "--delete" => delete = true,
+                    other => return Err(format!("unknown gc sweep flag {other}")),
+                }
+            }
+            let sweep = gc::sweep(&st, &cfg).await.map_err(es)?;
+            let deleted = if delete { Some(gc::delete_doomed(&st, &gc_payloads(&st)?).await.map_err(es)?) } else { None };
+            json(serde_json::json!({ "sweep": sweep, "delete": deleted }));
+        }
+        _ => return Err(format!("usage: gc backfill | enable | disable | sweep [--grace N] [--delete] | delete | status\n{USAGE}")),
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
 fn main() -> ExitCode {
     crash::install_from_env();
     // Declared first, so dropped last: after the runtime below, on return and on unwinding.
@@ -162,6 +220,7 @@ async fn run(args: Vec<String>) -> R<ExitCode> {
             kf.write_private(path).map_err(|e| e.to_string())?;
             println!("wrote {path} ({n} workspaces)");
         }
+        ["gc", rest @ ..] => return gc_command(rest).await,
         ["status"] => {
             let (st, _) = open(Faults::none())?;
             println!("fence {}", st.fence().await.map_err(es)?);

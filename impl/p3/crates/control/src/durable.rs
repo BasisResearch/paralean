@@ -624,6 +624,8 @@ impl Durable {
         let key = self.store.meta.keys.job_request(&job.body.worker, &job.body.request);
         let route_key = self.validation_shard_key(&job.body.worker, &job.body.request);
         let index_key = self.validation_index_key(&job.body.worker, &job.body.request);
+        // Store GC: revive the job's objects a worker uploaded again after their collection.
+        paralean_store::gc::revive_job_objects(&self.store, job).await.map_err(|e| e.to_string())?;
         let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
             self.require_lease(&trx, term).await?;
@@ -644,6 +646,8 @@ impl Durable {
                     Err(e) => { trx = e.on_error().await.map_err(|e| e.to_string())?; continue }
                 }
             }
+            // J1 references the envelope's objects (store GC; refused while one is collected).
+            paralean_store::gc::job_refs_in(&trx, &self.store.meta.keys, job).await.map_err(|e| e.to_string())?;
             trx.set(&key, &job.to_bytes());
             trx.set(&index_key, &job.to_bytes());
             match trx.commit().await {

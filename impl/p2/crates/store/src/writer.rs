@@ -5,7 +5,7 @@
 //! metadata transaction that names it. Named crash points (`Faults::point`) sit between
 //! the steps so tests can kill a writer between payload and metadata.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use crate::error::{GuardFailure, Result, StoreError};
@@ -40,6 +40,22 @@ pub struct Checkpoint {
     pub build_receipt: Manifest,
     pub predecessor: Option<Id>,
     pub token: TokenRef,
+}
+
+/// Bytes a writer holds for the objects its transaction names, for the store GC's revival
+/// path: a reference refused with `Collected` waits for `Gone`, re-PUTs these bytes and
+/// retries (gc.rs).
+type Revivable = BTreeMap<(Kind, Id), Vec<u8>>;
+
+/// Retries a referencing transaction refused because the store GC is collecting one of its
+/// objects: revive that object (wait for `Gone`, re-PUT or verify it), then retry. Bounded;
+/// liveness only (nothing was written by a refused transaction).
+const REVIVAL_ATTEMPTS: usize = 4;
+
+async fn revive_collected(store: &Store, sources: &Revivable, e: &StoreError) -> Result<bool> {
+    let Some(GuardFailure::Collected { kind, id }) = e.guard() else { return Ok(false) };
+    store.gc_revive(*kind, id, sources.get(&(*kind, *id)).map(Vec::as_slice)).await?;
+    Ok(true)
 }
 
 /// The groups a job's dependency capsules name. P3 job dependencies are capsule IDs:
@@ -161,10 +177,13 @@ impl Writer {
 
     async fn publish_checked(&self, p: &Package, g: Id) -> Result<PublishOutcome> {
         let dep_groups = dependency_groups(&self.store, &p.job).await?;
+        let mut sources = Revivable::new();
         for c in &p.chunks {
-            self.store.s3.put_opaque(c).await?;
+            self.store.put_payload(c.kind, &c.preimage()).await?;
+            sources.insert((c.kind, c.id()), c.preimage());
         }
-        self.store.s3.put_opaque(&p.group).await?;
+        self.store.put_payload(p.group.kind, &p.group.preimage()).await?;
+        sources.insert((p.group.kind, p.group.id()), p.group.preimage());
         let chunk_index = unique_chunks(&p.group.pce)?;
         if let Some(refs) = &chunk_index {
             for (id, length) in refs {
@@ -174,10 +193,17 @@ impl Writer {
                 if bytes.len() as u64 != *length { return Err(GuardFailure::BadPackage("acknowledged chunk length differs from manifest".into()).into()); }
             }
         }
-        self.store.s3.put_opaque(&p.capsule).await?;
+        self.store.put_payload(p.capsule.kind, &p.capsule.preimage()).await?;
+        sources.insert((p.capsule.kind, p.capsule.id()), p.capsule.preimage());
         self.store.faults.point("publish:after-payload")?;
         let mid = p.marker.id();
-        self.store.s3.put(Kind::StagedMarker, &p.marker.preimage()).await?;
+        self.store.put_payload(Kind::StagedMarker, &p.marker.preimage()).await?;
+        sources.insert((Kind::StagedMarker, mid), p.marker.preimage());
+        for stored in std::iter::once(p.marker.preimage()).chain(p.revisions.iter().map(|r| r.preimage())) {
+            if let (_, Some(blob)) = crate::meta::envelope_for(Id::default(), stored) {
+                sources.insert((Kind::Blob, Id(crate::id::sha256(&blob))), blob);
+            }
+        }
         self.store.faults.point("publish:after-staged-marker")?;
         let marker_value = self.store.stage_value(mid, p.marker.preimage()).await?;
         let mut revisions = Vec::new();
@@ -205,7 +231,14 @@ impl Writer {
             chunk_index: chunk_index.map(|m| m.into_iter().collect()),
         };
         let _ = &cert;
-        let out = self.store.meta.t1_publish(Arc::new(args)).await?;
+        let args = Arc::new(args);
+        let mut attempt = 0;
+        let out = loop {
+            match self.store.meta.t1_publish(args.clone()).await {
+                Err(e) if attempt < REVIVAL_ATTEMPTS && revive_collected(&self.store, &sources, &e).await? => attempt += 1,
+                r => break r?,
+            }
+        };
         if cfg!(feature = "mutate-cert-outside-publish") {
             // The lagging design (TLA `AtomicCert = FALSE`): certify in a later transaction.
             self.store.faults.point("publish:before-cert")?;
@@ -242,8 +275,13 @@ impl Writer {
             workspaces.push(r.workspace);
         }
         let tid = t.id();
-        st.s3.put(Kind::StagedTombstone, &t.preimage()).await?;
+        st.put_payload(Kind::StagedTombstone, &t.preimage()).await?;
         st.faults.point("tombstone:after-staged")?;
+        let mut sources = Revivable::new();
+        sources.insert((Kind::StagedTombstone, tid), t.preimage());
+        if let (_, Some(blob)) = crate::meta::envelope_for(tid, t.preimage()) {
+            sources.insert((Kind::Blob, Id(crate::id::sha256(&blob))), blob);
+        }
         let value = st.stage_value(tid, t.preimage()).await?;
         let cert = TombstoneCert::sign(
             TombstoneCertBody { replica: st.replica, tombstone: tid, target: t.target, writer: self.id },
@@ -261,7 +299,14 @@ impl Writer {
             ring: st.ring.clone(),
             controller_grant: grant,
         };
-        let fresh = st.meta.t8_tombstone(Arc::new(args)).await?;
+        let args = Arc::new(args);
+        let mut attempt = 0;
+        let fresh = loop {
+            match st.meta.t8_tombstone(args.clone()).await {
+                Err(e) if attempt < REVIVAL_ATTEMPTS && revive_collected(st, &sources, &e).await? => attempt += 1,
+                r => break r?,
+            }
+        };
         st.faults.point("tombstone:before-cert")?;
         #[cfg(feature = "mutate-tombstone-cert-outside")]
         st.meta.t8_raw_cert(st.meta.keys.tcert(&tid, &self.id), cert.to_bytes()).await?;
@@ -308,11 +353,23 @@ impl Writer {
             }
         }};
         let mid = marker.id();
-        self.store.s3.put(Kind::StagedMarker, &marker.preimage()).await?;
+        self.store.put_payload(Kind::StagedMarker, &marker.preimage()).await?;
         let value = self.store.stage_value(mid, marker.preimage()).await?;
         let cert = Cert::sign(CertBody { replica: self.store.replica, marker: mid,
             group: marker.group, writer: self.id }, &self.signer);
-        self.store.meta.t11_move_position(marker.clone(), old_marker, anchor_marker, old.clone(), value, cert.to_bytes(), self.id, self.store.ring.clone()).await
+        let mut sources = Revivable::new();
+        sources.insert((Kind::StagedMarker, mid), marker.preimage());
+        if let (_, Some(blob)) = crate::meta::envelope_for(mid, marker.preimage()) {
+            sources.insert((Kind::Blob, Id(crate::id::sha256(&blob))), blob);
+        }
+        let mut attempt = 0;
+        loop {
+            match self.store.meta.t11_move_position(marker.clone(), old_marker.clone(), anchor_marker.clone(), old.clone(), value.clone(),
+                cert.to_bytes(), self.id, self.store.ring.clone()).await {
+                Err(e) if attempt < REVIVAL_ATTEMPTS && revive_collected(&self.store, &sources, &e).await? => attempt += 1,
+                r => break r,
+            }
+        }
     }
 
     /// T2: certify a group already published (and certified by someone).
@@ -358,8 +415,10 @@ impl Writer {
     }
 
     /// T5 (staging form): fenced first write of the record's bytes, no commit certificate.
+    /// The snapshot, when already stored, names the manifests the record references.
     pub async fn stage_record(&self, rec: &SignedRecord) -> Result<bool> {
-        self.store.meta.t5_stage(self.commit_args(rec, None)).await
+        let snapshot = self.store.s3.get_object::<Snapshot>(Kind::Snapshot, &rec.body.snapshot).await?;
+        self.store.meta.t5_stage(self.commit_args(rec, snapshot)).await
     }
 
     /// T5: fenced write of the record and its commit certificate; parents must be committed
@@ -390,14 +449,33 @@ impl Writer {
                 self.certify_existing(*kind, id).await?;
             }
         }
+        let mut sources = Revivable::new();
         for m in [&cp.source_root, &cp.build_receipt] {
-            let a = st.s3.put_object(Kind::Manifest, m).await?;
+            sources.insert((Kind::Manifest, m.id()), m.preimage());
+        }
+        sources.insert((Kind::Snapshot, cp.snapshot.id()), cp.snapshot.preimage());
+        // The tail names the manifests and snapshot (T6, T5). If the store GC collects one
+        // meanwhile (e.g. a retry long after an abandoned attempt), revive it and redo the
+        // tail: T6 re-certifies what the doom uncertified.
+        let mut attempt = 0;
+        loop {
+            match self.checkpoint_tail(cp, &payloads).await {
+                Err(e) if attempt < REVIVAL_ATTEMPTS && revive_collected(st, &sources, &e).await? => attempt += 1,
+                r => return r,
+            }
+        }
+    }
+
+    async fn checkpoint_tail(&self, cp: &Checkpoint, payloads: &[(Kind, Id)]) -> Result<Id> {
+        let st = &self.store;
+        for m in [&cp.source_root, &cp.build_receipt] {
+            let a = st.put_payload(Kind::Manifest, &m.preimage()).await?;
             self.certify_object(a).await?;
         }
         st.faults.point("checkpoint:before-snapshot")?;
-        let snap = st.s3.put_object(Kind::Snapshot, &cp.snapshot).await?;
+        let snap = st.put_payload(Kind::Snapshot, &cp.snapshot.preimage()).await?;
         // Monotone check before certifying the snapshot: every payload certificate exists.
-        for (kind, id) in &payloads {
+        for (kind, id) in payloads {
             if st.valid_ocert(*kind, id).await?.is_none() {
                 return Err(GuardFailure::NotAcknowledged { kind: *kind, id: *id }.into());
             }

@@ -13,6 +13,7 @@
 //! | `faults` | client-side fault injection |
 //! | `antientropy` | exchange of published groups and tombstones between deployments |
 //! | `batch` | atomic multi-group publication (T12) and its records |
+//! | `gc` | physical store GC: reference index, sweep, retirement, revival (W4-rest Design 1) |
 
 pub mod ae;
 pub mod authority;
@@ -23,6 +24,7 @@ mod checkpoint_guard;
 pub mod error;
 pub mod faults;
 pub mod fixture;
+pub mod gc;
 pub mod group_chunks;
 pub mod id;
 pub mod meta;
@@ -38,6 +40,7 @@ pub mod writer;
 pub use error::{GuardFailure, Result, StoreError};
 pub use authority::{controller_agent_id, AgentKeyGrant, AgentKeyRevocation, ControllerDeleteGrant};
 pub use ae::{AeBundlePage, AeEvent, AeIdentity, AeKind, AeObjectPage, AePage, AePart, AePending, AePendingPage, AeProgress, FederationConfig, FederationMember, PendingState};
+pub use gc::{AeFetch, GcConfig, GcReport, GcState, GcStatus};
 pub use faults::{CommitFault, CrashMode, Faults, GetFault, PutFault, RandomFaults, Txn};
 pub use id::{AgentId, Domain, Id, Kind, ReplicaId, WorkspaceId};
 pub use meta::{PreparedTarget, PublishOutcome};
