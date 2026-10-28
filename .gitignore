@@ -8,3 +8,5 @@ states/
 *.out
 .DS_Store
 ._*
+
+__pycache__/

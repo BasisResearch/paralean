@@ -51,8 +51,9 @@ def command(cmd, log, env):
             'service_cpu_s': {k:v-services0.get(k,v) for k,v in service_cpu().items()}}
 
 
-def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000):
+def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, agent=False):
     name = f'{"pilot" if pilot else "main"}-{workload}-{"stock-sync" if sync else "stock" if stock else "p"+str(n)}-r{rep}'
+    if agent: name = 'confirm-agent-' + name
     evidence = RAW / name
     evidence.mkdir(parents=True, exist_ok=False)
     directory = RUN / name
@@ -69,7 +70,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000):
     env = dict(os.environ, SCALING_WORK=str(work), PARALEAN_DEPLOYMENT='scal-'+name,
                SCALING_PHASES=str(evidence/'phases.jsonl'), PARALEAN_SCALING_PROFILE='1')
     row = {'name': name, 'workload': workload, 'n': n, 'rep': rep, 'stock': stock,
-           'sync': sync, 'work': work, 'git': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
+           'sync': sync, 'work': work, 'agent': agent, 'git': subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
            'task_sha256': hashlib.sha256(text.encode()).hexdigest(),
            'started_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
     if stock:
@@ -81,7 +82,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000):
         row.update(command([lean, str(path)], evidence/'stock.log', env))
         row['ok'] = row['returncode'] == 0
     else:
-        cmd = [sys.executable, str(ROOT/'scripts/scaling/controller.py'), 'run', str(task), '--state', str(directory), '--workers', str(n), '--parallelism', str(n), '--worker', 'command', '--no-export']
+        cmd = [sys.executable, str(ROOT/'scripts/scaling/controller.py'), 'run', str(task), '--state', str(directory), '--workers', str(n), '--parallelism', str(n), '--worker', 'claude' if agent else 'command', '--no-export']
         row.update(command(cmd, evidence/'controller.log', env))
         statepath = directory/'run.json'
         state = json.loads(statepath.read_text()) if statepath.exists() else {}
@@ -110,11 +111,14 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000):
 if __name__ == '__main__':
     ap=argparse.ArgumentParser()
     ap.add_argument('--pilot',action='store_true')
+    ap.add_argument('--confirm',action='store_true')
     ap.add_argument('--workload',choices=['list','synthetic'],default='list')
     ap.add_argument('--work',type=int,default=2000)
     ap.add_argument('--n',type=int,default=1)
     args=ap.parse_args()
-    if args.pilot:
+    if args.confirm:
+        trial('list',2,1,agent=True)
+    elif args.pilot:
         trial(args.workload,args.n,0,pilot=True,work=args.work)
     else:
         for rep in range(1,4):

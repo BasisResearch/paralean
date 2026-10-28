@@ -67,3 +67,14 @@ intermediates after archiving evidence. Commit design before starting services.
 ## Results
 
 Pending. No controlled speedup claim yet.
+
+### Pilot decisions
+
+The initial List stock script used two incorrect implicit-argument applications;
+that failed pilot is retained, and the corrected script passed. The initial
+synthetic stock pilot used 2,000 tactic iterations per branch. The eight-worker
+pilot increases that to 20,000 so worker checks can overlap the serial dispatch
+path. Production synthetic samples use 20,000, recorded explicitly in each row.
+The List Paralean pilot passed all contracts and clean export. Production wall
+time ends after all-target contract validation; the representative pilots measure
+clean export separately. Production proof scripts will remain fixed.
