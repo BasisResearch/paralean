@@ -333,7 +333,7 @@ ScanEnd ==
 
 (* Anti-entropy: T9/T10 refuse batch-bound items; a batch travels as one event
    whose parts are staged, then imported in one transaction (T13). *)
-AeUnboundOK(i) == Bound[i] = None
+PeerAloneOK(i) == Bound[i] = None
 PartsOK == parts = BatchItems
 
 RECURSIVE PeerOK(_, _)
@@ -348,7 +348,7 @@ PeerOK(k, S) ==
 AeItem(i) ==
   /\ "peer" \in Readers
   /\ i \in ReaderVisible \ peer
-  /\ AeUnboundOK(i)
+  /\ PeerAloneOK(i)
   /\ Deps[i] \subseteq peer
   /\ IF i \in Tombs THEN TargetOf[i] \in peer ELSE TRUE
   /\ peer' = peer \cup {i}

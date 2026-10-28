@@ -240,7 +240,7 @@ Negative cases (in `check-tla-negative.sh`):
 | Working copy ignores unfiled members | `batch_cache_no_filter` | `NoPartialCache` |
 | Batch file written last | `batch_cache_file_early` | `NoPartialCache` |
 | Staged: readers resolve the intent | `batch_staged_ignores_intent` | `NoPartialStore` |
-| Staged: intent needs every row | `batch_staged_incomplete` | `NoPartialStore` |
+| Staged: intent needs every row | `batch_staged_incomplete` | `NoPartialStore` (only invariant; `HeadIsLatest` also fails) |
 | Staged: commit re-checks guards | `batch_staged_no_recheck` | `TargetChain` |
 
 Seven witnesses must be violated in the unmutated model, so the passes are not

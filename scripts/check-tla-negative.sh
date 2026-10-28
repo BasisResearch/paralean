@@ -1333,7 +1333,7 @@ case_batch_checkpoint_stale() { batch_mutation batch_checkpoint_stale 'CurrentOK
 defcase batch_unknown_as_failure
 case_batch_unknown_as_failure() { batch_mutation batch_unknown_as_failure 'ResolveReads == TRUE' 'ResolveReads == FALSE' OutcomeTruthful AtomicBatch; }
 defcase batch_ae_per_member
-case_batch_ae_per_member() { batch_mutation batch_ae_per_member 'AeUnboundOK(i) == Bound[i] = None' 'AeUnboundOK(i) == TRUE' NoPartialPeer AtomicBatchAE; }
+case_batch_ae_per_member() { batch_mutation batch_ae_per_member 'PeerAloneOK(i) == Bound[i] = None' 'PeerAloneOK(i) == TRUE' NoPartialPeer AtomicBatchAE; }
 defcase batch_ae_partial_parts
 case_batch_ae_partial_parts() { batch_mutation batch_ae_partial_parts 'PartsOK == parts = BatchItems' 'PartsOK == TRUE' NoPartialPeer AtomicBatchAE; }
 defcase batch_cache_no_filter
@@ -1343,7 +1343,7 @@ case_batch_cache_file_early() { batch_mutation batch_cache_file_early 'FileOK ==
 defcase batch_staged_ignores_intent
 case_batch_staged_ignores_intent() { batch_mutation batch_staged_ignores_intent 'StatusOK == status = "committed"' 'StatusOK == TRUE' NoPartialStore AtomicBatchStaged; }
 defcase batch_staged_incomplete
-case_batch_staged_incomplete() { batch_mutation batch_staged_incomplete 'AllStaged == staged = BatchItems' 'AllStaged == TRUE' NoPartialStore AtomicBatchStaged; }
+case_batch_staged_incomplete() { batch_mutation batch_staged_incomplete 'AllStaged == staged = BatchItems' 'AllStaged == TRUE' NoPartialStore AtomicBatchStaged only; }
 defcase batch_staged_no_recheck
 case_batch_staged_no_recheck() { batch_mutation batch_staged_no_recheck 'RecheckAtCommit == TRUE' 'RecheckAtCommit == FALSE' TargetChain AtomicBatchStaged only; }
 defcase batch_commit_work

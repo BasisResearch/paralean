@@ -61,7 +61,7 @@ single transaction (T12) by staged rows and an intent committed last. Guard remo
 | Working copy ignores unfiled members | `batch_cache_no_filter` | `NoPartialCache` |
 | Batch file written last | `batch_cache_file_early` | `NoPartialCache` |
 | Staged: readers resolve the intent | `batch_staged_ignores_intent` | `NoPartialStore` |
-| Staged: intent needs every row | `batch_staged_incomplete` | `NoPartialStore` |
+| Staged: intent needs every row | `batch_staged_incomplete` | `NoPartialStore` (only invariant; `HeadIsLatest` also fails) |
 | Staged: commit re-checks guards | `batch_staged_no_recheck` | `TargetChain` (only invariant) |
 
 `batch_commit_work`, `batch_stale_rejected_work`, `batch_scan_work`,
