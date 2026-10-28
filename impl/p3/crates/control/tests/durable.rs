@@ -265,6 +265,94 @@ async fn replay_of_external_assignment_commits_the_controller_shard_claim() {
     assert_eq!(store.target(&target).await.unwrap().unwrap().epoch, epoch);
 }
 
+/// W2-32 over W4's validation catalog: one request ID of two workspaces is two
+/// requests. Each routes to its own shard, is issued, receipted and cancelled there,
+/// and neither squats the other's route.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn sharded_validation_routes_are_scoped_per_workspace() {
+    let keys = KeyFile::demo(2);
+    let store = Store::open(&StoreConfig::from_env(&deployment("durable-scoped-routes")).unwrap(),
+        keys.ring(), Faults::none()).unwrap();
+    let a = Durable::new_shard(store.clone(), Duration::from_millis(500), 0, 2);
+    let b = Durable::new_shard(store.clone(), Duration::from_millis(500), 1, 2);
+    let ta = a.acquire_or_renew().await.unwrap().unwrap().term;
+    let tb = b.acquire_or_renew().await.unwrap().unwrap().term;
+    let ((wa, _), (wb, _)) = (keys.workspace("w0").unwrap(), keys.workspace("w1").unwrap());
+    let validator = Signer::derive("validator");
+    let pa = fixture::package("scoped-route", wa, &validator, &Name::parse("Route.A"), vec![], None, 1);
+    // One request ID for both workspaces (the routing keys under test read only the body).
+    let mut pb = fixture::package("scoped-route", wb, &validator, &Name::parse("Route.B"), vec![], None, 1);
+    pb.job.body.request = pa.job.body.request.clone();
+    let request = String::from_utf8(pa.job.body.request.clone()).unwrap();
+    a.issue_job(&pa.job, ta).await.unwrap();
+    b.issue_job(&pb.job, tb).await.unwrap();
+    assert_eq!(a.shard_for_validation(&wa, &request).await.unwrap(), Some(0));
+    assert_eq!(a.shard_for_validation(&wb, &request).await.unwrap(), Some(1));
+    b.record_receipt(&wb, request.as_bytes(), &pb.receipt, tb).await.unwrap();
+    a.record_receipt(&wa, request.as_bytes(), &pa.receipt, ta).await.unwrap();
+    b.cancel_job(&wb, request.as_bytes(), tb).await.unwrap();
+    assert!(store.meta.is_cancelled(&wb, request.as_bytes()).await.unwrap());
+    assert!(!store.meta.is_cancelled(&wa, request.as_bytes()).await.unwrap());
+}
+
+/// W2-33's request-ID bound runs before W4's shard routing: an over-long ID is refused
+/// without reserving a work shard or claiming its target.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn overlong_request_id_is_refused_before_shard_routing() {
+    let keys = KeyFile::demo(1);
+    let store = Store::open(&StoreConfig::from_env(&deployment("durable-long-request")).unwrap(),
+        keys.ring(), Faults::none()).unwrap();
+    let cfg = ControllerConfig {
+        store: store.clone(), authority: keys.authority_signer().unwrap(), validators: vec![],
+        base: fixture::base_id(), policy: receipt::Policy::v1().id(),
+        checker: receipt::CheckerVersion::fixture().id(), lease: Duration::from_millis(500),
+        max_work_queue: 4, max_validations: 1, validation_deadline: Duration::from_secs(1),
+        validation_memory_mb: 128, validator_attempts: 1,
+    };
+    let ctl = ControlPlane::new_shard(cfg, 0, 2);
+    let request = "r".repeat(paralean_control::controller::MAX_REQUEST_ID + 1);
+    let name = Name::parse("Long.request");
+    let response = ctl.handle(ControlRequest::SubmitWork {
+        request: request.clone(), target: name.to_string(), memory_mb: 1,
+    }).await;
+    assert!(matches!(response, ControlResponse::Refused { .. }), "{response:?}");
+    let reader = Durable::new_shard(store, Duration::from_millis(500), 0, 2);
+    assert_eq!(reader.shard_for_work(&request).await.unwrap(), None, "a refused request reserved a work shard");
+    assert_eq!(reader.mapped_shard(&name).await.unwrap(), None, "a refused request claimed its target");
+}
+
+/// W2-33 over W4 history: the snapshot keeps a worker's newest poll tokens only, and an
+/// older token leaves it as a replay row, so a late retry of it still returns its first
+/// answer rather than a fresh poll's.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn spilled_poll_tokens_keep_their_first_answer() {
+    let keys = KeyFile::demo(1);
+    let store = Store::open(&StoreConfig::from_env(&deployment("durable-spilled-poll")).unwrap(),
+        keys.ring(), Faults::none()).unwrap();
+    let cfg = ControllerConfig {
+        store, authority: keys.authority_signer().unwrap(), validators: vec![],
+        base: fixture::base_id(), policy: receipt::Policy::v1().id(),
+        checker: receipt::CheckerVersion::fixture().id(), lease: Duration::from_millis(500),
+        max_work_queue: 4, max_validations: 1, validation_deadline: Duration::from_secs(1),
+        validation_memory_mb: 128, validator_attempts: 1,
+    };
+    let ctl = ControlPlane::new(cfg);
+    let (w, _) = keys.workspace("w0").unwrap();
+    assert!(matches!(ctl.handle(ControlRequest::Register { worker: w.hex(), capacity_mb: 128 }).await,
+        ControlResponse::Registered { .. }));
+    assert_eq!(ctl.handle(ControlRequest::SubmitWork {
+        request: "spill/1".into(), target: "Spill.target".into(), memory_mb: 1,
+    }).await, ControlResponse::Queued);
+    let first = ControlRequest::PollRequest { worker: w.hex(), request: "spill/token/0".into() };
+    let answer = ctl.handle(first.clone()).await;
+    assert!(matches!(&answer, ControlResponse::Work { request, .. } if request == "spill/1"), "{answer:?}");
+    for i in 1..=paralean_control::controller::MAX_POLL_TOKENS_PER_WORKER + 2 {
+        let later = ControlRequest::PollRequest { worker: w.hex(), request: format!("spill/token/{i}") };
+        assert_eq!(ctl.handle(later).await, ControlResponse::NoWork);
+    }
+    assert_eq!(ctl.handle(first).await, answer, "a retried spilled token lost its first answer");
+}
+
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
@@ -279,5 +367,8 @@ fn main() {
         libtest_mimic::Trial::test("target_free_job_routes_its_cancellation_to_issuing_shard", || { target_free_job_routes_its_cancellation_to_issuing_shard(); Ok(()) }),
         libtest_mimic::Trial::test("unowned_fence_can_be_taken_by_later_registered_worker", || { unowned_fence_can_be_taken_by_later_registered_worker(); Ok(()) }),
         libtest_mimic::Trial::test("replay_of_external_assignment_commits_the_controller_shard_claim", || { replay_of_external_assignment_commits_the_controller_shard_claim(); Ok(()) }),
+        libtest_mimic::Trial::test("sharded_validation_routes_are_scoped_per_workspace", || { sharded_validation_routes_are_scoped_per_workspace(); Ok(()) }),
+        libtest_mimic::Trial::test("overlong_request_id_is_refused_before_shard_routing", || { overlong_request_id_is_refused_before_shard_routing(); Ok(()) }),
+        libtest_mimic::Trial::test("spilled_poll_tokens_keep_their_first_answer", || { spilled_poll_tokens_keep_their_first_answer(); Ok(()) }),
     ]);
 }

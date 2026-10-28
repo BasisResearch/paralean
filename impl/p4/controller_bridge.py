@@ -8,13 +8,24 @@ must name a frozen target, its owner and dispatch epoch explicitly.
 from __future__ import annotations
 
 import asyncio
+import errno
 import hashlib
 import json
 import os
 from pathlib import Path
+import secrets
+import stat
 import subprocess
 import sys
 import urllib.parse
+
+
+# P2 ``objects::MAX_FILE_PATH``.
+MAX_FILE_PATH = 1024
+# W2-09 decoder budget, also the router's LSP frame limit.
+MAX_WORKER_FILE = 64 * 1024 * 1024
+# W2 anti-entropy metadata limit; a registry marker is far smaller.
+MAX_MARKER_JSON = 1024 * 1024
 
 
 class BridgeError(ValueError):
@@ -23,6 +34,93 @@ class BridgeError(ValueError):
 
 def _hash(text: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()
+
+
+def check_file_path(path: str) -> str:
+    """The P2 ``objects::check_file_path`` / Lean ``Safety.checkRelPath`` rule."""
+    if not isinstance(path, str) or not path:
+        raise BridgeError("empty source file path")
+    if len(path.encode("utf-8", "surrogatepass")) > MAX_FILE_PATH:
+        raise BridgeError("source file path too long")
+    if path.startswith("/"):
+        raise BridgeError("absolute source file path")
+    if any(c == "\\" or ord(c) < 0x20 or c == "\x7f" for c in path):
+        raise BridgeError("backslash or control character in source file path")
+    if not path.endswith(".lean"):
+        raise BridgeError("source file path does not name a .lean file")
+    parts = path.split("/")
+    if any(part in ("", ".", "..") or (part.isascii() and part.lower() == ".git") for part in parts):
+        raise BridgeError("empty, dot or .git component in source file path")
+    if parts[-1] == ".lean":
+        raise BridgeError("empty source file name")
+    return path
+
+
+def _open_beneath(root: Path, relative: str) -> tuple[int, str]:
+    """Open the parent of ``root/relative`` without following a symlink below ``root``."""
+    parts = relative.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise OSError(errno.EINVAL, "unsafe relative path", relative)
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in parts[:-1]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+        return fd, parts[-1]
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _read_beneath(root: Path, relative: str, limit: int) -> bytes:
+    """Read a bounded regular file the worker controls (compare backend ``_read_source``).
+
+    O_NONBLOCK keeps a planted FIFO from blocking the controller, and the bound
+    keeps a sparse or /proc file from exhausting its memory.
+    """
+    directory_fd, name = _open_beneath(root, relative)
+    try:
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY,
+                     dir_fd=directory_fd)
+    finally:
+        os.close(directory_fd)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            raise OSError(errno.EINVAL, "not a bounded regular file", relative)
+        data = handle.read(limit + 1)
+    if len(data) > limit:
+        raise OSError(errno.EFBIG, "file exceeds its size limit", relative)
+    return data
+
+
+def _replace_beneath(root: Path, relative: str, data: bytes) -> None:
+    """Replace one worker source by rename, so a planted symlink or hard link
+    is replaced rather than written through."""
+    directory_fd, name = _open_beneath(root, relative)
+    try:
+        try:
+            old = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            mode = stat.S_IMODE(old.st_mode) if stat.S_ISREG(old.st_mode) else 0o600
+        except FileNotFoundError:
+            mode = 0o600
+        temporary = f".{name}.{secrets.token_hex(8)}.paralean.tmp"
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600,
+                     dir_fd=directory_fd)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(data)
+                os.fchmod(handle.fileno(), mode)
+            os.replace(temporary, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+        except BaseException:
+            try:
+                os.unlink(temporary, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+            raise
+    finally:
+        os.close(directory_fd)
 
 
 def authoritative_policy_probe(ws) -> str:
@@ -71,8 +169,13 @@ def authoritative_policy_probe(ws) -> str:
         raise BridgeError("store registry pull was stale or incomplete")
     groups = set()
     for path in (cache / "p3" / "records").glob("m-*.json"):
-        marker = json.loads(path.read_text())
-        group = marker.get("group")
+        # The worker controls its cache: a FIFO or huge file here must not hang
+        # the probe while poll_policy holds mutation_lock for every workspace.
+        try:
+            marker = json.loads(_read_beneath(cache, "p3/records/" + path.name, MAX_MARKER_JSON))
+        except (OSError, ValueError, RecursionError) as exc:
+            raise BridgeError("local registry marker is unreadable or malformed") from exc
+        group = marker.get("group") if isinstance(marker, dict) else None
         if not isinstance(group, str) or len(group) != 64:
             raise BridgeError("local registry marker is malformed")
         groups.add(group)
@@ -88,6 +191,10 @@ def authoritative_policy_probe(ws) -> str:
 
 
 class ControllerBridge:
+    # One capture reply line. asyncio's 64 KiB default rejects large legitimate
+    # captures and leaves the rest of an over-limit line in the pipe.
+    capture_reply_limit = MAX_WORKER_FILE
+
     def __init__(self, proxy, backend=None, *, capture_binary=None, policy_probe=None,
                  remote_sync=None):
         self.proxy = proxy
@@ -122,7 +229,7 @@ class ControllerBridge:
         work = work.resolve()
         if source == work or work not in source.parents or source.suffix != ".lean":
             raise BridgeError("document is outside the workspace Lean source root")
-        return source.relative_to(work).as_posix(), state
+        return check_file_path(source.relative_to(work).as_posix()), state
 
     def _stamp(self, ws, uri: str) -> dict:
         file, state = self._source(ws, uri)
@@ -199,7 +306,8 @@ class ControllerBridge:
                 self.capture_binary, "ws-capture-server", "--dir", str(ws.root),
                 cwd=ws.root, env={**os.environ, **ws.env_overrides},
                 stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL, start_new_session=True)
+                stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
+                limit=self.capture_reply_limit)
             self.workers[key] = worker
             self.worker_identities[key] = identity
         request = {"file": stamp["file"], "text": ws.open_documents[uri]["text"],
@@ -213,17 +321,28 @@ class ControllerBridge:
         except asyncio.TimeoutError as exc:
             await self._stop_worker(key)
             raise BridgeError("capture worker timed out") from exc
+        except ValueError as exc:
+            # asyncio discards an over-limit partial line; the stream is unframed.
+            await self._stop_worker(key)
+            raise BridgeError("capture worker reply exceeds its size limit") from exc
         if not line:
             await self._stop_worker(key)
             raise BridgeError("capture worker exited")
-        result = json.loads(line)
+        try:
+            result = json.loads(line)
+            if not isinstance(result, dict):
+                raise ValueError("capture reply is not an object")
+        except (ValueError, RecursionError) as exc:
+            await self._stop_worker(key)
+            raise BridgeError("capture worker returned malformed JSON") from exc
         self._assert_current(ws, uri, stamp)
         if result.get("error"):
             raise BridgeError(str(result["error"]))
         if any(result.get(k) != stamp[k] for k in ("file", "version", "environment", "generation")):
             raise BridgeError("capture worker returned a mismatched stamp")
         capture = result.get("capture")
-        if not isinstance(capture, dict) or not isinstance(capture.get("packages"), list):
+        if (not isinstance(capture, dict) or not isinstance(capture.get("packages"), list)
+                or any(not isinstance(package, dict) for package in capture["packages"])):
             raise BridgeError("capture worker returned malformed packages")
         if capture.get("rejected") or capture.get("rejectedPids"):
             raise BridgeError("capture contains rejected declarations")
@@ -271,14 +390,19 @@ class ControllerBridge:
             if not observation.get("assigned_to_agent") or observation.get("epoch") != epoch:
                 raise BridgeError("target owner or dispatch epoch changed")
             self._assert_current(ws, uri, stamp)
-            source = (ws.root / "work" / stamp["file"]).resolve()
-            source.write_text(ws.open_documents[uri]["text"])
+            # The worker controls work/: never write or read through its links.
+            relative = "work/" + check_file_path(stamp["file"])
+            _replace_beneath(ws.root, relative, ws.open_documents[uri]["text"].encode())
 
             def precommit_guard() -> None:
                 self._assert_current(ws, uri, stamp)
                 self._assert_store_policy(ws)
                 self._assert_authoring(ws)
-                if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != stamp["source_sha256"]:
+                try:
+                    current = _read_beneath(ws.root, relative, MAX_WORKER_FILE)
+                except OSError:
+                    current = None
+                if current is None or hashlib.sha256(current).hexdigest() != stamp["source_sha256"]:
                     raise BridgeError("working source changed after receipt validation")
 
             result = await asyncio.to_thread(

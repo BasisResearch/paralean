@@ -62,7 +62,10 @@ class Lean:
             out = subprocess.run(["lake", "env", "printenv", "LEAN_PATH"], cwd=ROOT, env=self.env,
                                  check=True, capture_output=True, text=True).stdout.strip()
             self.env["LEAN_PATH"] = out
-            self.lean = "lean"
+            # The pinned toolchain's binary: the consumer runs outside this project, where
+            # elan would otherwise need a default toolchain.
+            self.lean = subprocess.run(["elan", "which", "lean"], cwd=ROOT, env=self.env, check=True,
+                                       capture_output=True, text=True).stdout.strip()
 
     def run(self, args, env=None, cwd=ROOT):
         return subprocess.run([self.lean, *args], cwd=cwd, env={**self.env, **(env or {})},

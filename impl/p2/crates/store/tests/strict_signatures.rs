@@ -101,6 +101,68 @@ async fn antientropy_group_import_strict_signature_vectors() {
     }
 }
 
+/// W3's agent-key registry: a controller-signed grant binds an AgentID to a certificate
+/// key. Its signature is checked by `AgentKeyGrant::verify` wherever a grant is admitted;
+/// here directly and through FDB registration. Each vector gets its own grant (and so its
+/// own registry slot), signed afresh, then has its encoding defect applied.
+#[tokio::main(flavor = "current_thread")]
+async fn agent_key_grant_strict_signature_vectors() {
+    use paralean_store::authority::AgentKeyGrant;
+    use common::*;
+    let e = Env::new("w2-strict-agent-grant", 1);
+    let signer = Signer::from_seed(std::array::from_fn(|i| (i * 3) as u8));
+    let count = vectors::cases(signer.public(), [0; 64]).len();
+    for i in 0..count {
+        let agent = AgentId::derive(&format!("strict-agent-{i}"));
+        let key = Signer::derive(&format!("strict-agent-key-{i}")).public();
+        let mut grant = AgentKeyGrant::sign(agent, e.w[0].id, key, &signer);
+        let genuine: [u8; 64] = hex::decode(&grant.signature).unwrap().try_into().unwrap();
+        let case = &vectors::cases(signer.public(), genuine)[i];
+        grant.issuer = hex::encode(case.public);
+        grant.signature = hex::encode(case.signature);
+        assert_eq!(grant.verify(), case.expected, "verify: {}", case.name);
+        let registered = e.store.meta.register_agent_key(grant, case.public).await;
+        assert_eq!(registered.is_ok(), case.expected, "register: {}: {registered:?}", case.name);
+    }
+}
+
+/// W3's agent-key revocation: checked under the deployment authority, directly and by
+/// the registry write that fences later T1/T8 writes of the key.
+#[tokio::main(flavor = "current_thread")]
+async fn agent_key_revocation_strict_signature_vectors() {
+    use paralean_store::authority::AgentKeyRevocation;
+    use common::*;
+    let e = Env::new("w2-strict-agent-revoke", 1);
+    let signer = Signer::from_seed(std::array::from_fn(|i| (i * 5) as u8));
+    let count = vectors::cases(signer.public(), [0; 64]).len();
+    for i in 0..count {
+        let key = Signer::derive(&format!("strict-revoked-key-{i}")).public();
+        let mut revocation = AgentKeyRevocation::sign(key, &signer);
+        let genuine: [u8; 64] = hex::decode(&revocation.signature).unwrap().try_into().unwrap();
+        let case = &vectors::cases(signer.public(), genuine)[i];
+        revocation.issuer = hex::encode(case.public);
+        revocation.signature = hex::encode(case.signature);
+        assert_eq!(revocation.verify(&case.public), case.expected, "verify: {}", case.name);
+        let revoked = e.store.meta.revoke_agent_key(revocation, case.public).await;
+        assert_eq!(revoked.is_ok(), case.expected, "revoke: {}: {revoked:?}", case.name);
+    }
+}
+
+/// W3's controller deletion grant, which T8 checks against the issuing controller key.
+fn controller_delete_grant_strict_signature_vectors() {
+    use paralean_store::authority::ControllerDeleteGrant;
+    let signer = Signer::from_seed(std::array::from_fn(|i| (i * 7) as u8));
+    let tombstone = Id([9; 32]);
+    let grant = ControllerDeleteGrant::sign(tombstone, 3, &signer);
+    let genuine: [u8; 64] = hex::decode(&grant.signature).unwrap().try_into().unwrap();
+    for case in vectors::cases(signer.public(), genuine) {
+        let mut g = grant.clone();
+        g.issuer = hex::encode(case.public);
+        g.signature = hex::encode(case.signature);
+        assert_eq!(g.verify(&tombstone, &case.public), case.expected, "{}", case.name);
+    }
+}
+
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
@@ -108,5 +170,8 @@ fn main() {
         libtest_mimic::Trial::test("antientropy_import_strict_signature_vectors", || { antientropy_import_strict_signature_vectors(); Ok(()) }),
         libtest_mimic::Trial::test("t1_publication_strict_receipt_signature_vectors", || { t1_publication_strict_receipt_signature_vectors(); Ok(()) }),
         libtest_mimic::Trial::test("antientropy_group_import_strict_signature_vectors", || { antientropy_group_import_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("agent_key_grant_strict_signature_vectors", || { agent_key_grant_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("agent_key_revocation_strict_signature_vectors", || { agent_key_revocation_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("controller_delete_grant_strict_signature_vectors", || { controller_delete_grant_strict_signature_vectors(); Ok(()) }),
     ]);
 }

@@ -1,0 +1,28 @@
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.85s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-463d183da86a5351)
+
+running 1 test
+
+thread '<unnamed>' (817643) panicked at /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p3/crates/control/tests/strict_signatures.rs:85:13:
+assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [172, 206, 112, 193, 176, 226, 238, 82, 72, 187, 5, 96, 124, 21, 139, 76, 8, 169, 166, 18, 56, 253, 61, 177, 162, 221, 139, 224, 169, 107, 182, 64, 56, 115, 216, 183, 131, 62, 99, 64, 142, 195, 187, 168, 42, 105, 66, 81, 221, 3, 165, 184, 202, 237, 126, 250, 154, 39, 139, 216, 207, 113, 209, 4] })
+  left: true
+ right: false
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test sharded_controller_rpc_strict_signature_vectors ... FAILED
+
+failures:
+
+---- sharded_controller_rpc_strict_signature_vectors ----
+test panicked: assertion `left == right` failed: shard 0: small_order_A_0: Ok(SignedResponse { payload: Registered { lease_ms: 62 }, signature: [172, 206, 112, 193, 176, 226, 238, 82, 72, 187, 5, 96, 124, 21, 139, 76, 8, 169, 166, 18, 56, 253, 61, 177, 162, 221, 139, 224, 169, 107, 182, 64, 56, 115, 216, 183, 131, 62, 99, 64, 142, 195, 187, 168, 42, 105, 66, 81, 221, 3, 165, 184, 202, 237, 126, 250, 154, 39, 139, 216, 207, 113, 209, 4] })
+  left: true
+ right: false
+
+
+failures:
+    sharded_controller_rpc_strict_signature_vectors
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p paralean-control --test strict_signatures`

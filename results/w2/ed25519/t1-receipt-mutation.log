@@ -1,22 +1,23 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.10s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-2f4864cbe55c7f8e)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.93s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-c1d3100c4008191c)
 
 running 1 test
+
+thread '<unnamed>' (774956) panicked at crates/store/tests/strict_signatures.rs:71:13:
+small_order_A_0: Ok(PublishOutcome { marker: e9c980f50e88, fresh: true })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test t1_publication_strict_receipt_signature_vectors ... FAILED
 
 failures:
 
----- t1_publication_strict_receipt_signature_vectors stdout ----
-
-thread 't1_publication_strict_receipt_signature_vectors' (1080300) panicked at crates/store/tests/strict_signatures.rs:70:13:
-small_order_A_0: Ok(PublishOutcome { marker: e9c980f50e88, fresh: true })
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+---- t1_publication_strict_receipt_signature_vectors ----
+test panicked: small_order_A_0: Ok(PublishOutcome { marker: e9c980f50e88, fresh: true })
 
 
 failures:
     t1_publication_strict_receipt_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.40s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.34s
 
 error: test failed, to rerun pass `-p paralean-store --test strict_signatures`

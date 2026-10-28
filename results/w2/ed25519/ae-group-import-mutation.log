@@ -1,24 +1,23 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-8af577c75dff32a0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-32cdc5aba821d530)
 
 running 1 test
+PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
+
+thread '<unnamed>' (781614) panicked at crates/store/tests/strict_signatures.rs:98:54:
+called `Result::unwrap()` on an `Err` value: Invalid("origin author certificate missing")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test antientropy_group_import_strict_signature_vectors ... FAILED
 
 failures:
 
----- antientropy_group_import_strict_signature_vectors stdout ----
-PARALEAN_PEER_INSTANCE not set: the peer deployment shares this cluster
-
-thread 'antientropy_group_import_strict_signature_vectors' (1087765) panicked at crates/store/tests/strict_signatures.rs:99:9:
-assertion `left == right` failed: small_order_A_0: Deferred("group d0a9a88a571a not acknowledged here")
-  left: true
- right: false
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+---- antientropy_group_import_strict_signature_vectors ----
+test panicked: called `Result::unwrap()` on an `Err` value: Invalid("origin author certificate missing")
 
 
 failures:
     antientropy_group_import_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.20s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.22s
 
 error: test failed, to rerun pass `-p paralean-store --test strict_signatures`

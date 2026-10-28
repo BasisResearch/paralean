@@ -47,6 +47,14 @@ cases=(
  "paralean-remote|mutate-unchecked-pid|cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes|--bin plr"
  "paralean-remote|mutate-unchecked-capsule-id|cache::tests::put_capsule_refuses_traversing_package_ids_and_mismatched_bytes|--bin plr"
  "paralean-store|mutate-unchecked-publish-path|t1_refuses_a_marker_with_an_unsafe_file_path|--test file_paths"
+ # Merged W4 controller shards: W2-32 scoping of the validation catalog, W2-33's bound
+ # ahead of shard routing.
+ "paralean-control|mutate-unscoped-job-keys|sharded_validation_routes_are_scoped_per_workspace|--test durable"
+ "paralean-control|mutate-unbounded-poll-responses|overlong_request_id_is_refused_before_shard_routing|--test durable"
+ # W2-33's spill keeps W4's replay invariant: a dropped poll token resolves to its first answer.
+ "paralean-control|mutate-history-omit-poll-marker|spilled_poll_tokens_keep_their_first_answer|--test durable"
+ # W2-41: the controller binary reclaims retired snapshots by default.
+ "paralean-control|mutate-gc-off-by-default|tests::controller_collects_unless_told_not_to|--bin paralean-p3"
 )
 if printf '%s\n' "${cases[@]}" | grep -q -- '|--test '; then
   if [ -z "${PARALEAN_INSTANCE:-}" ] || [ ! -f "${PARALEAN_FDB_CLUSTER:-}" ]; then
@@ -56,12 +64,14 @@ if printf '%s\n' "${cases[@]}" | grep -q -- '|--test '; then
 fi
 for entry in "${cases[@]}"; do
   IFS='|' read -r package feature test target <<< "$entry"
+  log="$out/$feature--${test##*::}.log"
   # Each verdict must name the test; a compiler or infrastructure failure is not a kill.
-  if cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p "$package" --features "$feature" $target "$test" -- --exact > "$out/$feature.log" 2>&1; then
+  if cargo test --manifest-path impl/p2/Cargo.toml -j 4 -p "$package" --features "$feature" $target "$test" -- --exact > "$log" 2>&1; then
     echo "SURVIVED $feature"; exit 1
   fi
-  if ! grep -Fq "test $test ... FAILED" "$out/$feature.log"; then
-    echo "ERROR $feature"; tail -30 "$out/$feature.log"; exit 1
+  # libtest-mimic suites pad the name column, so match the verdict line by pattern.
+  if ! grep -Eq "test[[:space:]]+$test[[:space:]]+\.\.\. FAILED" "$log"; then
+    echo "ERROR $feature"; tail -30 "$log"; exit 1
   fi
   echo "detected $feature"
 done

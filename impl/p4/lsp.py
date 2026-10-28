@@ -8,17 +8,28 @@ editor buffers; Lean remains responsible for elaboration and proof state.
 import argparse
 import asyncio
 import copy
+import errno
 import hashlib
 import json
 import os
 import pathlib
 import signal
+import stat
 import sys
 import urllib.parse
 
 from rename_transaction import (RenameRefused, affected_documents, anchor_covered,
                                 definition_location, definition_names_group, extract_edits,
                                 plan_buffer, source_digest)
+
+
+MAX_LSP_FRAME = 64 * 1024 * 1024
+# The whole header block. LSP peers send one or two short header fields.
+MAX_LSP_HEADER_BYTES = 8 * 1024
+# Worker-controlled store and source files are read only as bounded regular files.
+MAX_WORKER_FILE = 64 * 1024 * 1024
+# Environment inputs are records, revisions, trust and key files.
+MAX_ENVIRONMENT_FILE = 1024 * 1024
 
 
 def frame(message):
@@ -28,18 +39,64 @@ def frame(message):
 
 async def read_message(reader):
     length = None
+    header_bytes = 0
     while True:
         line = await reader.readline()
         if not line:
             raise EOFError
+        header_bytes += len(line)
+        if header_bytes > MAX_LSP_HEADER_BYTES:
+            raise ValueError("invalid LSP frame")
         if line in (b"\r\n", b"\n"):
             break
         name, _, value = line.partition(b":")
         if name.lower() == b"content-length":
-            length = int(value.strip())
-    if length is None or length > 64 * 1024 * 1024:
+            value = value.strip()
+            if length is not None or not value.isdigit() or len(value) > 10:
+                raise ValueError("invalid LSP frame")
+            length = int(value)
+    if length is None or length > MAX_LSP_FRAME:
         raise ValueError("invalid LSP frame")
     return json.loads(await reader.readexactly(length))
+
+
+def read_regular(name, limit, dir_fd=None, follow_symlinks=False):
+    """Read a regular file of at most ``limit`` bytes.
+
+    O_NONBLOCK keeps a worker-planted FIFO from blocking the event loop, and the
+    bound keeps a sparse or /proc file from exhausting memory.
+    """
+    flags = os.O_RDONLY | os.O_NONBLOCK | os.O_NOCTTY | (0 if follow_symlinks else os.O_NOFOLLOW)
+    fd = os.open(name, flags, dir_fd=dir_fd)
+    with os.fdopen(fd, "rb") as handle:
+        info = os.fstat(handle.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > limit:
+            raise OSError(errno.EINVAL, "not a bounded regular file", str(name))
+        data = handle.read(limit + 1)
+    if len(data) > limit:
+        raise OSError(errno.EFBIG, "file exceeds its size limit", str(name))
+    return data
+
+
+def read_beneath(root, relative, limit):
+    """Read ``root/relative`` without following a symlink below ``root``."""
+    parts = str(relative).split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        raise OSError(errno.EINVAL, "unsafe relative path", str(relative))
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in parts[:-1]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = next_fd
+        return read_regular(parts[-1], limit, dir_fd=fd)
+    finally:
+        os.close(fd)
+
+
+def is_hex_id(value):
+    """64 lowercase hexadecimal digits (p3 ``is_hex_id``, Lean ``Safety.isHexId``)."""
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
 def file_uri(path):
@@ -110,7 +167,7 @@ class Workspace:
             for path in files:
                 try:
                     digest.update(str(path).encode())
-                    digest.update(hashlib.sha256(path.read_bytes()).digest())
+                    digest.update(hashlib.sha256(read_regular(path, MAX_ENVIRONMENT_FILE, follow_symlinks=True)).digest())
                 except OSError:
                     digest.update(str(path).encode() + b":unreadable")
         return digest.hexdigest()
@@ -500,19 +557,20 @@ class Proxy:
         records = store / "p3/records"
         if not records.is_dir():
             return []
-        def read_json(path):
+        def read_json(relative):
+            # The store is the worker's cache: bounded, no symlinks, no FIFOs.
             try:
-                return json.loads(path.read_text())
-            except (OSError, ValueError):
+                return json.loads(read_beneath(store, relative, MAX_WORKER_FILE))
+            except (OSError, ValueError, RecursionError):
                 return None
-        entries = [read_json(path) for path in records.glob("*.json")]
+        entries = [read_json("p3/records/" + path.name) for path in records.glob("*.json")]
         markers = [entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "marker"]
         tombs = [entry for entry in entries if isinstance(entry, dict) and entry.get("kind") == "tombstone"]
         revisions = {}
         revision_dir = store / "p3/revisions"
         if revision_dir.is_dir():
             for path in revision_dir.glob("*.json"):
-                revision = read_json(path)
+                revision = read_json("p3/revisions/" + path.name)
                 if isinstance(revision, dict):
                     revisions[revision.get("id", path.stem)] = revision
         def ancestors(rid, seen=None):
@@ -538,9 +596,9 @@ class Proxy:
         entries = []
         for marker in live:
             pid = marker.get("pid")
-            capsule = read_json(store / "meta" / f"{pid}.json") if pid else None
-            if not isinstance(capsule, dict):
-                capsule = read_json(store / "p3/capsules" / f"{marker.get('capsule')}.json")
+            capsule = read_json(f"meta/{pid}.json") if is_hex_id(pid) else None
+            if not isinstance(capsule, dict) and is_hex_id(marker.get("capsule")):
+                capsule = read_json(f"p3/capsules/{marker['capsule']}.json")
             if not isinstance(capsule, dict):
                 continue
             for original in capsule.get("publicNames", []):
@@ -751,8 +809,14 @@ class Proxy:
                 await ws.replace_worker()
             state = ws.open_documents.get(uri)
             try:
-                source = state["text"] if state else pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path)).read_text()
-            except (OSError, UnicodeError):
+                if state:
+                    source = state["text"]
+                else:
+                    # resolve() checked containment; read without following a
+                    # link the worker may have planted since, or a FIFO.
+                    path = pathlib.Path(urllib.parse.unquote(urllib.parse.urlparse(uri).path))
+                    source = read_beneath(ws.root, path.relative_to(ws.root).as_posix(), MAX_WORKER_FILE).decode()
+            except (OSError, UnicodeError, ValueError):
                 await self.error(client_id, -32602, "Source unavailable")
                 return
             await self.send({"jsonrpc": "2.0", "id": client_id, "result": {"uri": params["uri"], "workspace": ws.name, "environment": ws.environment, "generation": ws.generation, "version": state["version"] if state else None, "text": source}})

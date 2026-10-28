@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::id::{sha256, AgentId, Id, WorkspaceId};
-use crate::sign::{verify, Signer};
+use crate::sign::{verify_path, Signer};
 
 /// Stable git/projection author identity for a controller key.
 pub fn controller_agent_id(public: &[u8; 32]) -> AgentId {
@@ -47,7 +47,7 @@ impl AgentKeyGrant {
     pub fn verify(&self) -> bool {
         let Some((agent, workspace, public, issuer)) = self.parts() else { return false };
         let Ok(signature) = hex::decode(&self.signature) else { return false };
-        verify(&issuer, &Self::message(&agent, &workspace, &public), &signature)
+        verify_path(cfg!(feature = "mutate-relaxed-agent-grant-sig"), &issuer, &Self::message(&agent, &workspace, &public), &signature)
     }
     pub fn encoded(&self) -> Vec<u8> { serde_json::to_vec(self).expect("agent grant serializes") }
 }
@@ -81,7 +81,7 @@ impl AgentKeyRevocation {
         if self.issuer != hex::encode(authority) { return false }
         let (Ok(public), Ok(signature)) = (hex::decode(&self.public), hex::decode(&self.signature)) else { return false };
         let Ok(public) = <[u8; 32]>::try_from(public) else { return false };
-        verify(authority, &Self::message(&public), &signature)
+        verify_path(cfg!(feature = "mutate-relaxed-agent-revocation-sig"), authority, &Self::message(&public), &signature)
     }
     pub fn public(&self) -> Option<[u8; 32]> { hex::decode(&self.public).ok()?.try_into().ok() }
     pub fn encoded(&self) -> Vec<u8> { serde_json::to_vec(self).expect("agent revocation serializes") }
@@ -102,7 +102,7 @@ impl ControllerDeleteGrant {
     pub fn verify(&self, tombstone: &Id, issuer: &[u8; 32]) -> bool {
         if self.tombstone != tombstone.hex() || self.issuer != hex::encode(issuer) { return false }
         let Ok(signature) = hex::decode(&self.signature) else { return false };
-        verify(issuer, &Self::message(tombstone, self.fence), &signature)
+        verify_path(cfg!(feature = "mutate-relaxed-controller-delete-sig"), issuer, &Self::message(tombstone, self.fence), &signature)
     }
     pub fn encoded(&self) -> Vec<u8> { serde_json::to_vec(self).expect("deletion grant serializes") }
 }

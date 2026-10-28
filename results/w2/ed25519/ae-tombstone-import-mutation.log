@@ -1,22 +1,23 @@
    Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/crates/store)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.86s
-     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-8af577c75dff32a0)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.49s
+     Running tests/strict_signatures.rs (impl/p2/target/debug/deps/strict_signatures-32cdc5aba821d530)
 
 running 1 test
+
+thread '<unnamed>' (781368) panicked at crates/store/tests/strict_signatures.rs:41:13:
+small_order_A_0: Deferred("tombstone copy not acknowledged here")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 test antientropy_import_strict_signature_vectors ... FAILED
 
 failures:
 
----- antientropy_import_strict_signature_vectors stdout ----
-
-thread 'antientropy_import_strict_signature_vectors' (1083547) panicked at crates/store/tests/strict_signatures.rs:40:13:
-small_order_A_0: Deferred("tombstone copy not acknowledged here")
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+---- antientropy_import_strict_signature_vectors ----
+test panicked: small_order_A_0: Deferred("tombstone copy not acknowledged here")
 
 
 failures:
     antientropy_import_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.07s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.05s
 
 error: test failed, to rerun pass `-p paralean-store --test strict_signatures`

@@ -70,6 +70,10 @@ mutate-weak-signature = []
 # Per-path strict-verification removal (sign::verify_path); one path each.
 mutate-relaxed-receipt-sig = []
 mutate-relaxed-import-sig = []
+# W3's agent-key registry and controller deletion, one strict-verification path each.
+mutate-relaxed-agent-grant-sig = []
+mutate-relaxed-agent-revocation-sig = []
+mutate-relaxed-controller-delete-sig = []
 mutate-key-debug = []
 mutate-unbounded-pce = []
 mutate-unbounded-s3-read = []

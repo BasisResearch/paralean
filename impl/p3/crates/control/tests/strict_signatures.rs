@@ -41,9 +41,56 @@ async fn validator_envelope_strict_signature_vectors() {
     std::fs::remove_dir_all(dir).unwrap();
 }
 
+/// W4's sharded controller endpoints authenticate with W2's strict RPC verifier: each
+/// vector's key is the configured writer key of its own workspace (W2-08: a weak key in
+/// trust configuration), and the client sends that vector's signature on the shard's own
+/// fresh challenge. Only the genuine signature may register, at every shard.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn sharded_controller_rpc_strict_signature_vectors() {
+    use paralean_control::controller::{ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
+    use paralean_validator_api::rpc;
+    let kf = KeyFile::demo(1);
+    let authority = kf.authority_signer().unwrap();
+    let signer = Signer::from_seed(std::array::from_fn(|i| (i * 11) as u8));
+    let keys = vectors::cases(signer.public(), [0; 64]);
+    let workers: Vec<WorkspaceId> = (0..keys.len()).map(|i| WorkspaceId::derive(&format!("strict-shard-{i}"))).collect();
+    let mut ring = kf.ring();
+    for (w, case) in workers.iter().zip(&keys) { ring.writers.insert(*w, case.public); }
+    let store = Store::open(&StoreConfig::from_env(&common::deployment("strict-shards")).unwrap(), ring, Faults::none()).unwrap();
+    let cfg = ControllerConfig {
+        store, authority: authority.clone(), validators: vec![],
+        base: fixture::base_id(), policy: receipt::Policy::v1().id(),
+        checker: receipt::CheckerVersion::fixture().id(), lease: std::time::Duration::from_millis(500),
+        max_work_queue: 4, max_validations: 1, validation_deadline: std::time::Duration::from_secs(1),
+        validation_memory_mb: 128, validator_attempts: 1,
+    };
+    for shard in 0..2 {
+        let cp = ControlPlane::new_shard(cfg.clone(), shard, 2);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let _server = cp.serve(listener);
+        for (i, w) in workers.iter().enumerate() {
+            let mut s = tokio::net::TcpStream::connect(addr).await.unwrap();
+            let c: rpc::Challenge = rpc::read_frame(&mut s).await.unwrap();
+            assert!(rpc::verify_challenge(&c, "paralean/controller", &authority.public()));
+            let mut r = rpc::signed_request(ControlRequest::Register { worker: w.hex(), capacity_mb: 1 },
+                &signer, &authority.public(), &c.nonce).unwrap();
+            let case = &vectors::cases(signer.public(), r.signature.clone().try_into().unwrap())[i];
+            r.public = case.public;
+            r.signature = case.signature.to_vec();
+            rpc::write_frame(&mut s, &r).await.unwrap();
+            let answer: std::io::Result<rpc::SignedResponse<ControlResponse>> = rpc::read_frame(&mut s).await;
+            let registered = answer.as_ref().is_ok_and(|a| rpc::verify_response(a, "paralean/controller", &authority.public(), &c.nonce)
+                && matches!(a.payload, ControlResponse::Registered { .. }));
+            assert_eq!(registered, case.expected, "shard {shard}: {}: {answer:?}", case.name);
+        }
+    }
+}
+
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
         libtest_mimic::Trial::test("validator_envelope_strict_signature_vectors", || { validator_envelope_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("sharded_controller_rpc_strict_signature_vectors", || { sharded_controller_rpc_strict_signature_vectors(); Ok(()) }),
     ]);
 }

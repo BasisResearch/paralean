@@ -35,7 +35,7 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   checker-version                  this machine's checker version and its ID
   validator --listen ADDR --key NAME [--max-running N] [--max-queued N] [--workdir DIR]
   controller --listen ADDR --validators A,B [--shard N --shards K] [--lease-ms N] [--max-work-queue N]
-             [--gc --gc-grace-ticks N --gc-scan-limit N]
+             [--no-gc] [--gc-grace-ticks N --gc-scan-limit N]
              [--max-validations N] [--deadline-ms N] [--memory-mb N] [--attempts N]
   worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
   submit --controller ADDR --request R --target NAME [--memory-mb N]
@@ -66,6 +66,14 @@ fn flags(args: &[String]) -> BTreeMap<String, String> {
 
 fn num(f: &BTreeMap<String, String>, k: &str, d: u64) -> R<u64> {
     f.get(k).map(|s| s.parse().map_err(|e| format!("--{k}: {e}"))).unwrap_or(Ok(d))
+}
+
+/// The controller's snapshot and history GC. On unless `--no-gc` (`--gc` is accepted):
+/// every state change retires the previous snapshot, and without the collector those
+/// chunks and the snapshot's settled history are never reclaimed (W2-41).
+fn controller_gc(f: &BTreeMap<String, String>) -> R<GcConfig> {
+    let enabled = if cfg!(feature = "mutate-gc-off-by-default") { f.contains_key("gc") } else { !f.contains_key("no-gc") };
+    Ok(GcConfig { enabled, grace_ticks: num(f, "gc-grace-ticks", 8)?, scan_limit: num(f, "gc-scan-limit", 128)? as usize })
 }
 
 fn keyfile() -> R<KeyFile> {
@@ -213,11 +221,7 @@ async fn run(args: Vec<String>) -> R<()> {
                 validation_deadline: Duration::from_millis(num(&f, "deadline-ms", 600_000)?),
                 validation_memory_mb: num(&f, "memory-mb", 4096)?,
                 validator_attempts: num(&f, "attempts", 4)? as usize,
-            }, shard, shards, GcConfig {
-                enabled: f.contains_key("gc"),
-                grace_ticks: num(&f, "gc-grace-ticks", 8)?,
-                scan_limit: num(&f, "gc-scan-limit", 128)? as usize,
-            });
+            }, shard, shards, controller_gc(&f)?);
             cp.verify_topology().await?;
             let l = tokio::net::TcpListener::bind(f.get("listen").ok_or("--listen ADDR")?).await.map_err(|e| e.to_string())?;
             println!("controller shard {shard}/{shards} on {}", l.local_addr().unwrap());
@@ -298,5 +302,20 @@ fn main() -> ExitCode {
             eprintln!("paralean-p3: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn controller_collects_unless_told_not_to() {
+        let parse = |args: &[&str]| controller_gc(&flags(&args.iter().map(|a| a.to_string()).collect::<Vec<_>>())).unwrap();
+        let default = parse(&["controller"]);
+        assert!(default.enabled, "a default controller never reclaims retired snapshots");
+        assert_eq!((default.grace_ticks, default.scan_limit), (8, 128));
+        assert!(parse(&["controller", "--gc"]).enabled);
+        assert!(!parse(&["controller", "--no-gc"]).enabled);
     }
 }

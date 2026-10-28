@@ -55,6 +55,8 @@ mutate-unchecked-gid = []
 mutate-unscoped-validator-slots = []
 # W2-32 over the merged W4 catalog: J1-J3 keys and the validation shard routes unscoped.
 mutate-unscoped-job-keys = ["paralean-store/mutate-unscoped-job-keys"]
+# W2-41: the controller binary leaves snapshot/history GC off unless --gc.
+mutate-gc-off-by-default = []
 mutate-attached-validation = []
 mutate-shared-workdir = []
 mutate-role-keys-unchecked = []

@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
      Running unittests src/lib.rs (impl/p2/target/debug/deps/ae_wire-e3655e2667096164)
 
 running 1 test
@@ -8,7 +8,7 @@ failures:
 
 ---- tests::transport_strict_signature_vectors stdout ----
 
-thread 'tests::transport_strict_signature_vectors' (1088436) panicked at crates/ae-wire/src/lib.rs:503:13:
+thread 'tests::transport_strict_signature_vectors' (781680) panicked at crates/ae-wire/src/lib.rs:503:13:
 assertion `left == right` failed: small_order_A_0
   left: true
  right: false
@@ -18,6 +18,6 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 failures:
     tests::transport_strict_signature_vectors
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.04s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.03s
 
 error: test failed, to rerun pass `-p ae-wire --lib`

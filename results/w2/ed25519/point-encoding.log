@@ -1,4 +1,4 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
      Running tests/vectors.rs (impl/p2/target/debug/deps/vectors-61ad12458b615a0c)
 
 running 1 test
