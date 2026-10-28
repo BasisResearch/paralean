@@ -94,3 +94,10 @@ This is a small descriptive pair with no distributional speedup claim. Record
 reported model identities and actual CLI worker wall intervals where available;
 keep authenticated transcripts private. If CLI credentials, budget, or runtime
 limits prevent completion, report that failure explicitly.
+
+Second pilot amendment: the 100-iteration `run_tac` pilot passed workspace checks
+but failed independent source replay (`Lean.Elab.Tactic.TacticM` unavailable).
+No production trials had begun. Replace the metaprogramming loop with 100 ordinary
+`have hscal : (1 : Nat) + 1 = 2 := by decide; clear hscal` tactic pairs in each
+branch, importing only Init. Keep the rejected pilot as a compatibility failure,
+not a timing sample. Validate this ordinary-tactic variant in a third pilot.

@@ -8,12 +8,12 @@ python3 - <<'PY'
 import sys
 sys.path.insert(0,'scripts/scaling')
 from study import trial
-assert trial('synthetic',8,1,pilot=True,work=100)['ok']
+assert trial('synthetic',8,2,pilot=True,work=100)['ok']
 PY
 # Require the heavier pilot and its clean export to pass before production sampling.
 python3 - <<'PY'
 import json
-p=json.load(open('results/scaling/pilot-synthetic-p8-r1/result.json'))
+p=json.load(open('results/scaling/pilot-synthetic-p8-r2/result.json'))
 assert p['ok'] and p['export']['returncode']==0, p
 PY
 python3 scripts/scaling/profile.py > .runs/scaling/profile-launch.log 2>&1

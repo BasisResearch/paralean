@@ -67,7 +67,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
     text = text.replace('max_attempts = 3', 'max_attempts = 1')
     text = text.replace('kind = "command"', 'kind = "command"\ntimeout_s = 180')
     if workload == 'synthetic':
-        text += '\n[sources]\n' + '\n'.join(json.dumps(t['file'])+' = "import Lean\\n"' for t in taskdata['targets'])+'\n'
+        text += '\n[sources]\n' + '\n'.join(json.dumps(t['file'])+' = "import Init\\n"' for t in taskdata['targets'])+'\n'
     task = evidence / 'task.toml'
     task.write_text(text)
     env = dict(os.environ, SCALING_WORK=str(work), PARALEAN_DEPLOYMENT='scal-'+name,
@@ -78,7 +78,7 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
            'worker_sha256': hashlib.sha256((ROOT/'scripts/scaling/worker.py').read_bytes()).hexdigest(),
            'started_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
     if stock:
-        source = ('import Lean\n' if workload == 'synthetic' else 'import Init\n') + ('set_option Elab.async false\n' if sync else '')
+        source = 'import Init\n' + ('set_option Elab.async false\n' if sync else '')
         source += ''.join(declaration(t['name'],t['statement'],work) for t in taskdata['targets'])
         path = evidence/'Stock.lean'
         path.write_text(source)

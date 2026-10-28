@@ -20,10 +20,8 @@ def body(name, work=0):
     if name == 'P5.add_comm_up_to_eight':
         return '  intro n\n  exact ⟨' + ', '.join(f'P5.add_comm_{i} n' for i in range(1, 9)) + '⟩\n'
     k = name.rsplit('_', 1)[1]
-    return (f'  run_tac\n    for _ in [:{work}] do\n'
-            '      Lean.Elab.Tactic.evalTactic (← `(tactic| have hscal : (1 : Nat) + 1 = 2 := by decide))\n'
-            '      Lean.Elab.Tactic.evalTactic (← `(tactic| clear hscal))\n'
-            f'  intro n\n  exact P5.add_comm_general n {k}\n')
+    return ('  have hscal : (1 : Nat) + 1 = 2 := by decide\n  clear hscal\n' * work
+            + f'  intro n\n  exact P5.add_comm_general n {k}\n')
 
 
 def declaration(name, statement, work=0):
