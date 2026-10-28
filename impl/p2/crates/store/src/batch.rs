@@ -575,10 +575,17 @@ pub(crate) async fn t13_receive_batch(
                 }
                 return Err(GuardFailure::BatchConflict(id).into());
             }
-            for m in members.iter() {
-                match m {
-                    crate::antientropy::Prepared::Group(a) => { crate::meta::t9_body(trx, &k, a, Mode::Batch(id)).await?; }
-                    crate::antientropy::Prepared::Tombstone(a) => { crate::meta::t10_body(trx, &k, a, Mode::Batch(id)).await?; }
+            for (i, m) in members.iter().enumerate() {
+                let r = match m {
+                    crate::antientropy::Prepared::Group(a) => crate::meta::t9_body(trx, &k, a, Mode::Batch(id)).await.map(|_| ()),
+                    crate::antientropy::Prepared::Tombstone(a) => crate::meta::t10_body(trx, &k, a, Mode::Batch(id)).await.map(|_| ()),
+                };
+                if let Err(e) = r {
+                    if cfg!(feature = "mutate-batch-ae-partial") && i > 0 && e.guard().is_some() {
+                        // The mutant applies the members received so far.
+                        return Ok(Step::Commit(true));
+                    }
+                    return Err(e);
                 }
             }
             trx.set(&bk, &record);

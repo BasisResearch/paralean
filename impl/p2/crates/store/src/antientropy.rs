@@ -336,17 +336,6 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
     }
 }
 
-/// A member that cannot be applied yet defers or rejects its whole batch. The mutation
-/// `mutate-batch-ae-partial` instead applies the members checked so far.
-macro_rules! o_or_prefix {
-    ($o:expr, $prepared:expr, $id:expr, $record:expr, $st:expr) => {{
-        if cfg!(feature = "mutate-batch-ae-partial") && !$prepared.is_empty() {
-            let _ = crate::batch::t13_receive_batch($st, $id, std::mem::take(&mut $prepared), $record.to_vec()).await;
-        }
-        return Ok($o);
-    }};
-}
-
 /// The members of a batch already checked, before the one being checked.
 pub(crate) struct BatchContext {
     pub markers: Vec<(Marker, Vec<Revision>)>,
@@ -405,7 +394,7 @@ async fn import_batch(w: &Writer, record: &[u8], members: &[Item]) -> Result<Out
                         ctx.markers.push((m, revs));
                         Prepared::Group(args)
                     }
-                    Prep::Out(o) => o_or_prefix!(o, prepared, id, record, st),
+                    Prep::Out(o) => return Ok(o),
                 }
             }
             (crate::batch::BatchMember::Tombstone { target, position, .. }, Item::Tombstone { tombstone, certs, controller_grant }) => {
@@ -418,7 +407,7 @@ async fn import_batch(w: &Writer, record: &[u8], members: &[Item]) -> Result<Out
                 }
                 match prepare_tombstone(w, tombstone, certs, controller_grant, Some(&ctx)).await? {
                     Prep::Ready(args) => Prepared::Tombstone(args),
-                    Prep::Out(o) => o_or_prefix!(o, prepared, id, record, st),
+                    Prep::Out(o) => return Ok(o),
                 }
             }
             _ => return reject("batch member kind differs from its record"),

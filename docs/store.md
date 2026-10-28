@@ -93,6 +93,7 @@ kind cannot be read as another.
 | `assign/<name>/<epoch>` | `{owner, request}` of the assignment that set this epoch | reassignment transaction |
 | `areq/<name>/<request>` | the epoch T4 set for this request | reassignment transaction |
 | `lamport/<agent>` | last issued Lamport time (optional; a local fsynced file also suffices) | the agent |
+| `batch/<intent>` | the signed batch intent and, per member, its marker or tombstone ID and its writer's certificate ID | the transaction that writes the members (T12, T13) |
 
 `treq/`, `assign/` and `areq/` are grow-only request indexes. They make the
 effect of T3 and T4 recognisable for any retry, including a late duplicate that
@@ -160,6 +161,8 @@ recognise any earlier request (see Layout).
 | T5 | Write and commit catalogue record `c` | `rcert/<c>`; `fence`; `token/<rank>`; `catalog/<c>`; `ocert/snapshot/<m>`; for each parent `p` of `c`: `rcert/<p>`, `ocert/snapshot/<image p>` | `catalog/<c>` if absent, `rcert/<c>` |
 | T6 | Certify object `o` | none | `ocert/<kind>/<o>` |
 | T7 | Repair certificate | an existing `cert`, `rcert` or `ocert` key | the same key on a replacement replica (unconditional, unfenced) |
+| T12 | Publish batch `b` | `batch/<b>`; for each member in order, T1's reads (or T8's) | each member's T1 (or T8) writes, `batch/<b>`, one `Batch` event |
+| T13 | Receive batch `b` | `batch/<b>`; for each member in order, T9's reads (or T10's) | each member's T9 (or T10) writes, `batch/<b>`, one `Batch` event |
 
 Before T1 the publisher PUTs the marker's preimage to `obj/marker/<hex id>` and
 waits for the acknowledgement. This is §8.2 step 2 ("the marker is durably
@@ -168,6 +171,17 @@ staged in S3, and discovery never reads it. T2 aborts unless `marker/<g>` exists
 *and* at least one `cert/<g>/*` key exists: the writer must know `g` as published,
 and a marker key alone is not evidence of publication (§8.3; AckCertificates
 `guard_necessity`, TLA `cert_scan_raw_marker`).
+
+T12 publishes several groups and tombstones, possibly by several workspaces, all or none
+([atomic-pub-log.md](atomic-pub-log.md)). A controller (or, without target names, a job
+issuer) signs a batch intent (`v0/batch`) naming the members in order; each member's job
+envelope or tombstone carries the intent ID, and T1, T8, T9 and T10 refuse such a bound
+object, so only its batch admits it. T12 runs each member's T1 or T8 body, unchanged, in
+order, in one transaction: each body reads the writes of the members before it, so a
+member may depend on, revise or delete an earlier one. The batch is idempotent as a whole
+through `batch/<b>`. It is bounded (128 members, 2 MiB of metadata, 4096 payload
+references) so that it fits one transaction and one anti-entropy event. T13 applies a
+received batch the same way, with T9 and T10 bodies.
 
 T1 aborts unless, for every target name, `owner = self`, `epoch` equals the epoch
 the proof was prepared under and `head` equals the head the proof revises. The last
@@ -248,6 +262,7 @@ previous step produced. The sequences are:
 | T5 catalogue | `Put σ c` (a first write when `catalog/<c>` was absent, fenced); `Ack c {σ}`; `CertStep.record σ c` (fenced; parents ready) |
 | T6 certify object | `CertStep.object σ o` |
 | T7 repair | `CertStep.repairRecord` / `CertStep.repairObject` |
+| T12 batch | the concatenation of its members' T1 and T8 sequences, in member order (Veil `AtomicBatch`: batch runs reach exactly the hardened states) |
 
 Each guard holds where it is taken. T1's publish is fenced by the epoch read in the
 same transaction, and its certificate is written by a node that knows `g` as
@@ -288,6 +303,13 @@ before the scan started in `S`, and every key in `S` committed at some version. 
 `CertQuorum ⊆ S ⊆ published` (`scan_between`) holds, and the catalogue scan covers
 every committed record (`certScanValue_covers`), exactly as for a single-version
 scan. Readiness (`CatReady`) is likewise read per record and is monotone.
+
+A scan is also closed under batches. Its pages are read at different versions, so a
+batch committed during the scan can appear only partly: the members whose keys follow
+the scan position, and its tombstones from the later tombstone scan. A member in the scan
+means the batch record exists (one transaction, grow-only keys), so discovery reads that
+record and adds every member by point reads with the same certificate checks. Without
+this a reader sees part of an atomic batch (TLA `AtomicBatch` `batch_scan_no_closure`).
 
 Refinement obligation: a page ends only where FoundationDB says the range is
 exhausted. A scan continues from the last returned key while the range read reports

@@ -29,6 +29,45 @@ does not satisfy it. Runtime source mutations test these concrete checks.
 counterexamples to their `Never*` invariants in the unmutated model. Thus the
 positive checks cannot pass solely by disabling publication, rename or replay.
 
+## Atomic multi-group publication
+
+`AtomicBatch` checks one batch that renames published declarations across two
+workspaces:
+- publish bar (`g1`, a proof of target name x);
+- delete foo's position (`t0`);
+- publish use' (`u1`), which revises use and depends on `g1` and on `g2` outside the batch.
+
+A competing proof, reassignment, an untrusted coordinator, crashes and lost commit
+replies interleave with four readers: a paginated scan, an anti-entropy peer, a
+working-copy cache and checkpoint commits. `Staged = TRUE` replaces the
+single transaction (T12) by staged rows and an intent committed last. Guard removals:
+
+| Check | Mutation | Required failure |
+|---|---|---|
+| Receipt for exactly that group and envelope | `batch_no_receipt` | `ReceiptSafety` |
+| Member writer's own certificate | `batch_no_cert` | `CertSafety` |
+| Target owner | `batch_no_owner` | `NoStalePublication` |
+| Target epoch | `batch_no_epoch` | `NoStalePublication` |
+| Head compare-and-swap | `batch_no_head_cas` | `TargetChain` |
+| Dependencies published or earlier in the batch | `batch_no_deps` | `DepsClosed` |
+| W3 tombstone target | `batch_no_tombstone` | `TombstoneSafety` |
+| T1/T8 refuse batch-bound members | `batch_member_alone` | `BatchBound` |
+| All or nothing | `batch_partial_commit` | `NoPartialStore` |
+| Scan closed under batches | `batch_scan_no_closure` | `NoPartialScan` |
+| Checkpoint currentness | `batch_checkpoint_stale` | `CheckpointNoStraddle` |
+| Unknown outcome resolved by reading | `batch_unknown_as_failure` | `OutcomeTruthful` |
+| T9/T10 refuse members alone | `batch_ae_per_member` | `NoPartialPeer` |
+| T13 needs every part | `batch_ae_partial_parts` | `NoPartialPeer` |
+| Working copy ignores unfiled members | `batch_cache_no_filter` | `NoPartialCache` |
+| Batch file written last | `batch_cache_file_early` | `NoPartialCache` |
+| Staged: readers resolve the intent | `batch_staged_ignores_intent` | `NoPartialStore` |
+| Staged: intent needs every row | `batch_staged_incomplete` | `NoPartialStore` |
+| Staged: commit re-checks guards | `batch_staged_no_recheck` | `TargetChain` (only invariant) |
+
+`batch_commit_work`, `batch_stale_rejected_work`, `batch_scan_work`,
+`batch_checkpoint_work`, `batch_peer_work`, `batch_cache_work` and `batch_staged_work`
+require counterexamples to their `Never*` invariants in the unmutated model.
+
 ## Store protocol guards
 
 `scripts/check-tla-negative.sh` removes each effective admission or freshness

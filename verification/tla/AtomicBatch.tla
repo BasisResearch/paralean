@@ -199,14 +199,16 @@ SinglePublish(i) ==
 
 (* The coordinator prepares the batch: it reads the target record once and
    collects each member's certificate. It is not trusted: it may attach a
-   certificate it signed itself. Published items keep their history. *)
+   certificate it signed itself (in the single-transaction configurations; the
+   certificate guard is the same in staged mode). Published items keep their
+   history. *)
 PrepareBatch ==
   /\ cphase \in {"idle", "failed"}
   /\ cphase' = "prepared"
   /\ prepared' = prepared \cup BatchItems
   /\ prepEpoch' = IF "g1" \in Published THEN prepEpoch ELSE [prepEpoch EXCEPT !["g1"] = epoch]
   /\ prepHead' = IF "g1" \in Published THEN prepHead ELSE [prepHead EXCEPT !["g1"] = head]
-  /\ \E forged \in {None} \cup BatchItems :
+  /\ \E forged \in (IF Staged THEN {None} ELSE {None} \cup BatchItems) :
        certBy' = [i \in Items |-> IF i \in BatchItems \ Published
                                    THEN (IF i = forged THEN Coord ELSE Writer[i])
                                    ELSE certBy[i]]
