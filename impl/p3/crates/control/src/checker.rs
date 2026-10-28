@@ -69,7 +69,8 @@ pub struct CheckerConfig {
     pub systemd_run: PathBuf,
     /// W2-13: split the check. `source-check` (which elaborates capsules) contributes only
     /// evidence; `kernel-check`, a fresh process that elaborates nothing, gives the verdict.
-    /// Production configuration always sets it.
+    /// Off by default: publishing agents are trusted in the usual operating mode, and the
+    /// second process costs about 0.6-0.8 s per check. `PARALEAN_CHECKER_SPLIT=on` enables it.
     pub split: bool,
 }
 
@@ -78,6 +79,7 @@ impl CheckerConfig {
     /// `PARALEAN_LEAN` (`fork` selects fork mode). The sandbox is always on.
     /// `PARALEAN_CHECKER_CGROUP=off` is the explicit opt-out of the cgroup layer for hosts
     /// without delegated cgroup v2 controllers; any value other than `on`/`off` is an error.
+    /// `PARALEAN_CHECKER_SPLIT=on` opts into the split check (W2-13); default `off`.
     pub fn from_env() -> Result<CheckerConfig, String> {
         let bin = PathBuf::from(std::env::var("PARALEAN_BIN").map_err(|_| "PARALEAN_BIN not set (source impl/p3/scripts/env.sh)")?);
         let mode = if std::env::var("PARALEAN_LEAN").as_deref() == Ok("fork") { "fork" } else { "stock" };
@@ -85,6 +87,11 @@ impl CheckerConfig {
             Err(_) | Ok("on") => true,
             Ok("off") => false,
             Ok(other) => return Err(format!("PARALEAN_CHECKER_CGROUP must be on or off, not {other:?}")),
+        };
+        let split = match std::env::var("PARALEAN_CHECKER_SPLIT").as_deref() {
+            Err(_) | Ok("off") => false,
+            Ok("on") => true,
+            Ok(other) => return Err(format!("PARALEAN_CHECKER_SPLIT must be on or off, not {other:?}")),
         };
         Ok(CheckerConfig {
             bin,
@@ -103,7 +110,7 @@ impl CheckerConfig {
             max_tasks: DEFAULT_MAX_TASKS,
             bwrap: PathBuf::from("/usr/bin/bwrap"),
             systemd_run: PathBuf::from("/usr/bin/systemd-run"),
-            split: true,
+            split,
         })
     }
 
@@ -113,7 +120,7 @@ impl CheckerConfig {
             bin, mode: "stock".into(), lean_githash: lean_githash.into(), env: vec![],
             default_memory_mb: 4096, sandbox: true, cgroup: true, max_tasks: DEFAULT_MAX_TASKS,
             bwrap: PathBuf::from("/usr/bin/bwrap"), systemd_run: PathBuf::from("/usr/bin/systemd-run"),
-            split: true,
+            split: false,
         }
     }
 
@@ -123,6 +130,10 @@ impl CheckerConfig {
         if let Some(bin) = self.warm_bin() {
             bytes.extend_from_slice(b"\0paralean-warm-checker-v1\0");
             bytes.extend(std::fs::read(bin).map_err(|e| format!("{bin}: {e}"))?);
+        }
+        // Receipts name which process gave the verdict.
+        if self.split {
+            bytes.extend_from_slice(b"\0paralean-split-check-v1\0");
         }
         Ok(CheckerVersion {
             lean_githash: self.lean_githash.clone(),
@@ -644,7 +655,7 @@ fn verdict(out: &str, err: &str, st: std::process::ExitStatus) -> Result<CheckOu
     raw.outcome()
 }
 
-/// Check group `decl` of `store`. With `split` (production), `source-check` replays the
+/// Check group `decl` of `store`. With `split` (opt-in), `source-check` replays the
 /// capsules in one sandbox and contributes only its evidence; a fresh sandbox then runs
 /// `kernel-check`, which elaborates no capsule, and its verdict is returned (W2-13).
 #[allow(clippy::too_many_arguments)]

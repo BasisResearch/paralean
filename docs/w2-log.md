@@ -261,7 +261,9 @@ Final tree: `59a0346` (pushed as `w2-security`); this line is added in the follo
   - P3 tests: 114 passed, 0 failed, 4 ignored.
   - `forged_frontend_acceptance_cannot_pass_the_kernel_check` passes, and
     `mutate-verdict-from-frontend` is detected.
-  - Cost: about 0.6–0.8 s more per check.
+  - Cost: about 0.6–0.8 s more per check. Because agents are trusted, the split is
+    opt-in (`PARALEAN_CHECKER_SPLIT=on`) and off by default; the default path is the
+    single `check-group` process as before.
 - **W2-12 accepted, not fixed.** P5's coding agents are trusted in the operating mode, so
   hostile workers are outside the threat model. No worker sandbox was added.
 - **Smaller residuals fixed:**

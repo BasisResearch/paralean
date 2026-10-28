@@ -65,7 +65,7 @@ fn forging_config(root: &Path) -> CheckerConfig {
     env.push(("PARALEAN_REAL_BIN".into(), real.bin.display().to_string()));
     // The provenance of the verdict, not containment (tests/sandbox.rs), is under test; the
     // stand-in execs the real binary by its host path.
-    CheckerConfig { bin: wrapper, env, sandbox: false, cgroup: false, ..real }
+    CheckerConfig { bin: wrapper, env, sandbox: false, cgroup: false, split: true, ..real }
 }
 
 async fn check(cfg: &CheckerConfig, store: &Path, decl: &str) -> checker::CheckOutcome {
