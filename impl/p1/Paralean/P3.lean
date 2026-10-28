@@ -22,6 +22,10 @@ policy come from `$PARALEAN_TRUST` (written by `plr keys-init`).
 
 Payloads and records missing from the cache are fetched on demand with
 `$PARALEAN_PLR fetch-group|fetch-pkg`; every fetched byte is re-hashed before use.
+
+A record of an atomic batch (docs/atomic-pub-log.md) names its batch. `plr` writes the
+batch file `b-<batch>.json` after every member record, so `Known.load` ignores a member
+whose batch file is absent or does not list it: a copy never sees part of a batch.
 -/
 
 namespace Paralean.P3
@@ -44,6 +48,8 @@ structure Marker where
   lineageKeys : Array (Name × Nat × String)
   capsule : String
   pid : String
+  /-- The atomic batch that published it (its job envelope's `batch`). -/
+  batch : Option String := none
   deriving Inhabited, Repr, BEq
 
 structure Tomb where
@@ -53,6 +59,7 @@ structure Tomb where
   position : Option String := none
   lamport : Nat
   author : String
+  batch : Option String := none
   deriving Inhabited, Repr, BEq
 
 structure Rev where
@@ -80,6 +87,12 @@ def jFile (j : Json) (k : String) : Except String String := do
   | .ok () => return s
   | .error e => throw s!"{k}: unsafe path {repr s}: {e}"
 
+/-- An optional content ID field (absent or null: none). -/
+def jIdOpt (j : Json) (k : String) : Except String (Option String) :=
+  match j.getObjVal? k with
+  | .ok .null | .error _ => pure none
+  | .ok _ => some <$> jId j k
+
 def triple (j : Json) : Except String (Json × Nat × String) := do
   let a ← j.getArr?
   unless a.size == 3 do throw "expected a triple"
@@ -98,15 +111,13 @@ def Marker.ofJson (j : Json) : Except String Marker := do
   return { id := ← jId j "id", group := ← jId j "group", revisions := ← jStrs j "revisions"
            receipt := ← jId j "receipt", file := ← jFile j "file", anchor, lamport := ← jNat j "lamport"
            author := ← jStr j "author", rootPath := rp, lineageKeys := lk
-           capsule := ← jId j "capsule", pid := ← jId j "pid" }
+           capsule := ← jId j "capsule", pid := ← jId j "pid", batch := ← jIdOpt j "batch" }
 
 def Tomb.ofJson (j : Json) : Except String Tomb := do
   -- A position names a marker variant: when present it is a content ID like `id`.
-  let position ← match j.getObjVal? "position" with
-    | .ok .null | .error _ => pure none
-    | .ok _ => some <$> jId j "position"
   return { id := ← jId j "id", file := ← jFile j "file", target := ← jId j "target"
-           position, lamport := ← jNat j "lamport", author := ← jStr j "author" }
+           position := ← jIdOpt j "position", lamport := ← jNat j "lamport", author := ← jStr j "author"
+           batch := ← jIdOpt j "batch" }
 
 def Rev.ofJson (j : Json) : Except String Rev := do
   return { id := ← jStr j "id", group := ← jStr j "group", name := ← jName (← j.getObjVal? "name")
@@ -135,10 +146,36 @@ def ofExcept (p : FilePath) : Except String α → IO α
   | .ok a => pure a
   | .error e => throw <| IO.userError s!"{p}: {e}"
 
+/-- The batch file `b-<batch>.json` (written by `plr` after every member): the IDs of the
+batch's marker and tombstone records. -/
+structure BatchFile where
+  id : String
+  markers : Array String
+  tombs : Array String
+
+def BatchFile.ofJson (j : Json) : Except String BatchFile := do
+  let ids (k : String) : Except String (Array String) := do
+    (← jStrs j k).mapM fun s => do Safety.checkHexId k s; pure s
+  return { id := ← jId j "id", markers := ← ids "markers", tombs := ← ids "tombstones" }
+
+/-- Is a record of batch `b` (`isMarker`: a marker, else a tombstone) listed by the batch
+file in `dir`? An absent, unreadable or other batch's file lists nothing. -/
+def batchLists (dir : FilePath) (b id : String) (isMarker : Bool) : IO Bool := do
+  unless Safety.isHexId b do return false
+  let p := dir / s!"b-{b}.json"
+  unless ← p.pathExists do return false
+  match (Json.parse (← IO.FS.readFile p)) >>= BatchFile.ofJson with
+  | .ok f => return f.id == b && (if isMarker then f.markers else f.tombs).contains id
+  | .error _ => return false
+
 /-- Load the records under `<cache>/p3/<sub>` (`records` = known; `fetched` = loaded on
-demand by `remote%`, never rendered). -/
+demand by `remote%`, never rendered). A record of a batch counts only once the batch file
+in its directory (or in `records`) lists it. -/
 def Known.load (root : FilePath) (subs : List String := ["records"]) : IO Known := do
   let mut k : Known := {}
+  let filed (dir : FilePath) (b? : Option String) (id : String) (isMarker : Bool) : IO Bool := do
+    let some b := b? | return true
+    return (← batchLists dir b id isMarker) || (← batchLists (root / "p3" / "records") b id isMarker)
   for sub in subs do
     let dir := root / "p3" / sub
     unless ← dir.pathExists do continue
@@ -147,11 +184,13 @@ def Known.load (root : FilePath) (subs : List String := ["records"]) : IO Known 
       unless n.endsWith ".json" do continue
       if n.startsWith "m-" then
         let m ← ofExcept e.path (Marker.ofJson (← readJson e.path))
+        unless ← filed dir m.batch m.id true do continue
         unless k.markers.any (·.id == m.id) do
           k := { k with markers := k.markers.push m,
                         byGroup := if k.byGroup.contains m.group then k.byGroup else k.byGroup.insert m.group m }
       else if n.startsWith "t-" then
         let t ← ofExcept e.path (Tomb.ofJson (← readJson e.path))
+        unless ← filed dir t.batch t.id false do continue
         unless k.tombs.any (·.id == t.id) do k := { k with tombs := k.tombs.push t }
   let rdir := root / "p3" / "revisions"
   if ← rdir.pathExists then
@@ -307,6 +346,8 @@ structure Job where
   worker : String
   hasTargets : Bool
   targetSlot : Option ByteArray
+  /-- The atomic batch the job's group belongs to (trailing optional field, tag 1). -/
+  batch : Option String := none
   sig : ByteArray
 
 def Job.parse (raw : ByteArray) : Except String Job := do
@@ -334,9 +375,14 @@ def Job.parse (raw : ByteArray) : Except String Job := do
       let targetSlot := if nt > 0 then some (body.extract targetStart targetEnd) else none
       let _deadline ← PDec.uv
       let _mem ← PDec.uv
+      -- the one trailing optional field: tag 1 and the batch intent ID
+      let batch ← if (← get).2 == body.size then pure none else do
+        let tag ← PDec.byte
+        unless tag == 1 do throw s!"job: unknown trailing field {tag}"
+        pure (some (toHex (← PDec.id32)))
       return ({ id := Sha256.hash pre, group := toHex group, capsule := toHex capsule, deps
                 base := toHex base, policy := toHex policy, checker, worker := toHex worker,
-                hasTargets := nt > 0, targetSlot, sig } : Job) : PDec.M Job).run (body, 0)
+                hasTargets := nt > 0, targetSlot, batch, sig } : Job) : PDec.M Job).run (body, 0)
   unless used == body.size do throw "job: trailing body bytes"
   return j
 
@@ -411,7 +457,10 @@ def Trust.admits (t : Trust) (r : Receipt) (job : Job) (group capsule : String) 
 /-- Verified receipts, by (receipt, group, capsule). -/
 initialize admitted : IO.Ref (Std.HashSet (String × String × String)) ← IO.mkRef {}
 
-def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Job) := do
+/-- The receipt check of a record from the cache. Its job's batch must be the record's
+(`staged`: the staging ID a batch participant validated it under, for records that a
+coordinator shared before the batch was published). -/
+def checkReceipt (root : FilePath) (m : Marker) (staged : Option String := none) : IO (Except String Job) := do
   unless Safety.isHexId m.receipt do return .error "the record names a malformed receipt ID"
   let p := root / "p3" / "receipts" / s!"{m.receipt}.bin"
   unless ← p.pathExists do return .error s!"no receipt {(m.receipt.take 12).toString} in the cache"
@@ -426,6 +475,7 @@ def checkReceipt (root : FilePath) (m : Marker) : IO (Except String Job) := do
     | .error e => return .error e
     | .ok job =>
       unless toHex job.id == toHex req do return .error "the cached job is not the one the receipt names"
+      unless job.batch == (staged <|> m.batch) do return .error "the record's batch differs from its job's"
       if (← admitted.get).contains (m.receipt, m.group, m.capsule) then return .ok job
       match (← trust).admits r job m.group m.capsule with
       | .error e => return .error e

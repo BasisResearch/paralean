@@ -202,6 +202,8 @@ def main():
             target_scenario(Copy("alice", "alice"), Copy("bob", "bob"))
         elif "--move-only" in sys.argv[2:]:
             move_scenario()
+        elif "--rename-only" in sys.argv[2:]:
+            rename_scenario(Copy("alice", "alice"), Copy("bob", "bob"), Copy("carol", "carol"), rogue)
         else:
             scenario(rogue)
     finally:
@@ -388,6 +390,9 @@ theorem Cross.wip (n : Nat) : n * 1 = n := sorry
     # ------------------------------------------------------------ 6: forged remote%
     forgery(alice, bob, carol, rogue)
 
+    # ------------------------------------------------------------ cross-workspace published rename
+    rename_scenario(alice, bob, carol, rogue, observers)
+
     # ------------------------------------------------------------ clean export (plan's P3 gate)
     ex = sh([BIN, "ws-export", "--dir", alice.dir, "--out", os.path.join(R, "alice-export")], env=alice.env(), check=False)
     exj = json.loads(ex.stdout.strip().splitlines()[-1]) if ex.stdout.strip() else {"ok": False, "err": ex.stderr[-500:]}
@@ -444,6 +449,244 @@ def move_scenario():
            marker_variants=len(records), same_projection=after_a == after_b,
            moved_first=after_b.index("Move.second") < after_b.index("Move.first"),
            errors=check["errors"])
+
+
+def store_view():
+    """Published groups and tombstones of the store, as a pull response (nothing delivered)."""
+    scratch = os.path.join(R, "store-view")
+    out = os.path.join(R, "store-view.json")
+    sh([PLR, "pull", "--cache", scratch, "--max", "0", "--save", out])
+    v = json.load(open(out))
+    shutil.rmtree(scratch, ignore_errors=True)
+    return {"groups": set(v["groups"]), "tombstones": set(v["tombstones"])}
+
+
+def write_private(path, value):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(value, f)
+
+
+def rename_scenario(alice, bob, carol, rogue, observers=()):
+    """Alice renames her published Ren.foo to Ren.bar; Bob's published Ren.use calls it. One
+    atomic batch publishes bar, deletes foo's position and revises use to call bar."""
+    alice.write("Ren.lean", "theorem Ren.foo (n : Nat) : n + 0 = n := by simp\n")
+    alice.publish("Ren.lean")
+    bob.sync()
+    bob.write("RenUse.lean", "theorem Ren.use (n : Nat) : (n + 0) + 0 = n := by rw [Ren.foo (n + 0), Ren.foo n]\n")
+    bob.publish("RenUse.lean")
+    pre = Copy("o-rename", "carol")
+    for c in (alice, bob, carol, pre):
+        c.sync()
+    foo, use = alice.marker_of("Ren.foo"), bob.marker_of("Ren.use")
+    if len(foo) != 1 or len(use) != 1:
+        result("rename: published rename across workspaces is atomic", False, foo=foo, use=use)
+        return
+    foo, use = foo[0], use[0]
+    before = store_view()
+    flag = os.path.join(R, "resume-rename")
+    proc = subprocess.Popen([WS, "rename", alice.dir, "Ren.lean", "Ren.foo", "Ren.bar", bob.dir, "RenUse.lean"],
+                            env=dict(os.environ, PARALEAN_PAUSE_BEFORE_BATCH=flag),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    deadline = time.time() + 1200
+    while not os.path.exists(flag + ".waiting") and proc.poll() is None and time.time() < deadline:
+        time.sleep(0.2)
+    attempts, prepared = {}, {}
+    if os.path.exists(flag + ".waiting"):
+        info = json.load(open(flag + ".waiting"))
+        attempts, prepared = forged_batches(alice, info)
+    after_forged = store_view()
+    open(flag, "w").close()
+    out, err = proc.communicate(timeout=1200)
+    open(os.path.join(alice.dir, "ws.out"), "a").write(out + err)
+    j = lines_json(out)
+    pub = (j.get("publish_batch") or [{}])[-1]
+    bar = [m for m in alice.marker_of("Ren.bar")]
+    use2 = [m for m in bob.marker_of("Ren.use") if m["group"] != use["group"]]
+    ok_forged = (bool(attempts) and all(a["refused"] for a in attempts.values())
+                 and after_forged == before and not prepared.get("groups", set()) & after_forged["groups"])
+    result("rename: forged and partial batches are refused and leave no state", ok_forged,
+           attempts=attempts, store_unchanged=after_forged == before,
+           members_visible_before_commit=sorted(prepared.get("groups", set()) & after_forged["groups"]))
+
+    # every copy that syncs sees all of the rename, and still elaborates
+    olds = (foo["group"], use["group"])
+    seen, checks = {}, {}
+    for c in (alice, bob, carol, *observers):
+        c.sync()
+        ren, user = c.projection("Ren.lean"), c.projection("RenUse.lean")
+        src = source_projection(c, "RenUse.lean")
+        seen[c.name] = {"bar": bool(bar) and bar[0]["group"] in ren and "Ren.bar" in ren,
+                        "foo_gone": foo["group"] not in ren and "Ren.foo" not in ren,
+                        "use_revised": bool(use2) and use2[0]["group"] in user and use["group"] not in user,
+                        "use_calls_bar": "Ren.bar" in src and "Ren.foo" not in src}
+    for c in (alice, bob, carol):
+        for f in ("Ren.lean", "RenUse.lean"):
+            k = c.check(f)
+            checks[f"{c.name}:{f}"] = k["errors"]
+    hashes = {c.name: (c.hash("Ren.lean"), c.hash("RenUse.lean")) for c in (alice, bob, carol, *observers)}
+    ok = (pub.get("fresh") is True and len(pub.get("members", [])) == 3 and len(bar) == 1 and len(use2) == 1
+          and all(all(v.values()) for v in seen.values()) and not any(checks.values())
+          and len(set(hashes.values())) == 1)
+    result("rename: published rename across workspaces is atomic", ok,
+           batch=pub.get("batch"), members=len(pub.get("members", [])), publish_ms=pub.get("ms"),
+           renamed=(foo["group"][:12], (bar or [{}])[0].get("group", "")[:12]),
+           revised=(use["group"][:12], (use2 or [{}])[0].get("group", "")[:12]),
+           copies=seen, elaboration_errors={k: v for k, v in checks.items() if v},
+           same_hashes=len(set(hashes.values())) == 1,
+           steps={k: v for k, v in j.items() if k in ("validate", "intent", "plan", "sign")})
+
+    # an interrupted pull: the observer synced before the rename sees none of it
+    jm = pre.sync("--max", "2")
+    pulled = (jm.get("pull") or [{}])[-1]
+    batch_rec = [r for r in pulled.get("records", []) if r[0] == "batch"]
+    view_max = {"bar": "Ren.bar" in pre.projection("Ren.lean"), "foo": foo["group"] in pre.projection("Ren.lean"),
+                "use": use["group"] in pre.projection("RenUse.lean")}
+    # a pull that crashed after writing every member record but not the batch file
+    recs = os.path.join(carol.dir, "cache", "p3")
+    copied = []
+    for root, _, files in os.walk(recs):
+        for n in files:
+            rel = os.path.relpath(os.path.join(root, n), recs)
+            dst = os.path.join(pre.dir, "cache", "p3", rel)
+            if n.startswith("b-") or os.path.exists(dst) or not rel.split(os.sep)[0] in ("records", "revisions", "receipts", "jobs", "capsules"):
+                continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy(os.path.join(root, n), dst)
+            copied.append(rel)
+    sh([BIN, "ws-sync", "--dir", pre.dir], env=pre.env())
+    members_copied = [r for r in copied if r.startswith("records")]
+    view_crash = {"bar": "Ren.bar" in pre.projection("Ren.lean"), "foo": foo["group"] in pre.projection("Ren.lean"),
+                  "use": use["group"] in pre.projection("RenUse.lean")}
+    jr = pre.sync()
+    resumed = (jr.get("pull") or [{}])[-1]
+    view_resumed = {"bar": "Ren.bar" in pre.projection("Ren.lean"), "foo": foo["group"] in pre.projection("Ren.lean"),
+                    "use": use["group"] in pre.projection("RenUse.lean")}
+    ok_int = (not batch_rec and view_max == {"bar": False, "foo": True, "use": True}
+              and len(members_copied) == 3 and view_crash == {"bar": False, "foo": True, "use": True}
+              and any(r[0] == "batch" for r in resumed.get("records", []))
+              and view_resumed == {"bar": True, "foo": False, "use": False})
+    result("rename: an interrupted pull shows no member of the batch", ok_int,
+           max_2_pull={"delivered": pulled.get("delivered"), "available": pulled.get("available")}, view_after_max_2=view_max,
+           member_records_without_batch_file=members_copied, view_after_crash=view_crash,
+           resumed_pull=resumed.get("records"), view_after_resume=view_resumed)
+    staged_checks(alice, carol, rogue)
+
+
+def own_env(c, **extra):
+    """A copy's environment as ws.py gives it: its cache, its own keys, name visibility."""
+    return c.env() | {"PARALEAN_KEYS": os.path.join(c.dir, "keys.json"), "PARALEAN_VISIBILITY": "1",
+                      "PARALEAN_REMOTE_LOG": os.path.join(c.dir, "remote.log")} | extra
+
+
+def staged_checks(alice, carol, rogue):
+    """A participant captures against a staged (unpublished) member only through a receipt
+    that a trusted validator signed for a job bound to the staging ID, and only while
+    capturing for that ID. The staged record is planted as a malicious coordinator would."""
+    acache, ccache = os.path.join(alice.dir, "cache"), os.path.join(carol.dir, "cache")
+    alice.write("RenStaged.lean", "theorem Ren.baz (n : Nat) : n * 1 = n := by simp\n")
+    cap = json.loads(sh([BIN, "ws-capture", "--dir", alice.dir, "RenStaged.lean"],
+                        env=own_env(alice, PARALEAN_VIS_EXCLUDE="RenStaged.lean")).stdout.strip().splitlines()[-1])
+    pkg = next(p for p in cap["packages"] if "Ren.baz" in p["names"])
+    gc = f'{pkg["group"]}:{pkg["capsule"]}'
+    sh([PLR, "stage", "--cache", acache, "--pkg", gc], env=own_env(alice))
+    staging = os.urandom(32).hex()
+    validate = [PLR, "validate", "--cache", acache, "--ws", "alice", "--validator", os.environ["PARALEAN_VALIDATOR"],
+                "--pkg", gc, "--deps", ",".join(pkg["deps"])]
+    good = json.loads(sh(validate + ["--bind", staging], env=own_env(alice)).stdout)
+    unbound = json.loads(sh(validate, env=own_env(alice)).stdout)
+    forged = json.loads(sh([PLR, "forge", "--cache", acache, "--keys", rogue, "--ws", "alice", "--pkg", gc,
+                            "--bind", staging]).stdout)
+    carol.write("UseStaged.lean", "theorem Ren.use_baz (n : Nat) : (n * 1) * 1 = n := by rw [Ren.baz (n * 1), Ren.baz n]\n")
+    staged = os.path.join(ccache, "p3", "staged", staging)
+    outcomes = {}
+
+    def case(name, rc, batch=True):
+        shutil.rmtree(staged, ignore_errors=True)
+        sh([PLR, "batch-share", "--cache", acache, "--to", ccache, "--staging", staging, "--pkg", gc,
+            "--receipt", good["receipt"]], env=own_env(alice))
+        if rc is not good:
+            for kind, rid in (("receipts", rc["receipt"]), ("jobs", rc["job"])):
+                shutil.copy(os.path.join(acache, "p3", kind, rid + ".bin"), os.path.join(ccache, "p3", kind, rid + ".bin"))
+            rec = os.path.join(staged, os.listdir(staged)[0])
+            m = json.load(open(rec))
+            m["receipt"] = rc["receipt"]
+            open(rec, "w").write(json.dumps(m))
+        env = own_env(carol, PARALEAN_VIS_EXCLUDE="UseStaged.lean") | ({"PARALEAN_BATCH": staging} if batch else {})
+        p = sh([BIN, "ws-capture", "--dir", carol.dir, "UseStaged.lean"], env=env, check=False)
+        out = {}
+        try:
+            out = json.loads(p.stdout.strip().splitlines()[-1])
+        except (IndexError, json.JSONDecodeError):
+            pass
+        use = [q for q in out.get("packages", []) if "Ren.use_baz" in q["names"]]
+        outcomes[name] = {"captured": bool(use) and pkg["capsule"] in use[0]["deps"],
+                          "refusal": "; ".join(out.get("rejected") or [p.stderr[-300:]])[:300]}
+
+    case("genuine staged member (control)", good)
+    case("receipt signed by an untrusted validator", forged)
+    case("receipt for a job not bound to the staging ID", unbound)
+    case("staged member, capture not for its batch", good, batch=False)
+    shutil.rmtree(staged, ignore_errors=True)
+    for c, f in ((alice, "RenStaged.lean"), (carol, "UseStaged.lean")):
+        os.remove(c.path(f))
+    ok = outcomes["genuine staged member (control)"]["captured"] and not any(
+        v["captured"] for k, v in outcomes.items() if k != "genuine staged member (control)")
+    result("rename: staged members load only with a receipt bound to their staging ID", ok, outcomes=outcomes)
+
+
+def source_projection(c, f):
+    out = os.path.join(c.dir, "source-projection")
+    sh([BIN, "ws-hash", "--source", "1", "--write", out, f], env=c.env())
+    p = os.path.join(out, f)
+    return open(p).read() if os.path.exists(p) else ""
+
+
+def forged_batches(alice, info):
+    """Attempts a coordinator could make with the prepared batch, each refused by the store:
+    a member published alone, a member whose job is not bound to the batch, and the
+    coordinator's own half of the batch under a new intent without Bob's member."""
+    d = json.load(open(info["description"]))
+    bdir = os.path.dirname(info["description"])
+    prepared = {"groups": {m["group"] for m in d["members"] if m["kind"] == "publish"}}
+    bar = d["members"][0]
+    attempts = {}
+
+    def attempt(name, cmd):
+        p = sh(cmd, env=alice.env() | {"PARALEAN_KEYS": os.path.join(alice.dir, "keys.json")}, check=False)
+        err = (json.loads(p.stdout.strip().splitlines()[-1]) if p.stdout.strip() else {}).get("error", "")
+        attempts[name] = {"refused": p.returncode != 0 and "batch" in err.lower(), "error": err[:300]}
+
+    plan = os.path.join(bdir, "alone-plan.json")
+    write_private(plan, [bar["entry"]])
+    attempt("member published alone (T1)", [PLR, "publish", "--cache", os.path.join(alice.dir, "cache"),
+                                            "--ws", "alice", "--plan", plan])
+    unbound = json.loads(sh([PLR, "validate", "--cache", os.path.join(alice.dir, "cache"), "--ws", "alice",
+                             "--validator", os.environ["PARALEAN_VALIDATOR"], "--pkg", f'{bar["group"]}:{bar["capsule"]}',
+                             "--deps", ",".join(bar["deps"])],
+                            env=alice.env() | {"PARALEAN_KEYS": os.path.join(alice.dir, "keys.json")}).stdout)
+    cache = os.path.join(alice.dir, "cache", "p3")
+    forged = json.loads(json.dumps(d))
+    forged["members"][0]["receipt"] = open(os.path.join(cache, "receipts", unbound["receipt"] + ".bin"), "rb").read().hex()
+    forged["members"][0]["job"] = open(os.path.join(cache, "jobs", unbound["job"] + ".bin"), "rb").read().hex()
+    unbound_path = os.path.join(bdir, "unbound.json")
+    write_private(unbound_path, forged)
+    attempt("member job not bound to the batch (T12)", [PLR, "publish-batch", "--cache", os.path.join(alice.dir, "cache"),
+                                                        "--batch", unbound_path])
+    # the coordinator re-signs an intent for its own members only
+    tomb = d["members"][1]
+    staging = os.urandom(32).hex()
+    half = json.loads(sh([PLR, "batch-intent", "--cache", os.path.join(alice.dir, "cache"), "--ws", "alice", "--staging", staging,
+                          "--member", f'publish:{bar["group"]}:{bar["capsule"]}:alice:{",".join(bar["deps"])}',
+                          f'tombstone:{tomb["target"]}:{tomb["position"]}:{tomb["lamport"]}:alice:{tomb["file"]}'],
+                         env=alice.env() | {"PARALEAN_KEYS": os.path.join(alice.dir, "keys.json")}).stdout)
+    hd = json.load(open(half["description"]))
+    hd["members"] = d["members"][:2]
+    os.remove(half["description"])
+    write_private(half["description"], hd)
+    attempt("coordinator's half under a new intent (T12)", [PLR, "publish-batch", "--cache", os.path.join(alice.dir, "cache"),
+                                                            "--batch", half["description"]])
+    return attempts, prepared
 
 
 def target_scenario(alice, bob):

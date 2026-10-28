@@ -1705,6 +1705,7 @@ name = "paralean-remote"
 version = "0.2.0"
 dependencies = [
  "hex",
+ "libc",
  "paralean-control",
  "paralean-store",
  "paralean-validator-api",

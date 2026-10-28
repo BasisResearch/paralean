@@ -47,10 +47,10 @@ def fixture(directory):
     target = uv(1) + name + uv(1) + blob(bytes([7]) * 32)
     other_target = uv(1) + name + uv(2) + blob(bytes([7]) * 32)
 
-    def job(request, key):
+    def job(request, key, trailing=b""):
         body = (uv(0) + blob(request) + blob(group) + blob(capsule) + uv(0) +
                 blob(base) + blob(policy) + blob(checker) + blob(worker) + target +
-                uv(1000) + uv(0))
+                uv(1000) + uv(0) + trailing)
         return signed(b"v0/job", body, key)
 
     authority_job, job_id = job(b"authority", auth)
@@ -74,6 +74,13 @@ def fixture(directory):
     (directory / "authority-job.bin").write_bytes(authority_job)
     (directory / "issuer-job.bin").write_bytes(issuer_job)
     (directory / "replacement-job.bin").write_bytes(replacement_job)
+    # the optional trailing batch field: tag 1 and a 32-byte intent ID, once, nothing else
+    batch = bytes([8]) * 32
+    for name, trailing in (("bound", b"\1" + blob(batch)), ("tag2", b"\2" + blob(batch)),
+                           ("short-batch", b"\1" + blob(batch[:31])),
+                           ("two-batches", (b"\1" + blob(batch)) * 2),
+                           ("batch-then-byte", b"\1" + blob(batch) + b"\0")):
+        (directory / f"{name}-job.bin").write_bytes(job(b"authority", auth, trailing)[0])
     (directory / "receipt.bin").write_bytes(good)
     (directory / "wrong-target.bin").write_bytes(wrong)
     (directory / "weak-receipt.bin").write_bytes(weak)

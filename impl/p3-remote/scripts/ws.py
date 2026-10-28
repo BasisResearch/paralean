@@ -6,6 +6,10 @@
     ws.py sync DIR [PULL-ARGS]  anti-entropy (plr pull) and working-file update
     ws.py delete DIR FILE NAME  tombstone a live declaration of FILE
     ws.py move DIR FILE NAME [AFTER]  move a live declaration to file start or after NAME
+    ws.py rename DIR FILE OLD NEW [DIR2 FILE2]...
+                                rename DIR's published OLD in FILE to NEW, revise the elements
+                                of each FILE2 (in copy DIR2) that use it, and publish all of it
+                                with the deletion of OLD as one atomic batch
     ws.py hash DIR FILE...      published-projection hashes
     ws.py check DIR FILE...     elaborate working files; errors and axioms
 
@@ -15,17 +19,20 @@ PARALEAN_TRUST, PARALEAN_DEPLOYMENT, PARALEAN_VALIDATOR (host:port), and the sto
 For target proofs, set PARALEAN_CONTROLLER. Every captured public name is looked up
 in the target registry; target groups are sent to the controller. PARALEAN_TARGETS
 may supply optional pinned statement hashes as NAME:STATEMENT_HASH entries.
-Each step is a separate process; nothing is shared between copies except the store.
+Each step is a separate process; nothing is shared between copies except the store, and,
+during a rename, the coordinator's description of the batch and the new declaration's
+records it shares with the other copies (see `rename`).
 Prints one JSON object per step on stdout (prefixed by the step name).
 """
-import json, os, shutil, subprocess, sys, tempfile, time
+import json, os, secrets, shutil, subprocess, sys, tempfile, time
 
 BIN = os.environ["PARALEAN_BIN"]
 PLR = os.environ["PARALEAN_PLR"]
 
 
-def env_for(d, file=None):
+def env_for(d, file=None, extra=None):
     e = dict(os.environ)
+    e.update(extra or {})
     e["PARALEAN_STORE"] = os.path.join(d, "cache")
     e["PARALEAN_VISIBILITY"] = "1"
     own = os.path.join(d, "keys.json")
@@ -38,9 +45,9 @@ def env_for(d, file=None):
     return e
 
 
-def run(cmd, d, file=None, check=True):
+def run(cmd, d, file=None, check=True, extra=None):
     t = time.time()
-    p = subprocess.run(cmd, capture_output=True, text=True, env=env_for(d, file))
+    p = subprocess.run(cmd, capture_output=True, text=True, env=env_for(d, file, extra))
     ms = (time.time() - t) * 1000
     with open(os.path.join(d, "steps.log"), "a") as f:
         f.write(json.dumps({"cmd": [os.path.basename(cmd[0])] + cmd[1:], "ms": round(ms), "rc": p.returncode,
@@ -156,6 +163,117 @@ def publish(d, file):
     return published
 
 
+def agent(d):
+    return open(os.path.join(d, "agent")).read().strip()
+
+
+def capture_rewritten(d, file, rw, extra=None):
+    """Capture `file` after `ws-rename`; stage and return the packages of the rewritten elements."""
+    cap = run([BIN, "ws-capture", "--dir", d, file], d, file, extra=extra)
+    names = {n for r in rw["rewritten"] for n in r["names"]}
+    pkgs = [p for p in cap["packages"] if names & set(p["names"])]
+    missing = names - {n for p in pkgs for n in p["names"]}
+    if missing or cap["rejected"]:
+        raise SystemExit(f"rename: {file} in {d} does not capture {sorted(missing)}: {cap['rejected']}")
+    for p in pkgs:
+        run([PLR, "stage", "--cache", cache(d), "--pkg", f'{p["group"]}:{p["capsule"]}'], d)
+    emit("capture", {"dir": d, "file": file, "packages": [p["names"] for p in pkgs]})
+    return pkgs
+
+
+def rename(d, file, old, new, users):
+    """A published rename as one atomic batch (docs/atomic-pub-log.md), coordinated by the
+    copy `d` that owns `old`:
+
+    1. `d` replaces `old`'s element in `file` with its source under `new` (`ws-rename`),
+       captures it, and has the new declaration checked under a fresh staging ID: a job
+       bound to that ID, which no transaction publishes (`plr validate --bind`).
+    2. Each other copy gets that declaration's records in `cache/p3/staged/<ID>` (`plr
+       batch-share`), rewrites its elements that use `old`, and captures them with
+       `PARALEAN_BATCH=<ID>`: name resolution and `remote%` see the staged declaration, with
+       its receipt, capsule hash and command gate checked as for a published one.
+    3. `d` signs a target-free intent with its job-issuer key: the new declaration (and its
+       file's revised users), the deletion of `old`'s position, the other copies' revisions.
+       All jobs are bound to the intent and validated in order in one validator batch.
+    4. Every copy plans its records and signs its own members' certificates; `d` publishes
+       the batch with one T12 transaction. Nothing of it is visible unless all of it is.
+
+    The description stays in `d`'s cache (`p3/batches`, owner-only); receipts and plans are
+    staged in fresh owner-only directories outside the copies (W2-20)."""
+    copies = [(d, file)] + users
+    for c, _ in copies:
+        r = run([PLR, "pull", "--cache", cache(c)], c)
+        if r.get("stale"):
+            raise SystemExit(f"rename: {c}: {r['reason']}")
+        run([BIN, "ws-sync", "--dir", c], c)
+    staging = secrets.token_hex(32)
+    validator = os.environ["PARALEAN_VALIDATOR"]
+    rw = run([BIN, "ws-rename", "--dir", d, "--file", file, "--name", old, "--to", new], d)
+    if not rw["declares"]:
+        raise SystemExit(f"rename: {old} is not declared in {file} of {d}")
+    members = {d: capture_rewritten(d, file, rw)}
+    decl = next(p for p in members[d] if new in p["names"])
+    preview = run([PLR, "validate", "--cache", cache(d), "--ws", agent(d), "--validator", validator,
+                   "--pkg", f'{decl["group"]}:{decl["capsule"]}', "--deps", ",".join(decl["deps"]), "--bind", staging],
+                  d, check=False)
+    emit("validate", {"names": decl["names"], "staging": staging, "accepted": preview.get("accepted", False),
+                      "reason": preview.get("reason", preview.get("error", ""))[:300]})
+    if not preview.get("accepted"):
+        raise SystemExit(f"rename: {new} is not accepted")
+    pub = {"error": "not attempted"}
+    try:
+        for u, ufile in users:
+            run([PLR, "batch-share", "--cache", cache(d), "--to", cache(u), "--staging", staging,
+                 "--pkg", f'{decl["group"]}:{decl["capsule"]}', "--receipt", preview["receipt"]], d)
+            urw = run([BIN, "ws-rename", "--dir", u, "--file", ufile, "--name", old, "--to", new], u)
+            members[u] = capture_rewritten(u, ufile, urw, extra={"PARALEAN_BATCH": staging})
+            for p in members[u]:
+                if decl["capsule"] not in p["deps"] or rw["old"]["capsule"] in p["deps"]:
+                    raise SystemExit(f"rename: {p['names']} in {u} does not use {new} in place of {old}")
+        t = run([BIN, "ws-delete", "--dir", d, "--file", file, "--name", old], d)
+        spec = [f'publish:{p["group"]}:{p["capsule"]}:{agent(d)}:{",".join(p["deps"])}' for p in members[d]]
+        spec.append(f'tombstone:{t["target"]}:{t["position"]}:{t["lamport"]}:{agent(d)}:{file}')
+        spec += [f'publish:{p["group"]}:{p["capsule"]}:{agent(u)}:{",".join(p["deps"])}' for u, _ in users for p in members[u]]
+        intent = run([PLR, "batch-intent", "--cache", cache(d), "--ws", agent(d), "--staging", staging,
+                      "--member", *spec], d)
+        batch = intent["description"]
+        emit("intent", {"batch": intent["batch"], "members": intent["members"]})
+        v = run([PLR, "batch-validate", "--cache", cache(d), "--ws", agent(d), "--batch", batch,
+                 "--validator", validator], d)
+        emit("validate", {"members": [{k: m[k] for k in ("writer", "accepted", "reason")} for m in v["members"]], "ms": v["ms"]})
+        if not all(m["accepted"] for m in v["members"]):
+            raise SystemExit("rename: a member is not accepted; nothing is published")
+        for c, f in copies:
+            mine = [m for m in v["members"] if m["writer"] == agent(c)]
+            with tempfile.TemporaryDirectory(prefix="ws-rename-") as staging_dir:
+                rpath = os.path.join(staging_dir, "receipts.json")
+                write_new_file(rpath, json.dumps(mine))
+                plan = os.path.join(staging_dir, "plan.json")
+                pl = run([BIN, "ws-plan", "--dir", c, "--file", f, "--receipts", rpath, "--out", plan], c, f)
+                emit("plan", pl)
+                if pl.get("planned", 0) != len(mine):
+                    raise SystemExit(f"rename: {c} could not plan its members: {pl.get('rejected')}")
+                emit("sign", run([PLR, "batch-sign", "--cache", cache(c), "--ws", agent(c), "--batch", batch,
+                                  "--plan", plan], c))
+        if os.environ.get("PARALEAN_PAUSE_BEFORE_BATCH"):
+            # test hook: forged and partial attempts against the prepared batch
+            flag = os.environ["PARALEAN_PAUSE_BEFORE_BATCH"]
+            with open(flag + ".waiting", "w") as f:
+                json.dump({"description": batch, "batch": intent["batch"]}, f)
+            while not os.path.exists(flag):
+                time.sleep(0.2)
+        pub = run([PLR, "publish-batch", "--cache", cache(d), "--batch", batch], d, check=False)
+        emit("publish_batch" if "error" not in pub else "publish_rejected", pub)
+    finally:
+        # the staged records served the captures only; every copy then syncs, which also
+        # ends a planned publication that did not happen (pending.json)
+        for u, _ in users:
+            shutil.rmtree(os.path.join(cache(u), "p3", "staged", staging), ignore_errors=True)
+        for c, _ in copies:
+            sync(c)
+    return "error" not in pub
+
+
 def main():
     cmd, d = sys.argv[1], os.path.abspath(sys.argv[2])
     if cmd == "init":
@@ -199,6 +317,12 @@ def main():
         emit("move", run(args, d))
         os.remove(pending)
         sync(d)
+    elif cmd == "rename":
+        rest = sys.argv[6:]
+        if len(sys.argv) < 6 or len(rest) % 2:
+            raise SystemExit(__doc__)
+        users = [(os.path.abspath(rest[i]), rest[i + 1]) for i in range(0, len(rest), 2)]
+        emit("renamed", rename(d, sys.argv[3], sys.argv[4], sys.argv[5], users))
     elif cmd == "hash":
         p = subprocess.run([BIN, "ws-hash", "--write", os.path.join(d, "projection"), *sys.argv[3:]],
                            capture_output=True, text=True, env=env_for(d), check=True)

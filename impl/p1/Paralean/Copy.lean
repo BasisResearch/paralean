@@ -23,6 +23,8 @@ records, hidden elements, applied renames). Records travel through the P2 store 
   invalidated elements.
 * `ws-hash`, `ws-delete`, `ws-check`: projection hash, tombstone arguments, elaboration of a
   working file with every axiom its constants use.
+* `ws-rename`: the drafts of a published rename (the renamed declaration, or revisions of
+  the elements that use it), which `ws.py rename` publishes as one atomic batch.
 
 An author edits a published declaration by deleting its element block and writing the new
 text; the element stays hidden in that copy until the revision publishes.
@@ -482,6 +484,60 @@ def delete (dir : FilePath) (file : String) (name : Name) : IO Json := do
   st := { st with lamport := lam }
   st.save dir
   return Json.mkObj [("target", m.group), ("position", m.id), ("lamport", lam), ("file", file)]
+
+/-- Replace the element block of `group` in a working file by `src`. -/
+def replaceElement (txt group src : String) : Option String := Id.run do
+  let mut out : Array String := #[]
+  let mut inElem := false
+  let mut found := false
+  for l in txt.splitOn "\n" do
+    if inElem then
+      if l.startsWith "-- paralean:end " then inElem := false
+    else if l == elementBegin group then
+      inElem := true
+      found := true
+      out := out.push src
+    else out := out.push l
+  return if found && !inElem then some ("\n".intercalate out.toList) else none
+
+/-- A published rename, as drafts of `file`: the element that declares `old` and every
+element whose package uses its package directly are replaced by their source with `old`
+renamed to `new` (`Crdt.renamedGroup`, as for collision renames). Nothing is published
+here; `ws.py rename` publishes the drafts and the deletion of `old`'s position as one
+atomic batch, so no copy ever sees the new name without its callers, or the reverse. -/
+def rename (dir : FilePath) (file : String) (old new : Name) : IO Json := do
+  let v ← Remote.view
+  let idx := v.index
+  let some og := idx[old]? | throw <| IO.userError s!"rename: no live declaration {old}"
+  if idx.contains new then throw <| IO.userError s!"rename: {new} is already declared"
+  let some om := v.positions.find? (·.group == og) | throw <| IO.userError s!"rename: {old} has no position"
+  if (v.renames.getD om.pid {}).contains old then
+    throw <| IO.userError s!"rename: {old} is a collision loser's published name; rename its rendered name"
+  let ren := v.renames.insert om.pid ((v.renames.getD om.pid {}).insert old new)
+  let path ← Safety.safeJoin "rename" (dir / "work") file
+  let mut txt ← IO.FS.readFile path
+  let mut rewritten := #[]
+  for m in v.elements file do
+    let some g := v.metas[m.pid]? | continue
+    unless m.pid == om.pid || (g.deps ++ g.feDeps).contains om.pid do continue
+    if g.capsule.relocate || !g.capsule.localEffects.isEmpty then
+      throw <| IO.userError s!"rename: {g.publicNames} has local scope effects; edit it by hand"
+    let r := renamedGroup ren g
+    if r.diags.any (·.code == "legacy-field-recapture") then
+      throw <| IO.userError s!"rename: {g.publicNames} uses {old} in field notation without field metadata"
+    let (o, c) := Rga.scopeLines r.capsule
+    let src := "\n".intercalate (o.toList ++ [Rga.stripEnd r.capsule.text] ++ c.toList)
+    let some t := replaceElement txt m.group src
+      | throw <| IO.userError s!"rename: the element of {g.publicNames} is not in the working file"
+    txt := t
+    rewritten := rewritten.push (Json.mkObj [("group", m.group), ("pid", m.pid),
+      ("names", toJson ((Rga.declaredNames g).map (renameName (ren.getD m.pid {})) |>.map toString))])
+  if rewritten.isEmpty then throw <| IO.userError s!"rename: no element of {file} declares or uses {old}"
+  IO.FS.writeFile path txt
+  return Json.mkObj [("file", file), ("old", Json.mkObj [("group", om.group), ("pid", om.pid),
+    ("capsule", om.capsule), ("file", om.file)]),
+    ("declares", rewritten.any fun r => (r.getObjValAs? String "group").toOption == some om.group),
+    ("rewritten", Json.arr rewritten)]
 
 /-- Plan a same-file move. The remote command publishes an exact-position
 tombstone, then a new marker variant of the same group. -/

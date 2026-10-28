@@ -3,11 +3,20 @@
 //! Configuration comes from the environment, as for `paralean-p2`: `PARALEAN_FDB_CLUSTER`,
 //! `PARALEAN_S3_*`, `PARALEAN_DEPLOYMENT` and `PARALEAN_KEYS` (a key file from `keys-init`).
 //! Each command prints one JSON value on stdout.
+//!
+//! Atomic batches (docs/atomic-pub-log.md): a coordinator signs a target-free intent with
+//! its job-issuer key (`batch-intent`), validates the members bound to it in order
+//! (`batch-validate`), each participant signs its own members' certificates
+//! (`batch-sign`), and the coordinator publishes them in one T12 (`publish-batch`). The
+//! description lives in the coordinator's cache, owner-only. A participant that captures
+//! against a member before the batch exists sees it through `batch-share`: the member's
+//! records under a staging ID, with a receipt bound to that ID, which no transaction
+//! publishes.
 
 mod cache;
 mod receipt;
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::process::ExitCode;
 use std::time::Instant;
 
@@ -28,7 +37,19 @@ const USAGE: &str = "usage: plr <command> [args]
                                                    issue a job envelope, get the validator's receipt
            [--controller ADDR --targets NAME[:STATEMENT],...]
                                                    controller-issued target job; owner/epoch/head snapshot
+           [--bind STAGING]                        the job bound to a staging ID: never published
   publish --cache C --ws W --plan FILE            T1 for each planned record, in order
+  batch-share --cache C --to C2 --staging S --pkg GROUP:CAPSULE --receipt R
+                                                   a validated, unpublished member's records into C2/p3/staged/S
+  batch-intent --cache C --ws W --staging S --member publish:GROUP:CAPSULE:WRITER:DEP,.. |
+               tombstone:TARGET:POSITION:LAMPORT:WRITER:FILE ...
+                                                   sign a target-free intent (job-issuer key); description
+                                                   C/p3/batches/S.json, owner-only
+  batch-validate --cache C --ws W --batch FILE --validator ADDR
+                                                   members' jobs bound to the intent, validated in order
+  batch-sign --cache C --ws W --batch FILE [--plan PLAN]
+                                                   W's certificates for its own members
+  publish-batch --cache C --batch FILE             T12: every member or none
   target-get --name NAME                           inspect the owner, epoch and published head
   tombstone --cache C --ws W --file F --target G --position MARKER --lamport L [--controller]
   move --cache C --ws W --file F --target G --position MARKER --lamport L [--anchor GROUP]
@@ -37,9 +58,11 @@ const USAGE: &str = "usage: plr <command> [args]
   fetch-pkg --cache C GROUP                        a published group's records on demand
   checkpoint --cache C --ws W --revisions R,.. [--predecessor CAT] [--build-ok 0|1] [--files JSON]
   snapshot-get --cache C --ws W [--catalog CAT]   recover a committed snapshot into an empty cache
-  forge --cache C --keys KEYFILE --ws W --pkg G:C [--deps ..]
+  forge --cache C --keys KEYFILE --ws W --pkg G:C [--deps ..] [--bind STAGING]
                                                    test only: a job and an accepted receipt signed with KEYFILE's keys
-  check-receipt GROUP                              P3 control's consumer check of a published group";
+  check-receipt GROUP                              P3 control's consumer check of a published group
+  check-receipt --cache C --staged S --receipt R GROUP
+                                                   the same for a staged batch member (batch-share)";
 
 type R<T> = std::result::Result<T, String>;
 
@@ -115,6 +138,11 @@ async fn run(a: &[&str]) -> R<Value> {
         Some("stage") => stage(&a[1..]).await,
         Some("validate") => validate(&a[1..]).await,
         Some("publish") => publish(&a[1..]).await,
+        Some("batch-share") => batch_share(&a[1..]).await,
+        Some("batch-intent") => batch_intent(&a[1..]).await,
+        Some("batch-validate") => batch_validate(&a[1..]).await,
+        Some("batch-sign") => batch_sign(&a[1..]).await,
+        Some("publish-batch") => publish_batch(&a[1..]).await,
         Some("target-get") => target_get(&a[1..]).await,
         Some("tombstone") => tombstone(&a[1..]).await,
         Some("move") => move_position(&a[1..]).await,
@@ -228,8 +256,12 @@ async fn validate(a: &[&str]) -> R<Value> {
     let t = Instant::now();
     let targets = flag(a, "--targets").unwrap_or("");
     let mut prepared = Vec::new();
+    let bind = flag(a, "--bind").map(|h| Id::from_hex(h).ok_or("bad --bind")).transpose()?;
+    if bind.is_some() && !targets.is_empty() {
+        return Err("--bind is for target-free jobs".into());
+    }
     let (job, rc) = if targets.is_empty() {
-        let job = receipt::issue(&kf, ws, wid, g, cap, deps)?;
+        let job = receipt::issue(&kf, ws, wid, g, cap, deps, bind)?;
         let job = st.meta.issue_job(&job).await.map_err(es)?;
         let issuer = kf.job_issuer_signer(ws).ok_or(format!("no job issuer key for {ws}"))?;
         let rc = receipt::validate(addr, &job, &issuer, &st.ring.validators).await?;
@@ -387,7 +419,8 @@ fn forge(a: &[&str]) -> R<Value> {
     let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
     let deps: Vec<Id> = flag(a, "--deps").unwrap_or("").split(',').filter(|s| !s.is_empty())
         .map(|h| Id::from_hex(h).ok_or(format!("bad capsule {h}"))).collect::<R<_>>()?;
-    let job = receipt::issue(&kf, "", wid, g, cap, deps)?;
+    let bind = flag(a, "--bind").map(|h| Id::from_hex(h).ok_or("bad --bind")).transpose()?;
+    let job = receipt::issue(&kf, "", wid, g, cap, deps, bind)?;
     let v = kf.validator_signer("v0").ok_or("no validator v0 seed")?;
     let rc = Receipt::sign(
         ReceiptBody {
@@ -422,6 +455,38 @@ async fn target_get(a: &[&str]) -> R<Value> {
     )
 }
 
+/// The revisions and marker of a plan entry (`ws-plan`) for `group`, published by `wid`
+/// with receipt `rid`. The author must be the publishing workspace.
+fn planned(e: &Value, g: Id, cap: Id, wid: WorkspaceId, rid: Id) -> R<(Vec<Revision>, Marker)> {
+    let mut revisions = Vec::new();
+    for r in e["revisions"].as_array().ok_or("revisions")? {
+        let mut parents: Vec<Id> = r["parents"].as_array().ok_or("parents")?.iter().map(id_of).collect::<R<_>>()?;
+        parents.sort();
+        parents.dedup();
+        revisions.push(Revision { group: g, name: name_of_json(&r["name"])?, parents, capsule: cap, workspace: wid });
+    }
+    let mut rids: Vec<Id> = revisions.iter().map(|r| r.id()).collect();
+    rids.sort();
+    let agent = |v: &Value| -> R<AgentId> { AgentId::from_hex(v.as_str().ok_or("agent")?).ok_or("bad agent".into()) };
+    let marker = Marker {
+        group: g,
+        revisions: rids,
+        receipt: rid,
+        file_path: e["file"].as_str().ok_or("file")?.to_string(),
+        anchor: if e["anchor"].is_null() { Anchor::FileStart } else { Anchor::After(id_of(&e["anchor"])?) },
+        lamport: e["lamport"].as_u64().ok_or("lamport")?,
+        author: agent(&e["author"])?,
+        root_path: e["rootPath"].as_array().ok_or("rootPath")?.iter().map(|x| Ok((id_of(&x[0])?, x[1].as_u64().ok_or("l")?, agent(&x[2])?))).collect::<R<_>>()?,
+        lineage_keys: e["lineageKeys"].as_array().ok_or("lineageKeys")?.iter().map(|x| Ok((name_of_json(&x[0])?, x[1].as_u64().ok_or("l")?, agent(&x[2])?))).collect::<R<_>>()?,
+    };
+    if marker.author.0 != wid.0 {
+        return Err("a record's author must be the publishing workspace".into());
+    }
+    // W2 A-6: the path every syncing copy writes (T1 and receivers check it as well)
+    marker.check().map_err(|e| format!("plan entry for {g}: {e}"))?;
+    Ok((revisions, marker))
+}
+
 async fn publish(a: &[&str]) -> R<Value> {
     let c = Cache::new(need(a, "--cache")?);
     let (st, kf) = open()?;
@@ -440,32 +505,8 @@ async fn publish(a: &[&str]) -> R<Value> {
         let job = SignedJob::from_bytes(&std::fs::read(c.job(&jid)).map_err(|e| format!("job {jid}: {e}"))?).map_err(es)?;
         let gbytes = std::fs::read(c.object(&g)).map_err(|e| format!("payload {g}: {e}"))?;
         let cbytes = std::fs::read(c.capsule(&cap)).map_err(|e| format!("capsule {cap}: {e}"))?;
-        let mut revisions = Vec::new();
-        for r in e["revisions"].as_array().ok_or("revisions")? {
-            let mut parents: Vec<Id> = r["parents"].as_array().ok_or("parents")?.iter().map(id_of).collect::<R<_>>()?;
-            parents.sort();
-            parents.dedup();
-            revisions.push(Revision { group: g, name: name_of_json(&r["name"])?, parents, capsule: cap, workspace: wid });
-        }
-        let mut rids: Vec<Id> = revisions.iter().map(|r| r.id()).collect();
-        rids.sort();
-        let agent = |v: &Value| -> R<AgentId> { AgentId::from_hex(v.as_str().ok_or("agent")?).ok_or("bad agent".into()) };
-        let marker = Marker {
-            group: g,
-            revisions: rids.clone(),
-            receipt: receipt.id(),
-            file_path: e["file"].as_str().ok_or("file")?.to_string(),
-            anchor: if e["anchor"].is_null() { Anchor::FileStart } else { Anchor::After(id_of(&e["anchor"])?) },
-            lamport: e["lamport"].as_u64().ok_or("lamport")?,
-            author: agent(&e["author"])?,
-            root_path: e["rootPath"].as_array().ok_or("rootPath")?.iter().map(|x| Ok((id_of(&x[0])?, x[1].as_u64().ok_or("l")?, agent(&x[2])?))).collect::<R<_>>()?,
-            lineage_keys: e["lineageKeys"].as_array().ok_or("lineageKeys")?.iter().map(|x| Ok((name_of_json(&x[0])?, x[1].as_u64().ok_or("l")?, agent(&x[2])?))).collect::<R<_>>()?,
-        };
-        if marker.author.0 != wid.0 {
-            return Err("a record's author must be the publishing workspace".into());
-        }
-        // W2 A-6: the path every syncing copy writes (T1 and receivers check it as well)
-        marker.check().map_err(|e| format!("plan entry for {g}: {e}"))?;
+        let (revisions, marker) = planned(e, g, cap, wid, receipt.id())?;
+        let rids = marker.revisions.clone();
         if job.body.capsule != cap {
             return Err(format!("the job of {g} names another capsule"));
         }
@@ -560,7 +601,9 @@ async fn move_position(a: &[&str]) -> R<Value> {
 // ---------------------------------------------------------------- anti-entropy
 
 /// Write one published group's records into the cache (marker, revisions, receipt, capsule).
-async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) -> R<usize> {
+/// Returns the bytes written and the batch that published it (its job's binding), whose
+/// batch file the caller writes after every member.
+async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) -> R<(usize, Option<Id>)> {
     let mut bytes = 0;
     let mut cap = None;
     // The record's revisions and their ancestry (transitively), so a reader decides
@@ -617,10 +660,81 @@ async fn deliver_marker(st: &Store, c: &Cache, mid: &Id, m: &Marker, sub: &str) 
         };
         pid = c.put_capsule(cid, &cb)?;
     }
-    let v = checked_marker_json(mid, m, &cap, &pid)?.to_string();
+    let v = checked_marker_json(mid, m, &cap, &pid, job.body.batch)?.to_string();
     bytes += v.len();
     c.write_new(&c.p3().join(sub).join(format!("m-{}.json", mid.hex())), v.as_bytes()).map_err(es)?;
-    Ok(bytes)
+    Ok((bytes, job.body.batch))
+}
+
+/// Write the batch file of a committed batch into `sub`, after its members' records; the
+/// record must name `member` (a marker or tombstone ID).
+async fn deliver_batch_file(st: &Store, c: &Cache, sub: &str, b: &Id, member: &Id) -> R<usize> {
+    if c.batch_rec(sub, b).exists() {
+        return Ok(0);
+    }
+    let rec = st.batch(b).await.map_err(es)?.ok_or(format!("batch {b} is not committed"))?;
+    if !rec.entries.iter().any(|e| e.object == *member) {
+        return Err(format!("batch {b} does not list {member}"));
+    }
+    let v = batch_json(&rec).to_string();
+    c.write_new(&c.batch_rec(sub, b), v.as_bytes()).map_err(es)?;
+    Ok(v.len())
+}
+
+/// One unit of delivery: a single record, or every record of one batch and then its file.
+#[derive(Debug, PartialEq)]
+struct Unit {
+    batch: Option<Id>,
+    /// (is a marker, record ID) still to write.
+    records: Vec<(bool, Id)>,
+    /// Records the unit counts for `--max`: a batch counts whole.
+    size: usize,
+}
+
+/// What `pull` delivers, in order: each new record (`new`), except that the members of a
+/// batch (`batches`: batch ↦ member record IDs) form one unit, which is delivered whole or
+/// not at all. A batch whose file is missing (`filed` lacks it: an interrupted pull) is
+/// delivered again; one the response lacks a member of is not delivered. `kept` (`--only`)
+/// keeps a unit any member of which it names; `seed` shuffles units; `max` takes the
+/// longest prefix of at most that many records.
+fn delivery_units(new: &[(bool, Id)], batches: &BTreeMap<Id, Vec<Id>>, filed: &BTreeSet<Id>,
+    response: &BTreeSet<Id>, kept: &dyn Fn(&Id) -> bool, seed: Option<u64>, max: Option<usize>) -> Vec<Unit> {
+    let member_of: BTreeMap<Id, Id> = batches.iter().flat_map(|(b, ms)| ms.iter().map(move |m| (*m, *b))).collect();
+    let mut units: Vec<Unit> = Vec::new();
+    let mut batch_unit: BTreeMap<Id, usize> = BTreeMap::new();
+    for &(is_marker, id) in new {
+        match member_of.get(&id) {
+            None => units.push(Unit { batch: None, records: vec![(is_marker, id)], size: 1 }),
+            Some(b) => {
+                let i = *batch_unit.entry(*b).or_insert_with(|| {
+                    units.push(Unit { batch: Some(*b), records: vec![], size: batches[b].len() });
+                    units.len() - 1
+                });
+                units[i].records.push((is_marker, id));
+            }
+        }
+    }
+    for (b, ms) in batches {
+        if !batch_unit.contains_key(b) && !filed.contains(b) && ms.iter().any(|m| response.contains(m)) {
+            units.push(Unit { batch: Some(*b), records: vec![], size: ms.len() });
+        }
+    }
+    units.retain(|u| match u.batch {
+        None => u.records.iter().any(|(_, id)| kept(id)),
+        Some(b) => batches[&b].iter().all(|m| response.contains(m)) && (kept(&b) || batches[&b].iter().any(kept)),
+    });
+    if let Some(s) = seed {
+        units.shuffle(&mut rand::rngs::StdRng::seed_from_u64(s));
+    }
+    if let Some(n) = max {
+        let (mut total, mut keep) = (0, 0);
+        while keep < units.len() && total + units[keep].size <= n {
+            total += units[keep].size;
+            keep += 1;
+        }
+        units.truncate(keep);
+    }
+    units
 }
 
 async fn pull(a: &[&str]) -> R<Value> {
@@ -667,34 +781,56 @@ async fn pull(a: &[&str]) -> R<Value> {
             .any(|((g, m), _)| m == mid && keep.contains(&g.hex())));
         new_tombs.retain(|t| keep.contains(&t.hex()));
     }
-    let mut order: Vec<(bool, Id)> = new_groups.iter().map(|g| (true, *g)).chain(new_tombs.iter().map(|t| (false, *t))).collect();
-    if let Some(s) = flag(a, "--seed") {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(s.parse().map_err(es)?);
-        order.shuffle(&mut rng);
-    }
-    if let Some(n) = flag(a, "--max") {
-        order.truncate(n.parse().map_err(es)?);
-    }
+    let new: Vec<(bool, Id)> = new_groups.iter().map(|g| (true, *g)).chain(new_tombs.iter().map(|t| (false, *t))).collect();
+    let batches: BTreeMap<Id, Vec<Id>> = current.batches.iter()
+        .map(|(b, r)| (*b, r.entries.iter().map(|e| e.object).collect())).collect();
+    let filed: BTreeSet<Id> = batches.keys().filter(|b| c.batch_rec("records", b).exists()).copied().collect();
+    let response: BTreeSet<Id> = rm.union(&rt).copied().collect();
+    let keep: Option<BTreeSet<String>> = flag(a, "--only").map(|o| o.split(',').map(String::from).collect());
+    let kept = |id: &Id| keep.as_ref().is_none_or(|k| k.contains(&id.hex()) || current.positions.iter()
+        .any(|((g, m), _)| m == id && k.contains(&g.hex())));
+    let seed = flag(a, "--seed").map(|s| s.parse::<u64>()).transpose().map_err(es)?;
+    let max = flag(a, "--max").map(|s| s.parse::<usize>()).transpose().map_err(es)?;
+    let units = delivery_units(&new, &batches, &filed, &response, &kept, seed, max);
     let mut bytes = 0;
     let mut delivered = Vec::new();
-    for (is_marker, id) in order {
-        if is_marker {
-            let ((group, mid), p) = current.positions.iter().find(|((_, mid), _)| *mid == id).ok_or("marker vanished")?;
-            let m = &p.marker;
-            if st.certs(group).await.map_err(es)?.iter().all(|c| c.body.marker != *mid) {
-                continue; // never deliver an uncertified marker
+    'units: for u in units {
+        // never deliver an uncertified record, nor a batch with one
+        for (is_marker, id) in &u.records {
+            let certified = if *is_marker {
+                let ((group, mid), _) = current.positions.iter().find(|((_, mid), _)| mid == id).ok_or("marker vanished")?;
+                st.certs(group).await.map_err(es)?.iter().any(|c| c.body.marker == *mid)
+            } else {
+                !st.tcerts(id).await.map_err(es)?.is_empty()
+            };
+            if !certified {
+                continue 'units;
             }
-            bytes += deliver_marker(&st, &c, mid, m, "records").await?;
-            delivered.push(json!(["marker", group.hex()]));
-        } else {
-            let tb = st.tombstone(&id).await.map_err(es)?.ok_or("tombstone vanished")?;
-            if st.tcerts(&id).await.map_err(es)?.is_empty() {
-                continue; // never deliver an uncertified tombstone
+        }
+        for (is_marker, id) in &u.records {
+            if *is_marker {
+                let ((group, mid), p) = current.positions.iter().find(|((_, mid), _)| mid == id).ok_or("marker vanished")?;
+                let (n, bound) = deliver_marker(&st, &c, mid, &p.marker, "records").await?;
+                if bound != u.batch {
+                    return Err(format!("marker {mid}: its job's batch differs from the batch record's"));
+                }
+                bytes += n;
+                delivered.push(json!(["marker", group.hex()]));
+            } else {
+                let tb = st.tombstone(id).await.map_err(es)?.ok_or("tombstone vanished")?;
+                if tb.batch != u.batch {
+                    return Err(format!("tombstone {id}: its batch differs from the batch record's"));
+                }
+                let tv = checked_tomb_json(id, &tb)?.to_string();
+                bytes += tv.len();
+                c.write_new(&c.tomb_rec(id), tv.as_bytes()).map_err(es)?;
+                delivered.push(json!(["tombstone", id.hex()]));
             }
-            let tv = checked_tomb_json(&id, &tb)?.to_string();
-            bytes += tv.len();
-            c.write_new(&c.tomb_rec(&id), tv.as_bytes()).map_err(es)?;
-            delivered.push(json!(["tombstone", id.hex()]));
+        }
+        if let Some(b) = u.batch {
+            let first = batches[&b][0];
+            bytes += deliver_batch_file(&st, &c, "records", &b, &first).await?;
+            delivered.push(json!(["batch", b.hex()]));
         }
     }
     let el = ms(t);
@@ -757,7 +893,10 @@ async fn fetch_pkg_cmd(a: &[&str]) -> R<Value> {
     if st.certs(&g).await.map_err(es)?.is_empty() {
         return Err(format!("{g} has no publication certificate"));
     }
-    let bytes = deliver_marker(&st, &c, &mid, &m, "fetched").await?;
+    let (mut bytes, batch) = deliver_marker(&st, &c, &mid, &m, "fetched").await?;
+    if let Some(b) = batch {
+        bytes += deliver_batch_file(&st, &c, "fetched", &b, &mid).await?;
+    }
     let el = ms(t);
     c.log_transfer("fetch-pkg", &g, bytes, el);
     Ok(json!({"group": g.hex(), "marker": mid.hex(), "bytes": bytes, "ms": el}))
@@ -832,7 +971,11 @@ async fn snapshot_get(a: &[&str]) -> R<Value> {
         let rev = st.revision(rid).await.map_err(es)?.ok_or(format!("revision {rid} missing"))?;
         if groups.insert(rev.group) {
             let (mid, m) = st.marker(&rev.group).await.map_err(es)?.ok_or("marker missing")?;
-            bytes += deliver_marker(&st, &c, &mid, &m, "records").await?;
+            let (n, batch) = deliver_marker(&st, &c, &mid, &m, "records").await?;
+            bytes += n;
+            if let Some(b) = batch {
+                bytes += deliver_batch_file(&st, &c, "records", &b, &mid).await?;
+            }
             let pre = st.s3.get(Kind::Group, &rev.group).await.map_err(es)?.ok_or("payload absent")?;
             let b = Kind::Group.domain().strip(&pre).map_err(es)?.to_vec();
             bytes += b.len();
@@ -847,8 +990,398 @@ async fn snapshot_get(a: &[&str]) -> R<Value> {
 async fn check_receipt(a: &[&str]) -> R<Value> {
     let (st, _) = open()?;
     let g = Id::from_hex(a.last().ok_or(USAGE)?).ok_or("bad group")?;
+    if let Some(s) = flag(a, "--staged") {
+        return Ok(match check_staged(&st, &Cache::new(need(a, "--cache")?), &g, s, need(a, "--receipt")?).await {
+            Ok((rc, job)) => json!({"admits": true, "receipt": rc.id().hex(), "job": job.id().hex(), "staged": true}),
+            Err(e) => json!({"admits": false, "reason": e}),
+        });
+    }
     match paralean_validator_api::published_receipt(&st, &g).await {
         Ok((rc, job)) => Ok(json!({"admits": true, "receipt": rc.id().hex(), "job": job.id().hex()})),
         Err(e) => Ok(json!({"admits": false, "reason": format!("{e:?}")})),
+    }
+}
+
+/// The consumer check of a staged batch member (`batch-share`), which is not published:
+/// its receipt answers a job bound to the staging ID (so no transaction publishes it),
+/// and is checked as T1 would check it against this store's key ring (the strict
+/// verifier), revocations and cancellations.
+async fn check_staged(st: &Store, c: &Cache, g: &Id, staging: &str, rid: &str) -> R<(Receipt, SignedJob)> {
+    let staging = Id::from_hex(staging).ok_or("bad staging ID")?;
+    let rid = Id::from_hex(rid).ok_or("bad receipt ID")?;
+    let rc = Receipt::from_bytes(&std::fs::read(c.receipt(&rid)).map_err(es)?).map_err(es)?;
+    let jid = rc.body.request.as_ref().and_then(|q| <[u8; 32]>::try_from(&q[..]).ok()).map(Id).ok_or("receipt without a request")?;
+    let job = SignedJob::from_bytes(&std::fs::read(c.job(&jid)).map_err(es)?).map_err(es)?;
+    if rc.id() != rid || job.id() != jid {
+        return Err("the cached receipt or job is not the one named".into());
+    }
+    if job.body.batch != Some(staging) {
+        return Err("the staged member's job is not bound to its staging ID".into());
+    }
+    paralean_store::receipt::check(&rc, &job, g, &paralean_store::receipt::prepared_of(&job), &st.ring)
+        .map_err(|e| format!("{e:?}"))?;
+    if st.meta.is_revoked(&rc.body.validator_key).await.map_err(es)? {
+        return Err("the validator key is revoked".into());
+    }
+    if st.meta.is_cancelled(&job.body.worker, &job.body.request).await.map_err(es)? {
+        return Err("the job is cancelled".into());
+    }
+    Ok((rc, job))
+}
+
+// ---------------------------------------------------------------- atomic batches
+
+/// A workspace named in the key file (public entries suffice).
+fn workspace_id(kf: &KeyFile, name: &str) -> R<WorkspaceId> {
+    kf.workspaces.get(name).and_then(|e| WorkspaceId::from_hex(&e.id)).ok_or(format!("no workspace {name}"))
+}
+
+fn hex_field<T>(v: &Value, k: &str, f: impl Fn(&[u8]) -> std::result::Result<T, paralean_store::pce::DecodeError>) -> R<T> {
+    f(&hex::decode(v[k].as_str().ok_or(format!("{k} missing"))?).map_err(es)?).map_err(es)
+}
+
+/// A batch description (`batch-intent`): the signed intent and, per member in commit order,
+/// what each step adds (receipts and jobs, plan entries, certificates).
+fn read_batch(path: &str) -> R<(Value, SignedBatch)> {
+    let d: Value = serde_json::from_slice(&read_private(std::path::Path::new(path)).map_err(|e| format!("{path}: {e}"))?).map_err(es)?;
+    let intent = hex_field(&d, "intent", SignedBatch::from_bytes)?;
+    let members = d["members"].as_array().ok_or("members")?;
+    if members.len() != intent.body.members.len() {
+        return Err("the description's members differ from its intent's".into());
+    }
+    Ok((d, intent))
+}
+
+fn write_batch(path: &str, d: &Value) -> R<()> {
+    replace_private(std::path::Path::new(path), serde_json::to_string_pretty(d).map_err(es)?.as_bytes()).map_err(|e| format!("{path}: {e}"))
+}
+
+/// A group's payload or capsule: this cache's copy, else the staged object in the store.
+async fn object_bytes(st: &Store, local: std::path::PathBuf, kind: Kind, id: &Id) -> R<Vec<u8>> {
+    if let Ok(b) = std::fs::read(&local) {
+        return Ok(b);
+    }
+    let pre = st.s3.get(kind, id).await.map_err(es)?.ok_or(format!("{kind:?} {id} is neither cached nor staged"))?;
+    Ok(kind.domain().strip(&pre).map_err(es)?.to_vec())
+}
+
+/// Share a validated, unpublished member with a participant's cache (`C2/p3/staged/S`):
+/// its record, receipt, job and the capsules of its closure. The participant loads it only
+/// while capturing for staging ID `S` (Lean `PARALEAN_BATCH`), on demand, never rendered,
+/// and checks the receipt itself. The record has no placement: a staged member is never
+/// rendered.
+async fn batch_share(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let to = Cache::new(need(a, "--to")?);
+    to.init().map_err(es)?;
+    let (st, _) = open()?;
+    let staging = Id::from_hex(need(a, "--staging")?).ok_or("bad --staging")?;
+    let (g, cap) = pkg_arg(need(a, "--pkg")?)?;
+    let rid = Id::from_hex(need(a, "--receipt")?).ok_or("bad --receipt")?;
+    let rbytes = std::fs::read(c.receipt(&rid)).map_err(|e| format!("receipt {rid}: {e}"))?;
+    let rc = Receipt::from_bytes(&rbytes).map_err(es)?;
+    let jid = rc.body.request.as_ref().and_then(|q| <[u8; 32]>::try_from(&q[..]).ok()).map(Id).ok_or("receipt without a request")?;
+    let jbytes = std::fs::read(c.job(&jid)).map_err(|e| format!("job {jid}: {e}"))?;
+    let job = SignedJob::from_bytes(&jbytes).map_err(es)?;
+    if job.body.batch != Some(staging) || job.body.capsule != cap {
+        return Err("the receipt's job is not this capsule's, bound to the staging ID".into());
+    }
+    paralean_store::receipt::check(&rc, &job, &g, &[], &st.ring).map_err(|e| format!("{e:?}"))?;
+    to.write_new(&to.receipt(&rid), &rbytes).map_err(es)?;
+    to.write_new(&to.job(&jid), &jbytes).map_err(es)?;
+    let mut pid = String::new();
+    for cid in job.body.deps.iter().chain(std::iter::once(&cap)) {
+        pid = to.put_capsule(cid, &object_bytes(&st, c.capsule(cid), Kind::Capsule, cid).await?)?;
+    }
+    let author = AgentId(job.body.worker.0);
+    let m = Marker {
+        group: g, revisions: vec![], receipt: rid, file_path: "Staged.lean".into(), anchor: Anchor::FileStart,
+        lamport: 0, author, root_path: vec![], lineage_keys: vec![],
+    };
+    let v = checked_marker_json(&m.id(), &m, &cap, &pid, None)?.to_string();
+    to.write_new(&to.staged(&staging).join(format!("m-{}.json", m.id().hex())), v.as_bytes()).map_err(es)?;
+    Ok(json!({"group": g.hex(), "pid": pid, "staged": to.staged(&staging).display().to_string()}))
+}
+
+/// Sign a target-free batch intent with this copy's job-issuer key and start its private
+/// description. Members are in commit order: `publish:GROUP:CAPSULE:WRITER:DEP,..` or
+/// `tombstone:TARGET:POSITION:LAMPORT:WRITER:FILE` (a W3 deletion of that position, by its
+/// author).
+async fn batch_intent(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let (st, kf) = open()?;
+    let ws = need(a, "--ws")?;
+    let issuer = kf.job_issuer_signer(ws).ok_or(format!("no job issuer key for {ws}"))?;
+    let staging = Id::from_hex(need(a, "--staging")?).ok_or("bad --staging")?;
+    let mut named = Vec::new();
+    let mut members = Vec::new();
+    for spec in flags(a, "--member") {
+        let parts: Vec<&str> = spec.splitn(6, ':').collect();
+        let id = |i: usize| -> R<Id> { parts.get(i).and_then(|h| Id::from_hex(h)).ok_or(format!("bad member {spec}")) };
+        match parts[0] {
+            "publish" if parts.len() == 5 => {
+                let writer = workspace_id(&kf, parts[3])?;
+                let deps: Vec<Id> = parts[4].split(',').filter(|s| !s.is_empty())
+                    .map(|h| Id::from_hex(h).ok_or(format!("bad dependency {h}"))).collect::<R<_>>()?;
+                named.push(BatchMember::Publish { group: id(1)?, writer });
+                members.push(json!({"kind": "publish", "writer": parts[3], "group": id(1)?.hex(), "capsule": id(2)?.hex(),
+                    "deps": deps.iter().map(Id::hex).collect::<Vec<_>>()}));
+            }
+            "tombstone" if parts.len() == 6 => {
+                let (target, position) = (id(1)?, id(2)?);
+                let writer = workspace_id(&kf, parts[4])?;
+                let m = st.marker_variant(&target, &position).await.map_err(es)?.ok_or("unknown tombstone target")?;
+                named.push(BatchMember::Tombstone { target, position: Some(position), writer });
+                members.push(json!({"kind": "tombstone", "writer": parts[4], "target": target.hex(), "position": position.hex(),
+                    "lamport": parts[3].parse::<u64>().map_err(es)?, "author": m.author.hex(), "file": parts[5]}));
+            }
+            _ => return Err(format!("bad member {spec}")),
+        }
+    }
+    let request = format!("working-copy/{ws}/{}", staging.hex()).into_bytes();
+    let intent = SignedBatch::sign(BatchIntent { request, members: named }, &issuer);
+    let path = c.p3().join("batches").join(format!("{}.json", staging.hex()));
+    let d = json!({"staging": staging.hex(), "coordinator": ws, "intent": hex::encode(intent.to_bytes()), "members": members});
+    write_private(&path, serde_json::to_string_pretty(&d).map_err(es)?.as_bytes()).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(json!({"batch": intent.id().hex(), "description": path.display().to_string(), "members": members.len()}))
+}
+
+/// Issue each publication member's job bound to the intent (this copy's job-issuer key, the
+/// member's writer as worker) and validate them in commit order as one validator batch, so
+/// an earlier member's receipt serves a later member's dependency.
+async fn batch_validate(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let (st, kf) = open()?;
+    let ws = need(a, "--ws")?;
+    let path = need(a, "--batch")?;
+    let addr = need(a, "--validator")?;
+    let (mut d, intent) = read_batch(path)?;
+    let issuer = kf.job_issuer_signer(ws).ok_or(format!("no job issuer key for {ws}"))?;
+    let t = Instant::now();
+    let mut jobs = Vec::new();
+    let mut slots = Vec::new();
+    for (i, m) in d["members"].as_array().ok_or("members")?.iter().enumerate() {
+        if m["kind"] != "publish" {
+            continue;
+        }
+        let deps: Vec<Id> = m["deps"].as_array().ok_or("deps")?.iter().map(id_of).collect::<R<_>>()?;
+        let job = receipt::issue(&kf, ws, workspace_id(&kf, m["writer"].as_str().ok_or("writer")?)?,
+            id_of(&m["group"])?, id_of(&m["capsule"])?, deps, Some(intent.id()))?;
+        jobs.push(st.meta.issue_job(&job).await.map_err(es)?);
+        slots.push(i);
+    }
+    let receipts = receipt::validate_batch(addr, &jobs, &issuer, &st.ring.validators).await?;
+    let mut out = Vec::new();
+    for ((i, job), rc) in slots.into_iter().zip(&jobs).zip(receipts) {
+        let m = &mut d["members"][i];
+        c.write_new(&c.job(&job.id()), &job.to_bytes()).map_err(es)?;
+        m["job"] = json!(hex::encode(job.to_bytes()));
+        let (accepted, reason, rid) = match rc {
+            Ok(rc) => {
+                c.write_new(&c.receipt(&rc.id()), &rc.to_bytes()).map_err(es)?;
+                m["receipt"] = json!(hex::encode(rc.to_bytes()));
+                let reason = match &rc.body.verdict { Verdict::Rejected(r) => r.clone(), _ => String::new() };
+                (rc.body.verdict == Verdict::Accepted, reason, Some(rc.id().hex()))
+            }
+            Err(e) => (false, e, None),
+        };
+        out.push(json!({"group": m["group"], "capsule": m["capsule"], "writer": m["writer"], "accepted": accepted,
+            "reason": reason, "receipt": rid, "job": job.id().hex()}));
+    }
+    write_batch(path, &d)?;
+    Ok(json!({"batch": intent.id().hex(), "members": out, "ms": ms(t)}))
+}
+
+/// This workspace's certificates for its own members of the batch, after checking them: the
+/// intent is genuine and names each member; a publication's receipt is accepted and answers
+/// a job bound to this intent for exactly that group and capsule, and its record (from this
+/// copy's plan, `ws-plan`) is authored here; a deletion names a published position of this
+/// workspace's file. Nobody else's key is needed or used.
+async fn batch_sign(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let (st, kf) = open()?;
+    let ws = need(a, "--ws")?;
+    let (wid, signer) = kf.workspace(ws).ok_or(format!("no workspace {ws}"))?;
+    let w = Writer::new(st.clone(), wid, signer);
+    let path = need(a, "--batch")?;
+    let (mut d, intent) = read_batch(path)?;
+    if !intent.issued_by(&st.ring) {
+        return Err("the batch intent is not signed by the controller or a job issuer".into());
+    }
+    let id = intent.id();
+    let plan: Vec<Value> = match flag(a, "--plan") {
+        Some(p) => serde_json::from_slice::<Value>(&read_private(std::path::Path::new(p)).map_err(es)?).map_err(es)?
+            .as_array().ok_or("plan: expected an array")?.clone(),
+        None => vec![],
+    };
+    let mut signed = Vec::new();
+    for (i, named) in intent.body.members.iter().enumerate() {
+        let m = &mut d["members"][i];
+        match named {
+            BatchMember::Publish { group, writer } if *writer == wid => {
+                if m["group"] != json!(group.hex()) {
+                    return Err(format!("member {i} differs from the intent"));
+                }
+                let cap = id_of(&m["capsule"])?;
+                let rc = hex_field(m, "receipt", Receipt::from_bytes)?;
+                let job = hex_field(m, "job", SignedJob::from_bytes)?;
+                if job.body.batch != Some(id) || job.body.capsule != cap {
+                    return Err(format!("member {i}: its job is not this capsule's, bound to this batch"));
+                }
+                paralean_store::receipt::check(&rc, &job, group, &[], &st.ring).map_err(|e| format!("member {i}: {e:?}"))?;
+                let entry = plan.iter().find(|e| e["group"] == m["group"]).ok_or(format!("member {i} is not in the plan"))?;
+                let (revisions, marker) = planned(entry, *group, cap, wid, rc.id())?;
+                let p = Package {
+                    group: Opaque::new(Kind::Group, object_bytes(&st, c.object(group), Kind::Group, group).await?),
+                    chunks: vec![],
+                    capsule: Opaque::new(Kind::Capsule, object_bytes(&st, c.capsule(&cap), Kind::Capsule, &cap).await?),
+                    receipt: rc, job, revisions, marker, targets: vec![],
+                };
+                if p.group.id() != *group || p.capsule.id() != cap {
+                    return Err(format!("member {i}: payload or capsule bytes differ from their IDs"));
+                }
+                m["entry"] = entry.clone();
+                m["cert"] = json!(hex::encode(w.sign_batch_publication(&p).to_bytes()));
+                signed.push(json!(["publish", group.hex()]));
+            }
+            BatchMember::Tombstone { target, position, writer } if *writer == wid => {
+                let t = Tombstone {
+                    file_path: m["file"].as_str().ok_or("file")?.to_string(),
+                    target: *target,
+                    lamport: m["lamport"].as_u64().ok_or("lamport")?,
+                    author: AgentId::from_hex(m["author"].as_str().ok_or("author")?).ok_or("bad author")?,
+                    receipt: None,
+                    position: *position,
+                    batch: Some(id),
+                };
+                t.check().map_err(|e| format!("member {i}: {e}"))?;
+                let pos = position.ok_or("a batch deletes an exact position")?;
+                let old = st.marker_variant(target, &pos).await.map_err(es)?.ok_or(format!("member {i}: unknown position"))?;
+                if old.file_path != t.file_path || old.author.0 != wid.0 || t.lamport <= old.lamport
+                    || m["target"] != json!(target.hex()) {
+                    return Err(format!("member {i}: not a newer deletion of this workspace's position"));
+                }
+                m["cert"] = json!(hex::encode(w.sign_batch_tombstone(&t).to_bytes()));
+                signed.push(json!(["tombstone", target.hex()]));
+            }
+            _ => {}
+        }
+    }
+    write_batch(path, &d)?;
+    Ok(json!({"batch": id.hex(), "signed": signed}))
+}
+
+/// T12: publish every member of the batch or none. The coordinator assembles what the
+/// description holds and needs no member's key; the store checks the intent, the binding of
+/// every member and each member's own T1 or T8 guards in one transaction.
+async fn publish_batch(a: &[&str]) -> R<Value> {
+    let c = Cache::new(need(a, "--cache")?);
+    let (st, kf) = open()?;
+    let (d, intent) = read_batch(need(a, "--batch")?)?;
+    let t = Instant::now();
+    let mut items = Vec::new();
+    for (i, m) in d["members"].as_array().ok_or("members")?.iter().enumerate() {
+        let writer = workspace_id(&kf, m["writer"].as_str().ok_or("writer")?)?;
+        if m["cert"].is_null() {
+            return Err(format!("member {i} is not signed by its writer"));
+        }
+        if m["kind"] == "publish" {
+            let (g, cap) = (id_of(&m["group"])?, id_of(&m["capsule"])?);
+            let receipt = hex_field(m, "receipt", Receipt::from_bytes)?;
+            let (revisions, marker) = planned(&m["entry"], g, cap, writer, receipt.id())?;
+            let package = Package {
+                group: Opaque::new(Kind::Group, object_bytes(&st, c.object(&g), Kind::Group, &g).await?),
+                chunks: vec![],
+                capsule: Opaque::new(Kind::Capsule, object_bytes(&st, c.capsule(&cap), Kind::Capsule, &cap).await?),
+                receipt,
+                job: hex_field(m, "job", SignedJob::from_bytes)?,
+                revisions,
+                marker,
+                targets: vec![],
+            };
+            items.push(BatchItem::Publish { package, writer, cert: hex_field(m, "cert", Cert::from_bytes)? });
+        } else {
+            let tombstone = Tombstone {
+                file_path: m["file"].as_str().ok_or("file")?.to_string(),
+                target: id_of(&m["target"])?,
+                lamport: m["lamport"].as_u64().ok_or("lamport")?,
+                author: AgentId::from_hex(m["author"].as_str().ok_or("author")?).ok_or("bad author")?,
+                receipt: None,
+                position: Some(id_of(&m["position"])?),
+                batch: Some(intent.id()),
+            };
+            items.push(BatchItem::Tombstone { tombstone, writer, cert: hex_field(m, "cert", TombstoneCert::from_bytes)?, grant: None });
+        }
+    }
+    let o = st.publish_batch(&BatchPackage { intent, items }).await.map_err(es)?;
+    Ok(json!({"batch": o.batch.hex(), "fresh": o.fresh, "ms": ms(t),
+        "members": o.record.entries.iter().map(|e| e.object.hex()).collect::<Vec<_>>()}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn id(n: u8) -> Id {
+        Id([n; 32])
+    }
+
+    /// Records 1..=5; batch 9 = {2, 3, 4}.
+    fn setup() -> (Vec<(bool, Id)>, BTreeMap<Id, Vec<Id>>, BTreeSet<Id>) {
+        let new = (1..=5).map(|n| (n != 4, id(n))).collect();
+        let batches = BTreeMap::from([(id(9), vec![id(2), id(3), id(4)])]);
+        (new, batches, (1..=5).map(id).collect())
+    }
+
+    fn delivered(units: &[Unit]) -> Vec<Id> {
+        units.iter().flat_map(|u| u.records.iter().map(|r| r.1)).collect()
+    }
+
+    #[test]
+    fn a_batch_is_one_unit() {
+        let (new, batches, response) = setup();
+        let units = delivery_units(&new, &batches, &BTreeSet::new(), &response, &|_| true, None, None);
+        assert_eq!(units.len(), 3);
+        assert_eq!(units[1], Unit { batch: Some(id(9)), records: vec![(true, id(2)), (true, id(3)), (false, id(4))], size: 3 });
+    }
+
+    #[test]
+    fn max_seed_and_only_never_split_a_batch() {
+        let (new, batches, response) = setup();
+        for seed in 0..20 {
+            for max in 0..=5 {
+                let units = delivery_units(&new, &batches, &BTreeSet::new(), &response, &|_| true, Some(seed), Some(max));
+                let got = delivered(&units);
+                let members = [id(2), id(3), id(4)].iter().filter(|m| got.contains(m)).count();
+                assert!(members == 0 || members == 3, "seed {seed} max {max}: {got:?}");
+                assert!(got.len() <= max);
+            }
+        }
+        // `--max` smaller than the batch: none of it, though it comes first
+        let only_batch = |i: &Id| *i == id(3);
+        assert!(delivery_units(&new, &batches, &BTreeSet::new(), &response, &only_batch, None, Some(2)).is_empty());
+        // `--only` naming one member delivers the whole batch
+        let units = delivery_units(&new, &batches, &BTreeSet::new(), &response, &only_batch, None, None);
+        assert_eq!(delivered(&units), vec![id(2), id(3), id(4)]);
+    }
+
+    #[test]
+    fn a_response_without_every_member_delivers_none_of_the_batch() {
+        let (new, batches, mut response) = setup();
+        response.remove(&id(4));
+        let new: Vec<_> = new.into_iter().filter(|r| r.1 != id(4)).collect();
+        let units = delivery_units(&new, &batches, &BTreeSet::new(), &response, &|_| true, None, None);
+        assert_eq!(delivered(&units), vec![id(1), id(5)]);
+    }
+
+    #[test]
+    fn an_unfiled_batch_is_delivered_again() {
+        let (_, batches, response) = setup();
+        // every member written by an interrupted pull, its file not
+        let new = vec![(true, id(1))];
+        let units = delivery_units(&new, &batches, &BTreeSet::new(), &response, &|_| true, None, None);
+        assert_eq!(units[1], Unit { batch: Some(id(9)), records: vec![], size: 3 });
+        let filed = BTreeSet::from([id(9)]);
+        assert_eq!(delivery_units(&new, &batches, &filed, &response, &|_| true, None, None).len(), 1);
     }
 }

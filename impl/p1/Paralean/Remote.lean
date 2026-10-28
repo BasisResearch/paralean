@@ -61,6 +61,14 @@ body it cannot fetch.
 
 Configuration: `PARALEAN_STORE` (the copy's cache), `PARALEAN_TRUST`, `PARALEAN_PLR`.
 `PARALEAN_REMOTE_LOG` receives one line per load for measurements.
+
+**Staged batch members.** A participant of an atomic batch captures against members that
+are not published yet (a rename: Bob's revision calls Alice's new name). The coordinator
+shares their records under `p3/staged/<staging ID>` (`plr batch-share`); they count only
+while `PARALEAN_BATCH` names that ID, and like `fetched` records they are loaded on demand,
+never rendered. Each is receipt-checked as above, with a receipt bound to the staging ID
+(no transaction publishes it) and `plr check-receipt --staged` as the live check, and
+its capsule passes the command gate.
 -/
 
 namespace Paralean.Remote
@@ -181,7 +189,18 @@ def metaOfCapsuleOpt (root : System.FilePath) (capsule : String) : IO (Option Gr
     return some (← metaOfCapsule root capsule)
   return none
 
-/-- Every record in the cache (known and fetched), reparsed only when files arrive. -/
+/-- The staging ID of the batch this process captures for (`PARALEAN_BATCH`), if any. -/
+def stagedBatch : IO (Option String) := do
+  let some b ← IO.getEnv "PARALEAN_BATCH" | return none
+  unless Safety.isHexId b do throw <| IO.userError s!"PARALEAN_BATCH: not a 64-digit hex ID"
+  return some b
+
+def stagedSubs : IO (List String) := do
+  return match ← stagedBatch with
+    | some b => [s!"staged/{b}"]
+    | none => []
+
+/-- Every record in the cache (known, fetched and staged), reparsed only when files arrive. -/
 initialize allKnownCache : IO.Ref (Nat × Known) ← IO.mkRef (0, {})
 
 def allKnown : IO Known := do
@@ -189,9 +208,16 @@ def allKnown : IO Known := do
   let n ← countRecords root
   let (k, kn) ← allKnownCache.get
   if k == n then return kn
-  let kn ← Known.load root ["records", "fetched"]
+  let kn ← Known.load root (["records", "fetched"] ++ (← stagedSubs))
   allKnownCache.set (n, kn)
   return kn
+
+/-- The staging ID a record is checked under, when it is a staged batch member
+(`p3/staged/<PARALEAN_BATCH>`). -/
+def stagedOf (m : Marker) : IO (Option String) := do
+  let some b ← stagedBatch | return none
+  if ← ((← storeRoot) / "p3" / "staged" / b / s!"m-{m.id}.json").pathExists then return some b
+  return none
 
 def view : IO Rga.View := do
   let root ← storeRoot
@@ -264,12 +290,17 @@ def checkReceipt (g : GroupRec) : IO Unit := do
   unless m.pid == g.gid do
     throw <| IO.userError s!"remote%: the record of {g.short} names another package"
   let root ← storeRoot
-  match ← P3.checkReceipt root m with
+  let staged ← stagedOf m
+  match ← P3.checkReceipt root m staged with
   | .ok job =>
     -- A signature is not sufficient after publication: the validator key may have
     -- been revoked. Ask the store's consumer guard on every
-    -- load, including an already cached package in a long-lived server.
-    let live ← plr #["check-receipt", g.declId]
+    -- load, including an already cached package in a long-lived server. A staged
+    -- member is not published: its receipt and job are checked against the store's
+    -- key ring, revocations and cancellations instead.
+    let live ← plr <| match staged with
+      | some b => #["check-receipt", "--cache", root.toString, "--staged", b, "--receipt", m.receipt, g.declId]
+      | none => #["check-receipt", g.declId]
     unless (live.getObjValAs? Bool "admits").toOption == some true do
       let why := (live.getObjValAs? String "reason").toOption.getD "consumer check refused"
       throw <| IO.userError s!"remote%: receipt of {g.short} is no longer valid: {why}"

@@ -40,9 +40,43 @@ def main (args : List String) : IO UInt32 := do
   let _ ← expectOk (t.admits receipt job group capsule) "authority target job"
   expectError (t.admits receipt issuerJob group capsule) "issuer target job"
   expectError (t.admits wrongTarget job group capsule) "mismatched target bytes"
-  let m : Marker := ⟨"", group, #[], receiptId, "A.lean", none, 0, "", #[], #[], capsule, ""⟩
+  let bound ← expectOk (Job.parse (← IO.FS.readBinFile (root / "bound-job.bin"))) "batch-bound job"
+  unless bound.batch == some (toHex (ByteArray.mk (Array.replicate 32 8))) && job.batch.isNone do
+    throw <| IO.userError s!"batch-bound job: wrong batch {bound.batch}"
+  for (file, label) in [("tag2", "job with trailing tag 2"), ("short-batch", "job with a 31-byte batch ID"),
+      ("two-batches", "job with two batch fields"), ("batch-then-byte", "job with a byte after its batch")] do
+    expectError (Job.parse (← IO.FS.readBinFile (root / s!"{file}-job.bin"))) label
+  let m : Marker := ⟨"", group, #[], receiptId, "A.lean", none, 0, "", #[], #[], capsule, "", none⟩
   let first ← checkReceipt root m
   let _ ← expectOk first "first cached receipt"
+  let other := String.ofList (List.replicate 64 'b')
+  expectError (← checkReceipt root { m with batch := some other }) "record with another batch"
+  expectError (← checkReceipt root m (staged := some other)) "staged record under an unbound job"
+  -- batch members count only once their batch file lists them
+  let kl := root / "known"
+  IO.FS.createDirAll (kl / "p3" / "records")
+  let hx (c : Char) := String.ofList (List.replicate 64 c)
+  let rec_ (id : String) (batch : Option String) : Json :=
+    Json.mkObj [("id", id), ("group", id), ("revisions", Json.arr #[]), ("receipt", id), ("file", "A.lean"),
+      ("anchor", Json.null), ("lamport", (1 : Nat)), ("author", "00"), ("rootPath", Json.arr #[]),
+      ("lineageKeys", Json.arr #[]), ("capsule", id), ("pid", id),
+      ("batch", match batch with | some b => Json.str b | none => Json.null)]
+  let tomb (id : String) (batch : String) : Json :=
+    Json.mkObj [("id", id), ("file", "A.lean"), ("target", id), ("lamport", (2 : Nat)), ("author", "00"),
+      ("batch", batch)]
+  let put (n : String) (j : Json) : IO Unit := IO.FS.writeFile (kl / "p3" / "records" / n) j.compress
+  put s!"m-{hx 'a'}.json" (rec_ (hx 'a') none)
+  put s!"m-{hx 'b'}.json" (rec_ (hx 'b') (some (hx '1')))
+  put s!"m-{hx 'c'}.json" (rec_ (hx 'c') (some (hx '2')))
+  put s!"m-{hx 'd'}.json" (rec_ (hx 'd') (some (hx '1')))
+  put s!"t-{hx 'e'}.json" (tomb (hx 'e') (hx '1'))
+  put s!"t-{hx 'f'}.json" (tomb (hx 'f') (hx '2'))
+  put s!"b-{hx '1'}.json" (Json.mkObj [("id", hx '1'), ("markers", toJson #[hx 'b']), ("tombstones", toJson #[hx 'e'])])
+  let k ← Known.load kl
+  unless k.markers.map (·.id) == #[hx 'a', hx 'b'] do
+    throw <| IO.userError s!"unfiled batch marker: accepted invalid input ({k.markers.map (·.id)})"
+  unless k.tombs.map (·.id) == #[hx 'e'] do
+    throw <| IO.userError s!"unfiled batch tombstone: accepted invalid input ({k.tombs.map (·.id)})"
   IO.FS.writeBinFile (root / "p3" / "jobs" / s!"{jobId}.bin")
     (← IO.FS.readBinFile (root / "replacement-job.bin"))
   expectError (← checkReceipt root m) "replaced cached job"

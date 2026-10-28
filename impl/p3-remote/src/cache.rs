@@ -7,17 +7,22 @@
 //! p3/jobs/<job>.bin              controller-signed job envelopes the receipts answer
 //! p3/records/m-<marker>.json     publication records (markers) delivered by `pull`
 //! p3/records/t-<tombstone>.json  tombstones delivered by `pull`
+//! p3/records/b-<batch>.json      an atomic batch's member records, written after them
 //! p3/revisions/<rev>.json        revisions named by known markers
 //! p3/receipts/<receipt>.bin      signed receipts as stored (Signed<ReceiptBody> bytes)
+//! p3/staged/<staging>/m-<..>.json  a batch's unpublished members, shared by its coordinator
+//! p3/batches/<staging>.json      a coordinator's batch description (owner-only)
 //! p3/transfer.jsonl              one line per transfer (kind, id, bytes, ms)
 //! ```
 //!
 //! Every file is written to a temporary name and renamed, so a reader never sees a partial
-//! record. Records are immutable: an existing file is never rewritten.
+//! record. Records are immutable: an existing file is never rewritten. A record of an atomic
+//! batch names it (`batch`) and counts only once `b-<batch>.json` lists it (Lean
+//! `P3.Known.load`), so a copy never sees part of a batch.
 
 use std::path::{Path, PathBuf};
 
-use paralean_store::{check_file_path, Anchor, Id, Kind, Marker, Name, NameComp, Opaque, Revision, Tombstone};
+use paralean_store::{check_file_path, Anchor, BatchRecord, Id, Kind, Marker, Name, NameComp, Opaque, Revision, Tombstone};
 use serde_json::{json, Value};
 
 pub struct Cache {
@@ -87,6 +92,14 @@ impl Cache {
     pub fn tomb_rec(&self, t: &Id) -> PathBuf {
         self.p3().join("records").join(format!("t-{}.json", t.hex()))
     }
+    /// The batch file in `sub` (`records` or `fetched`).
+    pub fn batch_rec(&self, sub: &str, b: &Id) -> PathBuf {
+        self.p3().join(sub).join(format!("b-{}.json", b.hex()))
+    }
+    /// Unpublished members of the batch prepared under staging ID `s` (`plr batch-share`).
+    pub fn staged(&self, s: &Id) -> PathBuf {
+        self.p3().join("staged").join(s.hex())
+    }
     pub fn revision(&self, r: &Id) -> PathBuf {
         self.p3().join("revisions").join(format!("{}.json", r.hex()))
     }
@@ -138,6 +151,45 @@ impl Cache {
 
 }
 
+/// Write a file only its owner can read, creating it fresh: an existing name or a symbolic
+/// link fails closed, and its directory must be an owner-only directory, not a link (W2-20).
+pub fn write_private(p: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt};
+    let dir = p.parent().ok_or_else(|| std::io::Error::other("no parent directory"))?;
+    if std::fs::symlink_metadata(dir).is_err() {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+    }
+    let md = std::fs::symlink_metadata(dir)?;
+    // SAFETY: getuid has no preconditions.
+    let uid = unsafe { libc::getuid() };
+    if !md.is_dir() || md.uid() != uid || md.permissions().mode() & 0o077 != 0 {
+        return Err(std::io::Error::other(format!("{}: not an owner-only directory", dir.display())));
+    }
+    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600)
+        .custom_flags(libc::O_NOFOLLOW).open(p)?;
+    f.write_all(bytes)?;
+    f.sync_all()
+}
+
+/// Replace a private file: a fresh private temporary file renamed over it.
+pub fn replace_private(p: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let tmp = p.with_extension(format!("tmp{}", std::process::id()));
+    let _ = std::fs::remove_file(&tmp);
+    write_private(&tmp, bytes)?;
+    std::fs::rename(&tmp, p)
+}
+
+/// Read a file without following a symbolic link.
+pub fn read_private(p: &Path) -> std::io::Result<Vec<u8>> {
+    use std::io::Read;
+    use std::os::unix::fs::OpenOptionsExt;
+    let mut f = std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NOFOLLOW).open(p)?;
+    let mut out = Vec::new();
+    f.read_to_end(&mut out)?;
+    Ok(out)
+}
+
 /// 64 lowercase hexadecimal digits (Lean `Safety.isHexId`).
 pub fn is_hex_id(s: &str) -> bool {
     s.len() == 64 && s.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
@@ -145,12 +197,12 @@ pub fn is_hex_id(s: &str) -> bool {
 
 /// A marker record for the cache, after the decoder's field rules (W2 A-6): its file path
 /// is where every syncing working copy writes.
-pub fn checked_marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str) -> Result<Value, String> {
+pub fn checked_marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str, batch: Option<Id>) -> Result<Value, String> {
     if !cfg!(feature = "mutate-unchecked-pid") && !is_hex_id(pid) {
         return Err(format!("marker {mid}: malformed package ID"));
     }
     m.check().map_err(|e| format!("marker {mid}: {e}"))?;
-    Ok(marker_json(mid, m, capsule, pid))
+    Ok(marker_json(mid, m, capsule, pid, batch))
 }
 
 /// A tombstone record for the cache, after the decoder's field rules.
@@ -159,7 +211,7 @@ pub fn checked_tomb_json(tid: &Id, t: &Tombstone) -> Result<Value, String> {
     Ok(tomb_json(tid, t))
 }
 
-pub fn marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str) -> Value {
+pub fn marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str, batch: Option<Id>) -> Value {
     json!({
         "kind": "marker",
         "id": mid.hex(),
@@ -174,6 +226,7 @@ pub fn marker_json(mid: &Id, m: &Marker, capsule: &Id, pid: &str) -> Value {
         "lineageKeys": m.lineage_keys.iter().map(|(n, l, a)| json!([name_json(n), l, a.hex()])).collect::<Vec<_>>(),
         "capsule": capsule.hex(),
         "pid": pid,
+        "batch": batch.map(|b| b.hex()),
     })
 }
 
@@ -186,6 +239,17 @@ pub fn tomb_json(tid: &Id, t: &Tombstone) -> Value {
         "position": t.position.map(|p| p.hex()),
         "lamport": t.lamport,
         "author": t.author.hex(),
+        "batch": t.batch.map(|b| b.hex()),
+    })
+}
+
+/// The batch file: the IDs of the batch's marker and tombstone records.
+pub fn batch_json(r: &BatchRecord) -> Value {
+    json!({
+        "kind": "batch",
+        "id": r.id().hex(),
+        "markers": r.markers().map(|(_, m)| m.hex()).collect::<Vec<_>>(),
+        "tombstones": r.tombstones().map(|t| t.hex()).collect::<Vec<_>>(),
     })
 }
 
@@ -246,10 +310,38 @@ mod tests {
             anchor: Anchor::FileStart, lamport: 1, author: paralean_store::AgentId([3; 16]),
             root_path: vec![], lineage_keys: vec![],
         };
-        assert!(checked_marker_json(&Id([4; 32]), &m, &Id([5; 32]), &"ab".repeat(32)).is_err());
+        assert!(checked_marker_json(&Id([4; 32]), &m, &Id([5; 32]), &"ab".repeat(32), None).is_err());
         let ok = Marker { file_path: "Test/File.lean".into(), ..m.clone() };
-        assert!(checked_marker_json(&Id([4; 32]), &ok, &Id([5; 32]), &"ab".repeat(32)).is_ok());
+        assert!(checked_marker_json(&Id([4; 32]), &ok, &Id([5; 32]), &"ab".repeat(32), None).is_ok());
         let t = Tombstone { file_path: ".git/config".into(), target: Id([1; 32]), lamport: 2, author: m.author, receipt: None, position: None, batch: None };
         assert!(checked_tomb_json(&Id([6; 32]), &t).is_err());
+    }
+
+    #[test]
+    fn private_files_refuse_links_existing_names_and_open_directories() {
+        use std::os::unix::fs::PermissionsExt;
+        let c = temp("private");
+        let dir = c.p3().join("batches");
+        let p = dir.join("b.json");
+        write_private(&p, b"one").unwrap();
+        assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
+        assert_eq!(std::fs::metadata(&p).unwrap().permissions().mode() & 0o777, 0o600);
+        assert!(write_private(&p, b"two").is_err(), "an existing description was overwritten");
+        replace_private(&p, b"two").unwrap();
+        assert_eq!(read_private(&p).unwrap(), b"two");
+        let sentinel = c.root.join("sentinel");
+        std::fs::write(&sentinel, b"keep").unwrap();
+        let link = dir.join("link.json");
+        std::os::unix::fs::symlink(&sentinel, &link).unwrap();
+        assert!(read_private(&link).is_err() && write_private(&link, b"x").is_err());
+        let open_dir = c.root.join("open");
+        std::fs::create_dir(&open_dir).unwrap();
+        std::fs::set_permissions(&open_dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(write_private(&open_dir.join("b.json"), b"x").is_err());
+        let linked_dir = c.p3().join("linked");
+        std::os::unix::fs::symlink(&dir, &linked_dir).unwrap();
+        assert!(write_private(&linked_dir.join("c.json"), b"x").is_err());
+        assert_eq!(std::fs::read(&sentinel).unwrap(), b"keep");
+        let _ = std::fs::remove_dir_all(&c.root);
     }
 }

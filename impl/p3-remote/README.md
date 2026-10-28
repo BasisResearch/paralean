@@ -10,14 +10,16 @@ working copy's cache and the P2 store, and drives P3 control's validators. The L
 PARALEAN_LEAN=fork impl/p1/scripts/bootstrap.sh                                # paralean on the fork
 source impl/p3-remote/scripts/env.sh        # store instance, fork Lean, binaries
 impl/p3-remote/scripts/gate.py RUNDIR       # the P3 gate scenario (RUNDIR/gate.json)
+impl/p3-remote/scripts/gate.py RUNDIR --rename-only   # only the atomic published rename
 impl/p3-remote/scripts/gate-costs.py RUNDIR # per-step costs of a gate run
 impl/p3-remote/scripts/corpus-cost.py RUNDIR [M14 …]   # Mathlib corpus costs
 impl/p3-remote/scripts/ws.py init|publish|sync|delete|hash|check DIR …   # one working copy
+impl/p3-remote/scripts/ws.py rename DIR FILE OLD NEW [DIR2 FILE2]…  # a published rename, one atomic batch
 ```
 
 | File | Role |
 |---|---|
-| `src/main.rs` | `plr` commands: `keys-init`, `stage`, `validate`, `publish`, `tombstone`, `pull`, `fetch-group`, `fetch-pkg`, `checkpoint`, `snapshot-get`, `check-receipt`, `forge` (tests) |
+| `src/main.rs` | `plr` commands: `keys-init`, `stage`, `validate`, `publish`, `tombstone`, `pull`, `fetch-group`, `fetch-pkg`, `checkpoint`, `snapshot-get`, `check-receipt`, `forge` (tests); atomic batches: `batch-share`, `batch-intent`, `batch-validate`, `batch-sign`, `publish-batch` |
 | `src/receipt.rs` | job envelopes signed by the copy's issuer key; calls to the validator service |
 | `src/cache.rs` | the cache layout a working copy shares with `impl/p1` |
 | `scripts/` | `env.sh`, `ws.py`, `gate.py`, `gate-costs.py`, `corpus-cost.py` |

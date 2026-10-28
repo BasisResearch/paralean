@@ -14,8 +14,10 @@ from pathlib import Path
 
 P1 = Path(__file__).resolve().parents[1]
 REPO = P1.parents[1]
-OUT = REPO / "results" / "w2" / "p1-security-mutations.json"
-LOGS = REPO / "results" / "w2" / "p1-security-mutation-logs"
+# PARALEAN_P1_MUTATION_OUT: another results directory (default: the W2 archive).
+OUT_DIR = Path(os.environ.get("PARALEAN_P1_MUTATION_OUT", REPO / "results" / "w2"))
+OUT = OUT_DIR / "p1-security-mutations.json"
+LOGS = OUT_DIR / "p1-security-mutation-logs"
 
 CASES = [
     ("varint_canonical", "P3.lean",
@@ -39,6 +41,16 @@ CASES = [
     ("cached_receipt_signature", "P3.lean",
      'unless Ed25519.verify r.key r.id r.sig do throw "the receipt\'s signature does not verify"',
      "pure ()", "weak-key cached receipt: accepted invalid input"),
+    # atomic batches (docs/atomic-pub-log.md)
+    ("job_batch_tag", "P3.lean",
+     "unless tag == 1 do throw", "unless true do throw",
+     "job with trailing tag 2: accepted invalid input"),
+    ("record_job_batch", "P3.lean",
+     'unless job.batch == (staged <|> m.batch) do return .error "the record\'s batch differs from its job\'s"',
+     "pure ()", "record with another batch: accepted invalid input"),
+    ("batch_file_filter", "P3.lean",
+     "unless ← filed dir m.batch m.id true do continue", "pure ()",
+     "unfiled batch marker: accepted invalid input"),
     ("ed25519_small_order", "Ed25519.lean",
      "if A.double.double.double.encode == 1 || R.double.double.double.encode == 1 then false else",
      "if false then false else", "weak-key signature accepted"),

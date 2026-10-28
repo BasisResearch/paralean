@@ -50,6 +50,14 @@ def buildIndex : IO (Std.HashMap Name String) := do
   let mut out := {}
   for (n, group) in idx.toList do
     if let some m := v.known.byGroup[group]? then out := out.insert n m.pid
+  -- staged members of the batch being captured for (`PARALEAN_BATCH`), under their own
+  -- names; a published name keeps its declaration
+  let subs ← Remote.stagedSubs
+  unless subs.isEmpty do
+    let root ← Remote.storeRoot
+    for m in (← P3.Known.load root subs).markers do
+      for n in (← Remote.metaOfCapsule root m.capsule).publicNames do
+        unless out.contains n do out := out.insert n m.pid
   return out
 
 /-- A long-lived worker sees pulls and editor sessions without re-running module
