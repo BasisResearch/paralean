@@ -96,12 +96,22 @@ def trial(workload, n, rep, stock=False, sync=False, pilot=False, work=2000, age
         row['ok'] = row['ok'] and row['dependencies']['ok']
         row['metrics'] = state.get('metrics',{})
         row['transfer'] = workspace_transfer(directory)
+        models = set()
+        if agent:
+            for p in directory.glob('w*/p5-logs/*.log'):
+                try:
+                    reply = json.loads(p.read_text())
+                    models.update((reply.get('modelUsage') or {}).keys())
+                except (OSError, ValueError): pass
+        row['models'] = sorted(models)
         vl = directory/'validator.log'
         if vl.exists():
             (evidence/'validator.log').write_bytes(vl.read_bytes())
         for logname in ('backend.log',):
             p = directory/logname
             if p.exists(): (evidence/logname).write_bytes(p.read_bytes())
+        for p in directory.glob('w*/cache/p3/transfer.jsonl'):
+            (evidence/(p.parents[2].name+'-transfer.jsonl')).write_bytes(p.read_bytes())
         for p in directory.glob('w*/remote.log'):
             (evidence/(p.parent.name+'-remote.jsonl')).write_bytes(p.read_bytes())
         # The representative pilot includes clean export, separately timed.
@@ -122,7 +132,7 @@ if __name__ == '__main__':
     ap.add_argument('--n',type=int,default=1)
     args=ap.parse_args()
     if args.confirm:
-        trial('list',2,1,agent=True)
+        for n in (1,8): trial('list',n,1,agent=True)
     elif args.pilot:
         trial(args.workload,args.n,0,pilot=True,work=args.work)
     else:

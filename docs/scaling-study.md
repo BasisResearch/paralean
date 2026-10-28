@@ -87,3 +87,10 @@ zero process exit code; the scripted worker now checks that JSON explicitly.
 Reduce production synthetic work to 100 iterations per branch and impose a
 180-second worker timeout. A new eight-worker pilot must pass before production.
 This reduces the attainable compute/coordination ratio; report it as a limitation.
+
+Confirmation specification before production: one actual Claude CLI List trial
+at N=1 and one at N=8 (rather than pooling agent and scripted repetitions).
+This is a small descriptive pair with no distributional speedup claim. Record
+reported model identities and actual CLI worker wall intervals where available;
+keep authenticated transcripts private. If CLI credentials, budget, or runtime
+limits prevent completion, report that failure explicitly.

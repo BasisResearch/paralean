@@ -35,7 +35,7 @@ for workload in ('list','synthetic'):
     events=[]
     for line in (path/'phases.jsonl').read_text().splitlines():
      p=json.loads(line)
-     if p['phase']=='scripted_worker':
+     if p['phase']=='worker_cli':
       events.extend([(p['start'],1),(p['start']+p['wall_s'],-1)])
     active=peak=0
     for _,delta in sorted(events):

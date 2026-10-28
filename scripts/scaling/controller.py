@@ -32,5 +32,7 @@ for name in ('setup', 'provision', 'sync', 'assign_target', 'observe_target', 'p
                     f.write(json.dumps(row)+'\n')
         return timed
     setattr(Backend, name, instrument(original, name))
+import p5lib.workers as workers
+workers.run = instrument(workers.run, "worker_cli")
 import runpy
 runpy.run_path(str(Path(__file__).resolve().parents[2] / 'impl/p5/paralean.py'), run_name='__main__')
