@@ -29,6 +29,8 @@ foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_
 mutate-no-dispatch-owner-check = []
 mutate-no-request-dedup = []
 mutate-validator-skips-dep-check = []
+# An earlier receipt of another atomic batch serves a batch job as a dependency.
+mutate-validator-cross-batch-dependency = []
 mutate-validator-ignores-axioms = []
 mutate-relaxed-envelope-sig = []
 mutate-no-statement-stamp = []
@@ -104,6 +106,10 @@ paralean-store = { path = "../../../p2/crates/store", features = ["adversary"] }
 
 [[test]]
 name = "adversarial"
+harness = false
+
+[[test]]
+name = "atomic_batches"
 harness = false
 
 [[test]]

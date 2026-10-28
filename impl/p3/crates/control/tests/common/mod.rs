@@ -288,7 +288,8 @@ impl Cluster {
             | ControlRequest::Poll { worker }
             | ControlRequest::PollRequest { worker, .. }
             | ControlRequest::Finish { worker, .. }
-            | ControlRequest::Validate { worker, .. } => Some(worker),
+            | ControlRequest::Validate { worker, .. }
+            | ControlRequest::ValidateBatch { coordinator: worker, .. } => Some(worker),
             _ => None,
         };
         let signer = worker

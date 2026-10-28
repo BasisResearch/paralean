@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use paralean_store::receipt::{target_slot, Policy, SignedJob};
 use paralean_store::{Id, Kind, Object, Receipt, ReceiptBody, Signer, Store, Verdict, WorkspaceId};
-use paralean_validator_api::{published_receipt, ValidatorRequest, ValidatorResponse};
+use paralean_validator_api::{published_receipt, ValidatorRequest, ValidatorResponse, MAX_BATCH_JOBS};
 use tokio::net::TcpListener;
 use tokio::sync::{watch, Semaphore};
 use tokio::task::JoinHandle;
@@ -123,8 +123,8 @@ impl Validator {
                 self.validate(job).await
             }
             ValidatorRequest::ValidateBatch { jobs } => {
-                if jobs.is_empty() || jobs.len() > 64 {
-                    return refused("batch must contain 1 to 64 jobs");
+                if jobs.is_empty() || jobs.len() > MAX_BATCH_JOBS {
+                    return refused(&format!("batch must contain 1 to {MAX_BATCH_JOBS} jobs"));
                 }
                 let me = self.clone();
                 self.detached(async move { me.validate_batch(jobs).await }).await
@@ -204,6 +204,14 @@ impl Validator {
             return refused("envelope is not signed by the controller");
         };
         let j = &job.body;
+        // An earlier receipt serves this job only if both are bound to the same atomic batch
+        // (or neither is): T12 admits only its own batch's members, so a job of another batch
+        // is published, if ever, by another transaction.
+        let accepted: BTreeMap<Id, (Receipt, SignedJob)> = accepted.iter()
+            .filter(|(_, (_, dep))| dep.body.batch == j.batch || cfg!(feature = "mutate-validator-cross-batch-dependency"))
+            .map(|(cap, served)| (*cap, served.clone()))
+            .collect();
+        let accepted = &accepted;
         // An issuer-signed envelope that binds targets can never stage (the staging rule and
         // T1 refuse it), so checking it would only spend this validator's capacity.
         if !j.targets.is_empty() && issuer != ring.authority && !cfg!(feature = "mutate-validator-checks-issuer-targets") {

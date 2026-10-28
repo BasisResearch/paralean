@@ -4,6 +4,7 @@
 # TARGET-NAMES.md's `target_no_epoch_fence`/`target_no_owner_check` guards): each cargo
 # feature deletes one check; the listed test must then FAIL. A mutation no test detects is
 # reported and makes this script exit 1. Runs against scripts/cluster-up.sh's cluster.
+# ONLY=<text> runs only the cases whose line contains it (e.g. ONLY='|atomic_batches|').
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 . "$here/env.sh"
@@ -51,9 +52,17 @@ cases=(
   "mutate-recover-every-tick|control|inconclusive_recovery_is_bounded"
   "mutate-role-keys-unchecked|processes|processes_refuse_key_files_with_seeds_of_other_roles"
   "paralean-validator-api/mutate-unverified-published-cert|adversarial|published_means_a_certificate_that_verifies"
+  # Atomic batches (docs/atomic-pub-log.md): T12's per-member guards, through ValidateBatch.
+  "paralean-store/mutate-no-receipt-check|atomic_batches|forged_rejected_or_misbound_batch_member_receipts_fail_closed"
+  "paralean-store/mutate-no-epoch-binding|atomic_batches|batch_member_receipt_for_another_epoch_fails_closed"
+  "paralean-store/mutate-batch-partial-commit|atomic_batches|stale_owner_on_one_member_rejects_the_whole_batch"
+  "paralean-store/mutate-batch-member-alone|atomic_batches|batch_of_dependent_groups_by_two_workspaces_publishes_all_members"
+  "mutate-no-dispatch-owner-check|atomic_batches|stale_owner_on_one_member_rejects_the_whole_batch"
+  "mutate-validator-cross-batch-dependency|atomic_batches|job_of_another_batch_cannot_serve_as_a_batch_dependency"
 )
 fail=0
 for c in "${cases[@]}"; do
+  [[ "$c" == *"${ONLY:-}"* ]] || continue
   IFS='|' read -r feat target name <<<"$c"
   if [ "$target" = lib ]; then
     out="$(cargo test -q -j "${PARALEAN_CARGO_JOBS:-4}" -p paralean-control --features "$feat" --lib -- --exact "$name" 2>&1)"

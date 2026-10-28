@@ -28,6 +28,13 @@
 //! workspace when it names none, stops the dispatch and tells the validators; T1 refuses
 //! receipts of cancelled requests.
 //!
+//! **Batches.** `ValidateBatch` from a registered coordinator validates the publication
+//! members of one atomic batch (T12). The controller signs the batch intent, issues each
+//! member's envelope as `Validate` does but bound to the intent (`batch`), under the
+//! member's workspace and the request ID `batch/<coordinator>/<request>` (J1), and sends the
+//! envelopes in order as one `ValidateBatch`, so an earlier member's receipt serves a later
+//! member as a dependency. It answers with every member's receipt or none.
+//!
 //! Backpressure: at most `max_work_queue` queued work jobs and `max_validations` validations
 //! in flight; beyond that the answer is `Busy` and nothing is recorded.
 
@@ -39,8 +46,8 @@ use std::time::{Duration, Instant};
 use paralean_store::receipt::{check_bound, prepared_of, sort_targets, JobEnvelope, SignedJob, TargetBinding};
 use foundationdb::{KeySelector, RangeOption};
 use foundationdb::options::StreamingMode;
-use paralean_store::{Id, Name, Receipt, Signer, Store, WorkspaceId};
-use paralean_validator_api::{decode_receipt, rpc, ValidatorRequest, ValidatorResponse};
+use paralean_store::{BatchIntent, BatchMember, Id, Name, Receipt, SignedBatch, Signer, Store, WorkspaceId, MAX_BATCH_MEMBERS};
+use paralean_validator_api::{decode_receipt, rpc, ValidatorRequest, ValidatorResponse, MAX_BATCH_JOBS};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
@@ -80,6 +87,26 @@ pub struct TargetReq {
     pub statement: String,
 }
 
+/// One member of [`ControlRequest::ValidateBatch`], in commit order.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BatchMemberReq {
+    /// A group `worker` publishes, validated as `Validate` validates it.
+    Publish {
+        worker: String,
+        request: String,
+        group: String,
+        capsule: String,
+        #[serde(default)]
+        deps: Vec<String>,
+        #[serde(default)]
+        targets: Vec<TargetReq>,
+    },
+    /// A position of the published group `target` that `worker` deletes (`position`: a
+    /// marker ID, or empty).
+    Tombstone { worker: String, target: String, #[serde(default)] position: String },
+}
+
 /// Requests to the controller. IDs are hex; request IDs are free-form strings.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
@@ -102,6 +129,9 @@ pub enum ControlRequest {
         #[serde(default)]
         deadline_ms: u64,
     },
+    /// Validate the publication members of one atomic batch; `coordinator` (a registered
+    /// workspace) signs the request.
+    ValidateBatch { coordinator: String, request: String, members: Vec<BatchMemberReq> },
     /// Cancel `worker`'s request (hex workspace ID), or that request ID of every
     /// configured workspace when `worker` is empty.
     Cancel { request: String, #[serde(default)] worker: String },
@@ -132,6 +162,9 @@ pub enum ControlResponse {
     Work { request: String, target: String, epoch: u64, memory_mb: u64 },
     /// `receipt` and `job` are the signed receipt and envelope bytes (hex).
     Receipt { receipt: String, job: String },
+    /// The signed batch intent and, for its publication members in order, the receipts and
+    /// envelopes (hex bytes).
+    BatchReceipts { intent: String, receipts: Vec<String>, jobs: Vec<String> },
     Refused { reason: String },
     Inconclusive { reason: String },
     Cancelled,
@@ -449,9 +482,22 @@ fn request_id(req: &ControlRequest) -> Option<&str> {
         | ControlRequest::PollRequest { request, .. }
         | ControlRequest::Finish { request, .. }
         | ControlRequest::Validate { request, .. }
+        | ControlRequest::ValidateBatch { request, .. }
         | ControlRequest::Cancel { request, .. }
         | ControlRequest::AssignGroup { request, .. } => Some(request),
         _ => None,
+    }
+}
+
+/// The target names a validation binds (every publication member's, for a batch).
+fn validation_targets(req: &ControlRequest) -> Vec<String> {
+    match req {
+        ControlRequest::Validate { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
+        ControlRequest::ValidateBatch { members, .. } => members.iter().flat_map(|m| match m {
+            BatchMemberReq::Publish { targets, .. } => targets.iter().map(|t| t.name.clone()).collect(),
+            BatchMemberReq::Tombstone { .. } => vec![],
+        }).collect(),
+        _ => vec![],
     }
 }
 
@@ -460,6 +506,12 @@ fn job_key(worker: &WorkspaceId, request: &[u8]) -> Vec<u8> {
     let mut k = worker.0.to_vec();
     k.extend_from_slice(request);
     k
+}
+
+/// The envelope request ID of a batch member (and the intent's request): in the
+/// coordinator's namespace, so a coordinator cannot occupy a member workspace's own IDs.
+fn batch_request(coordinator: &WorkspaceId, request: &str) -> Vec<u8> {
+    format!("batch/{}/{request}", coordinator.hex()).into_bytes()
 }
 
 /// Call a controller replica list such as `host-a:9000,host-b:9000`.
@@ -477,7 +529,8 @@ pub async fn call_controller(
     if endpoints.is_empty() {
         return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "no controller address"));
     }
-    let budget = if matches!(req, ControlRequest::Validate { .. }) { total_timeout } else { total_timeout.min(Duration::from_secs(15)) };
+    let validation = matches!(req, ControlRequest::Validate { .. } | ControlRequest::ValidateBatch { .. });
+    let budget = if validation { total_timeout } else { total_timeout.min(Duration::from_secs(15)) };
     let deadline = Instant::now() + budget;
     let mut last_error = None;
     let mut follower = None;
@@ -485,7 +538,7 @@ pub async fn call_controller(
         for addr in &endpoints {
             let left = deadline.saturating_duration_since(Instant::now());
             if left.is_zero() { break }
-            let one = left.min(if matches!(req, ControlRequest::Validate { .. }) { Duration::from_secs(30) } else { Duration::from_secs(3) });
+            let one = left.min(if validation { Duration::from_secs(30) } else { Duration::from_secs(3) });
             match rpc::call_authenticated(addr, req, signer, authority_public, one).await {
                 Ok(ControlResponse::Inconclusive { reason }) if reason == "not controller leader" || reason == "not controller shard" => {
                     follower = Some(ControlResponse::Inconclusive { reason });
@@ -675,7 +728,8 @@ impl ControlPlane {
                 | ControlRequest::Poll { worker }
                 | ControlRequest::PollRequest { worker, .. }
                 | ControlRequest::Finish { worker, .. }
-                | ControlRequest::Validate { worker, .. } => ws(worker).and_then(|w| ring.writer(&w).copied()).is_some_and(|key| &key == public),
+                | ControlRequest::Validate { worker, .. }
+                | ControlRequest::ValidateBatch { coordinator: worker, .. } => ws(worker).and_then(|w| ring.writer(&w).copied()).is_some_and(|key| &key == public),
                 _ => &ring.authority == public,
             }
         }, move |req: ControlRequest| {
@@ -722,7 +776,7 @@ impl ControlPlane {
         }
         // A long validation may outlive a worker heartbeat. J1/J2 persist its
         // envelope and receipt independently; the controller snapshot is only read.
-        if matches!(req, ControlRequest::Validate { .. }) {
+        if matches!(req, ControlRequest::Validate { .. } | ControlRequest::ValidateBatch { .. }) {
             let term = {
                 let _guard = self.operation.lock().await;
                 let Ok(Some(lease)) = self.durable.acquire_or_renew().await else { return inconclusive("not controller leader") };
@@ -774,8 +828,8 @@ impl ControlPlane {
                 if let Some(shard) = mapped { return Ok(Some(shard)) }
                 sorted.first().map(|s| Name::parse(s))
             }
-            ControlRequest::Validate { targets, .. } => {
-                let mut sorted: Vec<_> = targets.iter().map(|t| t.name.clone()).collect();
+            ControlRequest::Validate { .. } | ControlRequest::ValidateBatch { .. } => {
+                let mut sorted = validation_targets(req);
                 sorted.sort();
                 let mut mapped = None;
                 for name in &sorted {
@@ -797,6 +851,17 @@ impl ControlPlane {
                 Some(w) => self.durable.shard_for_validation(&w, request).await,
                 None => Ok(None),
             },
+            // A target-free batch: its first publication member's route.
+            ControlRequest::ValidateBatch { coordinator, members, .. } => {
+                let first = members.iter().find_map(|m| match m {
+                    BatchMemberReq::Publish { worker, request, .. } => Some((worker, request)),
+                    BatchMemberReq::Tombstone { .. } => None,
+                });
+                match (ws(coordinator), first.and_then(|(w, r)| Some((ws(w)?, r)))) {
+                    (Some(c), Some((w, r))) => self.durable.shard_for_validation_bytes(&w, &batch_request(&c, r)).await,
+                    _ => Ok(None),
+                }
+            }
             ControlRequest::Cancel { request, worker } => {
                 if let Some(shard) = self.durable.shard_for_work(request).await? { return Ok(Some(shard)) }
                 if !worker.is_empty() {
@@ -875,6 +940,9 @@ impl ControlPlane {
             previous = key;
             let Ok(job) = SignedJob::from_bytes(&bytes) else { continue };
             if !job.verify(&self.cfg.authority.public()) { continue }
+            // A batch member's dependencies may be earlier members: only its batch's
+            // `ValidateBatch`, which the coordinator retries, can check it.
+            if job.body.batch.is_some() { continue }
             let worker = job.body.worker;
             let req = job_key(&worker, &job.body.request);
             // The index is shard local, while J1 remains global for T1 deduplication.
@@ -995,6 +1063,9 @@ impl ControlPlane {
             }
             ControlRequest::Validate { worker, request, group, capsule, deps, targets, memory_mb, deadline_ms } => {
                 self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms, term).await
+            }
+            ControlRequest::ValidateBatch { coordinator, request, members } => {
+                self.validate_batch(coordinator, request, members, term).await
             }
             ControlRequest::Cancel { request, worker } => {
                 let worker = if worker.is_empty() { None } else {
@@ -1451,56 +1522,10 @@ impl ControlPlane {
     ) -> ControlResponse {
         let st = &self.cfg.store;
         let Some(w) = ws(&worker) else { return refused("bad worker ID") };
-        let now = match self.durable.clock().await { Ok(v) => v, Err(e) => return inconclusive(&e) };
-        {
-            let s = self.state.lock().unwrap();
-            match s.workers.get(&w) {
-                Some(i) if i.alive && i.lease_until > now => {}
-                _ => return refused("worker is not registered or its lease expired"),
-            }
-        }
-        let (Some(group), Some(capsule)) = (Id::from_hex(&group), Id::from_hex(&capsule)) else {
-            return refused("bad group or capsule ID");
-        };
-        let Some(deps) = deps.iter().map(|d| Id::from_hex(d)).collect::<Option<Vec<_>>>() else {
-            return refused("bad dependency ID");
-        };
-        // Bind each target to the epoch of its record, if this worker owns it.
-        let mut bindings = Vec::new();
-        for t in &targets {
-            let name = Name::parse(&t.name);
-            let rec = match st.target(&name).await {
-                Ok(Some(r)) => r,
-                Ok(None) => return refused(&format!("no target record for {name}")),
-                Err(e) => return inconclusive(&e.to_string()),
-            };
-            if rec.owner != w && !cfg!(feature = "mutate-no-dispatch-owner-check") {
-                return refused(&format!("worker does not own {name}"));
-            }
-            let Ok(statement) = hex::decode(&t.statement) else { return refused("bad statement hash") };
-            // W2 A-4: a statement the authority pinned for the name replaces the worker's.
-            let statement = match st.meta.target_statement(&name).await {
-                Ok(pinned) if !cfg!(feature = "mutate-no-statement-stamp") => pinned.unwrap_or(statement),
-            Ok(_) => statement,
-                Err(e) => return inconclusive(&e.to_string()),
-            };
-            bindings.push(TargetBinding { name, epoch: rec.epoch, statement });
-        }
-        sort_targets(&mut bindings);
-        let cap_ms = self.cfg.validation_deadline.as_millis() as u64;
-        let env = JobEnvelope {
-            request: request.as_bytes().to_vec(),
-            group,
-            capsule,
-            deps,
-            base: self.cfg.base,
-            policy: self.cfg.policy,
-            checker: self.cfg.checker,
-            worker: w,
-            targets: bindings,
-            deadline_ms: if deadline_ms == 0 { cap_ms } else { deadline_ms.min(cap_ms) },
-            memory_mb: if memory_mb == 0 { self.cfg.validation_memory_mb } else { memory_mb.min(self.cfg.validation_memory_mb) },
-            batch: None,
+        if let Err(r) = self.require_live(&w).await { return r }
+        let env = match self.envelope(w, request.into_bytes(), &group, &capsule, &deps, &targets, memory_mb, deadline_ms, None).await {
+            Ok(env) => env,
+            Err(r) => return r,
         };
         let mut job = SignedJob::sign(env, &self.cfg.authority);
         let req = job_key(&w, &job.body.request);
@@ -1574,6 +1599,251 @@ impl ControlPlane {
                 return inconclusive("dispatch abandoned");
             }
         }
+    }
+
+    /// A registered workspace whose lease has not expired.
+    async fn require_live(&self, w: &WorkspaceId) -> Result<(), ControlResponse> {
+        let now = self.durable.clock().await.map_err(|e| inconclusive(&e))?;
+        match self.state.lock().unwrap().workers.get(w) {
+            Some(i) if i.alive && i.lease_until > now => Ok(()),
+            _ => Err(refused("worker is not registered or its lease expired")),
+        }
+    }
+
+    /// The envelope of `w`'s validation: each target bound to the epoch of its record, if
+    /// `w` owns it, and to its pinned statement; the controller's base, policy, checker and
+    /// limits.
+    #[allow(clippy::too_many_arguments)]
+    async fn envelope(
+        &self, w: WorkspaceId, request: Vec<u8>, group: &str, capsule: &str, deps: &[String], targets: &[TargetReq],
+        memory_mb: u64, deadline_ms: u64, batch: Option<Id>,
+    ) -> Result<JobEnvelope, ControlResponse> {
+        let st = &self.cfg.store;
+        let (Some(group), Some(capsule)) = (Id::from_hex(group), Id::from_hex(capsule)) else {
+            return Err(refused("bad group or capsule ID"));
+        };
+        let Some(deps) = deps.iter().map(|d| Id::from_hex(d)).collect::<Option<Vec<_>>>() else {
+            return Err(refused("bad dependency ID"));
+        };
+        let mut bindings = Vec::new();
+        for t in targets {
+            let name = Name::parse(&t.name);
+            let rec = match st.target(&name).await {
+                Ok(Some(r)) => r,
+                Ok(None) => return Err(refused(&format!("no target record for {name}"))),
+                Err(e) => return Err(inconclusive(&e.to_string())),
+            };
+            if rec.owner != w && !cfg!(feature = "mutate-no-dispatch-owner-check") {
+                return Err(refused(&format!("worker does not own {name}")));
+            }
+            let Ok(statement) = hex::decode(&t.statement) else { return Err(refused("bad statement hash")) };
+            // W2 A-4: a statement the authority pinned for the name replaces the worker's.
+            let statement = match st.meta.target_statement(&name).await {
+                Ok(pinned) if !cfg!(feature = "mutate-no-statement-stamp") => pinned.unwrap_or(statement),
+                Ok(_) => statement,
+                Err(e) => return Err(inconclusive(&e.to_string())),
+            };
+            bindings.push(TargetBinding { name, epoch: rec.epoch, statement });
+        }
+        sort_targets(&mut bindings);
+        let cap_ms = self.cfg.validation_deadline.as_millis() as u64;
+        Ok(JobEnvelope {
+            request,
+            group,
+            capsule,
+            deps,
+            base: self.cfg.base,
+            policy: self.cfg.policy,
+            checker: self.cfg.checker,
+            worker: w,
+            targets: bindings,
+            deadline_ms: if deadline_ms == 0 { cap_ms } else { deadline_ms.min(cap_ms) },
+            memory_mb: if memory_mb == 0 { self.cfg.validation_memory_mb } else { memory_mb.min(self.cfg.validation_memory_mb) },
+            batch,
+        })
+    }
+
+    /// Validate the publication members of one atomic batch: sign the intent, issue each
+    /// member's envelope bound to it (J1), and dispatch them in order as one batch.
+    async fn validate_batch(self: &Arc<Self>, coordinator: String, request: String, members: Vec<BatchMemberReq>, term: u64) -> ControlResponse {
+        let st = &self.cfg.store;
+        let Some(c) = ws(&coordinator) else { return refused("bad coordinator ID") };
+        if let Err(r) = self.require_live(&c).await { return r }
+        let publications = members.iter().filter(|m| matches!(m, BatchMemberReq::Publish { .. })).count();
+        if members.is_empty() || members.len() > MAX_BATCH_MEMBERS || publications > MAX_BATCH_JOBS {
+            return refused(&format!("a batch has 1 to {MAX_BATCH_MEMBERS} members, at most {MAX_BATCH_JOBS} of them publications"));
+        }
+        let mut named = Vec::with_capacity(members.len());
+        for m in &members {
+            named.push(match m {
+                BatchMemberReq::Publish { worker, request, group, .. } => {
+                    if request.len() > MAX_REQUEST_ID && !cfg!(feature = "mutate-unbounded-poll-responses") {
+                        return refused(&format!("request ID longer than {MAX_REQUEST_ID} bytes"));
+                    }
+                    let (Some(writer), Some(group)) = (ws(worker), Id::from_hex(group)) else { return refused("bad member worker or group ID") };
+                    BatchMember::Publish { group, writer }
+                }
+                BatchMemberReq::Tombstone { worker, target, position } => {
+                    let position = if position.is_empty() { None } else {
+                        match Id::from_hex(position) { Some(p) => Some(p), None => return refused("bad tombstone position") }
+                    };
+                    let (Some(writer), Some(target)) = (ws(worker), Id::from_hex(target)) else { return refused("bad member worker or target ID") };
+                    BatchMember::Tombstone { target, position, writer }
+                }
+            });
+        }
+        let intent = SignedBatch::sign(BatchIntent { request: batch_request(&c, &request), members: named }, &self.cfg.authority);
+        let mut jobs = Vec::with_capacity(publications);
+        for m in &members {
+            let BatchMemberReq::Publish { worker, request, group, capsule, deps, targets } = m else { continue };
+            let w = ws(worker).expect("checked above");
+            let env = match self.envelope(w, batch_request(&c, request), group, capsule, deps, targets, 0, 0, Some(intent.id())).await {
+                Ok(env) => env,
+                Err(r) => return r,
+            };
+            let job = SignedJob::sign(env, &self.cfg.authority);
+            match st.meta.is_cancelled(&w, &job.body.request).await {
+                Ok(true) => return ControlResponse::Cancelled,
+                Ok(false) => {}
+                Err(e) => return inconclusive(&e.to_string()),
+            }
+            match self.durable.issue_job(&job, term).await {
+                Ok(stored) if stored.body == job.body => jobs.push(stored),
+                Ok(_) => return refused("request ID already used for another envelope"),
+                Err(e) => return inconclusive(&e),
+            }
+        }
+        // A finished batch: the recorded receipts (J2).
+        let mut recorded = Vec::new();
+        for j in &jobs {
+            if let Ok(Some(v)) = st.meta.get(st.meta.keys.job_receipt(&j.body.worker, &j.body.request)).await {
+                if let Ok(r) = Receipt::from_bytes(&v) { recorded.push(r) }
+            }
+        }
+        if recorded.len() == jobs.len() {
+            return batch_receipts(&intent, &recorded, &jobs);
+        }
+        // One dispatch per batch: its members' in-flight entries share its answer.
+        let keys: Vec<Vec<u8>> = jobs.iter().map(|j| job_key(&j.body.worker, &j.body.request)).collect();
+        let mut rx = {
+            let mut s = self.state.lock().unwrap();
+            let mut shared = None;
+            for (k, j) in keys.iter().zip(&jobs) {
+                if let Some(f) = s.inflight.get(k) {
+                    if f.job != j.id() { return refused("request ID already used for another envelope") }
+                    shared = Some(f.result.clone());
+                }
+            }
+            match shared {
+                Some(rx) => rx,
+                None if s.inflight.len() + keys.len() > self.cfg.max_validations => return ControlResponse::Busy,
+                None => {
+                    let (tx, rx) = watch::channel(None);
+                    let mut cancels = Vec::with_capacity(keys.len());
+                    for (k, j) in keys.iter().zip(&jobs) {
+                        let (ctx, crx) = watch::channel(false);
+                        s.inflight.insert(k.clone(), Inflight { job: j.id(), result: rx.clone(), cancel: ctx });
+                        cancels.push(crx);
+                    }
+                    let me = self.clone();
+                    tokio::spawn(async move {
+                        let r = match me.dispatch_batch(&jobs, &cancels, term).await {
+                            Ok(receipts) => batch_receipts(&intent, &receipts, &jobs),
+                            Err(r) => r,
+                        };
+                        let _ = tx.send(Some(r));
+                        let mut s = me.state.lock().unwrap();
+                        for k in &keys { s.inflight.remove(k); }
+                    });
+                    rx
+                }
+            }
+        };
+        loop {
+            if let Some(r) = rx.borrow().clone() {
+                return r;
+            }
+            if rx.changed().await.is_err() {
+                return inconclusive("dispatch abandoned");
+            }
+        }
+    }
+
+    /// Send a batch's envelopes, in order, as one `ValidateBatch` until a validator gives a
+    /// bound receipt for every one, retrying as `dispatch` does. Records each receipt (J2).
+    async fn dispatch_batch(&self, jobs: &[SignedJob], cancel: &[watch::Receiver<bool>], term: u64) -> Result<Vec<Receipt>, ControlResponse> {
+        let st = &self.cfg.store;
+        let n = self.cfg.validators.len();
+        if n == 0 {
+            return Err(inconclusive("no validators configured"));
+        }
+        let start = {
+            let mut s = self.state.lock().unwrap();
+            s.next_validator += 1;
+            s.next_validator
+        };
+        let timeout = jobs.iter().map(|j| Duration::from_millis(j.body.deadline_ms)).sum::<Duration>() + Duration::from_secs(5);
+        let req = ValidatorRequest::ValidateBatch { jobs: jobs.iter().map(|j| hex::encode(j.to_bytes())).collect() };
+        let mut last = String::from("no attempt");
+        let mut refusals = 0;
+        'attempts: for attempt in 0..self.cfg.validator_attempts.max(n) {
+            if cancel.iter().any(|c| *c.borrow()) {
+                return Err(ControlResponse::Cancelled);
+            }
+            let addr = &self.cfg.validators[(start + attempt) % n];
+            match rpc::call_authenticated_any(addr, &req, &self.cfg.authority, &st.ring.validators, timeout).await {
+                Ok(ValidatorResponse::Batch { responses }) if responses.len() == jobs.len() => {
+                    let mut receipts = Vec::with_capacity(jobs.len());
+                    for (i, (resp, job)) in responses.into_iter().zip(jobs).enumerate() {
+                        match resp {
+                            ValidatorResponse::Receipt { receipt } => match decode_receipt(&receipt) {
+                                Ok(r) if check_bound(&r, job, &job.body.group, &prepared_of(job), &st.ring).is_ok() => receipts.push(r),
+                                _ => {
+                                    last = format!("{addr}: member {i}: receipt does not verify or is not bound to the envelope");
+                                    continue 'attempts;
+                                }
+                            },
+                            ValidatorResponse::Refused { reason } => {
+                                last = format!("validator {addr}: member {i}: {reason}");
+                                refusals += 1;
+                                if refusals >= n {
+                                    return Err(refused(&last));
+                                }
+                                continue 'attempts;
+                            }
+                            ValidatorResponse::Cancelled => return Err(ControlResponse::Cancelled),
+                            other => {
+                                last = format!("{addr}: member {i}: {other:?}");
+                                break;
+                            }
+                        }
+                    }
+                    if receipts.len() == jobs.len() {
+                        let mut stored = Vec::with_capacity(receipts.len());
+                        for (r, job) in receipts.iter().zip(jobs) {
+                            stored.push(self.durable.record_receipt(&job.body.worker, &job.body.request, r, term).await.map_err(|e| inconclusive(&e))?);
+                        }
+                        return Ok(stored);
+                    }
+                }
+                Ok(ValidatorResponse::Refused { reason }) => {
+                    last = format!("validator {addr}: {reason}");
+                    refusals += 1;
+                    if refusals >= n {
+                        return Err(refused(&last));
+                    }
+                    continue;
+                }
+                Ok(ValidatorResponse::Cancelled) => return Err(ControlResponse::Cancelled),
+                Ok(other) => last = format!("{addr}: unexpected {other:?}"),
+                Err(e) => last = format!("{addr}: {e}"),
+            }
+            tokio::time::sleep(Duration::from_millis(20 * (attempt as u64 + 1))).await;
+        }
+        if refusals > 0 {
+            return Err(refused(&last));
+        }
+        Err(inconclusive(&format!("no validator gave a verdict ({last})")))
     }
 
     /// Send the envelope to validators until one gives a valid receipt or refuses.
@@ -1711,6 +1981,14 @@ impl ControlPlane {
         }
         self.tell_cancel(worker.as_ref(), &req).await;
         ControlResponse::Cancelled
+    }
+}
+
+fn batch_receipts(intent: &SignedBatch, receipts: &[Receipt], jobs: &[SignedJob]) -> ControlResponse {
+    ControlResponse::BatchReceipts {
+        intent: hex::encode(intent.to_bytes()),
+        receipts: receipts.iter().map(|r| hex::encode(r.to_bytes())).collect(),
+        jobs: jobs.iter().map(|j| hex::encode(j.to_bytes())).collect(),
     }
 }
 

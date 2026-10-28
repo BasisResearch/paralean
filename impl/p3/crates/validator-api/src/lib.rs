@@ -27,6 +27,9 @@ use serde::{Deserialize, Serialize};
 
 pub use paralean_store::receipt;
 
+/// Jobs per [`ValidatorRequest::ValidateBatch`].
+pub const MAX_BATCH_JOBS: usize = 64;
+
 /// A request to a validator. Byte strings are lowercase hex.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
