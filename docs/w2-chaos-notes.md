@@ -184,3 +184,109 @@ three Garage nodes and preceding faults, and left no core or crash timestamp;
 the W2 replay used one worker, one Garage node and GDB timing. A definitive
 native crash fix would require a captured stack or a reproducer. The explicit
 FDB network-thread join is retained as a plausible teardown mitigation.
+
+## Finish-branch crash evidence (2026-10-21 UTC)
+
+The worktree's later uncommitted gate, salvaged at `6f5cfe3`, used seed **77003**,
+the fixed CLI SHA-256 `548712d0673056cadd13d95c63c944b665ba47ea9a094ad490fd61e7762cda5f`,
+and one unchanged source tree. It passed **150 fast rounds** and logged **428 FDB
+faults**, from 2026-10-20 23:29:58 to 2026-10-21 01:13:23 UTC. The raw
+`events.log`, `tests.log`, `probe.log`, and console log are under
+`results/p2/faults-w2-chaos/fdb/fixtures/20261020T232959Z-1106477/` and
+`results/p2/faults-w2-chaos/console-pagination-77003.log`.
+
+The salvaged six-worker stress campaign (`results/p2/faults-w2-segv/campaign.log`)
+contains seven passing runs: one no-shutdown build, three intermediate builds,
+and three final builds, with zero signalled workers and zero lost acknowledged
+effects. `results/p2/exit-race-w2-chaos/` records **6,000 faulted CLI exits
+with shutdown disabled** (136 FDB faults) and **6,000 with shutdown enabled**
+(73 FDB faults), with no signal or other nonzero exit in either arm. A further
+400 quiet exits on the disabled arm also passed. The old CLI SIGSEGV remains
+unreproduced: these comparisons do not prove that its cause was network
+teardown. The handler-check `SIGSEGV` is a synthetic signal with `si_code=0`,
+not a captured native fault.
+
+On a new `w2b-chaos` instance (ports 30400–30450), a three-round fixture run
+under seed **77003** failed once in an especially informative way. The first
+`fixtures` test process printed `test result: ok. 9 passed` and then Cargo
+reported its exit as signal 11. The remaining two fixture rounds, guards,
+tombstones, faults, and the eight-case property test passed. The run logged
+**18 FDB faults** and ended `phase fixtures: FAIL`. Its CLI SHA-256 was
+`154c0794fbcf140dd511d87d9863930083f09c7666952a7477091207a9e6892b`,
+and the crashing fixture binary SHA-256 was
+`8c06817573466b0a5df1461e76fe8ea5dc4cea53af91a54f157a4ef348775971`.
+Raw logs and the pinned binary are in `results/w2/finish/chaos/seed-77003/`
+and `results/w2/finish/chaos/gdb-fixtures/`. The log has no core or fault
+stack; two GDB runs of that same fixture binary without concurrent faults
+exited normally.
+
+The FoundationDB Rust crate 0.11.0 says its `NetworkRunner` must be stopped
+before process exit; `NetworkAutoStop::drop` invokes `fdb_stop_network()` and
+joins the thread. P2's global network guard had no normal-exit owner in stock
+Rust integration-test binaries, so their test process could exit with the FDB
+network thread still running. That is an evidence-backed **candidate** for the
+new post-result SIGSEGV, not a stack-confirmed cause of that particular fault.
+An attempted C `atexit` fallback was rejected: a minimal child that booted
+FDB and stopped it from `atexit` crashed deterministically in
+`fdb_stop_network()`; GDB shows `shutdown()` under glibc's
+`__run_exit_handlers` while the network thread was still in
+`fdb_run_network()`. The rejected implementation is absent from the tree;
+its stack is retained in `results/w2/finish/chaos/network-shutdown/gdb-child.log`.
+
+The test-process fix is an explicit end-of-suite harness for the five
+chaos suites. It runs all selected tests, then calls `meta::shutdown()` while
+Rust and the test runner are active and before `Conclusion::exit()`. The helper
+also stops FDB if the runner unwinds. A subprocess contract test verifies the
+explicit stop/join: normal build passes; `mutate-no-network-shutdown` fails
+because the network guard remains present. Run it with
+`impl/p2/scripts/check-network-shutdown.sh`; its logs are in
+`results/w2/finish/chaos/network-shutdown/`. This checks the teardown
+contract, not the origin of the old stress-worker SIGSEGV. The exit-race
+harness now fails on any nonzero CLI status or incomplete run count, in
+addition to signalled exits.
+
+### Focused replay of the post-result crash
+
+With the explicit fixture harness, the same seed **77003** passed three
+fixture-only rounds (**27/27** test executions) under **four injected FDB
+faults**, ending 2026-10-21 02:11:57 UTC. The binary SHA-256 was
+`5f06496a1f6f514e387a1089b0da4b7f47ed34afa67c08e4b2371163f2abfc69`.
+Raw results are in `results/w2/finish/chaos/fixture-harness-77003/fixtures/`.
+This bounded replay tests the corrected process-exit path; it does not prove
+the original worker SIGSEGV or the one new fixture SIGSEGV cannot recur.
+
+### Full seeded gate on the explicit-harness tree
+
+Seed **22021** passed a full FDB-scoped fixture gate, from 2026-10-21
+02:13:40 to 02:19:48 UTC: three rounds each of fixtures (9), guards (14),
+and tombstones (6), then faults (10) and the property test (eight cases).
+All **11 suite summaries** passed under **26 injected FDB faults**; the
+instance was healthy and the split state empty at completion. The CLI SHA-256
+was `154c0794fbcf140dd511d87d9863930083f09c7666952a7477091207a9e6892b`.
+Raw logs are in `results/w2/finish/chaos/full-22021/fixtures/`.
+
+The known-crash seed **77003** passed the same full gate, from 02:20:06 to
+02:25:07 UTC: **11/11 suite summaries**, including all nine fast-suite
+repetitions, the fault suite, and an eight-case property test, under **20
+injected FDB faults**. It had no signalled or failed test process. Raw logs
+are in `results/w2/finish/chaos/full-77003/fixtures/`.
+
+Seed **99173** passed the same full gate, from 02:26:27 to 02:29:49 UTC:
+**11/11 suite summaries** and **15 injected FDB faults**. Its raw logs are
+in `results/w2/finish/chaos/full-99173/fixtures/`. Together the three
+post-fix full gates passed **33/33 suite summaries** (nine fast rounds,
+three fault-suite executions, and three eight-case property executions)
+under **61 injected FDB faults**, on one unchanged P2 tree and the same
+`w2b-chaos` instance. They are bounded evidence for the corrected test
+process lifecycle; the old stress-worker SIGSEGV still has no crash stack.
+
+`libtest-mimic` initially caused proptest's source-relative failure
+persistence to warn that it could not locate a Rust `main.rs` or `lib.rs`.
+After the full gates, the property suite was given an explicit regression
+file path under `impl/p2/crates/store/proptest-regressions/tests/`.
+A one-case property smoke passed without the warning
+(`results/w2/finish/chaos/property-persistence-smoke.log`). The mutation
+checker was updated to recognize padded libtest-mimic verdicts; two
+`mutate-no-owner-check` cases correctly reported `detected` in
+`results/w2/finish/chaos/mutation-parser-smoke.log`. Those two tooling edits
+do not change the store guards or the chaos harness's fault schedule.

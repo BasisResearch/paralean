@@ -1,5 +1,7 @@
 //! Unit tests for each transaction guard (T1–T7) and the payload-store rules, against the
 //! real FoundationDB and Garage services.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -18,7 +20,7 @@ async fn assigned(name: &str, n: usize) -> Env {
 
 // ------------------------------------------------------------------ T1
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_publish_writes_marker_cert_head_atomically() {
     let faults = Faults::none();
     let e = Env::with_faults("t1ok", 1, faults.clone());
@@ -37,7 +39,7 @@ async fn t1_publish_writes_marker_cert_head_atomically() {
     e.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_rejects_non_owner() {
     let e = assigned("t1owner", 2).await;
     let p = e.prepare(0, &x(), "p1", 1).await.unwrap();
@@ -50,7 +52,7 @@ async fn t1_rejects_non_owner() {
     assert_eq!(guard_of(e.w[1].prepare_target(&x()).await), GuardFailure::NotOwner { name: x() });
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_rejects_stale_epoch_after_reassignment() {
     let e = assigned("t1epoch", 2).await;
     let p = e.prepare(0, &x(), "p1", 1).await.unwrap();
@@ -63,7 +65,7 @@ async fn t1_rejects_stale_epoch_after_reassignment() {
     e.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_head_compare_and_swap() {
     let e = assigned("t1cas", 1).await;
     // Two proofs prepared against the same (empty) head; the second publish must fail.
@@ -83,7 +85,7 @@ async fn t1_head_compare_and_swap() {
     e.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_rejects_unadmitted_parent_bad_receipt_and_duplicates() {
     let e = Env::new("t1misc", 1);
     // Unknown parent revision.
@@ -108,7 +110,7 @@ async fn t1_rejects_unadmitted_parent_bad_receipt_and_duplicates() {
 
 // ------------------------------------------------------------------ T2
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t2_certify_requires_published_and_certified() {
     let faults = Faults::none();
     let e = Env::with_faults("t2", 2, faults.clone());
@@ -133,7 +135,7 @@ async fn t2_certify_requires_published_and_certified() {
 
 // ------------------------------------------------------------------ T3
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t3_rotation_issues_each_rank_once() {
     let e = Env::new("t3", 2);
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -158,7 +160,7 @@ async fn t3_rotation_issues_each_rank_once() {
 
 // ------------------------------------------------------------------ T4
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t4_reassign_bumps_epoch_keeps_head() {
     let e = assigned("t4", 2).await;
     let (p, _) = e.publish_target(0, &x(), "p1").await.unwrap();
@@ -171,7 +173,7 @@ async fn t4_reassign_bumps_epoch_keeps_head() {
 
 // ------------------------------------------------------------------ T5
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t5_fenced_commit_and_its_guards() {
     let faults = Faults::none();
     let e = Env::with_faults("t5", 2, faults.clone());
@@ -220,7 +222,7 @@ async fn t5_fenced_commit_and_its_guards() {
 
 // ------------------------------------------------------------------ T6
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t6_object_certificate_follows_acknowledgement() {
     let faults = Faults::none();
     let e = Env::with_faults("t6", 1, faults.clone());
@@ -240,7 +242,7 @@ async fn t6_object_certificate_follows_acknowledgement() {
 
 // ------------------------------------------------------------------ T7
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t7_repair_is_unfenced_signed_and_needs_existing_bytes() {
     // Two deployments stand for the original replica and a replacement holding a copy of
     // the same bytes (same σ: the replica identity is part of the certificate body).
@@ -290,7 +292,7 @@ async fn t7_repair_is_unfenced_signed_and_needs_existing_bytes() {
 
 // ------------------------------------------------------------------ payload store rules
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn s3_checksum_delete_and_corruption() {
     let e = Env::new("s3", 1);
     let o = Opaque::new(Kind::Chunk, b"chunk bytes".to_vec());
@@ -329,7 +331,7 @@ async fn s3_checksum_delete_and_corruption() {
 /// (byte limits) with `more = true`. A scan that stops at a short batch silently drops keys,
 /// which breaks `scan_between` / `certScanValue_covers`. 2000 keys of 400 bytes exceed one
 /// batch.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn paginated_scan_follows_partial_batches() {
     let e = Env::new("scan", 1);
     let sub = e.store.meta.keys.sub("scantest");
@@ -371,7 +373,7 @@ fn with_statement(e: &Env, mut p: Package, statement: &[u8]) -> Package {
 /// W2 A-4. Once the authority pins a target's statement, T1 advances the head only with a
 /// job bound to exactly that statement: an owner's empty or other statement (e.g. a proof
 /// of `True` named as the target) is refused and the head stays.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_requires_the_pinned_target_statement() {
     let e = assigned("t1statement", 1).await;
     let pinned = [0x5a; 32];
@@ -390,4 +392,24 @@ async fn t1_requires_the_pinned_target_statement() {
     e.w[0].publish(&p).await.unwrap();
     assert_eq!(e.store.target(&x()).await.unwrap().unwrap().head, Some(rev_id(&p)));
     e.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("t1_publish_writes_marker_cert_head_atomically", || { t1_publish_writes_marker_cert_head_atomically(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_rejects_non_owner", || { t1_rejects_non_owner(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_rejects_stale_epoch_after_reassignment", || { t1_rejects_stale_epoch_after_reassignment(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_head_compare_and_swap", || { t1_head_compare_and_swap(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_rejects_unadmitted_parent_bad_receipt_and_duplicates", || { t1_rejects_unadmitted_parent_bad_receipt_and_duplicates(); Ok(()) }),
+        libtest_mimic::Trial::test("t2_certify_requires_published_and_certified", || { t2_certify_requires_published_and_certified(); Ok(()) }),
+        libtest_mimic::Trial::test("t3_rotation_issues_each_rank_once", || { t3_rotation_issues_each_rank_once(); Ok(()) }),
+        libtest_mimic::Trial::test("t4_reassign_bumps_epoch_keeps_head", || { t4_reassign_bumps_epoch_keeps_head(); Ok(()) }),
+        libtest_mimic::Trial::test("t5_fenced_commit_and_its_guards", || { t5_fenced_commit_and_its_guards(); Ok(()) }),
+        libtest_mimic::Trial::test("t6_object_certificate_follows_acknowledgement", || { t6_object_certificate_follows_acknowledgement(); Ok(()) }),
+        libtest_mimic::Trial::test("t7_repair_is_unfenced_signed_and_needs_existing_bytes", || { t7_repair_is_unfenced_signed_and_needs_existing_bytes(); Ok(()) }),
+        libtest_mimic::Trial::test("s3_checksum_delete_and_corruption", || { s3_checksum_delete_and_corruption(); Ok(()) }),
+        libtest_mimic::Trial::test("paginated_scan_follows_partial_batches", || { paginated_scan_follows_partial_batches(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_requires_the_pinned_target_statement", || { t1_requires_the_pinned_target_statement(); Ok(()) }),
+    ]);
 }

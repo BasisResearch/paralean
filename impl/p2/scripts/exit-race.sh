@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Many short CLI processes, each opening FDB and exiting, optionally while single FDB
 # processes are killed, paused and partitioned (within triple tolerance). Detects processes
-# killed by a signal (e.g. SIGSEGV in FDB client teardown at exit) and keeps their cores.
+# killed by a signal (e.g. SIGSEGV in FDB client teardown at exit), records any
+# other failed exit, and keeps crash cores.
 #
 #   PARALEAN_INSTANCE=w2-chaos BIN=target/debug/paralean-p2 RUNS=500 LANES=4 CHAOS=1 \
 #     OUT=results/p2/exit-race-w2-x scripts/exit-race.sh
@@ -87,4 +88,4 @@ signalled=$(awk '$NF >= 128' "$out/runs.log" | wc -l)
 other=$(awk '$NF != 0 && $NF < 128' "$out/runs.log" | wc -l)
 log "runs $total; killed by a signal $signalled; other nonzero exits $other; FDB faults $(grep -c 'FAULT' "$out/events.log")"
 awk '$NF != 0 {print $NF}' "$out/runs.log" | sort | uniq -c | sed 's/^/  exit status counts: /' | tee -a "$out/events.log"
-[ "$signalled" -eq 0 ]
+[ "$total" -eq "$((runs * lanes))" ] && [ "$signalled" -eq 0 ] && [ "$other" -eq 0 ]

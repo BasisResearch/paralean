@@ -1,0 +1,1 @@
+8c06817573466b0a5df1461e76fe8ea5dc4cea53af91a54f157a4ef348775971  fixtures-pre-atexit (stock-harness fixtures binary that crashed after 'test result: ok'; not kept, superseded by crates/store/examples/exit_race.rs)

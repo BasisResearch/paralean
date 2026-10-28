@@ -1,0 +1,92 @@
+[02:13:40] phase=fixtures scope=fdb fdb=6 garage=1 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/results/w2/finish/chaos/full-22021/fixtures
+[02:13:40] cli sha256 154c0794fbcf140dd511d87d9863930083f09c7666952a7477091207a9e6892b
+[02:13:40] writes ok and fault tolerance >= 2 after 0 s
+[02:13:45] garage nodes up: 1 of 1
+[02:13:45] fixture chaos seed=22021
+[02:13:45] FAULT kill fdbserver-0
+[02:13:45] running the test suite under chaos
+[02:13:55] writes ok and fault tolerance >= 2 after 2 s
+[02:13:56] FAULT pause fdbserver-3
+[02:14:04] writes ok and fault tolerance >= 2 after 0 s
+[02:14:04] FAULT partition fdbserver-4
+[02:14:13] writes ok and fault tolerance >= 2 after 1 s
+[02:14:13] FAULT kill fdbserver-5, partition fdbserver-2
+[02:14:25] writes ok and fault tolerance >= 2 after 4 s
+[02:14:25] FAULT pause fdbserver-3 and fdbserver-2
+[02:14:33] writes ok and fault tolerance >= 2 after 0 s
+[02:14:33] FAULT kill fdbserver-5
+[02:15:10] writes ok and fault tolerance >= 2 after 28 s
+[02:15:10] FAULT pause fdbserver-0
+[02:15:18] writes ok and fault tolerance >= 2 after 0 s
+[02:15:18] FAULT partition fdbserver-3
+[02:15:27] writes ok and fault tolerance >= 2 after 1 s
+[02:15:27] FAULT kill fdbserver-3, partition fdbserver-5
+[02:15:35] fast suites: 3 rounds done
+[02:15:35] SKIP antientropy test during this fault scope; run separately with a bounded peer
+[02:15:36] writes ok and fault tolerance >= 2 after 1 s
+[02:15:36] FAULT pause fdbserver-1 and fdbserver-3
+[02:15:45] writes ok and fault tolerance >= 2 after 1 s
+[02:15:45] FAULT kill fdbserver-2
+[02:16:21] writes ok and fault tolerance >= 2 after 28 s
+[02:16:21] FAULT pause fdbserver-3
+[02:16:30] writes ok and fault tolerance >= 2 after 1 s
+[02:16:30] FAULT partition fdbserver-4
+[02:16:39] writes ok and fault tolerance >= 2 after 1 s
+[02:16:39] FAULT kill fdbserver-1, partition fdbserver-3
+[02:16:49] writes ok and fault tolerance >= 2 after 1 s
+[02:16:49] FAULT pause fdbserver-3 and fdbserver-0
+[02:17:03] writes ok and fault tolerance >= 2 after 6 s
+[02:17:03] FAULT kill fdbserver-1
+[02:17:15] writes ok and fault tolerance >= 2 after 4 s
+[02:17:15] FAULT pause fdbserver-5
+[02:17:23] writes ok and fault tolerance >= 2 after 0 s
+[02:17:23] FAULT partition fdbserver-5
+[02:17:49] writes ok and fault tolerance >= 2 after 18 s
+[02:17:49] FAULT kill fdbserver-5, partition fdbserver-2
+[02:17:59] writes ok and fault tolerance >= 2 after 2 s
+[02:17:59] FAULT pause fdbserver-5 and fdbserver-1
+[02:18:07] writes ok and fault tolerance >= 2 after 0 s
+[02:18:07] FAULT kill fdbserver-3
+[02:18:44] writes ok and fault tolerance >= 2 after 29 s
+[02:18:44] FAULT pause fdbserver-1
+[02:18:53] writes ok and fault tolerance >= 2 after 1 s
+[02:18:53] FAULT partition fdbserver-2
+[02:19:01] writes ok and fault tolerance >= 2 after 0 s
+[02:19:01] FAULT kill fdbserver-4, partition fdbserver-5
+[02:19:11] writes ok and fault tolerance >= 2 after 2 s
+[02:19:11] FAULT pause fdbserver-0 and fdbserver-3
+[02:19:39] writes ok and fault tolerance >= 2 after 20 s
+[02:19:39] FAULT kill fdbserver-4
+[02:19:43] SKIP multiprocess test during this fault scope; run separately with a bounded wave
+[02:19:48] writes ok and fault tolerance >= 2 after 1 s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 151.50s
+      1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 95.52s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.98s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.25s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 21.19s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.09s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.89s
+[02:19:48] faults injected during the tests: 26
+probe: 111 probes, 60 ok (54.1%), longest failed run 10 probes; latency ok p50 60 ms, max 4960 ms
+  unavailable from 02:14:01 for about 3 s (sampled until next success)
+  unavailable from 02:14:10 for about 3 s (sampled until next success)
+  unavailable from 02:14:19 for about 52 s (sampled until next success)
+  unavailable from 02:15:17 for about 1 s (sampled until next success)
+  unavailable from 02:15:24 for about 1 s (sampled until next success)
+  unavailable from 02:15:31 for about 1 s (sampled until next success)
+  unavailable from 02:15:42 for about 2 s (sampled until next success)
+  unavailable from 02:15:50 for about 39 s (sampled until next success)
+  unavailable from 02:16:36 for about 3 s (sampled until next success)
+  unavailable from 02:16:45 for about 1 s (sampled until next success)
+  unavailable from 02:16:55 for about 8 s (sampled until next success)
+  unavailable from 02:17:21 for about 2 s (sampled until next success)
+  unavailable from 02:17:29 for about 19 s (sampled until next success)
+  unavailable from 02:17:55 for about 4 s (sampled until next success)
+  unavailable from 02:18:05 for about 48 s (sampled until next success)
+  unavailable from 02:18:59 for about 2 s (sampled until next success)
+  unavailable from 02:19:16 for about 23 s (sampled until next success)
+[02:19:48] phase fixtures: PASS

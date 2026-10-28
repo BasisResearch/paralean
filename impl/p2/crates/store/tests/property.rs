@@ -13,6 +13,8 @@
 //! - published tombstones are certified, and no tombstoned group is rendered.
 //!
 //! Cases: `PROPTEST_CASES` (default 12), each up to 24 operations.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -203,12 +205,21 @@ proptest! {
     #![proptest_config(ProptestConfig {
         cases: std::env::var("PROPTEST_CASES").ok().and_then(|s| s.parse().ok()).unwrap_or(12),
         max_shrink_iters: 64,
+        failure_persistence: Some(Box::new(proptest::test_runner::FileFailurePersistence::Direct(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/property.proptest-regressions"),
+        ))),
         .. ProptestConfig::default()
     })]
-    #[test]
     fn random_interleavings_keep_store_invariants(ops in proptest::collection::vec((op(), fault()), 4..24)) {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let r = rt.block_on(run_case(ops));
         prop_assert!(r.is_ok(), "{}", r.unwrap_err());
     }
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("random_interleavings_keep_store_invariants", || { random_interleavings_keep_store_invariants(); Ok(()) }),
+    ]);
 }

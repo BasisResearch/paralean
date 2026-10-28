@@ -1,6 +1,8 @@
 //! W2 A-6: a marker's or tombstone's `filePath` becomes a file every syncing working copy
 //! writes. T1 (the publishing writer), T8 and T9 (anti-entropy import) refuse a path that
 //! breaks the relative-path rule (`objects::check_file_path`).
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 mod common;
 
 use paralean_store::antientropy::{export, import, Item, Outcome};
@@ -8,7 +10,7 @@ use paralean_store::*;
 
 const HOSTILE: [&str; 5] = ["../../.bashrc", ".git/config", "/etc/x.lean", "A\\B.lean", "a/../../x.lean"];
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_refuses_a_marker_with_an_unsafe_file_path() {
     use common::*;
     let e = Env::new("w2-path-t1", 1);
@@ -25,7 +27,7 @@ async fn t1_refuses_a_marker_with_an_unsafe_file_path() {
     e.w[0].publish(&p).await.unwrap();
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t8_refuses_a_tombstone_with_an_unsafe_file_path() {
     use common::*;
     let e = Env::new("w2-path-t8", 1);
@@ -37,7 +39,7 @@ async fn t8_refuses_a_tombstone_with_an_unsafe_file_path() {
     assert!(matches!(&r, Err(StoreError::Guard(GuardFailure::BadPackage(m))) if m.contains("file path")), "{r:?}");
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t9_refuses_to_import_a_marker_with_an_unsafe_file_path() {
     use common::*;
     let (a, b) = pair("w2-path-t9", 1, Faults::none(), Faults::none());
@@ -53,4 +55,13 @@ async fn t9_refuses_to_import_a_marker_with_an_unsafe_file_path() {
     let outcome = import(&b.w[0], &forged).await.unwrap();
     assert!(matches!(&outcome, Outcome::Rejected(r) if r.contains("marker does not decode")), "{outcome:?}");
     assert!(b.store.marker(&p.group.id()).await.unwrap().is_none());
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("t1_refuses_a_marker_with_an_unsafe_file_path", || { t1_refuses_a_marker_with_an_unsafe_file_path(); Ok(()) }),
+        libtest_mimic::Trial::test("t8_refuses_a_tombstone_with_an_unsafe_file_path", || { t8_refuses_a_tombstone_with_an_unsafe_file_path(); Ok(()) }),
+        libtest_mimic::Trial::test("t9_refuses_to_import_a_marker_with_an_unsafe_file_path", || { t9_refuses_to_import_a_marker_with_an_unsafe_file_path(); Ok(()) }),
+    ]);
 }

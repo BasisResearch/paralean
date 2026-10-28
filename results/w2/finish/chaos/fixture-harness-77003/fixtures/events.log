@@ -1,0 +1,37 @@
+[02:10:45] phase=fixtures scope=fdb fdb=6 garage=1 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/results/w2/finish/chaos/fixture-harness-77003/fixtures
+[02:10:45] cli sha256 154c0794fbcf140dd511d87d9863930083f09c7666952a7477091207a9e6892b
+[02:10:45] writes ok and fault tolerance >= 2 after 0 s
+[02:10:50] garage nodes up: 1 of 1
+[02:10:50] fixture chaos seed=77003
+[02:10:50] FAULT kill fdbserver-2
+[02:10:50] running the test suite under chaos
+KILL fdbserver-2
+started fdbserver-2 (127.0.0.1:30402)
+[02:11:00] writes ok and fault tolerance >= 2 after 1 s
+[02:11:00] FAULT pause fdbserver-1
+STOP fdbserver-1
+CONT fdbserver-1
+[02:11:09] writes ok and fault tolerance >= 2 after 1 s
+[02:11:09] FAULT partition fdbserver-5
+isolated fdbservers: 5
+healed
+[02:11:17] writes ok and fault tolerance >= 2 after 0 s
+[02:11:17] FAULT kill fdbserver-5, partition fdbserver-3
+KILL fdbserver-5
+isolated fdbservers: 3
+healed
+started fdbserver-5 (127.0.0.1:30405)
+[02:11:56] fast suites: 3 rounds done
+[02:11:56] SKIP antientropy test during this fault scope; run separately with a bounded peer
+[02:11:56] SKIP once-run store suites (SLOW_SUITES empty)
+[02:11:56] SKIP multiprocess test during this fault scope; run separately with a bounded wave
+[02:11:56] writes ok and fault tolerance >= 2 after 30 s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.54s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.83s
+[02:11:56] faults injected during the tests: 4
+probe: 26 probes, 17 ok (65.4%), longest failed run 6 probes; latency ok p50 57 ms, max 1508 ms
+  unavailable from 02:11:06 for about 3 s (sampled until next success)
+  unavailable from 02:11:15 for about 2 s (sampled until next success)
+  unavailable from 02:11:23 for about 32 s (sampled until next success)
+[02:11:57] phase fixtures: PASS

@@ -1,0 +1,42 @@
+warning: Missing auto-load script at offset 0 in section .debug_gdb_scripts
+of file /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/target/debug/deps/fixtures-96c3e3c0ccddc299.
+Use `info auto-load python-scripts [REGEXP]' to list them.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+running 9 tests
+[New Thread 0x7ffff63ff6c0 (LWP 3969935)]
+[New Thread 0x7ffff61fe6c0 (LWP 3969936)]
+[New Thread 0x7ffff5ffd6c0 (LWP 3969937)]
+[New Thread 0x7ffff5dfc6c0 (LWP 3969938)]
+[New Thread 0x7ffff59fa6c0 (LWP 3969940)]
+[New Thread 0x7ffff5bfb6c0 (LWP 3969939)]
+[New Thread 0x7ffff57196c0 (LWP 3969942)]
+[New Thread 0x7ffff54586c0 (LWP 3969944)]
+[New Thread 0x7ffff52176c0 (LWP 3969945)]
+[New Thread 0x7ffff50166c0 (LWP 3969946)]
+[Thread 0x7ffff57196c0 (LWP 3969942) exited]
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+[Thread 0x7ffff5bfb6c0 (LWP 3969939) exited]
+test fixture_repair_copy_after_rotation ... ok
+[Thread 0x7ffff5dfc6c0 (LWP 3969938) exited]
+test fixture_target_published_just_before_handover ... ok
+[Thread 0x7ffff52176c0 (LWP 3969945) exited]
+test fixture_orphan_commit_rejected ... ok
+[Thread 0x7ffff61fe6c0 (LWP 3969936) exited]
+test fixture_zombie_record_never_adopted ... ok
+[Thread 0x7ffff50166c0 (LWP 3969946) exited]
+[Thread 0x7ffff54586c0 (LWP 3969944) exited]
+test fixture_stale_writer_after_rotation ... ok
+test fixture_put_before_rotation_acked_after ... ok
+[Thread 0x7ffff5ffd6c0 (LWP 3969937) exited]
+[Thread 0x7ffff63ff6c0 (LWP 3969935) exited]
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.99s
+
+[Thread 0x7ffff7f6a880 (LWP 3969928) exited]
+[Thread 0x7ffff59fa6c0 (LWP 3969940) exited]
+[New process 3969928]
+[Inferior 1 (process 3969928) exited normally]

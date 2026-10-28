@@ -4,6 +4,8 @@
 //! revision of its target that is never rendered (`tombstone_not_rendered`,
 //! `superseded_not_rendered`, `delete_frees_name`); the fixtures below are its
 //! counterparts, plus the certificate rules of AckCertificates applied to tombstones.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -38,7 +40,7 @@ async fn assert_certified_tombstone(e: &Env, t: &Tombstone, wi: usize) {
 /// dependency". After losing every local handle, discovery and rendering reproduce the file
 /// without the deleted and the superseded declaration, and catalogue recovery still adopts
 /// a checkpoint holding the deleted one.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_tombstoned_and_superseded_leave_the_rendered_file() {
     let cfg = StoreConfig::from_env(&common::deployment("tomb-render")).unwrap();
     let faults = Faults::none();
@@ -87,7 +89,7 @@ async fn fixture_tombstoned_and_superseded_leave_the_rendered_file() {
 /// AckCertificates `guard_necessity` for tombstones: a staged tombstone and a raw tombstone
 /// key with exactly the bytes T8 writes, but no certificate, are ignored by discovery; the
 /// target stays rendered. Only the certified T8 deletes it.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_uncertified_tombstone_is_ignored() {
     let e = Env::new("tomb-raw", 1);
     let a = insert(&e, 0, "a", None, 1).await;
@@ -117,7 +119,7 @@ async fn fixture_uncertified_tombstone_is_ignored() {
 /// T8's guards: the target is published *and certified* here (a raw marker is not
 /// evidence), in the tombstone's file, older, by the deleting author (OPEN-19 default), not
 /// a target-name group, and a named receipt exists. A failed T8 writes nothing.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t8_tombstone_guards() {
     let faults = Faults::none();
     let e = Env::with_faults("tomb-guards", 2, faults.clone());
@@ -169,7 +171,7 @@ async fn t8_tombstone_guards() {
 /// P3 revocation applies to a tombstone's named receipt as to a publication's: T8 reads
 /// `vrevoke/<validator>` in its own transaction. Deleting a group published under a revoked
 /// validator without naming a receipt stays possible (a suspect group may be deleted).
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t8_named_receipt_respects_revocation() {
     let faults = Faults::none();
     let e = Env::with_faults("tomb-revoked", 2, faults.clone());
@@ -207,7 +209,7 @@ async fn key_count(e: &Env) -> usize {
 /// retry; a crash between the staged S3 copy and T8 leaves nothing discoverable; a crash
 /// right after T8 leaves the tombstone certified (`published_certified` for tombstones: no
 /// window without a certificate, TLA `target_stranded_head` analogue).
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn tombstone_faults_resolve() {
     let faults = Faults::none();
     let e = Env::with_faults("tomb-faults", 1, faults.clone());
@@ -272,7 +274,7 @@ async fn tombstone_faults_resolve() {
 /// revision renders in the group's place, the tombstone deletes only its target, and the
 /// tombstoned author's name passes to the next candidate (`delete_frees_name`, registry-free
 /// part: rendering).
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_concurrent_revision_and_tombstone() {
     let e = Env::new("tomb-conc", 2);
     let a = insert(&e, 0, "a", None, 1).await;
@@ -287,4 +289,16 @@ async fn fixture_concurrent_revision_and_tombstone() {
     e.w[1].tombstone(&fixture::tombstone_of(&b2.marker, 5)).await.unwrap();
     assert_eq!(discover(&e.store).await.unwrap().files[F], vec![g(&a)]);
     e.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("fixture_tombstoned_and_superseded_leave_the_rendered_file", || { fixture_tombstoned_and_superseded_leave_the_rendered_file(); Ok(()) }),
+        libtest_mimic::Trial::test("fixture_uncertified_tombstone_is_ignored", || { fixture_uncertified_tombstone_is_ignored(); Ok(()) }),
+        libtest_mimic::Trial::test("t8_tombstone_guards", || { t8_tombstone_guards(); Ok(()) }),
+        libtest_mimic::Trial::test("t8_named_receipt_respects_revocation", || { t8_named_receipt_respects_revocation(); Ok(()) }),
+        libtest_mimic::Trial::test("tombstone_faults_resolve", || { tombstone_faults_resolve(); Ok(()) }),
+        libtest_mimic::Trial::test("fixture_concurrent_revision_and_tombstone", || { fixture_concurrent_revision_and_tombstone(); Ok(()) }),
+    ]);
 }

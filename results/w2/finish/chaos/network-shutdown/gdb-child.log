@@ -1,0 +1,67 @@
+warning: Missing auto-load script at offset 0 in section .debug_gdb_scripts
+of file /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/target/debug/deps/paralean_store-d718da0993d07c63.
+Use `info auto-load python-scripts [REGEXP]' to list them.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+running 1 test
+[New Thread 0x7ffff63ff6c0 (LWP 4001224)]
+[New Thread 0x7ffff61fe6c0 (LWP 4001225)]
+[Thread 0x7ffff63ff6c0 (LWP 4001224) exited]
+test meta::lifecycle_tests::network_stops_before_process_exit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
+
+
+Thread 1 "paralean_store-" received signal SIGSEGV, Segmentation fault.
+0x00007ffff6618138 in main_arena () from /usr/lib/x86_64-linux-gnu/libc.so.6
+
+Thread 3 (Thread 0x7ffff61fe6c0 (LWP 4001225) "meta::lifecycle"):
+#0  __syscall_cancel_arch () at ../sysdeps/unix/sysv/linux/x86_64/syscall_cancel.S:56
+#1  0x00007ffff64a838c in __internal_syscall_cancel (a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=0, a6=0, nr=232) at ./nptl/cancellation.c:49
+#2  __syscall_cancel (a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=a5@entry=0, a6=a6@entry=0, nr=232) at ./nptl/cancellation.c:75
+#3  0x00007ffff653f835 in epoll_wait (epfd=<optimized out>, events=<optimized out>, maxevents=<optimized out>, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/epoll_wait.c:30
+#4  0x00007ffff760b51e in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#5  0x00007ffff760c69d in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#6  0x00007ffff7af2d67 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#7  0x00007ffff7af2bb7 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#8  0x00007ffff7b06bf2 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#9  0x00007ffff7b0614d in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#10 0x00007ffff71591d6 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#11 0x00007ffff78def07 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#12 0x00007ffff70c5734 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#13 0x00007ffff6f9b3a9 in fdb_run_network () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#14 0x000055555594806e in <foundationdb::api::NetworkRunner>::_run ()
+#15 0x0000555555947eb6 in <foundationdb::api::NetworkRunner>::run ()
+#16 0x0000555555947a17 in <foundationdb::api::NetworkRunner>::spawn::{closure#0} ()
+#17 0x0000555555945076 in std::sys::backtrace::__rust_begin_short_backtrace::<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()> ()
+#18 0x0000555555946b5f in std::thread::lifecycle::spawn_unchecked::<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()>::{closure#1}::{closure#0} ()
+#19 0x0000555555945c21 in <core::panic::unwind_safe::AssertUnwindSafe<std::thread::lifecycle::spawn_unchecked<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()>::{closure#1}::{closure#0}> as core::ops::function::FnOnce<()>>::call_once ()
+#20 0x00005555559465fd in std::panicking::catch_unwind::do_call::<core::panic::unwind_safe::AssertUnwindSafe<std::thread::lifecycle::spawn_unchecked<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()>::{closure#1}::{closure#0}>, ()> ()
+#21 0x000055555594729b in __rust_try ()
+#22 0x000055555594688a in std::thread::lifecycle::spawn_unchecked::<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()>::{closure#1} ()
+#23 0x0000555555944527 in <std::thread::lifecycle::spawn_unchecked<<foundationdb::api::NetworkRunner>::spawn::{closure#0}, ()>::{closure#1} as core::ops::function::FnOnce<()>>::call_once::{shim:vtable#0} ()
+#24 0x0000555555991eff in alloc::boxed::{impl#31}::call_once<(), (dyn core::ops::function::FnOnce<(), Output=()> + core::marker::Send), alloc::alloc::Global> () at library/alloc/src/boxed.rs:2319
+#25 std::sys::thread::unix::{impl#2}::new::thread_start () at library/std/src/sys/thread/unix.rs:123
+#26 0x00007ffff64abe6b in start_thread (arg=<optimized out>) at ./nptl/pthread_create.c:454
+#27 0x00007ffff653f55c in __GI___clone3 () at ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+Thread 1 (Thread 0x7ffff7f6a840 (LWP 4001202) "paralean_store-"):
+#0  0x00007ffff6618138 in main_arena () from /usr/lib/x86_64-linux-gnu/libc.so.6
+#1  0x00007ffff7bd748a in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#2  0x00007ffff7b86d2c in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#3  0x00007ffff7b80ea4 in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#4  0x00007ffff70c591f in fdb_transaction_set_option () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#5  0x00007ffff6f9b429 in fdb_stop_network () from /data/home/kirancodes/paralean-p2/lib/libfdb_c.so
+#6  0x000055555594840a in <foundationdb::api::NetworkStop>::stop ()
+#7  0x00005555559488a4 in <foundationdb::api::NetworkAutoStop as core::ops::drop::Drop>::drop ()
+#8  0x000055555577cbf1 in core::ptr::drop_glue::<foundationdb::api::NetworkAutoStop> () at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ptr/mod.rs:823
+#9  0x000055555577ba25 in core::ptr::drop_glue::<core::option::Option<foundationdb::api::NetworkAutoStop>> () at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ptr/mod.rs:823
+#10 0x0000555555791ab6 in core::mem::drop::<core::option::Option<foundationdb::api::NetworkAutoStop>> () at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/mem/mod.rs:1041
+#11 0x00005555557d1b3f in paralean_store::meta::shutdown () at crates/store/src/meta.rs:63
+#12 0x00005555557d1a76 in paralean_store::meta::stop_network_at_exit () at crates/store/src/meta.rs:39
+#13 0x00007ffff644a940 in __run_exit_handlers (status=0, listp=0x7ffff6617680 <__exit_funcs>, run_list_atexit=run_list_atexit@entry=true, run_dtors=run_dtors@entry=true) at ./stdlib/exit.c:118
+#14 0x00007ffff644aa1e in __GI_exit (status=<optimized out>) at ./stdlib/exit.c:148
+#15 0x00007ffff642a8c8 in __libc_start_call_main (main=main@entry=0x5555557ba200 <main>, argc=argc@entry=3, argv=argv@entry=0x7fffffffd778) at ../sysdeps/nptl/libc_start_call_main.h:83
+#16 0x00007ffff642a9d8 in __libc_start_main_impl (main=0x5555557ba200 <main>, argc=3, argv=0x7fffffffd778, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fffffffd768) at ../csu/libc-start.c:360
+#17 0x0000555555774de5 in _start ()

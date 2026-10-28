@@ -1,6 +1,8 @@
 //! Regression fixtures from docs/plan.md P2 and store.md "P2 obligations", run against the
 //! real FoundationDB and Garage services. Each converts a model counterexample or witness
 //! into a concrete store execution.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -20,7 +22,7 @@ async fn key_count(e: &Env) -> usize {
 // ---------------------------------------------------------------------------------------
 /// CatalogFencing `stale_writer_rejected`, TLA `fencing_unfenced_commit`: a writer whose
 /// token was superseded cannot commit; recovery selects the new holder's record.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_stale_writer_after_rotation() {
     let e = Env::new("fx-stale", 2);
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -50,7 +52,7 @@ async fn fixture_stale_writer_after_rotation() {
 /// retry finds the bytes (an unconditional acknowledgement). The commit T5 is then retried
 /// and aborts on the fence: the record exists without a commit certificate and is never
 /// adopted.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_put_before_rotation_acked_after() {
     for attempt in 0..10 {
         if late_ack_attempt(attempt).await { return; }
@@ -142,7 +144,7 @@ async fn late_ack_attempt(attempt: usize) -> bool {
 // ---------------------------------------------------------------------------------------
 /// store.md "Unfenced repair": a re-PUT of an S3 object after a rotation is allowed and
 /// has no catalogue effect; readiness returns once the bytes are back.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_repair_copy_after_rotation() {
     let e = Env::new("fx-repair", 2);
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -172,7 +174,7 @@ async fn fixture_repair_copy_after_rotation() {
 // ---------------------------------------------------------------------------------------
 /// AckCertificates `guard_necessity`, TLA `cert_scan_raw_marker`: a staged marker can have
 /// exactly the bytes of a published one. Discovery reads certificates only.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_staged_marker_byte_identical_to_published() {
     // Deployment A: the publication fails at T1 (reassignment), leaving the staged copy.
     let a = Env::new("fx-staged-a", 2);
@@ -213,7 +215,7 @@ async fn fixture_staged_marker_byte_identical_to_published() {
 /// CatalogCertificates `uncertified_not_committed`, TLA `fencing_stale_selected`: a record
 /// whose bytes and every object certificate survive, but which never got a commit
 /// certificate, is never adopted, however often its bytes are re-acknowledged.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_zombie_record_never_adopted() {
     let e = Env::new("fx-zombie", 2);
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -243,7 +245,7 @@ async fn fixture_zombie_record_never_adopted() {
 /// before a handover is the recorded head, is certified by its own publication (no window
 /// without a certificate), and the new owner, with no local state, discovers it and
 /// revises it.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_target_published_just_before_handover() {
     let e = Env::new("fx-handover", 2);
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
@@ -271,7 +273,7 @@ async fn fixture_target_published_just_before_handover() {
 /// CatalogCertificates `orphan_record_cert_rejected`, TLA `fencing_commit_orphan`: a commit
 /// over a parent that was acknowledged but never committed (its writer was fenced out) is
 /// rejected.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_orphan_commit_rejected() {
     let e = Env::new("fx-orphan", 2);
     let t1 = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -290,7 +292,7 @@ async fn fixture_orphan_commit_rejected() {
 
 // ---------------------------------------------------------------------------------------
 /// TargetNames `stale_publication_blocked`, HARDENED `stale_owner_publish_blocked`.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_stale_owner_publish_after_reassignment() {
     let e = Env::new("fx-staleowner", 2);
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
@@ -311,7 +313,7 @@ async fn fixture_stale_owner_publish_after_reassignment() {
 /// Plan P2 gate, HARDENED `hardened_certified_recovery`: checkpoint recovery after losing
 /// the desktop's last manifest hash, by enumeration (paginated scans with a tiny page),
 /// with distractors: a zombie record, another workspace's chain, a stale writer's record.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn fixture_checkpoint_recovery_after_losing_last_manifest_hash() {
     let mut cfg = StoreConfig::from_env(&common::deployment("fx-recovery")).unwrap();
     cfg.page = 2; // force many pages
@@ -365,4 +367,19 @@ async fn fixture_checkpoint_recovery_after_losing_last_manifest_hash() {
         assert_eq!(d.heads[&rv.name], vec![*rid]);
     }
     r2.audit_ok().await;
+}
+
+fn main() {
+    use libtest_mimic::Trial;
+    common::run_tests(vec![
+        Trial::test("fixture_stale_writer_after_rotation", || { fixture_stale_writer_after_rotation(); Ok(()) }),
+        Trial::test("fixture_put_before_rotation_acked_after", || { fixture_put_before_rotation_acked_after(); Ok(()) }),
+        Trial::test("fixture_repair_copy_after_rotation", || { fixture_repair_copy_after_rotation(); Ok(()) }),
+        Trial::test("fixture_staged_marker_byte_identical_to_published", || { fixture_staged_marker_byte_identical_to_published(); Ok(()) }),
+        Trial::test("fixture_zombie_record_never_adopted", || { fixture_zombie_record_never_adopted(); Ok(()) }),
+        Trial::test("fixture_target_published_just_before_handover", || { fixture_target_published_just_before_handover(); Ok(()) }),
+        Trial::test("fixture_orphan_commit_rejected", || { fixture_orphan_commit_rejected(); Ok(()) }),
+        Trial::test("fixture_stale_owner_publish_after_reassignment", || { fixture_stale_owner_publish_after_reassignment(); Ok(()) }),
+        Trial::test("fixture_checkpoint_recovery_after_losing_last_manifest_hash", || { fixture_checkpoint_recovery_after_losing_last_manifest_hash(); Ok(()) }),
+    ]);
 }

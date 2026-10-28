@@ -41,7 +41,7 @@ for c in "${cases[@]}"; do
   IFS='|' read -r feat target name <<<"$c"
   case "$feat" in "${ONLY:-}"*) ;; *) continue ;; esac
   out="$(PROPTEST_CASES=${PROPTEST_CASES:-40} "$here/test.sh" -q -p paralean-store --features "$feat" --test "$target" -- --exact "$name" 2>&1)"
-  if grep -q "$name --- FAILED\|test $name ... FAILED" <<<"$out"; then
+  if grep -Eq "test[[:space:]]+${name}[[:space:]]+(---|\.\.\.)[[:space:]]+FAILED" <<<"$out"; then
     echo "detected  $feat  by $target::$name"
   elif grep -q "test result: ok. 1 passed\|^1 passed\|^\.$" <<<"$out"; then
     echo "SURVIVED  $feat  $target::$name passed with the guard removed"; fail=1

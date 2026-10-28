@@ -1,0 +1,49 @@
+warning: Missing auto-load script at offset 0 in section .debug_gdb_scripts
+of file /data/home/kirancodes/Documents/code/paralean-w2-security/impl/p2/target/debug/deps/fixtures-96c3e3c0ccddc299.
+Use `info auto-load python-scripts [REGEXP]' to list them.
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+  <https://debuginfod.ubuntu.com>
+Enable debuginfod for this session? (y or [n]) [answered N; input not from terminal]
+Debuginfod has been disabled.
+To make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+running 9 tests
+[New Thread 0x7ffff63ff6c0 (LWP 3963368)]
+[New Thread 0x7ffff61fe6c0 (LWP 3963369)]
+[New Thread 0x7ffff5ffd6c0 (LWP 3963371)]
+[New Thread 0x7ffff5dfc6c0 (LWP 3963372)]
+[New Thread 0x7ffff5bfb6c0 (LWP 3963373)]
+[New Thread 0x7ffff599a6c0 (LWP 3963374)]
+[New Thread 0x7ffff56b96c0 (LWP 3963375)]
+[New Thread 0x7ffff54586c0 (LWP 3963377)]
+[New Thread 0x7ffff52176c0 (LWP 3963380)]
+[New Thread 0x7ffff4fb66c0 (LWP 3963381)]
+[Thread 0x7ffff56b96c0 (LWP 3963375) exited]
+test fixture_stale_owner_publish_after_reassignment ... ok
+test fixture_staged_marker_byte_identical_to_published ... ok
+[Thread 0x7ffff599a6c0 (LWP 3963374) exited]
+test fixture_target_published_just_before_handover ... ok
+[Thread 0x7ffff52176c0 (LWP 3963380) exited]
+test fixture_repair_copy_after_rotation ... ok
+[Thread 0x7ffff5bfb6c0 (LWP 3963373) exited]
+test fixture_orphan_commit_rejected ... ok
+[Thread 0x7ffff61fe6c0 (LWP 3963369) exited]
+test fixture_zombie_record_never_adopted ... ok
+[Thread 0x7ffff4fb66c0 (LWP 3963381) exited]
+test fixture_stale_writer_after_rotation ... ok
+[Thread 0x7ffff54586c0 (LWP 3963377) exited]
+test fixture_put_before_rotation_acked_after ... ok
+[Thread 0x7ffff5ffd6c0 (LWP 3963371) exited]
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.72s
+
+[Thread 0x7ffff63ff6c0 (LWP 3963368) exited]
+[Thread 0x7ffff7f6a880 (LWP 3963322) exited]
+[Thread 0x7ffff5dfc6c0 (LWP 3963372) exited]
+[New process 3963322]
+[Inferior 1 (process 3963322) exited normally]
+You can't do that without a process to debug.

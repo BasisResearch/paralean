@@ -87,11 +87,45 @@ mutate-ae-unbounded-source = []
 mutate-unchecked-file-path = []
 # W2 A-6: the worker-side T1 publish check of a constructed marker (Writer::check_package).
 mutate-unchecked-publish-path = []
-# Process lifecycle A/B arm, not a check-mutations.sh case: `meta::shutdown` becomes a no-op,
-# so the CLI leaves the FDB network thread running into exit (the pre-667dcf6 behaviour).
-# W2 found no test that detects it: exiting with the thread running is undefined behaviour
-# in the FDB C API, but did not crash in 12,000+ exits under FDB faults (docs/w2-chaos-notes.md).
+# Process lifecycle mutation: `meta::shutdown` becomes a no-op. The deterministic
+# subprocess exit test detects the missing stop/join; the old stress-worker crash is
+# still not attributed to this bug without a stack.
 mutate-no-network-shutdown = []
 
 [dev-dependencies]
 proptest = "1"
+libtest-mimic = "0.8.2"
+
+# FDB's network thread must be stopped while Rust is still running. The stock
+# libtest main has no end-of-suite hook, so these FDB integration suites supply one.
+[[test]]
+name = "fixtures"
+harness = false
+
+[[test]]
+name = "guards"
+harness = false
+
+[[test]]
+name = "tombstones"
+harness = false
+
+[[test]]
+name = "faults"
+harness = false
+
+[[test]]
+name = "property"
+harness = false
+
+[[test]]
+name = "antientropy"
+harness = false
+
+[[test]]
+name = "strict_signatures"
+harness = false
+
+[[test]]
+name = "file_paths"
+harness = false

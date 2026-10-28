@@ -61,6 +61,31 @@ pub fn shutdown() {
 #[cfg(feature = "mutate-no-network-shutdown")]
 pub fn shutdown() {}
 
+#[cfg(test)]
+mod lifecycle_tests {
+    use super::{boot, shutdown, NETWORK};
+
+    const CHILD: &str = "PARALEAN_NETWORK_EXIT_TEST_CHILD";
+
+    #[test]
+    fn network_stops_before_process_exit() {
+        if std::env::var_os(CHILD).is_some() {
+            boot();
+            assert!(NETWORK.get().unwrap().lock().unwrap().is_some());
+            shutdown();
+            assert!(NETWORK.get().unwrap().lock().unwrap().is_none());
+            return;
+        }
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "meta::lifecycle_tests::network_stops_before_process_exit"])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "shutdown did not stop and join FDB: status {:?}, stderr {}",
+            output.status, String::from_utf8_lossy(&output.stderr));
+    }
+}
+
 // ---------------------------------------------------------------- keys
 
 /// The key layout of store.md under one deployment root `("paralean", <deployment>)`.

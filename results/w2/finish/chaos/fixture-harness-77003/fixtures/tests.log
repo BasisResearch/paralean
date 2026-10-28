@@ -1,0 +1,48 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-a21ed4d25d66509f)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment              ... ok
+test fixture_staged_marker_byte_identical_to_published           ... ok
+test fixture_target_published_just_before_handover               ... ok
+test fixture_repair_copy_after_rotation                          ... ok
+test fixture_orphan_commit_rejected                              ... ok
+test fixture_zombie_record_never_adopted                         ... ok
+test fixture_stale_writer_after_rotation                         ... ok
+test fixture_put_before_rotation_acked_after                     ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.54s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-a21ed4d25d66509f)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment              ... ok
+test fixture_staged_marker_byte_identical_to_published           ... ok
+test fixture_target_published_just_before_handover               ... ok
+test fixture_repair_copy_after_rotation                          ... ok
+test fixture_orphan_commit_rejected                              ... ok
+test fixture_zombie_record_never_adopted                         ... ok
+test fixture_stale_writer_after_rotation                         ... ok
+test fixture_put_before_rotation_acked_after                     ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.08s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/fixtures.rs (target/debug/deps/fixtures-a21ed4d25d66509f)
+
+running 9 tests
+test fixture_stale_owner_publish_after_reassignment              ... ok
+test fixture_staged_marker_byte_identical_to_published           ... ok
+test fixture_repair_copy_after_rotation                          ... ok
+test fixture_target_published_just_before_handover               ... ok
+test fixture_orphan_commit_rejected                              ... ok
+test fixture_zombie_record_never_adopted                         ... ok
+test fixture_stale_writer_after_rotation                         ... ok
+test fixture_put_before_rotation_acked_after                     ... ok
+test fixture_checkpoint_recovery_after_losing_last_manifest_hash ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 56.83s
+

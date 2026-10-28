@@ -3,6 +3,8 @@
 //! published set (groups with markers, tombstones, rendered files) under any delivery
 //! order, with partial transfers, duplicates and corrupt bytes; receivers verify hashes and
 //! signatures and certify only on their own replica.
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -68,7 +70,7 @@ async fn audits_clean(a: &Env, b: &Env) {
 /// Two clusters publish independently (fresh insertions, a revision, tombstones, a target
 /// name at A), then synchronise until neither side changes: both expose the union, render
 /// the shared file identically and pass the audit, and a further sync changes nothing.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn sync_converges_between_two_clusters() {
     let (a, b) = pair("ae-conv", N, Faults::none(), Faults::none());
     let a1 = insert(&a, 0, "a1", None, 1).await;
@@ -119,7 +121,7 @@ async fn sync_converges_between_two_clusters() {
 /// revision, a forged certificate, a certificate by a writer it does not trust, a receipt
 /// from an untrusted validator and a group with no certificate (a staged marker) are all
 /// rejected and write no metadata.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn receiver_rejects_corrupt_forged_and_untrusted() {
     let (a, b) = pair("ae-reject", N, Faults::none(), Faults::none());
     let p = insert(&a, 0, "p", None, 1).await;
@@ -194,7 +196,7 @@ async fn receiver_rejects_corrupt_forged_and_untrusted() {
 /// Out-of-order delivery: a group before its payloads, a revision before its parent group,
 /// a tombstone before its target are deferred (nothing written), then applied when their
 /// dependencies arrive. Duplicates are `Present`.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn deferred_until_dependencies_arrive() {
     let (a, b) = pair("ae-defer", N, Faults::none(), Faults::none());
     let p = insert(&a, 0, "p", None, 1).await;
@@ -237,7 +239,7 @@ async fn deferred_until_dependencies_arrive() {
 /// Receive transactions under faults: unknown commit results (landed or not) on T9/T10 are
 /// resolved by the idempotent retry; a receiver crash before its transaction leaves nothing
 /// but acknowledged payloads, and the next round finishes the job.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn receive_faults_resolve() {
     let fb = Faults::none();
     let (a, b) = pair("ae-faults", N, Faults::none(), fb.clone());
@@ -273,7 +275,7 @@ async fn receive_faults_resolve() {
 /// (content addressing fixes the bytes); one rotten at the sender is not exported, so the
 /// group waits at the receiver until the sender's copy is repaired, and nothing corrupt is
 /// ever acknowledged.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn corrupt_payloads_at_rest_are_repaired_or_wait() {
     let (a, b) = pair("ae-rot", N, Faults::none(), Faults::none());
     let p = insert(&a, 0, "p", None, 1).await;
@@ -303,7 +305,7 @@ async fn corrupt_payloads_at_rest_are_repaired_or_wait() {
 /// positions): the store keeps one marker per group and the Workspaces model gives a group
 /// one position, so neither side's marker is replaced. Both sides report the conflict; the
 /// group set converges, the marker map does not (docs/p2-log.md, "Anti-entropy").
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn marker_conflict_is_reported_not_overwritten() {
     let (a, b) = pair("ae-conflict", N, Faults::none(), Faults::none());
     let pa = fixture::package_by(&a.authority(), "same", a.w[0].id, &a.validator, &Name::parse("Sh.same"), vec![], None, 1);
@@ -331,7 +333,7 @@ async fn marker_conflict_is_reported_not_overwritten() {
 /// receiver homes as a target name is refused (only the owner publishes it, through T1);
 /// at a deployment without that record it is an ordinary name. T7 cannot copy the sender's
 /// certificate either (another replica).
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn foreign_target_names_and_certificate_copies_refused() {
     let (a, b) = pair("ae-target", N, Faults::none(), Faults::none());
     let x = Name::parse("Target.x");
@@ -361,7 +363,7 @@ async fn foreign_target_names_and_certificate_copies_refused() {
 /// staging rule under the *receiver's* key ring (pinned policy and checker, trusted issuer),
 /// and a receiver's revocation of the validator, read inside T9, stops the receive. A sender
 /// does not export groups whose validator it revoked. Rejected items write nothing.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn received_groups_need_a_receipt_valid_here() {
     let (a, b) = pair("ae-receipt", N, Faults::none(), Faults::none());
     let p = insert(&a, 0, "p", None, 1).await;
@@ -409,7 +411,7 @@ async fn received_groups_need_a_receipt_valid_here() {
 /// and so does T9 at A: neither an item hand-built from the worker's receipt with the
 /// worker's own certificate, nor the same group relayed by a peer that published it
 /// (`sync`), publishes the cancelled request at A.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn cancelled_request_is_not_received_by_its_issuer() {
     let (a, b) = pair("ae-cancel", N, Faults::none(), Faults::none());
     let mut p = a.plain_package(0, "Sh.cancelled", "cancelled");
@@ -448,7 +450,7 @@ async fn cancelled_request_is_not_received_by_its_issuer() {
 /// W2 A-2. T1's dependency guard applies to a received group: a group whose job names a
 /// dependency capsule waits at the receiver until that dependency is published and
 /// certified there, then arrives.
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn received_group_waits_for_job_dependencies_here() {
     let (a, b) = pair("ae-jobdeps", N, Faults::none(), Faults::none());
     let p = insert(&a, 0, "dep", None, 1).await;
@@ -619,7 +621,6 @@ proptest! {
         max_shrink_iters: 16,
         .. ProptestConfig::default()
     })]
-    #[test]
     fn any_exchange_order_converges_to_the_union(
         a_acts in proptest::collection::vec(act(), 1..6),
         b_acts in proptest::collection::vec(act(), 1..6),
@@ -629,4 +630,21 @@ proptest! {
         let r = rt.block_on(convergence_case(a_acts, b_acts, schedule));
         prop_assert!(r.is_ok(), "{}", r.unwrap_err());
     }
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("sync_converges_between_two_clusters", || { sync_converges_between_two_clusters(); Ok(()) }),
+        libtest_mimic::Trial::test("receiver_rejects_corrupt_forged_and_untrusted", || { receiver_rejects_corrupt_forged_and_untrusted(); Ok(()) }),
+        libtest_mimic::Trial::test("deferred_until_dependencies_arrive", || { deferred_until_dependencies_arrive(); Ok(()) }),
+        libtest_mimic::Trial::test("receive_faults_resolve", || { receive_faults_resolve(); Ok(()) }),
+        libtest_mimic::Trial::test("corrupt_payloads_at_rest_are_repaired_or_wait", || { corrupt_payloads_at_rest_are_repaired_or_wait(); Ok(()) }),
+        libtest_mimic::Trial::test("marker_conflict_is_reported_not_overwritten", || { marker_conflict_is_reported_not_overwritten(); Ok(()) }),
+        libtest_mimic::Trial::test("foreign_target_names_and_certificate_copies_refused", || { foreign_target_names_and_certificate_copies_refused(); Ok(()) }),
+        libtest_mimic::Trial::test("received_groups_need_a_receipt_valid_here", || { received_groups_need_a_receipt_valid_here(); Ok(()) }),
+        libtest_mimic::Trial::test("cancelled_request_is_not_received_by_its_issuer", || { cancelled_request_is_not_received_by_its_issuer(); Ok(()) }),
+        libtest_mimic::Trial::test("received_group_waits_for_job_dependencies_here", || { received_group_waits_for_job_dependencies_here(); Ok(()) }),
+        libtest_mimic::Trial::test("any_exchange_order_converges_to_the_union", || { any_exchange_order_converges_to_the_union(); Ok(()) }),
+    ]);
 }

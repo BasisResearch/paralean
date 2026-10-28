@@ -1,0 +1,61 @@
+[02:26:27] phase=fixtures scope=fdb fdb=6 garage=1 workers=6 skip_build=1 result_dir=/data/home/kirancodes/Documents/code/paralean-w2-security/results/w2/finish/chaos/full-99173/fixtures
+[02:26:28] cli sha256 154c0794fbcf140dd511d87d9863930083f09c7666952a7477091207a9e6892b
+[02:26:28] writes ok and fault tolerance >= 2 after 0 s
+[02:26:33] garage nodes up: 1 of 1
+[02:26:33] fixture chaos seed=99173
+[02:26:33] running the test suite under chaos
+[02:26:33] FAULT kill fdbserver-2
+[02:26:41] writes ok and fault tolerance >= 2 after 0 s
+[02:26:41] FAULT pause fdbserver-0
+[02:26:49] writes ok and fault tolerance >= 2 after 0 s
+[02:26:49] FAULT partition fdbserver-1
+[02:27:10] writes ok and fault tolerance >= 2 after 13 s
+[02:27:10] FAULT kill fdbserver-4, partition fdbserver-0
+[02:27:19] writes ok and fault tolerance >= 2 after 1 s
+[02:27:19] FAULT pause fdbserver-2 and fdbserver-3
+[02:27:50] writes ok and fault tolerance >= 2 after 23 s
+[02:27:50] FAULT kill fdbserver-3
+[02:27:54] fast suites: 3 rounds done
+[02:27:54] SKIP antientropy test during this fault scope; run separately with a bounded peer
+[02:27:59] writes ok and fault tolerance >= 2 after 1 s
+[02:27:59] FAULT pause fdbserver-2
+[02:28:08] writes ok and fault tolerance >= 2 after 1 s
+[02:28:08] FAULT partition fdbserver-5
+[02:28:18] writes ok and fault tolerance >= 2 after 2 s
+[02:28:18] FAULT kill fdbserver-1, partition fdbserver-2
+[02:28:54] writes ok and fault tolerance >= 2 after 28 s
+[02:28:54] FAULT pause fdbserver-3 and fdbserver-2
+[02:29:03] writes ok and fault tolerance >= 2 after 1 s
+[02:29:03] FAULT kill fdbserver-5
+[02:29:13] writes ok and fault tolerance >= 2 after 2 s
+[02:29:13] FAULT pause fdbserver-0
+[02:29:21] writes ok and fault tolerance >= 2 after 0 s
+[02:29:21] FAULT partition fdbserver-5
+[02:29:30] writes ok and fault tolerance >= 2 after 1 s
+[02:29:30] FAULT kill fdbserver-1, partition fdbserver-5
+[02:29:38] writes ok and fault tolerance >= 2 after 0 s
+[02:29:38] FAULT pause fdbserver-0 and fdbserver-1
+[02:29:47] SKIP multiprocess test during this fault scope; run separately with a bounded wave
+[02:29:48] writes ok and fault tolerance >= 2 after 1 s
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.69s
+      1 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.36s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+      1 test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 29.16s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s
+      1 test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.75s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.37s
+      1 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.32s
+[02:29:48] faults injected during the tests: 15
+probe: 80 probes, 58 ok (72.5%), longest failed run 8 probes; latency ok p50 56 ms, max 4072 ms
+  unavailable from 02:26:45 for about 2 s (sampled until next success)
+  unavailable from 02:26:55 for about 15 s (sampled until next success)
+  unavailable from 02:27:16 for about 2 s (sampled until next success)
+  unavailable from 02:27:24 for about 23 s (sampled until next success)
+  unavailable from 02:28:05 for about 3 s (sampled until next success)
+  unavailable from 02:28:14 for about 3 s (sampled until next success)
+  unavailable from 02:28:24 for about 39 s (sampled until next success)
+  unavailable from 02:29:26 for about 1 s (sampled until next success)
+[02:29:49] phase fixtures: PASS

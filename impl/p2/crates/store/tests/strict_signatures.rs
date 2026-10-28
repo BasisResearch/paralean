@@ -1,10 +1,11 @@
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 mod common;
 #[path = "../../../../../verification/fixtures/ed25519_cases.rs"]
 mod vectors;
 
 use paralean_store::*;
 
-#[test]
 fn store_strict_signature_vectors() {
     let signer = Signer::from_seed(std::array::from_fn(|i| i as u8));
     let id = Id([42; 32]);
@@ -13,7 +14,7 @@ fn store_strict_signature_vectors() {
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn antientropy_import_strict_signature_vectors() {
     use antientropy::{import, Item, Outcome};
     use common::*;
@@ -42,7 +43,7 @@ async fn antientropy_import_strict_signature_vectors() {
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn t1_publication_strict_receipt_signature_vectors() {
     use common::*;
     let e = Env::new("w2-strict-t1", 1);
@@ -72,7 +73,7 @@ async fn t1_publication_strict_receipt_signature_vectors() {
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn antientropy_group_import_strict_signature_vectors() {
     use antientropy::{export, import, Item, Outcome};
     use common::*;
@@ -98,4 +99,14 @@ async fn antientropy_group_import_strict_signature_vectors() {
         let no_cert = matches!(&outcome, Outcome::Rejected(r) if r.contains("no valid certificate"));
         assert_eq!(!no_cert, case.expected, "{}: {outcome:?}", case.name);
     }
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("store_strict_signature_vectors", || { store_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("antientropy_import_strict_signature_vectors", || { antientropy_import_strict_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("t1_publication_strict_receipt_signature_vectors", || { t1_publication_strict_receipt_signature_vectors(); Ok(()) }),
+        libtest_mimic::Trial::test("antientropy_group_import_strict_signature_vectors", || { antientropy_group_import_strict_signature_vectors(); Ok(()) }),
+    ]);
 }

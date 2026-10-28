@@ -4,6 +4,8 @@
 //! with and without the object landing, corrupt reads, concurrent writers and a paginated
 //! scan across concurrent publications. After every scenario the whole-store audit must
 //! pass, in particular "no metadata key names an object absent from S3".
+// Every test is listed in `main`; an unlisted one is dead code, so this refuses it.
+#![deny(dead_code)]
 
 mod common;
 
@@ -19,7 +21,7 @@ fn x() -> Name {
 
 // ------------------------------------------------------------------ crashes
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn crash_between_payload_and_metadata_then_restart() {
     let observing = Faults::none();
     let e = Env::with_faults("fi-crash", 1, observing.clone());
@@ -58,7 +60,7 @@ async fn crash_between_payload_and_metadata_then_restart() {
 /// after its publication. Its certificate was written by the publication itself, so the
 /// head stays discoverable and the new owner can revise it. (Under the lagging design,
 /// `--features mutate-cert-outside-publish`, this test must fail.)
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn publisher_crash_right_after_publish_leaves_head_discoverable() {
     let e = Env::new("fi-stranded", 2);
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
@@ -76,7 +78,7 @@ async fn publisher_crash_right_after_publish_leaves_head_discoverable() {
     e.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn crash_during_checkpoint_then_retry() {
     let e = Env::new("fi-crash-cp", 1);
     let tok = e.ctl.rotate(e.w[0].id, b"r1").await.unwrap();
@@ -104,7 +106,7 @@ async fn crash_during_checkpoint_then_retry() {
 
 // ------------------------------------------------------------------ unknown results
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn unknown_commit_result_on_every_transaction() {
     for committed in [true, false] {
         let faults = Faults::none();
@@ -160,7 +162,7 @@ async fn unknown_commit_result_on_every_transaction() {
     }
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn rotation_and_reassignment_between_read_and_commit() {
     let faults = Faults::none();
     let e = Env::with_faults("fi-interleave", 2, faults.clone());
@@ -189,7 +191,7 @@ async fn rotation_and_reassignment_between_read_and_commit() {
 
 // ------------------------------------------------------------------ retries
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn duplicate_and_reordered_retries() {
     let faults = Faults::none();
     let e = Env::with_faults("fi-retries", 2, faults.clone());
@@ -238,7 +240,7 @@ async fn duplicate_and_reordered_retries() {
     e.audit_ok().await;
 }
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn s3_put_timeouts_with_and_without_landing() {
     let faults = Faults::none();
     let e = Env::with_faults("fi-s3timeout", 1, faults.clone());
@@ -256,7 +258,7 @@ async fn s3_put_timeouts_with_and_without_landing() {
 
 // ------------------------------------------------------------------ corrupt reads
 
-#[tokio::test]
+#[tokio::main(flavor = "current_thread")]
 async fn corrupt_bytes_on_read_count_as_missing() {
     let faults = Faults::none();
     let e = Env::with_faults("fi-corrupt", 1, faults.clone());
@@ -294,7 +296,7 @@ async fn corrupt_bytes_on_read_count_as_missing() {
 
 // ------------------------------------------------------------------ concurrency
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 8)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 8)]
 async fn concurrent_writers_multi_threaded() {
     let e = Arc::new(Env::new("fi-concurrent", 4));
     e.ctl.reassign(&x(), e.w[0].id, b"assign").await.unwrap();
@@ -362,7 +364,7 @@ async fn concurrent_writers_multi_threaded() {
     e.audit_ok().await;
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn paginated_scan_across_concurrent_publications() {
     let mut cfg = StoreConfig::from_env(&common::deployment("fi-scan")).unwrap();
     cfg.page = 3;
@@ -398,4 +400,20 @@ async fn paginated_scan_across_concurrent_publications() {
         assert!(!e.store.certs(g).await.unwrap().is_empty());
     }
     e.audit_ok().await;
+}
+
+// Own the process lifetime: stop FDB only after every test runtime has dropped.
+fn main() {
+    common::run_tests(vec![
+        libtest_mimic::Trial::test("crash_between_payload_and_metadata_then_restart", || { crash_between_payload_and_metadata_then_restart(); Ok(()) }),
+        libtest_mimic::Trial::test("publisher_crash_right_after_publish_leaves_head_discoverable", || { publisher_crash_right_after_publish_leaves_head_discoverable(); Ok(()) }),
+        libtest_mimic::Trial::test("crash_during_checkpoint_then_retry", || { crash_during_checkpoint_then_retry(); Ok(()) }),
+        libtest_mimic::Trial::test("unknown_commit_result_on_every_transaction", || { unknown_commit_result_on_every_transaction(); Ok(()) }),
+        libtest_mimic::Trial::test("rotation_and_reassignment_between_read_and_commit", || { rotation_and_reassignment_between_read_and_commit(); Ok(()) }),
+        libtest_mimic::Trial::test("duplicate_and_reordered_retries", || { duplicate_and_reordered_retries(); Ok(()) }),
+        libtest_mimic::Trial::test("s3_put_timeouts_with_and_without_landing", || { s3_put_timeouts_with_and_without_landing(); Ok(()) }),
+        libtest_mimic::Trial::test("corrupt_bytes_on_read_count_as_missing", || { corrupt_bytes_on_read_count_as_missing(); Ok(()) }),
+        libtest_mimic::Trial::test("concurrent_writers_multi_threaded", || { concurrent_writers_multi_threaded(); Ok(()) }),
+        libtest_mimic::Trial::test("paginated_scan_across_concurrent_publications", || { paginated_scan_across_concurrent_publications(); Ok(()) }),
+    ]);
 }

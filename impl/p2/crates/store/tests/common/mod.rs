@@ -10,6 +10,23 @@ use paralean_store::*;
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// The stock test harness returns directly into process exit while FDB's network
+/// thread is still running. Finish every selected test, then stop and join FDB
+/// before libtest-mimic exits. The guard also covers an unexpected harness panic.
+pub fn run_tests(trials: Vec<libtest_mimic::Trial>) {
+    struct StopNetwork;
+    impl Drop for StopNetwork {
+        fn drop(&mut self) {
+            paralean_store::meta::shutdown();
+        }
+    }
+    let stop = StopNetwork;
+    let args = libtest_mimic::Arguments::from_args();
+    let result = libtest_mimic::run(&args, trials);
+    drop(stop);
+    result.exit();
+}
+
 pub fn deployment(name: &str) -> String {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
     format!("t-{name}-{}-{}-{}", std::process::id(), nanos % 1_000_000_000, COUNTER.fetch_add(1, Ordering::Relaxed))
