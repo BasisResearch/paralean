@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 95 and seed 8921694209339757460 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 1143116] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 91 and seed 7241190262866285584 with 1 worker on 32 cores with 3641MB heap and 64MB offheap memory [pid: 980477] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_remote_dependent/Receipts.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_remote_dependent-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/negative/receipt_remote_dependent-java-tmp/Naturals.tla
@@ -8,9 +8,9 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Receipts
-Starting... (2026-10-20 23:31:08)
+Starting... (2026-10-28 12:45:22)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:31:08.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:45:22.
 Error: Invariant NeverRemoteDependentReceived is violated.
 Error: The behavior up to this point is:
 State 1: <Initial predicate>
@@ -64,16 +64,22 @@ State 6: <RemoteReceive line 93, col 3 to line 96, col 64 of module Receipts>
 833 states generated, 162 distinct states found, 81 states left on queue.
 The depth of the complete state graph search is 6.
 The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 7 and the 95th percentile is 6).
-Finished in 00s at (2026-10-20 23:31:08)
+Finished in 00s at (2026-10-28 12:45:22)
 ==== Paralean TLC provenance ====
 module Receipts
 config Receipts.cfg
 expect failure: Invariant NeverRemoteDependentReceived is violated
+source 0d0d9b016fa97521936bc8610a8c871d71f855b0a6e0100a119c604e814da093  AgentAuthority.tla
+source 79a2fe172e2602deb4abb44bb696cc14835b4341fbf1b322c77e4bbdf3c18bed  CatalogueExchange.tla
 source 764bd9412bf59700166d04e1960bbb81606b37dca7e639c07b943f423e4fc860  Certificates.tla
 source 4668feef5d29ae48035b1c541823c954c8d2f2025bc69b1de2fc7006d5096598  Chain.tla
+source d2baac35cfe05af752b29a0d358cbe1283a00ebaf40c2d1c32f625332f90b08d  CheckpointConflicts.tla
 source 3911ad656b684dc6ea67605b872b9d5ff7b3a0f648d1bdff146f52f6b39bd432  CheckpointReuse.tla
 source 85299a3d3225b40410bea0739ebdb17bbb89c93e83bb57f5449ff1cf66362085  Collision.tla
 source f85387c9f52bbbc2eab95f9394e4bf3314db0ca26d8191d1e1fd7ecd721d0e13  Durability.tla
+source e701ebb084e7c14de78034035eb932dcca203554e270d21df003c8102e8ff95c  EditorWiring.tla
+source ed25f0dc16d57a7b8493fb74611dc4db92130abcfffbb681706fa7433806d9df  ExportLookupResidual.tla
+source 161982308b15b0883776a765f9054f2b97484269182e5504ce6c75b7b45c55ae  ExportLookup.tla
 source c289323ed351c03e84538cb7e677071e0d86515e742bd2584bd68a11c5033e84  ExportRejected.tla
 source 63967d0cf16d52eefdd304dbfc468ba2f30059315136c5cbbc694cea94f14d4c  Fencing.tla
 source 27b0277e129d9c10aced7ad201e6406f28e68b66f0e8b5e08159fdba96fb3e19  HardenedMC.tla
@@ -85,18 +91,38 @@ source f28e3622880a91b51a8bbb314f971f00305187af4fb6108a6aae9c78a0c1b4b0  Quorums
 source b342ff6f48b40ae33d9a1e0a266b91a9bee3ed3c6e32482553492ad668e14a24  Receipts.tla
 source 68a0dbffe88b9ed9f5e1745dd340b8880910f18fc3f6a14825c60b50a2d9465d  Registry.tla
 source 1b978a521a37a8560e4aa3b864dbd7169836e634d15f5f7ef2ec6788d6adc255  Rejected.tla
+source 99f392f2c5b906e544c579a8967ae62b6a9e5dd36f3dc8e5835176e70105d85f  ReplayIdentity.tla
 source 089571070617df00884c371f4bff8bdeaf0771d259ac4b9adb8e1f8f457929b6  Revert.tla
 source 7a72f08a1917c522498404c9da1b75eb162cabeffa6b77b95a3d2061af2abb34  Revision.tla
+source 223b737bd5231a2f225b45d449ab2a3a6b4ee39c6fbca6b37e76082c389bb5eb  StorePositions.tla
 source d551f4a2f6700d613e1c91f444260cb977f1c6d5117d383aadd49357f121b98c  TargetHomes.tla
 source b8cc57798deadb5e7942a3965260dbdf1be66505a63fd7accc90ccb3c7cab756  Targets.tla
 source 33c1c1367661ec76176d6ff1502b5b486ad09ef06fc881d3f105ce6fc9969994  TargetsWide.tla
+source 43c63a869d5b4ef23a2cc2f68dd96d699d46dbc33bac69819cc9c5b4679800ed  W4History.tla
+source d8c990a536d8914efa0876ff007a825e4467cc0d4aaa3db60f70f2ab78816dbf  W4Scale.tla
 source 9eb98cdcc84882248b606136e854d9bf602c0363dd8fea3be7e9724530343ba2  Workspace.tla
+source c30cbf2ac761a434ce5c8efd50522796302ca6b901f96506ccd3035ff1eb8ca1  AgentAuthority.cfg
+source 6f2b9d65dda00aa8c72d5d1c2f1a88ac5188556229e3fcf2191051c3972f19b4  AgentAuthorityNoFence.cfg
+source 392fb2ae4b96563bc86919a6eb8ff10c8043dea17acdff3cc708c0459d0ae530  AgentAuthorityNoRegistry.cfg
+source 99d8e72a6428f883744931fa824c93006a2a6433f265d9efde5dec99185dcbaf  AgentAuthorityNoRevocation.cfg
+source bc43a94a1226b78b4de3abd7640d921e439456606af389a8399ebe159ebd6a9f  AgentAuthorityNoSource.cfg
+source aa52625b8128797f7e58d1d63f280454b4b28f2ddd819ca1c27e3cb020b57f5a  CapsuleReplay.cfg
+source bf10b62f501e74132035873e267dbcf343bb520d070ad26ed4cc7670fe7a41c4  CatalogueExchange.cfg
 source 54ec185308135d4538b38b9a5a68fc73e5e4625414ba47fa7af0e0188dddfda7  Certificates.cfg
 source d31c0ca84bc5222e4cb029fe3b3365a848aef13a9f40596b33bb554f1a9655c8  CertificatesLagging.cfg
 source 4279428190790c922363a58ad0b0a7c1c95eeab75b93df44a8006e514df38f6a  CertificatesLive.cfg
 source 146cfc2263bc4808628911c016dd7bcd99fb8c7eeda6a66a04fb100c7235e52c  Chain.cfg
+source f663daaee006f952eb71dfd9be53b0bda7235d420808b76e82143036b31509c3  CheckpointConflicts.cfg
+source 2a8cfd200682b767367e2b3ca55ff2e44f0725640787e9fec469a2d661245cae  CheckpointConflictsHistorical.cfg
+source 3499d009720710308faacfb649d7729f4e763060c1367ec707b03795c05324aa  CheckpointConflictsNoCurrent.cfg
+source ae1ca0a19d58587603f6b799e1053a16bb4227dbd6458bd03d0a865b42b436d5  CheckpointConflictsNoDeps.cfg
+source ef77bfbc79d2ff5357eb02bcbc744320191b7c4cfc476a9d7ec7b7b92d4f06f1  CheckpointConflictsNoGuards.cfg
 source a442e8ea98445736c49ef28abca03028c66d1f235bbb973f255d3aad4e8500d5  CheckpointReuse.cfg
 source 9060f81758d12373a23ea685817dc6fa32cfd686196fb1dfc9d1db9d4ef26ae1  Collision.cfg
+source 4779d11ac145aea710bc81c5e52d4854f60b4e092e3e2739f5931b402f5af7b9  EditorPublication.cfg
+source 589e7f201f1fca0dfa69da2288f592e9e0092542eeb750a19f4291ac4eba1eaa  EditorRename.cfg
+source a15d82f70811e9ed4514f56dd81e058370c1e7a84a6e2bbb6cb12683fbf7adf8  ExportLookup.cfg
+source 77778505bdea006e83cf15e4ff54d5ccd76f77cbcf63dc19616c87b6409c1db4  ExportLookupResidual.cfg
 source fbd121e152047925f198ba0a24c644243cdf014159451e786dc3b838b25c5894  ExportRejected.cfg
 source 3f23c13689e0cdd595a10f280f5cb6bebcde175dec7462fc6c51437e1da05e3b  Fencing.cfg
 source 45569606d2bcf179ea4f32b5285482ebb2efd0e8f892c227c2638474c23262d2  FencingLive.cfg
@@ -109,14 +135,18 @@ source aa44586eeb84c2b02bc46caeb1230178326eca9a061d6ae3145f71a4f695537e  Quorums
 source 8509edf912636f023c58fd31a3f0357986241b41c8d647576099f7672b6a9f4b  Receipts.cfg
 source 9f751810990c01a5f13e0d384e8f8d2fc84a9a80541a2ca7b5325f122e529435  ReceiptsWide.cfg
 source c0adeed8d0430580271516f5fe82e7337ae283f6d9a886c2947d3048a3928444  Rejected.cfg
+source f6f5f44b8cbe8804d7013d8b907fb8f1399b881bd725f240dae50eceef6f21a1  ReplayIdentity.cfg
 source 47655ab81c63fb0433aca92df6db126d9f9b0d6db5e45768e0f6883a9af868aa  Revert.cfg
 source aa9f0c09de7b8ffeed91f86810ccdbdcf49fccba1e5079a23c67a0bed1a410c4  Revision.cfg
+source 49ac1c1cf6653500956934061b8a29aec4ef459beb00b27d41ba2507131e1276  StorePositions.cfg
 source 38695b090e2ba8489e5eb4e0f24f642c3e2cb77bb21a71c1f092ebe0204b6777  TargetHomes.cfg
 source a25a9014846da0978e87ee2bbb325d212a3acb23973749f59c89662587fbe065  Targets.cfg
 source cccd8066a5c099129b6471e3218b7bd6fdb92527bb03deaf98fba7218d746047  TargetsLagging.cfg
 source d0b7ec293e3f5e7cd293cdaef1b030377d8ab38098a277ead498280b799943b0  TargetsLive.cfg
 source 8ae3f57572ad3e8975681f861a3b46ec4a3d4f43b11280cdd34485e0453512bd  TargetsStatement.cfg
 source 59a565148cbbdff5b511cc32b2e9fc1046079c6d5267663fc6607929d607b889  TargetsWide.cfg
+source 7e3a522342995121a5aac40951a9813be879c24f21dba82f06d27c59e34573a1  W4History.cfg
+source 427baa8edf8375b984ff3c8fd4cedc3eac44d2ac411fd25dc4d594eedf21d7e0  W4Scale.cfg
 source 42dd2b818f3070e8e2f85b01b8e3eeea92b03f48a0e8f7aaf0735241ebd39f74  Workspace.cfg
 source 654555d4c765c137034dc9b421494c14f3c5d359d16d27bdc6c5dc46d4fc674e  WorkspacePending.cfg
 source f7a76167b4e53afbda35d82f95683dfd7eb63231082d1c078d683afd9d2f9481  WorkspaceWide.cfg

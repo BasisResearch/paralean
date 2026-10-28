@@ -1,4 +1,4 @@
-/data/home/kirancodes/Documents/code/paralean-integrate-w/verification/veil/Paralean/InitializerIdentity.lean:79:34: warning: try 'simp' instead of 'simpa'
+/data/home/kirancodes/Documents/code/paralean-w2-security/verification/veil/Paralean/InitializerIdentity.lean:79:34: warning: try 'simp' instead of 'simpa'
 
 Note: This linter can be disabled with `set_option linter.unnecessarySimpa false`
 'ParaleanInitializerIdentity.exact_implies_observable' does not depend on any axioms

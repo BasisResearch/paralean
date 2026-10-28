@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 83 and seed 2563735895150091347 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 873357] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 34 and seed -7330088326798075464 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 916445] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Quorums/Quorums.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Quorums/Durability.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Quorums-java-tmp/FiniteSets.tla
@@ -12,17 +12,17 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Durability
 Semantic processing of module Quorums
-Starting... (2026-10-20 23:24:45)
+Starting... (2026-10-28 12:41:22)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:24:45.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:22.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 7.2E-14
 3457 states generated, 439 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 10.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 7 and the 95th percentile is 4).
-Finished in 00s at (2026-10-20 23:24:45)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 00s at (2026-10-28 12:41:22)
 ==== Paralean TLC provenance ====
 module Quorums
 config Quorums.cfg

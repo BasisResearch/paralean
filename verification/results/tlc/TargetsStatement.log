@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 18 and seed -395306092321259232 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 960611] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 67 and seed -6936261448085687096 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 958031] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsStatement/Targets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsStatement-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/TargetsStatement-java-tmp/Naturals.tla
@@ -8,18 +8,18 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Targets
-Starting... (2026-10-20 23:26:44)
+Starting... (2026-10-28 12:44:26)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:26:44.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:44:26.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 1.7E-10
-  based on the actual fingerprints:  val = 2.0E-11
+  based on the actual fingerprints:  val = 7.0E-11
 140910 states generated, 28674 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 17.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 3).
-Finished in 00s at (2026-10-20 23:26:44)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 8 and the 95th percentile is 4).
+Finished in 00s at (2026-10-28 12:44:27)
 ==== Paralean TLC provenance ====
 module Targets
 config TargetsStatement.cfg

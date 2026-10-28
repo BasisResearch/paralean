@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 36 and seed 6856087261338775326 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 892133] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 128 and seed -401337879148806218 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 923509] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing/Fencing.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Fencing-java-tmp/Naturals.tla
@@ -10,19 +10,19 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-20 23:25:20)
+Starting... (2026-10-28 12:42:06)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:25:20.
-Progress(17) at 2026-10-20 23:25:23: 1,502,669 states generated (1,502,669 s/min), 158,562 distinct states found (158,562 ds/min), 53,235 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:42:06.
+Progress(15) at 2026-10-28 12:42:09: 877,227 states generated (877,227 s/min), 100,058 distinct states found (100,058 ds/min), 36,456 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.7E-7
-  based on the actual fingerprints:  val = 1.2E-7
+  based on the actual fingerprints:  val = 5.5E-8
 12301947 states generated, 754348 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 28.
-The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 9 and the 95th percentile is 3).
-Finished in 16s at (2026-10-20 23:25:36)
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 3).
+Finished in 31s at (2026-10-28 12:42:37)
 ==== Paralean TLC provenance ====
 module Fencing
 config Fencing.cfg

@@ -1,0 +1,6 @@
+check-tla.sh rc=0 234s
+check-tla-negative.sh rc=0 414s
+check-tla.sh --wide rc=0 365s
+check-tla-hardened.sh rc=0 1357s
+archive-verification.sh --tla-only rc=0 2s
+archive-verification.sh --verify rc=0 0s

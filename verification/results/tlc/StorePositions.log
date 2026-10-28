@@ -1,26 +1,26 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 16 and seed 8810499448624485514 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 1441161] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/run/StorePositions/StorePositions.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 127 and seed 4331870020635665677 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 959296] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/StorePositions/StorePositions.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/StorePositions-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/StorePositions-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/StorePositions-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module StorePositions
-Starting... (2026-10-20 21:31:03)
+Starting... (2026-10-28 12:44:33)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 21:31:04.
-Progress(20) at 2026-10-20 21:31:07: 171,521 states generated (171,521 s/min), 34,428 distinct states found (34,428 ds/min), 10,166 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:44:34.
+Progress(23) at 2026-10-28 12:44:37: 495,746 states generated (495,746 s/min), 87,828 distinct states found (87,828 ds/min), 21,526 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 2.2E-8
-  based on the actual fingerprints:  val = 4.2E-8
+  based on the actual fingerprints:  val = 3.1E-8
 1812811 states generated, 258505 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 38.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 9 and the 95th percentile is 4).
-Finished in 14s at (2026-10-20 21:31:17)
+Finished in 10s at (2026-10-28 12:44:43)
 ==== Paralean TLC provenance ====
 module StorePositions
 config StorePositions.cfg

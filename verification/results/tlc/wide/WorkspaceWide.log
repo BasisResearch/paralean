@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 127 and seed -4874898775202306998 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 1120870] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 112 and seed 1903246135720553441 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 1200675] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/WorkspaceWide/Workspace.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/WorkspaceWide-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/WorkspaceWide-java-tmp/Naturals.tla
@@ -8,10 +8,10 @@ Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module Workspace
-Starting... (2026-10-20 23:30:41)
+Starting... (2026-10-28 12:57:42)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:30:41.
-Progress(13) at 2026-10-20 23:30:45: 18,796 states generated (18,796 s/min), 8,574 distinct states found (8,574 ds/min), 3,108 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:57:42.
+Progress(13) at 2026-10-28 12:57:45: 13,241 states generated (13,241 s/min), 6,187 distinct states found (6,187 ds/min), 2,447 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -19,7 +19,7 @@ Model checking completed. No error has been found.
 64966 states generated, 25725 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 17.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 6 and the 95th percentile is 3).
-Finished in 09s at (2026-10-20 23:30:51)
+Finished in 14s at (2026-10-28 12:57:57)
 ==== Paralean TLC provenance ====
 module Workspace
 config WorkspaceWide.cfg

@@ -1,16 +1,16 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 81 and seed 3736061395398094062 with 4 workers on 32 cores with 5461MB heap and 64MB offheap memory [pid: 1433530] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /data/home/kirancodes/Documents/code/paralean-integrate-w/.runs/tla/run/ExportLookupResidual/ExportLookupResidual.tla
-Parsing file /tmp/Naturals.tla
-Parsing file /tmp/FiniteSets.tla
-Parsing file /tmp/Sequences.tla
+Running breadth-first search Model-Checking with fp 113 and seed 8606119921757458769 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 958439] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportLookupResidual/ExportLookupResidual.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportLookupResidual-java-tmp/Naturals.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportLookupResidual-java-tmp/FiniteSets.tla
+Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportLookupResidual-java-tmp/Sequences.tla
 Semantic processing of module Naturals
 Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module ExportLookupResidual
-Starting... (2026-10-20 21:30:56)
+Starting... (2026-10-28 12:44:29)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 21:30:56.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:44:29.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -18,7 +18,7 @@ Model checking completed. No error has been found.
 5922 states generated, 1040 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 16.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 10 and the 95th percentile is 4).
-Finished in 01s at (2026-10-20 21:30:57)
+Finished in 01s at (2026-10-28 12:44:30)
 ==== Paralean TLC provenance ====
 module ExportLookupResidual
 config ExportLookupResidual.cfg

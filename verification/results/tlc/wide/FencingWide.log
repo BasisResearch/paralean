@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 40 and seed -25445414839794445 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 1051665] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 71 and seed -6443843064084562582 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 1153116] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/FencingWide/Fencing.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/FencingWide-java-tmp/FiniteSets.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/FencingWide-java-tmp/Naturals.tla
@@ -10,20 +10,21 @@ Semantic processing of module Sequences
 Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Fencing
-Starting... (2026-10-20 23:28:51)
+Starting... (2026-10-28 12:54:49)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:28:52.
-Progress(15) at 2026-10-20 23:28:55: 658,744 states generated (658,744 s/min), 61,728 distinct states found (61,728 ds/min), 26,302 states left on queue.
-Progress(26) at 2026-10-20 23:29:55: 24,453,529 states generated (23,794,785 s/min), 1,340,445 distinct states found (1,278,717 ds/min), 226,689 states left on queue.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:54:49.
+Progress(14) at 2026-10-28 12:54:52: 448,237 states generated (448,237 s/min), 45,055 distinct states found (45,055 ds/min), 20,714 states left on queue.
+Progress(24) at 2026-10-28 12:55:52: 15,197,815 states generated (14,749,578 s/min), 907,427 distinct states found (862,372 ds/min), 192,781 states left on queue.
+Progress(27) at 2026-10-28 12:56:52: 30,243,700 states generated (15,045,885 s/min), 1,558,790 distinct states found (651,363 ds/min), 207,195 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 4.1E-6
-  based on the actual fingerprints:  val = 1.0E-7
+  based on the actual fingerprints:  val = 1.1E-7
 42295515 states generated, 1860196 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 34.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 12 and the 95th percentile is 3).
-Finished in 01min 49s at (2026-10-20 23:30:40)
+Finished in 02min 52s at (2026-10-28 12:57:41)
 ==== Paralean TLC provenance ====
 module Fencing
 config FencingWide.cfg

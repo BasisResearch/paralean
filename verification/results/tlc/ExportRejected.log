@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 70 and seed 2852879365052093163 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 877327] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 102 and seed -7379959261784142395 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 919751] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportRejected/ExportRejected.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportRejected/Registry.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/ExportRejected-java-tmp/FiniteSets.tla
@@ -12,9 +12,9 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module ExportRejected
-Starting... (2026-10-20 23:24:51)
+Starting... (2026-10-28 12:41:28)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:24:51.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:28.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
@@ -22,7 +22,7 @@ Model checking completed. No error has been found.
 89 states generated, 22 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 7.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 4 and the 95th percentile is 3).
-Finished in 00s at (2026-10-20 23:24:51)
+Finished in 00s at (2026-10-28 12:41:28)
 ==== Paralean TLC provenance ====
 module ExportRejected
 config ExportRejected.cfg

@@ -1,5 +1,5 @@
 TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
-Running breadth-first search Model-Checking with fp 108 and seed 2876376236994909173 with 8 workers on 32 cores with 10923MB heap and 64MB offheap memory [pid: 863644] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Running breadth-first search Model-Checking with fp 45 and seed 7445140126869304535 with 4 workers on 32 cores with 7282MB heap and 64MB offheap memory [pid: 908891] (Linux 7.0.0-1012-aws amd64, Ubuntu 25.0.4.1 x86_64, MSBDiskFPSet, DiskStateQueue).
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revision/Revision.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revision/Registry.tla
 Parsing file /data/home/kirancodes/Documents/code/paralean-w2-security/.runs/tla/run/Revision-java-tmp/FiniteSets.tla
@@ -12,18 +12,19 @@ Semantic processing of module FiniteSets
 Semantic processing of module TLC
 Semantic processing of module Registry
 Semantic processing of module Revision
-Starting... (2026-10-20 23:24:39)
+Starting... (2026-10-28 12:41:14)
 Computing initial states...
-Finished computing initial states: 1 distinct state generated at 2026-10-20 23:24:39.
+Finished computing initial states: 1 distinct state generated at 2026-10-28 12:41:14.
+Progress(20) at 2026-10-28 12:41:17: 2,342,137 states generated (2,342,137 s/min), 168,871 distinct states found (168,871 ds/min), 5,464 states left on queue.
 Model checking completed. No error has been found.
   Estimates of the probability that TLC did not check all reachable states
   because two distinct states had the same fingerprint:
   calculated (optimistic):  val = 2.2E-8
-  based on the actual fingerprints:  val = 8.8E-10
+  based on the actual fingerprints:  val = 7.7E-10
 2499053 states generated, 174512 distinct states found, 0 states left on queue.
 The depth of the complete state graph search is 26.
 The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 11 and the 95th percentile is 4).
-Finished in 02s at (2026-10-20 23:24:41)
+Finished in 03s at (2026-10-28 12:41:17)
 ==== Paralean TLC provenance ====
 module Revision
 config Revision.cfg
