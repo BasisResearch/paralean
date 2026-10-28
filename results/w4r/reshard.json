@@ -1,0 +1,122 @@
+{
+  "clients": 4,
+  "exactly_once_verified": true,
+  "jobs_per_final_shard": {
+    "0": 987,
+    "1": 1033,
+    "2": 617
+  },
+  "method": "one shared-host sample; live private FDB (w4r-b); in-process controller planes with monitor loops; direct controller API; debug build; no validation RPC",
+  "moves": [
+    {
+      "begin_to_done_s": 0.068813024,
+      "begin_to_exported_s": 0.048982978,
+      "buckets": 43,
+      "from": 0,
+      "handoff_bytes": 16996,
+      "id": 1001,
+      "to": 2
+    },
+    {
+      "begin_to_done_s": 0.11246924,
+      "begin_to_exported_s": 0.086472565,
+      "buckets": 43,
+      "from": 1,
+      "handoff_bytes": 13113,
+      "id": 1002,
+      "to": 2
+    },
+    {
+      "begin_to_done_s": 0.070668213,
+      "begin_to_exported_s": 0.045199817,
+      "buckets": 21,
+      "from": 0,
+      "handoff_bytes": 13757,
+      "id": 1003,
+      "to": 3
+    },
+    {
+      "begin_to_done_s": 0.06079891,
+      "begin_to_exported_s": 0.036652229,
+      "buckets": 21,
+      "from": 1,
+      "handoff_bytes": 11957,
+      "id": 1004,
+      "to": 3
+    },
+    {
+      "begin_to_done_s": 0.048977849,
+      "begin_to_exported_s": 0.029923744,
+      "buckets": 22,
+      "from": 2,
+      "handoff_bytes": 14780,
+      "id": 1005,
+      "to": 3
+    },
+    {
+      "begin_to_done_s": 0.07738077,
+      "begin_to_exported_s": 0.04540828,
+      "buckets": 32,
+      "from": 3,
+      "handoff_bytes": 29006,
+      "id": 1006,
+      "to": 0
+    },
+    {
+      "begin_to_done_s": 0.058635049,
+      "begin_to_exported_s": 0.033194823,
+      "buckets": 32,
+      "from": 3,
+      "handoff_bytes": 31005,
+      "id": 1007,
+      "to": 1
+    }
+  ],
+  "phase_seconds": 8.0,
+  "phases": [
+    {
+      "phase": "2 shards",
+      "seconds": 8.000442763,
+      "submissions": 747,
+      "submissions_per_second": 93.36983241161148
+    },
+    {
+      "phase": "resharding 2->3",
+      "seconds": 0.185853238,
+      "submissions": 7,
+      "submissions_per_second": 37.66412721848838
+    },
+    {
+      "phase": "3 shards",
+      "seconds": 8.001228025,
+      "submissions": 623,
+      "submissions_per_second": 77.86304777884392
+    },
+    {
+      "phase": "resharding 3->4",
+      "seconds": 0.182263104,
+      "submissions": 19,
+      "submissions_per_second": 104.24490521131473
+    },
+    {
+      "phase": "4 shards",
+      "seconds": 8.000474384,
+      "submissions": 744,
+      "submissions_per_second": 92.99448561299212
+    },
+    {
+      "phase": "resharding 4->3",
+      "seconds": 0.139289913,
+      "submissions": 11,
+      "submissions_per_second": 78.97197839444412
+    },
+    {
+      "phase": "3 shards after removal",
+      "seconds": 8.001857141,
+      "submissions": 482,
+      "submissions_per_second": 60.236016652974634
+    }
+  ],
+  "retried_attempts": 2,
+  "total_submitted": 2637
+}

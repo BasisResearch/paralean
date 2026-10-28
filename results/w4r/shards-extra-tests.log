@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/p5_claims.rs (target/debug/deps/p5_claims-affc04b763787240)
+
+running 1 test
+test task_and_shard_claims_are_mutually_exclusive ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/strict_signatures.rs (target/debug/deps/strict_signatures-4c2f77967c713c46)
+
+running 2 tests
+test validator_envelope_strict_signature_vectors     ... ok
+test sharded_controller_rpc_strict_signature_vectors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 96.54s
+
