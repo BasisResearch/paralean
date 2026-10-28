@@ -95,6 +95,11 @@ pub struct Acked {
 }
 
 impl Acked {
+    /// Store GC revival (gc.rs) only: the caller just saw `(kind, id)` acknowledged by its
+    /// own verified PUT or GET.
+    pub(crate) fn seen(kind: Kind, id: Id) -> Acked {
+        Acked { kind, id }
+    }
     pub fn kind(&self) -> Kind {
         self.kind
     }
@@ -112,6 +117,8 @@ pub struct Payloads {
     prefix: String,
     faults: Arc<Faults>,
     pub max_attempts: usize,
+    /// `max-keys` of one listing page (tests lower it to exercise pagination).
+    pub list_page: i32,
 }
 
 fn b64(id: &Id) -> String {
@@ -145,6 +152,7 @@ impl Payloads {
             prefix: cfg.prefix.clone(),
             faults,
             max_attempts: 8,
+            list_page: 1000,
         }
     }
 
@@ -185,6 +193,12 @@ impl Payloads {
             }
             match self.raw_put(&key, preimage, &id).await {
                 Ok(()) => return Ok(Acked { kind, id }),
+                // A gateway refusal is deterministic (e.g. the store GC is deleting this
+                // key); retrying it only delays the caller's revival path.
+                Err(e) if e.contains("AccessDenied") => {
+                    last = e;
+                    break;
+                }
                 Err(e) => last = e,
             }
         }
@@ -277,26 +291,37 @@ impl Payloads {
 
     /// List every ID of a kind (paginated).
     pub async fn list(&self, kind: Kind) -> Result<Vec<Id>> {
+        Ok(self.list_sized(kind).await?.0.into_iter().map(|(id, _)| id).collect())
+    }
+
+    /// Every `(ID, stored size)` of a kind, and the number of listing pages. Follows the
+    /// continuation token while the store reports truncation, never on a short page.
+    pub async fn list_sized(&self, kind: Kind) -> Result<(Vec<(Id, u64)>, u64)> {
         let prefix = format!("{}obj/{}/", self.prefix, kind.name());
         let mut out = Vec::new();
+        let mut pages = 0u64;
         let mut token: Option<String> = None;
         loop {
-            let mut req = self.client.list_objects_v2().bucket(&self.bucket).prefix(&prefix).max_keys(1000);
+            let mut req = self.client.list_objects_v2().bucket(&self.bucket).prefix(&prefix).max_keys(self.list_page);
             if let Some(t) = &token {
                 req = req.continuation_token(t);
             }
             let resp = req.send().await.map_err(|e| StoreError::S3(format!("{}", aws_sdk_s3::error::DisplayErrorContext(e))))?;
+            pages += 1;
             for o in resp.contents() {
                 if let Some(id) = o.key().and_then(|k| k.strip_prefix(&prefix)).and_then(Id::from_hex) {
-                    out.push(id);
+                    out.push((id, o.size().unwrap_or(0).max(0) as u64));
                 }
             }
             match resp.next_continuation_token() {
                 Some(t) if resp.is_truncated() == Some(true) => token = Some(t.to_string()),
+                _ if resp.is_truncated() == Some(true) => {
+                    return Err(StoreError::S3(format!("listing {prefix} truncated without a continuation token")));
+                }
                 _ => break,
             }
         }
-        Ok(out)
+        Ok((out, pages))
     }
 
     // ----------------------------------------------------------- test and fault helpers

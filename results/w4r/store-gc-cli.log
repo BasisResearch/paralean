@@ -1,0 +1,164 @@
+deployment cli-gc-1793225968, private guard 127.0.0.1:55691 (store-GC content deletes for this deployment only)
+$ paralean-p2 assign Cli.Target w0
+Cli.Target: owner w0, epoch 0
+
+$ paralean-p2 publish-demo w0 Cli.Target t1
+published group 488b303ed0d304092d951ac385e4939bfe4004c1985259bdbaa1d904d7cedd81 marker 75556e44fe741462d57b90ed872ed7aeef63410de52689f7f83af190168bd317 (fresh: true)
+
+$ paralean-p2 put capsule /Users/kirancodes/tmp/tmp.2ox6H5fXpG
+capsule:bc7fba8771f7268d17c214f502454b113ef1afdd74f17a9252ef97e070816baf
+
+$ paralean-p2 gc sweep
+paralean-p2: store GC is not enabled (run gc backfill, then gc enable)
+
+$ paralean-p2 gc enable
+paralean-p2: store GC: run the reference backfill before enabling collection
+
+$ paralean-p2 gc backfill
+{
+  "anomalies": [],
+  "catalogue_dead_seen": 0,
+  "catalogue_examined": 0,
+  "catalogue_retired": 0,
+  "clock": 0,
+  "delete_failures": 0,
+  "deleted": 0,
+  "doomed": 0,
+  "doomed_bytes": 0,
+  "elapsed_ms": 12,
+  "examined": 0,
+  "examined_bytes": 0,
+  "jobs_examined": 0,
+  "jobs_released": 0,
+  "keys_scanned": 1,
+  "listing_pages": 0,
+  "pending_delete": 0,
+  "reclaimed_bytes": 0,
+  "referenced": 0,
+  "references_written": 3,
+  "referrers": 1,
+  "sighted": 0,
+  "transactions": 2,
+  "unsighted": 0,
+  "waiting": 0
+}
+
+$ paralean-p2 gc enable
+store GC enabled (gc/indexed set); sweeps run only when requested
+
+$ paralean-p2 gc sweep --grace 1
+{
+  "delete": null,
+  "sweep": {
+    "anomalies": [],
+    "catalogue_dead_seen": 0,
+    "catalogue_examined": 0,
+    "catalogue_retired": 0,
+    "clock": 1,
+    "delete_failures": 0,
+    "deleted": 0,
+    "doomed": 0,
+    "doomed_bytes": 0,
+    "elapsed_ms": 80,
+    "examined": 5,
+    "examined_bytes": 391,
+    "jobs_examined": 0,
+    "jobs_released": 0,
+    "keys_scanned": 0,
+    "listing_pages": 8,
+    "pending_delete": 0,
+    "reclaimed_bytes": 0,
+    "referenced": 3,
+    "references_written": 0,
+    "referrers": 0,
+    "sighted": 2,
+    "transactions": 6,
+    "unsighted": 0,
+    "waiting": 0
+  }
+}
+
+$ paralean-p2 gc sweep --grace 1 --delete
+{
+  "delete": {
+    "anomalies": [],
+    "catalogue_dead_seen": 0,
+    "catalogue_examined": 0,
+    "catalogue_retired": 0,
+    "clock": 0,
+    "delete_failures": 0,
+    "deleted": 2,
+    "doomed": 0,
+    "doomed_bytes": 0,
+    "elapsed_ms": 22,
+    "examined": 2,
+    "examined_bytes": 0,
+    "jobs_examined": 0,
+    "jobs_released": 0,
+    "keys_scanned": 2,
+    "listing_pages": 0,
+    "pending_delete": 0,
+    "reclaimed_bytes": 69,
+    "referenced": 0,
+    "references_written": 0,
+    "referrers": 0,
+    "sighted": 0,
+    "transactions": 3,
+    "unsighted": 0,
+    "waiting": 0
+  },
+  "sweep": {
+    "anomalies": [],
+    "catalogue_dead_seen": 0,
+    "catalogue_examined": 0,
+    "catalogue_retired": 0,
+    "clock": 2,
+    "delete_failures": 0,
+    "deleted": 0,
+    "doomed": 2,
+    "doomed_bytes": 69,
+    "elapsed_ms": 92,
+    "examined": 5,
+    "examined_bytes": 391,
+    "jobs_examined": 0,
+    "jobs_released": 0,
+    "keys_scanned": 0,
+    "listing_pages": 8,
+    "pending_delete": 0,
+    "reclaimed_bytes": 0,
+    "referenced": 3,
+    "references_written": 0,
+    "referrers": 0,
+    "sighted": 0,
+    "transactions": 6,
+    "unsighted": 0,
+    "waiting": 0
+  }
+}
+
+$ paralean-p2 gc status
+{
+  "backfilled": true,
+  "clock": 2,
+  "dooms": 2,
+  "indexed": true,
+  "references": 3,
+  "retired_catalogue": 0,
+  "states": {
+    "gone": 2
+  }
+}
+
+$ paralean-p2 audit
+certified groups   1
+committed records  0
+foreign catalogues 0
+markers            1
+object certs       0
+received evidence  0
+records            0
+targets            1
+tombstones         0
+uncertified markers 0
+audit ok
+

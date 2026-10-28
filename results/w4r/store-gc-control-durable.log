@@ -1,0 +1,25 @@
+   Compiling paralean-store v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4r-store-gc/impl/p2/crates/store)
+   Compiling paralean-validator-api v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4r-store-gc/impl/p3/crates/validator-api)
+   Compiling paralean-control v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4r-store-gc/impl/p3/crates/control)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.30s
+     Running tests/durable.rs (target/debug/deps/durable-3cfae69dbbe41166)
+
+running 14 tests
+test elapsed_wall_time_alone_cannot_expire_a_lease                    ... ok
+test large_snapshot_roundtrips_and_old_leader_writes_are_fenced       ... ok
+test shard_terms_and_target_catalog_are_independent                   ... ok
+test expired_same_holder_cannot_reuse_old_term_or_write_during_gap    ... ok
+test different_topology_is_rejected_before_a_leader_can_write         ... ok
+test legacy_controller_state_requires_offline_migration               ... ok
+test queued_target_claim_blocks_another_shards_assignment             ... ok
+test submitted_work_routes_before_another_shard_can_claim_target      ... ok
+test target_free_job_routes_its_cancellation_to_issuing_shard         ... ok
+test unowned_fence_can_be_taken_by_later_registered_worker            ... ok
+test replay_of_external_assignment_commits_the_controller_shard_claim ... ok
+test sharded_validation_routes_are_scoped_per_workspace               ... ok
+test overlong_request_id_is_refused_before_shard_routing              ... ok
+test spilled_poll_tokens_keep_their_first_answer                      ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+exit 0

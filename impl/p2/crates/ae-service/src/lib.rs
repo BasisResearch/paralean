@@ -13,7 +13,7 @@ use paralean_store::ae::{AeIdentity, AePending, PendingState};
 use paralean_store::antientropy::Outcome;
 use paralean_store::id::sha256;
 use paralean_store::pce::Pce;
-use paralean_store::{Id, Store, Writer};
+use paralean_store::{AeFetch, Id, Store, Writer};
 use tokio::net::TcpListener;
 use tokio::sync::watch;
 
@@ -141,9 +141,11 @@ async fn handle(store: &Store, own: &Identity, payload: Payload) -> Result<Paylo
             Ok(response(Response::Materialize(page), Vec::new()))
         }
         Request::Fetch { kind, id, .. } => {
-            match store.s3.get(kind, &id).await.map_err(|e| e.to_string())? {
-                None => Ok(response(Response::Missing { kind, id }, Vec::new())),
-                Some(bytes) => {
+            // A doomed, deleting or gone object is never served (store GC).
+            match store.ae_fetch(kind, &id).await.map_err(|e| e.to_string())? {
+                AeFetch::Retired => Ok(response(Response::Retired { kind, id }, Vec::new())),
+                AeFetch::Missing => Ok(response(Response::Missing { kind, id }, Vec::new())),
+                AeFetch::Object(bytes) => {
                     if bytes.len() > ae_wire::MAX_OBJECT {
                         return Err(format!(
                             "{} {} exceeds the 64 MiB object limit",
@@ -412,13 +414,33 @@ impl Puller {
                             id.hex()
                         ));
                     }
-                    self.writer
-                        .store
-                        .s3
-                        .put(*kind, &bytes)
-                        .await
-                        .map_err(|e| e.to_string())?;
+                    // Through the store GC's revival rule: refused while the local copy
+                    // is doomed or being deleted, a revival after `Gone`.
+                    match self.writer.store.put_live(*kind, &bytes).await {
+                        Ok(_) => {}
+                        Err(paralean_store::StoreError::Guard(
+                            g @ paralean_store::GuardFailure::Collected { .. },
+                        )) => {
+                            p.state = PendingState::Deferred(format!("{source}: {g}"));
+                            self.save_pending(p.generation, cursor, &p, &[]).await?;
+                            stats.deferred += 1;
+                            return Ok(());
+                        }
+                        Err(e) => return Err(e.to_string()),
+                    }
                     stats.fetched_objects += 1;
+                }
+                Response::Retired {
+                    kind: got_kind,
+                    id: got_id,
+                } if got_kind == *kind && got_id == *id => {
+                    // The source collected this object: it will never be served again.
+                    let why = format!("{source}: retired {} {}", kind.name(), id.hex());
+                    eprintln!("anti-entropy {source} event {}: {why}", hex_key(&p.event.key));
+                    p.state = PendingState::Terminal(why);
+                    self.save_pending(p.generation, cursor, &p, &[]).await?;
+                    stats.terminal += 1;
+                    return Ok(());
                 }
                 Response::Missing {
                     kind: got_kind,

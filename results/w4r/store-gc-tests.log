@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/store_gc.rs (target/debug/deps/store_gc-af3fae9fc3929da6)
+
+running 12 tests
+test gc_disabled_by_default_collects_nothing                 ... ok
+test gc_collects_staged_orphans_only_after_grace             ... ok
+test gc_never_collects_published_tombstoned_moved_or_revised ... ok
+test gc_t1_doom_race_both_orders                             ... ok
+test gc_revival_after_gone                                   ... ok
+test gc_t5_t6_refuse_a_doomed_snapshot                       ... ok
+test gc_dead_catalogue_record_retired_and_recovery           ... ok
+test gc_pending_jobs_protect_their_objects                   ... ok
+test gc_pending_ae_events_protect_their_objects              ... ok
+test gc_ae_never_serves_collected_objects_or_retired_records ... ok
+test gc_guard_deletes_only_doomed_keys                       ... ok
+test gc_measurement                                          ... ignored
+
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.49s
+

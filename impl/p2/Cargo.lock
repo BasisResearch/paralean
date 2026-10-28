@@ -2149,6 +2149,7 @@ name = "s3-guard"
 version = "0.2.0"
 dependencies = [
  "bytes",
+ "foundationdb",
  "http-body-util",
  "hyper",
  "hyper-util",

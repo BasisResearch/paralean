@@ -1,0 +1,5 @@
+detected  mutate-no-gc-principal-check
+detected  mutate-no-bucket-delete-check
+detected  mutate-no-query-key-decode
+detected  mutate-no-gc-prefix-check
+exit 0

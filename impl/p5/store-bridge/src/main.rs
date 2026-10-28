@@ -84,7 +84,8 @@ async fn run(args: Vec<String>) -> R<Value> {
                 Some(checks)
             } else { None };
             let object = Opaque::new(Kind::Blob, bytes);
-            let ack = store.s3.put_opaque(&object).await.map_err(|e| e.to_string())?;
+            // Through the store GC's revival rule (a refused PUT of a collected key waits for Gone).
+            let ack = store.put_payload(Kind::Blob, &object.preimage()).await.map_err(|e| e.to_string())?;
             if ack.id() != object.id() { return Err("S3 acknowledgement ID mismatch".into()); }
             let next = expected.checked_add(1).ok_or("sequence overflow")?;
             let hk = head_key(&space, task);
@@ -107,6 +108,16 @@ async fn run(args: Vec<String>) -> R<Value> {
                 }
                 if current.0 != expected { return Err(format!("stale P5 state: expected {expected}, found {}", current.0)); }
                 let packed = encode_head(next, object.id());
+                // Store GC: the immutable event row names the blob (referrer: the event key).
+                match paralean_store::gc::reference_in(&trx, &store.meta.keys, &[(Kind::Blob, object.id())], &ek).await {
+                    Ok(()) => {}
+                    Err(paralean_store::StoreError::Guard(paralean_store::GuardFailure::Collected { .. })) => {
+                        store.gc_revive(Kind::Blob, &object.id(), Some(&object.preimage())).await.map_err(|e| e.to_string())?;
+                        trx = store.meta.db.create_trx().map_err(|e| e.to_string())?;
+                        continue;
+                    }
+                    Err(e) => return Err(e.to_string()),
+                }
                 trx.set(&hk, &packed);
                 trx.set(&ek, &packed);
                 match trx.commit().await {

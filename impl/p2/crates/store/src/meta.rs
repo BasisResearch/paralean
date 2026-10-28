@@ -10,10 +10,16 @@
 //! returns `StoreError::Unresolved`, never a guard failure.
 //!
 //! Protocol key spaces are grow-only, which the paginated-scan argument of store.md
-//! needs: nothing clears a marker, certificate, tombstone, grant, fence, catalogue or
-//! registry key. The only clears are the anti-entropy work queues in `ae.rs` (pending
-//! events and their parts, once archived as terminal records); they hold no lineage.
-//! W4's controller GC clears only its own `controller/shard/*` chunks and retirements.
+//! needs: nothing clears a marker, certificate, tombstone, grant, fence or registry key.
+//! The clears are the anti-entropy work queues in `ae.rs` (pending events and their parts,
+//! once archived as terminal records; they hold no lineage), W4's controller GC (its own
+//! `controller/shard/*` chunks and retirements) and the opt-in store GC (`gc.rs`): its own
+//! `gcref`/`gcobj` index, the `ocert` of a doomed (unreferenced) object, and a dead
+//! `catalog/<c>` that has no commit certificate and a rank below the fence.
+//!
+//! Every transaction that makes committed metadata name an S3 object also writes the
+//! object's `gcref` and checks its `gcobj` (`gc::reference_in`): T1, T5s/T5, T8, T9, T10,
+//! T11, J1 and the anti-entropy imports. T6 refuses an object being collected.
 
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -807,6 +813,8 @@ impl Meta {
                     if trx.get(&key, true).await?.is_some() {
                         return Ok(Step::Done(false));
                     }
+                    // Store GC: never certify an object that is doomed, deleting or gone.
+                    crate::gc::check_live_in(trx, &keys, kind, &id).await?;
                     trx.set(&key, &value);
                     let cert_id = ObjectCert::from_bytes(&value)?.id();
                     append_event(trx, &keys, &AeKind::Evidence { kind: format!("ocert/{}", kind.name()), object: id, cert: cert_id }, 0);
@@ -938,6 +946,9 @@ impl Meta {
                     }
                     _ => return Err(GuardFailure::BadPackage("move anchor path differs".into()).into()),
                 }}
+                let mut objects = vec![(Kind::StagedMarker, mid), (Kind::Group, g)];
+                objects.extend(crate::gc::envelope_blob(&value).map(|b| (Kind::Blob, b)));
+                crate::gc::reference_in(trx, &k, &objects, &vk).await?;
                 trx.set(&vk, &value);
                 trx.set(&ck, &cert);
                 append_event(trx, &k, &AeKind::GroupVariant { group: g, marker: mid, cert: certificate.id() }, 0);
@@ -1221,6 +1232,12 @@ pub(crate) async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs, mode: 
             }
         }
     }
+    // Store GC: the marker names the group, staged marker copy, capsules, indexed chunks and
+    // envelope blobs; refuse any being collected (the writer revives and retries).
+    let capsules: Vec<Id> = a.revisions.iter().map(|(_, r, _)| r.capsule).collect();
+    let chunks: Vec<Id> = a.chunk_index.iter().flatten().map(|(id, _)| *id).collect();
+    let values: Vec<&[u8]> = std::iter::once(a.marker_value.as_slice()).chain(a.revisions.iter().map(|(_, _, v)| v.as_slice())).collect();
+    crate::gc::reference_in(trx, k, &crate::gc::marker_objects(a.group, a.marker_id, &capsules, &chunks, &values), &mk).await?;
     // Writes: marker, revisions and receipt if absent, heads, the publisher's certificate.
     trx.set(&mk, &a.marker_value);
     for (id, _, v) in &a.revisions {
@@ -1403,6 +1420,7 @@ pub(crate) async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs, mode
         return Err(GuardFailure::BadPackage("tombstone certificate does not bind the writer".into()).into());
     }
     tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.writer, *public, &a.ring, a.controller_grant.as_ref(), false, a.ring.authority).await?;
+    crate::gc::reference_in(trx, k, &tombstone_objects(a.tombstone_id, &a.value), &tk).await?;
     trx.set(&tk, &a.value);
     if let Some(grant) = &a.controller_grant { trx.set(&k.delete_grant(&a.tombstone_id), &grant.encoded()); }
     if !cfg!(feature = "mutate-tombstone-cert-outside") {
@@ -1412,6 +1430,13 @@ pub(crate) async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs, mode
         append_event(trx, k, &AeKind::Tombstone { id: a.tombstone_id, cert: TombstoneCert::from_bytes(&a.cert_value)?.id() }, 0);
     }
     Ok(Step::Commit(true))
+}
+
+/// The objects a tombstone key names: the staged copy and its envelope's blob.
+fn tombstone_objects(id: Id, value: &[u8]) -> Vec<(Kind, Id)> {
+    let mut v = vec![(Kind::StagedTombstone, id)];
+    v.extend(crate::gc::envelope_blob(value).map(|b| (Kind::Blob, b)));
+    v
 }
 
 // ---------------------------------------------------------------- T9/T10 bodies
@@ -1505,6 +1530,8 @@ pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, m
     }
     let mk = k.marker(&a.group);
     let mut publication_new = false;
+    // The key whose new value names the received objects (store GC referrer).
+    let mut referrer: Option<Vec<u8>> = None;
     if let Some(v) = get(trx, &mk).await? {
         let local = envelope_object_id(&v)?;
         // A member arrives only with its batch, and the batch record was absent.
@@ -1513,6 +1540,7 @@ pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, m
         }
         if local != a.marker_id && cfg!(feature = "mutate-receive-overwrite-marker") {
             trx.set(&mk, &a.marker_value);
+            referrer = Some(mk.clone());
         } else if local != a.marker_id && !a.variant {
             // One marker per group in the store (and per group in the Workspaces model's
             // Layout); a second publication of the group elsewhere is a conflict, reported.
@@ -1523,6 +1551,7 @@ pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, m
             if get(trx, &vk).await?.is_none() {
                 trx.set(&vk, &a.marker_value);
                 publication_new = true;
+                referrer = Some(vk);
             }
         }
     } else {
@@ -1542,6 +1571,7 @@ pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, m
         }
         trx.set(&mk, &a.marker_value);
         publication_new = true;
+        referrer = Some(mk.clone());
     }
     // A new marker or marker variant is a publication here, so T1's cancellation and
     // dependency reads apply in this transaction (W2 A-2): a request this deployment's
@@ -1570,6 +1600,12 @@ pub(crate) async fn t9_body(trx: &Transaction, k: &Keys, a: &ReceiveGroupArgs, m
     // deployment's key ring before the transaction).
     if !cfg!(feature = "mutate-no-revocation-check") && get(trx, &k.revocation(&a.validator_key)).await?.is_some() {
         return Err(GuardFailure::ValidatorRevoked(a.validator_key).into());
+    }
+    if let Some(referrer) = &referrer {
+        let capsules: Vec<Id> = a.revisions.iter().map(|(_, r, _)| r.capsule).collect();
+        let chunks: Vec<Id> = a.chunk_index.iter().flatten().map(|(id, _)| *id).collect();
+        let values: Vec<&[u8]> = std::iter::once(a.marker_value.as_slice()).chain(a.revisions.iter().map(|(_, _, v)| v.as_slice())).collect();
+        crate::gc::reference_in(trx, k, &crate::gc::marker_objects(a.group, a.marker_id, &capsules, &chunks, &values), referrer).await?;
     }
     for (id, _, v) in &a.revisions {
         let rk = k.revision(id);
@@ -1696,6 +1732,7 @@ pub(crate) async fn t10_body(trx: &Transaction, k: &Keys, a: &ReceiveTombstoneAr
             }
         }
         tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.deleter, a.deleter_public, &a.ring, a.controller_grant.as_ref(), true, source_issuer).await?;
+        crate::gc::reference_in(trx, k, &tombstone_objects(a.tombstone_id, &a.value), &tk).await?;
         trx.set(&tk, &a.value);
         if let Some(grant) = &a.controller_grant { trx.set(&k.delete_grant(&a.tombstone_id), &grant.encoded()); }
         publication_new = true;
@@ -1795,6 +1832,13 @@ async fn t5_body(trx: &Transaction, k: &Keys, a: &CommitArgs, commit: bool) -> R
                 return Err(GuardFailure::ParentUncommitted(p).into());
             }
         }
+    }
+    if commit || existing.is_none() {
+        // A retired dead record never returns (its rank is below the fence anyway).
+        if get(trx, &k.gc_retired_catalog(&c)).await?.is_some() {
+            return Err(GuardFailure::CatalogueRetired(c).into());
+        }
+        crate::gc::reference_in(trx, k, &crate::gc::record_objects(rec.snapshot, a.snapshot.as_ref()), &ck).await?;
     }
     match existing {
         Some(v) if v != a.record_value => return Err(GuardFailure::RecordMismatch.into()),

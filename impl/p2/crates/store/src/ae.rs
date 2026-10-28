@@ -8,7 +8,7 @@ use foundationdb::options::{MutationType, StreamingMode};
 use foundationdb::tuple::{Bytes, Versionstamp};
 use foundationdb::{KeySelector, RangeOption, Transaction};
 
-use crate::error::{Result, StoreError};
+use crate::error::{GuardFailure, Result, StoreError};
 use crate::id::{sha256, Id, Kind, ReplicaId, WorkspaceId};
 use crate::meta::{get, Keys, Step};
 use crate::objects::*;
@@ -389,7 +389,12 @@ impl Store {
         }
         Ok(ForeignCataloguePage { records, next, more })
     }
-    async fn ae_object_ref(&self, parts: &mut Vec<AePart>, kind: Kind, id: Id) -> Result<Vec<u8>> {
+    async fn ae_object_ref(&self, parts: &mut Vec<AePart>, kind: Kind, id: Id) -> Result<Option<Vec<u8>>> {
+        // Store GC: a doomed, deleting or gone object is never advertised; its part is
+        // dropped (committed metadata never names one, so this is defensive).
+        if !cfg!(feature = "mutate-storegc-ae-serves-gone") && self.gc_state(kind, &id).await?.is_some_and(|s| s.retired()) {
+            return Ok(None);
+        }
         // The wire length is an immutable part of the event. A mutable S3 HEAD length can
         // describe corrupt bytes; after repair that would strand the receiver with a stale
         // staged ObjectRef. Verify the content hash before fixing the length.
@@ -397,7 +402,7 @@ impl Store {
         let length = bytes.len() as u64;
         if length > MAX_WIRE_OBJECT { return Err(StoreError::Invalid(format!("{} {id} exceeds the 64 MiB wire object cap", kind.name()))); }
         parts.push(AePart::ObjectRef { kind, id, length });
-        Ok(bytes)
+        Ok(Some(bytes))
     }
 
     /// The parts of one published group: marker, receipt, job, revisions, the event's
@@ -433,14 +438,20 @@ impl Store {
         let group_bytes = self.ae_object_ref(all, Kind::Group, *group).await?;
         self.ae_object_ref(all, Kind::StagedMarker, *marker).await?;
         for capsule in capsules.keys() { self.ae_object_ref(all, Kind::Capsule, *capsule).await?; }
-        let actual = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)?;
-        let stored = self.meta.get(self.meta.keys.group_chunks(group)).await?
-            .map(|index| decode_chunk_index(&index)).transpose()?;
-        if actual != stored && (actual.is_some() || stored.is_some()) {
-            return Err(StoreError::Invalid("group chunk index differs from verified group manifest".into()));
-        }
-        if let Some(chunks) = actual {
-            for (chunk, length) in chunks { all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length }); }
+        if let Some(group_bytes) = group_bytes {
+            let actual = unique_chunks(Kind::Group.domain().strip(&group_bytes)?)?;
+            let stored = self.meta.get(self.meta.keys.group_chunks(group)).await?
+                .map(|index| decode_chunk_index(&index)).transpose()?;
+            if actual != stored && (actual.is_some() || stored.is_some()) {
+                return Err(StoreError::Invalid("group chunk index differs from verified group manifest".into()));
+            }
+            if let Some(chunks) = actual {
+                for (chunk, length) in chunks {
+                    if !self.gc_state(Kind::Chunk, &chunk).await?.is_some_and(|s| s.retired()) || cfg!(feature = "mutate-storegc-ae-serves-gone") {
+                        all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length });
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -491,6 +502,10 @@ impl Store {
             AeKind::Catalogue { source, id, cert } => {
                 let origin = if source.is_empty() { &self.deployment } else { source };
                 let local = origin == &self.deployment;
+                // A retired (dead, never committed) record is never handed out.
+                if local && self.meta.get(self.meta.keys.gc_retired_catalog(id)).await?.is_some() {
+                    return Err(GuardFailure::CatalogueRetired(*id).into());
+                }
                 let rec_bytes = self.meta.get(if local { self.meta.keys.catalog(id) } else { self.meta.keys.xcatalog(origin, id) }).await?
                     .ok_or(StoreError::Missing { kind: "catalogue", id: *id })?;
                 let rec = SignedRecord::from_bytes(&rec_bytes)?;
@@ -526,7 +541,7 @@ impl Store {
                 for (kind, object) in objects {
                     if kind != Kind::Snapshot {
                         let bytes = self.ae_object_ref(&mut all, kind, object).await?;
-                        if kind == Kind::Group {
+                        if let (Kind::Group, Some(bytes)) = (kind, bytes) {
                             let actual = unique_chunks(Kind::Group.domain().strip(&bytes)?)?;
                             let stored = self.meta.get(self.meta.keys.group_chunks(&object)).await?
                                 .map(|index| decode_chunk_index(&index)).transpose()?;
@@ -547,7 +562,11 @@ impl Store {
                     let ocert = ObjectCert::from_bytes(&ocert_bytes)?;
                     push_cert(&mut all, &format!("ocert/{}", kind.name()), ocert.id(), &ocert_bytes)?;
                 }
-                for (chunk, length) in chunk_refs { all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length }); }
+                for (chunk, length) in chunk_refs {
+                    if !self.gc_state(Kind::Chunk, &chunk).await?.is_some_and(|s| s.retired()) || cfg!(feature = "mutate-storegc-ae-serves-gone") {
+                        all.push(AePart::ObjectRef { kind: Kind::Chunk, id: chunk, length });
+                    }
+                }
             }
             AeKind::Evidence { kind, object, cert } => {
                 let bytes = if let Some(v) = self.meta.get(self.meta.keys.xcertv(kind, object, cert)).await? { Some(v) } else if kind == "cert" {
@@ -598,7 +617,10 @@ impl Store {
         let mut refs = Vec::new();
         for (_, value) in rows {
             if let AePart::ObjectRef { kind, id, length } = AePart::from_pce(&value)? {
-                if self.s3.get_acked(kind, &id).await?.is_none_or(|(_, bytes)| bytes.len() as u64 != length) { refs.push((kind, id, length)); }
+                // A local copy the store GC is collecting is fetched again (after `Gone`,
+                // `Store::put_live` revives it).
+                let retired = self.gc_state(kind, &id).await?.is_some_and(|s| s.retired());
+                if retired || self.s3.get_acked(kind, &id).await?.is_none_or(|(_, bytes)| bytes.len() as u64 != length) { refs.push((kind, id, length)); }
             }
         }
         Ok(AeObjectPage { refs, next, more })
@@ -750,6 +772,7 @@ impl Store {
                         }
                         let (start, end) = keys.ae_parts(&source, &p.event.key).range();
                         trx.clear_range(&start, &end);
+                        crate::gc::release_ae_event(trx, &keys, &source, &p.event.key).await?;
                         source_bytes = source_bytes.saturating_sub(release(p.event.key.clone()).await?);
                         continue;
                     }
@@ -767,6 +790,7 @@ impl Store {
                     if get(trx, &key).await?.is_some() { count = count.saturating_sub(1); trx.clear(&key); }
                     let (start, end) = keys.ae_parts(&source, event).range();
                     trx.clear_range(&start, &end);
+                    crate::gc::release_ae_event(trx, &keys, &source, event).await?;
                     source_bytes = source_bytes.saturating_sub(release(event.clone()).await?);
                 }
                 let mut stats: BTreeMap<Vec<u8>, PartStats> = BTreeMap::new();
@@ -796,6 +820,13 @@ impl Store {
                             }
                             stats.insert(event.clone(), next);
                             trx.set(&key, &value);
+                            // Store GC: a pending event protects the objects it names
+                            // (referrer `aepending/<source>/<event>`) until it is archived
+                            // or imported; the index lists them for that release.
+                            if let AePart::ObjectRef { kind, id, .. } = part {
+                                crate::gc::protect_in(trx, &keys, &[(*kind, *id)], &keys.ae_pending(&source, event)).await?;
+                                trx.set(&keys.gc_aeref(&source, event, *kind, id), b"");
+                            }
                         }
                         Err(why) => {
                             // Archive the event as terminal now: its parts are cleared and
@@ -812,6 +843,7 @@ impl Store {
                             if get(trx, &pending_key).await?.is_some() { count = count.saturating_sub(1); trx.clear(&pending_key); }
                             let (start, end) = keys.ae_parts(&source, event).range();
                             trx.clear_range(&start, &end);
+                            crate::gc::release_ae_event(trx, &keys, &source, event).await?;
                             // The cached totals include the stored ones and this batch's.
                             let stored = release(event.clone()).await?;
                             let total = stats.remove(event).map_or(stored, |s| s.objects);
@@ -991,6 +1023,12 @@ impl Writer {
     /// idempotent, so a crash after import but before cursor cleanup safely replays.
     pub async fn ae_import_staged(&self, source: &str, event: &AeEvent) -> Result<Outcome> {
         self.store.ae_check_source(source).await?;
+        // Store GC: a catalogue ID retired here (a dead record) is never handed back.
+        if let AeKind::Catalogue { id, .. } = &event.kind {
+            if self.store.meta.get(self.store.meta.keys.gc_retired_catalog(id)).await?.is_some() {
+                return Ok(Outcome::Rejected(format!("catalogue record {id} was retired here by the store GC")));
+            }
+        }
         let sub = self.store.meta.keys.ae_parts(source, &event.key);
         let (mut start, end) = sub.range();
         let mut parts = Vec::new();
@@ -1185,6 +1223,8 @@ impl Writer {
                     revision_rows.push((*rid, rev_bytes.clone()));
                 }
                 required.sort(); required.dedup();
+                // Store GC: the foreign copy references everything its import checked here.
+                let mut gc_objects = required.clone();
                 let mut ocerts = Vec::new();
                 for (kind, object) in required {
                     let Some((_, object_bytes)) = self.store.s3.get_acked(kind, &object).await? else {
@@ -1196,6 +1236,7 @@ impl Writer {
                                 if self.store.s3.get_acked(Kind::Chunk, &chunk).await?.is_none_or(|(_, bytes)| bytes.len() as u64 != length) {
                                     return Ok(Outcome::Deferred(format!("catalogue group chunk {chunk} absent")));
                                 }
+                                gc_objects.push((Kind::Chunk, chunk));
                             }
                         }
                     }
@@ -1214,9 +1255,10 @@ impl Writer {
                 let keys = self.store.meta.keys.clone();
                 let (origin, record, rcert, token_bytes, record_id, cert_id, token_rank) =
                     (origin.to_owned(), rec_bytes.clone(), rc_bytes.clone(), token_bytes.clone(), *id, *cert, rec.body.token.rank);
-                self.store.meta.run(Txn::Ae, Box::new(move |trx| {
-                    let (keys, origin, record, rcert, token_bytes, revision_rows, ocerts) =
-                        (keys.clone(), origin.clone(), record.clone(), rcert.clone(), token_bytes.clone(), revision_rows.clone(), ocerts.clone());
+                let gc_objects = Arc::new(gc_objects);
+                let imported = self.store.meta.run(Txn::Ae, Box::new(move |trx| {
+                    let (keys, origin, record, rcert, token_bytes, revision_rows, ocerts, gc_objects) =
+                        (keys.clone(), origin.clone(), record.clone(), rcert.clone(), token_bytes.clone(), revision_rows.clone(), ocerts.clone(), gc_objects.clone());
                     Box::pin(async move {
                         let rk = keys.xcatalog(&origin, &record_id);
                         if let Some(old) = get(trx, &rk).await? {
@@ -1228,6 +1270,7 @@ impl Writer {
                         if let Some(old) = get(trx, &ck).await? {
                             if old != rcert { return Err(StoreError::Invalid("foreign catalogue certificate collision".into())); }
                         } else {
+                            crate::gc::reference_in(trx, &keys, &gc_objects, &rk).await?;
                             trx.set(&rk, &record);
                             trx.set(&ck, &rcert);
                             changed = true;
@@ -1264,7 +1307,12 @@ impl Writer {
                         if publication_new { append_event(trx, &keys, &AeKind::Catalogue { source: origin, id: record_id, cert: cert_id }, 0); }
                         if changed { Ok(Step::Commit(true)) } else { Ok(Step::Done(false)) }
                     })
-                })).await.map(|fresh| if fresh { Outcome::Applied } else { Outcome::Present })
+                })).await;
+                match imported {
+                    Ok(fresh) => Ok(if fresh { Outcome::Applied } else { Outcome::Present }),
+                    Err(StoreError::Guard(g @ crate::error::GuardFailure::Collected { .. })) => Ok(Outcome::Deferred(g.to_string())),
+                    Err(e) => Err(e),
+                }
             }
         }
     }

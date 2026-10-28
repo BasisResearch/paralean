@@ -46,6 +46,8 @@ pub enum Txn {
     T12PublishBatch,
     T13ReceiveBatch,
     Ae,
+    /// Store GC: reference backfill, sweep, retirement and revival (gc.rs).
+    Gc,
 }
 
 pub type Hook = Arc<dyn Fn() -> BoxFuture<'static, ()> + Send + Sync>;

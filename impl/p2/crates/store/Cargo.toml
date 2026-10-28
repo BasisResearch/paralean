@@ -129,6 +129,17 @@ mutate-position-no-anchor = []
 mutate-position-lineage = []
 mutate-position-cross-file = []
 mutate-position-author = []
+# W4-rest store GC (src/gc.rs; scripts/check-w4r-gc-mutations.sh): one removed guard each.
+mutate-storegc-doom-no-ref-check = []
+mutate-storegc-doom-no-grace = []
+mutate-storegc-doom-no-ocert-clear = []
+mutate-storegc-t1-no-doomed-check = []
+mutate-storegc-ref-no-gone-check = []
+mutate-storegc-t6-no-doomed-check = []
+mutate-storegc-ae-serves-gone = []
+mutate-storegc-retire-no-fence-check = []
+mutate-storegc-job-release-no-check = []
+mutate-storegc-ae-pending-no-ref = []
 
 [dev-dependencies]
 proptest = "1"
@@ -178,4 +189,8 @@ harness = false
 
 [[test]]
 name = "batches"
+harness = false
+
+[[test]]
+name = "store_gc"
 harness = false

@@ -271,7 +271,9 @@ fn guard_outcome(e: StoreError) -> Result<Outcome> {
             g @ (GuardFailure::UnknownParentRevision(_)
             | GuardFailure::NotPublished(_)
             | GuardFailure::Uncertified(_)
-            | GuardFailure::TombstoneReceiptAbsent(_)),
+            | GuardFailure::TombstoneReceiptAbsent(_)
+            // The store GC is collecting a local copy: fetch again after `Gone`.
+            | GuardFailure::Collected { .. }),
         ) => {
             Ok(Outcome::Deferred(g.to_string()))
         }
@@ -301,8 +303,11 @@ pub async fn import(w: &Writer, item: &Item) -> Result<Outcome> {
             if st.s3.get(*kind, id).await?.is_some() {
                 return Ok(Outcome::Present);
             }
-            st.s3.put(*kind, bytes).await?;
-            Ok(Outcome::Applied)
+            match st.put_live(*kind, bytes).await {
+                Ok(_) => Ok(Outcome::Applied),
+                Err(StoreError::Guard(g @ GuardFailure::Collected { .. })) => Ok(Outcome::Deferred(g.to_string())),
+                Err(e) => Err(e),
+            }
         }
         Item::Batch { record, members } => import_batch(w, record, members).await,
         Item::Group { marker, revisions, receipt, job, certs } => {
