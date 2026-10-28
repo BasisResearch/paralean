@@ -9,7 +9,8 @@ use std::fs;
 use std::collections::{BTreeMap, BTreeSet};
 use std::time::{Duration, Instant};
 
-use cache::{id_of, name_of_json, Cache};
+pub(crate) use cache::Cache;
+use cache::{id_of, name_of_json};
 use paralean_store::pce::Dec;
 use paralean_control::checker::{base_id, CheckerConfig};
 use paralean_store::receipt::{self, Policy, TargetBinding};
@@ -23,9 +24,9 @@ use paralean_store::pce::{Enc, Pce};
 use paralean_validator_api::{decode_receipt, published_receipt, validate, ValidatorResponse};
 use serde_json::{json, Value};
 
-type R<T> = Result<T, String>;
+pub(crate) type R<T> = Result<T, String>;
 
-fn need<'a>(args: &'a [String], flag: &str) -> R<&'a str> {
+pub(crate) fn need<'a>(args: &'a [String], flag: &str) -> R<&'a str> {
     args.iter()
         .position(|a| a == flag)
         .and_then(|i| args.get(i + 1))
@@ -38,10 +39,10 @@ fn opt<'a>(args: &'a [String], flag: &str) -> Option<&'a str> {
         .and_then(|i| args.get(i + 1))
         .map(String::as_str)
 }
-fn parse_id(s: &str) -> R<Id> {
+pub(crate) fn parse_id(s: &str) -> R<Id> {
     Id::from_hex(s).ok_or("invalid 32-byte ID".into())
 }
-fn parse_hash(s: &str) -> R<Vec<u8>> {
+pub(crate) fn parse_hash(s: &str) -> R<Vec<u8>> {
     let b = hex::decode(s).map_err(|_| "statement hash is not hex")?;
     if b.len() != 32 {
         return Err("statement hash must be 32 bytes".into());
@@ -59,7 +60,7 @@ fn name(args: &[String]) -> R<Name> {
     }
     Ok(n)
 }
-fn open() -> R<(Store, KeyFile)> {
+pub(crate) fn open() -> R<(Store, KeyFile)> {
     let path = env::var("PARALEAN_KEYS").map_err(|_| "PARALEAN_KEYS is required")?;
     let kf: KeyFile = serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
         .map_err(|e| e.to_string())?;
@@ -80,7 +81,7 @@ fn workspace(
     kf.workspace(need(args, "--ws")?)
         .ok_or("workspace is not in the key file".into())
 }
-fn ms(t: Instant) -> f64 {
+pub(crate) fn ms(t: Instant) -> f64 {
     t.elapsed().as_secs_f64() * 1000.0
 }
 

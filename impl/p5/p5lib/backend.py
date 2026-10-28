@@ -12,6 +12,8 @@ import hmac
 import json
 import os
 from pathlib import Path
+import secrets
+import shutil
 import socket
 import signal
 import stat
@@ -32,6 +34,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class BackendError(RuntimeError):
     pass
+
+
+class BackendUnresolved(BackendError):
+    """The store could not say whether a batch committed. Re-running the same batch
+    (same intent) resolves it; until then the caller must change nothing."""
 
 
 def _canonical(obj: Any) -> bytes:
@@ -809,6 +816,184 @@ class Backend:
                 "metrics": {"transfer_bytes": sum(int(r.get("bytes", 0)) for r in rows),
                             "transfer_ms": sum(float(r.get("ms") or 0) for r in rows if r.get("kind") != "validate-target"),
                             "check_ms": check_ms}}
+
+    # ------------------------------------------------------------ atomic batches
+
+    # P2 `MAX_BATCH_MEMBERS`.
+    MAX_BATCH_MEMBERS = 128
+    # Runs of `batch-publish` before an unknown outcome is reported unresolved.
+    BATCH_RESOLVE_ATTEMPTS = 3
+
+    def _copy(self, agent: str) -> Path:
+        if agent not in self.agents:
+            raise BackendError(f"unregistered agent: {agent}")
+        directory = self.paths.get(agent)
+        if directory is None:
+            raise BackendError(f"workspace {agent} is not provisioned")
+        return directory
+
+    def lamport_floor(self, agents) -> int:
+        """The largest Lamport time these copies know: their clocks and their records
+        (the floor `ws-plan` starts from)."""
+        floor = 0
+        for agent in sorted(set(agents)):
+            directory = self._copy(agent)
+            # Worker-controlled files: read without following links, refuse odd values.
+            texts = [_read_source(directory, "state.json")]
+            records = directory / "cache" / "p3" / "records"
+            if records.is_dir():
+                texts += [_read_source(records, f.name) for f in records.glob("*.json")]
+            for text in texts:
+                if text is None:
+                    continue
+                record = json.loads(text)
+                value = record.get("lamport", 0) if isinstance(record, dict) else None
+                if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                    raise BackendError(f"malformed Lamport time in workspace {agent}")
+                floor = max(floor, value)
+        return floor
+
+    def stage_for_capture(self, agent: str, package: dict, users: list[str]) -> str:
+        """Let other copies capture against `package` before it is published.
+
+        `agent`'s copy has the package checked by the validator under a fresh staging ID
+        (`plr validate --bind`: a job bound to that ID, which no batch can publish), with
+        its own job-issuer key. Each user copy then receives its records under
+        `cache/p3/staged/<ID>` (`plr batch-share`), which P1 resolves only while capturing
+        with `PARALEAN_BATCH=<ID>`. Nothing is published; `unstage` removes them.
+        """
+        directory = self._copy(agent)
+        group, capsule = _hex_id(package.get("group")), _hex_id(package.get("capsule"))
+        deps = [_hex_id(d) for d in package.get("deps", [])]
+        cache = directory / "cache"
+        own_env = {"PARALEAN_KEYS": str(directory / "keys.json"), "PARALEAN_STORE": str(cache),
+                   "PARALEAN_AGENT": agent}
+        self._start_validator()
+        staging = secrets.token_hex(32)
+        pkg = f"{group}:{capsule}"
+        self._run([self.plr, "stage", "--cache", str(cache), "--pkg", pkg], env=own_env)
+        checked = self._run([self.plr, "validate", "--cache", str(cache), "--ws", agent,
+                             "--validator", self.env["PARALEAN_VALIDATOR"], "--pkg", pkg,
+                             "--deps", ",".join(deps), "--bind", staging], env=own_env)
+        if not checked.get("accepted"):
+            reason = str(checked.get("reason") or "no reason returned")[:500]
+            raise BackendError(f"trusted validator rejected the renamed declaration: {reason}")
+        for user in sorted(set(users)):
+            self._run([self.plr, "batch-share", "--cache", str(cache),
+                       "--to", str(self._copy(user) / "cache"), "--staging", staging,
+                       "--pkg", pkg, "--receipt", _hex_id(checked.get("receipt"))], env=own_env)
+        return staging
+
+    def unstage(self, staging: str, users: list[str]) -> None:
+        _hex_id(staging)
+        for user in sorted(set(users)):
+            # rmtree unlinks a planted link instead of following it.
+            shutil.rmtree(self._copy(user) / "cache" / "p3" / "staged" / staging, ignore_errors=True)
+
+    def publish_batch(self, members: list[dict], *, lamport_floor: int, precommit_guard=None) -> dict:
+        """Publish members of several workspaces as one atomic batch (P2 T12).
+
+        A member is ``{"kind": "publish", "agent", "file", "group", "capsule", "deps",
+        "names", "replaces", "target", "epoch"}`` (``target``: a frozen target name it
+        proves, with the dispatch ``epoch``) or ``{"kind": "tombstone", "agent",
+        "target"}``, in commit order. The controller's bridge signs the intent and every
+        job, and validates them in one ``ValidateBatch``. Each workspace's own key file
+        then signs that workspace's members: the controller never signs for a workspace.
+        ``precommit_guard`` runs immediately before the store transaction. Every member
+        is visible afterwards, or none is: a refusal raises ``BackendError``, an outcome
+        the store could not resolve raises ``BackendUnresolved``.
+        """
+        if not isinstance(members, list) or not 0 < len(members) <= self.MAX_BATCH_MEMBERS:
+            raise BackendError(f"a batch has 1 to {self.MAX_BATCH_MEMBERS} members")
+        if isinstance(lamport_floor, bool) or not isinstance(lamport_floor, int) or lamport_floor < 0:
+            raise BackendError("invalid Lamport floor")
+        hashes = (self.payload or {}).get("contract_hashes", {})
+        rows = []
+        for member in members:
+            agent = member.get("agent") if isinstance(member, dict) else None
+            directory = self._copy(agent)
+            kind = member.get("kind")
+            if kind == "tombstone":
+                rows.append({"kind": "tombstone", "ws": agent, "target": _hex_id(member.get("target"))})
+                continue
+            if kind != "publish":
+                raise BackendError("unknown batch member kind")
+            if member.get("file") not in self.task.get("files", []):
+                raise BackendError(f"file outside frozen task: {member.get('file')}")
+            names = member.get("names")
+            if not isinstance(names, list) or not names or any(not isinstance(n, str) or not n for n in names):
+                raise BackendError("a batch member must declare a name")
+            target = None
+            if member.get("target") is not None:
+                name, epoch = member["target"], member.get("epoch")
+                frozen = hashes.get(name)
+                if name not in names or not frozen:
+                    raise BackendError(f"no frozen contract hash for target {name}")
+                if isinstance(epoch, bool) or not isinstance(epoch, int) or epoch < 0:
+                    raise BackendError("target dispatch epoch is required")
+                target = {"name": name, "epoch": epoch, "statement_hash": frozen}
+            rows.append({"kind": "publish", "ws": agent, "cache": str(directory / "cache"),
+                         "group": _hex_id(member.get("group")), "capsule": _hex_id(member.get("capsule")),
+                         "deps": [_hex_id(d) for d in member.get("deps", [])], "file": member["file"],
+                         "names": names, "replaces": [_hex_id(g) for g in member.get("replaces", [])],
+                         "target": target})
+        self._start_validator()
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        # Controller-private: the worker folders may hold planted links (W2-20).
+        with tempfile.TemporaryDirectory(dir=self.state_dir, prefix="p5-batch-") as staging:
+            private = Path(staging)
+            spec, batch = private / "batch-spec.json", private / "batch.json"
+            _write_new_file(spec, json.dumps({"request": secrets.token_hex(16),
+                                              "lamport_floor": lamport_floor, "members": rows}))
+            checked = self._bridge("batch-validate", "--spec", str(spec), "--out", str(batch),
+                                   "--validator", self.env["PARALEAN_VALIDATOR"])
+            if not checked.get("accepted"):
+                reason = str(checked.get("reason") or "no reason returned")[:500]
+                raise BackendError(f"trusted validator rejected batch member {checked.get('group')}: {reason}")
+            certs = []
+            for agent in sorted({row["ws"] for row in rows}):
+                out = private / f"certs-{agent}.json"
+                # The workspace's own key file (keys-<agent>.json, provisioned into its
+                # copy): its seed alone, which batch-sign insists on.
+                self._bridge("batch-sign", "--batch", str(batch), "--ws", agent, "--out", str(out),
+                             env={"PARALEAN_KEYS": str(self._copy(agent) / "keys.json")})
+                certs += ["--certs", str(out)]
+            if precommit_guard is not None:
+                precommit_guard()
+            try:
+                result = self._publish_resolved(batch, certs)
+            except BackendUnresolved as exc:
+                # Keep what resolves it: the same batch and certificates, owner-only.
+                kept = self.state_dir / "unresolved-batches" / private.name
+                kept.parent.mkdir(mode=0o700, exist_ok=True)
+                shutil.copytree(private, kept)
+                raise BackendUnresolved(f"{exc}; batch kept in {kept}") from exc
+        for agent in sorted({row["ws"] for row in rows}):
+            # The batch is committed; a failed refresh only delays what the copies see.
+            try:
+                self.sync(agent, self._copy(agent))
+            except BackendError:
+                pass
+        return result
+
+    def _publish_resolved(self, batch: Path, certs: list[str]) -> dict:
+        """Run T12, resolving an unknown outcome by running the same batch again: T12 is
+        idempotent through its batch record, and either finds it or rechecks every guard."""
+        last = "no attempt"
+        for _ in range(self.BATCH_RESOLVE_ATTEMPTS):
+            try:
+                result = self._bridge("batch-publish", "--batch", str(batch), *certs)
+            except BackendError as exc:
+                # A crashed or failed bridge: the commit may or may not have happened.
+                last = str(exc)
+                continue
+            if result.get("outcome") == "committed":
+                return result
+            if result.get("outcome") == "refused":
+                raise BackendError(f"store refused the batch: {str(result.get('reason'))[:500]}")
+            last = str(result.get("reason") or "unresolved")[:500]
+        raise BackendUnresolved(f"batch publication outcome unresolved ({last}); "
+                                "nothing was changed here, and publishing the same batch again resolves it")
 
     def _ensure_paths(self) -> None:
         if self.paths:

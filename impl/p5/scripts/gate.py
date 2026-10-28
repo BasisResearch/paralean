@@ -141,6 +141,8 @@ def main() -> int:
     ap.add_argument("--lsp-ssh-root", type=Path)
     ap.add_argument("--lsp-lean-server")
     ap.add_argument("--lsp-revoke-policy", action="store_true")
+    ap.add_argument("--rename-check", action="store_true",
+                    help="also rename published declarations across two workspaces atomically (rename_gate.py)")
     args = ap.parse_args()
     if not os.environ.get("PARALEAN_INSTANCE"):
         ap.error("PARALEAN_INSTANCE must identify this run's private cluster")
@@ -249,6 +251,14 @@ def main() -> int:
                 "transport": lsp_result.get("transport"),
                 "evidence": str(lsp_dir / "lsp-gate.json"),
                 "details": lsp_result.get("checks")}
+        if args.rename_check:
+            rename_dir = run_dir.with_name(run_dir.name + "-rename")
+            run_cmd([sys.executable, str(ROOT / "impl/p5/scripts/rename_gate.py"), str(rename_dir)],
+                    evidence_dir / "published-rename.log", args.timeout, env)
+            rename = read_json(rename_dir / "rename-gate.json")
+            result["checks"]["published_rename"] = {
+                "ok": rename.get("ok") is True, "evidence": str(rename_dir / "rename-gate.json"),
+                "tests": {name: test.get("status") for name, test in rename.get("tests", {}).items()}}
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
     result["ok"] = "error" not in result and all(v["ok"] for v in result["checks"].values())

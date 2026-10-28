@@ -1156,6 +1156,20 @@ class Proxy:
                     if ws.refresh_environment() or state is None or (
                             ws.environment, ws.generation, state["version"], source_digest(state["text"])) != stamp:
                         raise RenameRefused("Affected source changed during rename")
+                # A published declaration changes only through one atomic batch: its new
+                # group, its old position's deletion and every revised dependent are all
+                # published, or none is and no buffer changes.
+                publication = None
+                if any(record.get("alreadyPublished") is True
+                       for doc in affected.values() for record in doc["groups"]):
+                    if not hasattr(self.bridge, "publish_rename"):
+                        raise RenameRefused("Published declarations need an atomic batch publication")
+                    try:
+                        publication = await self.bridge.publish_rename(affected, planned, group)
+                    except RuntimeError as exc:
+                        raise RenameRefused(f"Atomic publication refused: {exc}") from exc
+                    if not publication:
+                        raise RenameRefused("Atomic publication returned no committed batch")
                 committed = []
                 # No await in this loop: readers see the complete replacement.
                 for name, uri in sorted(planned):
@@ -1172,7 +1186,10 @@ class Proxy:
                     asyncio.create_task(self.deliver_change(ws, {}, uri, "textDocument/didChange"))
                 await self.send({"jsonrpc": "2.0", "method": "$/paralean/buffersCommitted",
                                  "params": {"documents": committed}})
-                await self.send({"jsonrpc": "2.0", "id": client_id, "result": {"documents": committed}})
+                result = {"documents": committed}
+                if publication is not None:
+                    result["publication"] = publication
+                await self.send({"jsonrpc": "2.0", "id": client_id, "result": result})
         except (RenameRefused, EnvironmentInvalid, OSError, ValueError, TypeError, KeyError,
                 IndexError, ConnectionError, BrokenPipeError, asyncio.TimeoutError) as exc:
             await self.error(client_id, -32800, str(exc))

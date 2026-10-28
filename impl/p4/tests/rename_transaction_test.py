@@ -68,6 +68,25 @@ class FakeBridge:
             raise ValueError("Authoritative store policy changed")
 
 
+class PublishingBridge(FakeBridge):
+    """A controller bridge that publishes published declarations as one batch."""
+
+    def __init__(self, documents, workspaces):
+        super().__init__(documents)
+        self.workspaces = workspaces
+        self.publications = []
+        self.refusal = None
+        self.outcome = {"outcome": "committed", "batch": "b" * 64}
+
+    async def publish_rename(self, affected, planned, group):
+        # Buffers must still be unchanged while the batch is published.
+        self.publications.append((sorted(affected), group, [ws.open_documents[uri]["text"] for ws in self.workspaces
+                                                            for uri in ws.open_documents]))
+        if self.refusal is not None:
+            raise self.refusal
+        return self.outcome
+
+
 class TransactionTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -111,7 +130,7 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.b.open_documents[self.uri_b]["text"], "use old\n")
         self.assertEqual(self.a.open_documents[self.uri_a]["version"], 1)
         self.assertEqual(self.b.open_documents[self.uri_b]["version"], 1)
-        self.assertEqual(self.sent[-1]["error"]["code"], -32800)
+        self.assertEqual(self.sent[-1].get("error", {}).get("code"), -32800)
 
     async def test_two_workspace_commit(self):
         await self.proxy.rename_transaction(self.message)
@@ -285,6 +304,62 @@ class TransactionTests(unittest.IsolatedAsyncioTestCase):
         self.b.request = request
         await self.proxy.rename_transaction(self.message)
         self.assert_unchanged()
+
+    def publish_bridge(self):
+        for doc in self.bridge.documents:
+            for record in doc["groups"]:
+                record["alreadyPublished"] = True
+        bridge = PublishingBridge(self.bridge.documents, [self.a, self.b])
+        self.proxy.bridge = self.bridge = bridge
+        return bridge
+
+    async def renamed(self):
+        """Run the rename; a refusal must come back as an error reply, never escape."""
+        try:
+            await self.proxy.rename_transaction(self.message)
+        except Exception as exc:  # noqa: BLE001 - recorded, then asserted below
+            self.sent.append({"escaped": repr(exc)})
+        self.assertTrue(self.sent, "no reply")
+
+    async def test_published_rename_commits_buffers_after_atomic_publication(self):
+        bridge = self.publish_bridge()
+        await self.renamed()
+        self.assertEqual(bridge.publications, [([("a", self.uri_a), ("b", self.uri_b)], "g-old",
+                                                ["def old := 1\n", "use old\n"])])
+        self.assertEqual(self.a.open_documents[self.uri_a]["text"], "def new := 1\n")
+        self.assertEqual(self.b.open_documents[self.uri_b]["text"], "use new\n")
+        self.assertEqual(self.sent[-1]["result"]["publication"]["outcome"], "committed")
+
+    async def test_refused_publication_keeps_every_buffer(self):
+        self.publish_bridge().refusal = RuntimeError("store refused the batch: not the owner of P5.goal")
+        await self.renamed()
+        self.assert_unchanged()
+        self.assertIn("not the owner", self.sent[-1]["error"]["message"])
+
+    async def test_unresolved_publication_keeps_every_buffer(self):
+        self.publish_bridge().refusal = RuntimeError("batch publication outcome unresolved")
+        await self.renamed()
+        self.assert_unchanged()
+        self.assertIn("unresolved", self.sent[-1]["error"]["message"])
+
+    async def test_published_rename_without_batch_support_refuses(self):
+        for doc in self.bridge.documents:
+            doc["groups"][0]["alreadyPublished"] = True
+        await self.renamed()
+        self.assert_unchanged()
+
+    async def test_publication_without_committed_batch_refuses(self):
+        self.publish_bridge().outcome = None
+        await self.renamed()
+        self.assert_unchanged()
+
+    async def test_unpublished_rename_does_not_publish(self):
+        bridge = PublishingBridge(self.bridge.documents, [self.a, self.b])
+        self.proxy.bridge = bridge
+        await self.renamed()
+        self.assertEqual(bridge.publications, [])
+        self.assertNotIn("publication", self.sent[-1]["result"])
+        self.assertEqual(self.b.open_documents[self.uri_b]["text"], "use new\n")
 
     async def test_policy_probe_mutates_generation_refuses_all(self):
         async def probe(workspaces):

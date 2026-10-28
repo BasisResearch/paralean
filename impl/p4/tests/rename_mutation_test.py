@@ -68,6 +68,21 @@ CASES = [
     ("nonoverlapping worker edits", "rename_transaction.py",
      'if previous[1] > current[0] or previous[:2] == current[:2]:',
      'if False:', "test_overlapping_edits_refuse_all"),
+    # Published declarations: one atomic batch before any buffer changes.
+    ("published rename is published before commit", "lsp.py",
+     'if any(record.get("alreadyPublished") is True\n',
+     'if False and any(record.get("alreadyPublished") is True\n',
+     "test_refused_publication_keeps_every_buffer"),
+    ("published rename needs batch publication", "lsp.py",
+     'if not hasattr(self.bridge, "publish_rename"):', 'if False:',
+     "test_published_rename_without_batch_support_refuses"),
+    ("published rename needs a committed batch", "lsp.py",
+     'if not publication:', 'if False:',
+     "test_publication_without_committed_batch_refuses"),
+    ("publication refusal refuses the rename", "lsp.py",
+     'except RuntimeError as exc:\n                        raise RenameRefused(f"Atomic publication refused: {exc}") from exc',
+     'except ZeroDivisionError as exc:\n                        raise RenameRefused(f"Atomic publication refused: {exc}") from exc',
+     "test_refused_publication_keeps_every_buffer"),
 ]
 
 

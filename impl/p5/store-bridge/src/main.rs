@@ -1,6 +1,7 @@
 //! P5 task journal. FDB holds a CAS head and immutable history; Garage holds the
 //! content-addressed task/spec/state blob. Both live under the selected deployment.
 use foundationdb::tuple::Subspace;
+mod batch;
 mod targets;
 use paralean_store::{Faults, Id, Kind, Name, Opaque, Store, StoreConfig, TargetRecord};
 use paralean_store::pce::Pce;
@@ -48,6 +49,7 @@ async fn run(args: Vec<String>) -> R<Value> {
     match cmd {
         "policy-state" | "revoke-validator" | "revoke-agent-key" | "assign-target" | "observe-target" | "fence-unfinished" | "validate-target" |
         "publish-target" | "verify-target" | "checkpoint-targets" => targets::run(&args).await,
+        "batch-validate" | "batch-sign" | "batch-publish" | "batch-status" => batch::run(&args).await,
         "put" => {
             let task = task_id(need(&args, "--task")?)?;
             let file = need(&args, "--file")?;

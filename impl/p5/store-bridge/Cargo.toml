@@ -14,3 +14,19 @@ foundationdb = { version = "0.11", default-features = false, features = ["fdb-7_
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 hex = "0.4"
+# cache.rs (shared with impl/p3-remote by path) opens worker files with O_NOFOLLOW.
+libc = "0.2"
+
+[features]
+# Test builds only: `batch-publish` injects one T12 commit fault named by
+# PARALEAN_P5_TEST_FAULT (impl/p5/tests/test_rename_batch_live.py). Never in a release.
+test-faults = []
+# Guard-removal mutations for impl/p5/tests/check_batch_bridge_mutations.py. Each deletes one
+# guard; the named live test must then fail. Never enable them otherwise.
+mutate-batch-any-owner = []
+mutate-batch-any-epoch = []
+mutate-batch-any-replaced = []
+mutate-batch-any-deleter = []
+mutate-batch-sign-any-keys = []
+mutate-batch-sign-unsigned-intent = []
+mutate-batch-sign-unbound-job = []

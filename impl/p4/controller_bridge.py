@@ -302,9 +302,11 @@ class ControllerBridge:
             await self._stop_worker(key)
         worker = self.workers.get(key)
         if worker is None or worker.returncode is not None:
+            # The document's own published elements are in its text (ws.py's rule): a
+            # buffer revising one redeclares its name.
             worker = await asyncio.create_subprocess_exec(
                 self.capture_binary, "ws-capture-server", "--dir", str(ws.root),
-                cwd=ws.root, env={**os.environ, **ws.env_overrides},
+                cwd=ws.root, env={**os.environ, **ws.env_overrides, "PARALEAN_VIS_EXCLUDE": stamp["file"]},
                 stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL, start_new_session=True,
                 limit=self.capture_reply_limit)
@@ -336,6 +338,18 @@ class ControllerBridge:
             await self._stop_worker(key)
             raise BridgeError("capture worker returned malformed JSON") from exc
         self._assert_current(ws, uri, stamp)
+        capture = self._checked_capture(result, stamp)
+        record = {**stamp, "packages": capture["packages"],
+                  "groups": capture.get("groups"),
+                  "registry": result.get("registry"),
+                  "reusedCommands": result.get("reusedCommands"),
+                  "newCommands": result.get("newCommands")}
+        self.captures[key] = record
+        return record
+
+    @staticmethod
+    def _checked_capture(result: dict, stamp: dict) -> dict:
+        """The capture in a worker reply for exactly this stamp, without rejections."""
         if result.get("error"):
             raise BridgeError(str(result["error"]))
         if any(result.get(k) != stamp[k] for k in ("file", "version", "environment", "generation")):
@@ -345,14 +359,9 @@ class ControllerBridge:
                 or any(not isinstance(package, dict) for package in capture["packages"])):
             raise BridgeError("capture worker returned malformed packages")
         if capture.get("rejected") or capture.get("rejectedPids"):
-            raise BridgeError("capture contains rejected declarations")
-        record = {**stamp, "packages": capture["packages"],
-                  "groups": capture.get("groups"),
-                  "registry": result.get("registry"),
-                  "reusedCommands": result.get("reusedCommands"),
-                  "newCommands": result.get("newCommands")}
-        self.captures[key] = record
-        return record
+            reasons = capture.get("rejected") if isinstance(capture.get("rejected"), list) else []
+            raise BridgeError("capture contains rejected declarations: " + "; ".join(map(str, reasons))[:300])
+        return capture
 
     async def capture(self, ws, uri: str, version: int) -> dict:
         if self.policy_probe is not None:
@@ -454,6 +463,173 @@ class ControllerBridge:
                 else:
                     documents.append(saved.copy())
         return {"complete": not missing, "documents": documents, "missing": missing}
+
+    async def _capture_planned(self, ws, uri: str, text: str, staging: str | None = None) -> dict:
+        """Capture a planned, uncommitted buffer in a one-shot private worker.
+
+        With ``staging``, P1 resolves the staged batch member shared under that ID
+        (``PARALEAN_BATCH``), so a dependent can be captured against a renamed
+        declaration that is not yet published. Nothing here is published or committed.
+        """
+        stamp = self._stamp(ws, uri)
+        env = {**os.environ, **ws.env_overrides, "PARALEAN_VIS_EXCLUDE": stamp["file"]}
+        if staging is not None:
+            env["PARALEAN_BATCH"] = staging
+        worker = await asyncio.create_subprocess_exec(
+            self.capture_binary, "ws-capture-server", "--dir", str(ws.root),
+            cwd=ws.root, env=env, stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL, start_new_session=True, limit=self.capture_reply_limit)
+        try:
+            request = {"file": stamp["file"], "text": text, "version": stamp["version"],
+                       "environment": stamp["environment"], "generation": stamp["generation"]}
+            assert worker.stdin and worker.stdout
+            worker.stdin.write((json.dumps(request, separators=(",", ":")) + "\n").encode())
+            await worker.stdin.drain()
+            try:
+                line = await asyncio.wait_for(worker.stdout.readline(), 120)
+                result = json.loads(line)
+                if type(result) is not dict:
+                    raise ValueError("capture reply is not an object")
+            except asyncio.TimeoutError as exc:
+                raise BridgeError("planned capture timed out") from exc
+            except (ValueError, RecursionError) as exc:
+                raise BridgeError("planned capture returned no well-formed reply") from exc
+        finally:
+            if worker.returncode is None:
+                worker.kill()
+            await worker.wait()
+        capture = self._checked_capture(result, stamp)
+        if not isinstance(capture.get("groups"), list) or any(
+                not isinstance(g, dict) or not isinstance(g.get("pid"), str) or not isinstance(g.get("names"), list)
+                for g in capture["groups"]):
+            raise BridgeError("planned capture has no complete group inventory")
+        return capture
+
+    @staticmethod
+    def _declarations(capture: dict) -> dict[int, dict]:
+        """The declaration starting at each line of a captured buffer.
+
+        P1 lists first the file's published groups that the text no longer contains, at
+        their original lines, then the text's own declarations in order. Where two share
+        a line, the later is the text's; the earlier must be such a published group. A
+        rename edit stays within a line, so a line names a declaration before and after.
+        """
+        by_line: dict[int, dict] = {}
+        for record in capture["groups"]:
+            line = record.get("line")
+            if type(line) is not int:
+                raise BridgeError("captured declaration has no line")
+            if line in by_line and by_line[line].get("alreadyPublished") is not True:
+                raise BridgeError("two captured declarations start on one line")
+            by_line[line] = record
+        return by_line
+
+    def _rename_members(self, before: dict, after: dict, agent: str, file: str) -> list[dict]:
+        """Batch members for one document: each published declaration the rename
+        changed is published again from the planned capture (a revision under a kept
+        name), and a declaration whose names all changed also has its old position
+        deleted. Unchanged declarations and private drafts contribute nothing."""
+        old, new = self._declarations(before), self._declarations(after)
+        if any(line not in old and record.get("alreadyPublished") is not True for line, record in new.items()):
+            raise BridgeError("planned buffer declares a different set of declarations")
+        packages = {package.get("group"): package for package in after["packages"]}
+        members = []
+        for line, previous in sorted(old.items()):
+            current = new.get(line)
+            if current is None:
+                raise BridgeError("planned buffer declares a different set of declarations")
+            if previous["pid"] == current["pid"] or previous.get("alreadyPublished") is not True:
+                continue
+            package = packages.get(current.get("group"))
+            if package is None or current.get("alreadyPublished"):
+                raise BridgeError("a changed published declaration has no new package")
+            kept = set(map(str, previous["names"])) & set(map(str, current["names"]))
+            if kept and kept != set(map(str, previous["names"])):
+                raise BridgeError("a rename of one member of a published declaration group is not atomic here")
+            names = [str(name) for name in current["names"]]
+            members.append({"kind": "publish", "agent": agent, "file": file, "group": package["group"],
+                            "capsule": package["capsule"], "deps": list(package.get("deps", [])),
+                            "names": names, "replaces": [previous["group"]]})
+            if not kept:
+                members.append({"kind": "tombstone", "agent": agent, "target": previous["group"]})
+        return members
+
+    async def publish_rename(self, affected: dict, planned: dict, group: str) -> dict | None:
+        """Publish what a planned rename changes in published declarations, atomically.
+
+        The router calls this holding ``mutation_lock``, after every worker planned and
+        every stamp, inventory and policy check passed, and before any buffer changes.
+        Each affected buffer's planned text is captured privately: first the document
+        declaring ``group``, then the others against its renamed declaration, staged
+        but unpublished. The renamed declaration, the deletion of its old position and
+        every revised dependent (with its target binding, owner and epoch) are then
+        validated and published as one batch, or not at all. Returns None when no
+        affected declaration is published: the rename then changes buffers only.
+        """
+        if not any(record.get("alreadyPublished") is True for doc in affected.values() for record in doc["groups"]):
+            return None
+        if self.backend is None:
+            raise BridgeError("controller backend is not configured")
+        if set(planned) != set(affected):
+            raise BridgeError("planned rename does not cover every affected document")
+        workspaces = {name: self.proxy.workspaces[name] for name, _ in affected}
+        stamps = {}
+        for (name, uri), doc in affected.items():
+            ws = workspaces[name]
+            stamp = self._stamp(ws, uri)
+            if any(doc.get(k) != v for k, v in stamp.items()):
+                raise BridgeError("an affected capture is stale")
+            self._assert_current(ws, uri, stamp)
+            self._assert_authoring(ws)
+            stamps[(name, uri)] = stamp
+        origin = next((key for key, doc in affected.items()
+                       if any(record["group"] == group for record in doc["groups"])), None)
+        if origin is None:
+            raise BridgeError("no affected document declares the renamed group")
+        captures = {origin: await self._capture_planned(workspaces[origin[0]], origin[1], planned[origin])}
+        others = sorted(key for key in affected if key != origin)
+        if others:
+            line = next(record["line"] for record in affected[origin]["groups"] if record["group"] == group)
+            renamed = self._declarations(captures[origin]).get(line, {})
+            package = next((p for p in captures[origin]["packages"] if p.get("group") == renamed.get("group")), None)
+            if package is None:
+                raise BridgeError("the renamed declaration has no new package")
+            users = sorted({name for name, _ in others})
+            staging = await asyncio.to_thread(self.backend.stage_for_capture, origin[0], package, users)
+            try:
+                for name, uri in others:
+                    captures[(name, uri)] = await self._capture_planned(
+                        workspaces[name], uri, planned[(name, uri)], staging=staging)
+            finally:
+                await asyncio.to_thread(self.backend.unstage, staging, users)
+        members = []
+        for key in [origin] + others:
+            members += self._rename_members(affected[key], captures[key], key[0], stamps[key]["file"])
+        if not any(member["kind"] == "publish" for member in members):
+            raise BridgeError("the rename changes no published declaration")
+        # Frozen target names a revised member declares: the store rechecks owner,
+        # epoch and head in the batch transaction; refuse early on what is visible now.
+        frozen = {spec.get("name") for spec in self.backend.task.get("targets", [])}
+        for member in members:
+            proven = [name for name in member.get("names", []) if name in frozen]
+            if len(proven) > 1:
+                raise BridgeError("a batch member proves more than one target")
+            if proven:
+                observation = await asyncio.to_thread(self.backend.observe_target, proven[0], member["agent"])
+                if observation.get("assigned_to_agent") is not True or not isinstance(observation.get("epoch"), int):
+                    raise BridgeError(f"target {proven[0]} is not assigned to {member['agent']}")
+                member["target"], member["epoch"] = proven[0], observation["epoch"]
+
+        def precommit_guard() -> None:
+            for (name, uri), stamp in stamps.items():
+                self._assert_current(workspaces[name], uri, stamp)
+            for each in workspaces.values():
+                self._assert_store_policy(each)
+                self._assert_authoring(each)
+
+        floor = await asyncio.to_thread(self.backend.lamport_floor, sorted(workspaces))
+        return await asyncio.to_thread(self.backend.publish_batch, members, lamport_floor=floor,
+                                       precommit_guard=precommit_guard)
 
     async def poll_policy(self) -> bool:
         """Probe current store policy and push a new environment to Lean workers."""

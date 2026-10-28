@@ -1484,6 +1484,7 @@ version = "0.1.0"
 dependencies = [
  "foundationdb",
  "hex",
+ "libc",
  "paralean-control",
  "paralean-store",
  "paralean-validator-api",
