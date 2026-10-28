@@ -1,0 +1,12 @@
+⚠ [4/80] Replayed Paralean.Encode
+warning: Paralean/Encode.lean:455:92: `List.asString` has been deprecated: Use `String.ofList` instead
+
+Note: The updated constant is in a different namespace. Dot notation may need to be changed (e.g., from `x.asString` to `String.ofList x`).
+✔ [65/80] Built Paralean.Validate (1.3s)
+✔ [67/80] Built Paralean.Validate:c.o (1.4s)
+✔ [68/80] Built Paralean.Copy (3.2s)
+✔ [71/80] Built Paralean (1.3s)
+✔ [73/80] Built Paralean.Interactive (1.3s)
+✔ [77/80] Built Main (2.6s)
+✔ [80/80] Built paralean:exe (1.1s)
+Build completed successfully (80 jobs).

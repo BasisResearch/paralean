@@ -1,0 +1,168 @@
+{"phase": "_run", "start": 2865776.289809125, "wall_s": 0.03762387204915285, "ok": true, "operation": "paralean-p5-store get"}
+{"phase": "_run", "start": 2865776.327669801, "wall_s": 0.40135174291208386, "ok": true, "operation": "plr keys-init"}
+{"phase": "_run", "start": 2865776.729392227, "wall_s": 1.3561792760156095, "ok": true, "operation": "lean --run"}
+{"phase": "_run", "start": 2865778.221352576, "wall_s": 0.050290761049836874, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "setup", "start": 2865776.289695673, "wall_s": 1.9821321428753436, "ok": true}
+{"phase": "_run", "start": 2865778.271970965, "wall_s": 0.04018840612843633, "ok": true, "operation": "paralean-p5-store get"}
+{"phase": "_run", "start": 2865778.314493724, "wall_s": 0.05276067182421684, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865778.313455194, "wall_s": 0.053947176318615675, "ok": true}
+{"phase": "_run", "start": 2865778.367724521, "wall_s": 0.11120676388964057, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.367545951, "wall_s": 0.11207928881049156, "ok": true}
+{"phase": "_run", "start": 2865778.479782622, "wall_s": 0.12036149995401502, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.479653526, "wall_s": 0.12130965013056993, "ok": true}
+{"phase": "_run", "start": 2865778.601179026, "wall_s": 0.10910032596439123, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.600991341, "wall_s": 0.10991128999739885, "ok": true}
+{"phase": "_run", "start": 2865778.711076629, "wall_s": 0.10989119112491608, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.710926929, "wall_s": 0.11071030795574188, "ok": true}
+{"phase": "_run", "start": 2865778.821783157, "wall_s": 0.10846794303506613, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.82166142, "wall_s": 0.10921301692724228, "ok": true}
+{"phase": "_run", "start": 2865778.931046992, "wall_s": 0.11260553076863289, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865778.930898507, "wall_s": 0.11336569068953395, "ok": true}
+{"phase": "_run", "start": 2865779.044417736, "wall_s": 0.11202015494927764, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865779.044287679, "wall_s": 0.11286152014508843, "ok": true}
+{"phase": "_run", "start": 2865779.15734609, "wall_s": 0.11056727124378085, "ok": true, "operation": "python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py"}
+{"phase": "provision", "start": 2865779.157177837, "wall_s": 0.11139292689040303, "ok": true}
+{"phase": "_run", "start": 2865779.271031037, "wall_s": 0.05144160287454724, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865779.268613997, "wall_s": 0.05400886619463563, "ok": true}
+{"phase": "_ws", "start": 2865779.322878094, "wall_s": 0.13602401316165924, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865779.322841006, "wall_s": 0.13613187009468675, "ok": true}
+{"phase": "_run", "start": 2865779.459053524, "wall_s": 0.03515014611184597, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865779.459024848, "wall_s": 0.03528831526637077, "ok": true}
+{"phase": "_run", "start": 2865779.494342815, "wall_s": 0.03983424371108413, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865779.494332903, "wall_s": 0.03995581204071641, "ok": true}
+{"phase": "_run", "start": 2865779.536790059, "wall_s": 0.05598145816475153, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865779.534325343, "wall_s": 0.058621348813176155, "ok": true}
+{"phase": "_run", "start": 2865779.596132447, "wall_s": 0.06612414913251996, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865779.593191576, "wall_s": 0.06923543382436037, "ok": true}
+{"phase": "scripted_worker", "start": 2865779.698753421, "wall_s": 0.7216539490036666, "target": "P5.add_comm_general", "ok": true}
+{"phase": "_run", "start": 2865780.879968761, "wall_s": 0.04426897596567869, "ok": true, "operation": "plr pull"}
+{"phase": "_run", "start": 2865780.924361971, "wall_s": 0.7009343537501991, "ok": true, "operation": "paralean ws-capture"}
+{"phase": "_run", "start": 2865781.625812707, "wall_s": 0.04238724894821644, "ok": true, "operation": "plr stage"}
+{"phase": "_run", "start": 2865781.66832711, "wall_s": 0.5904305772855878, "ok": true, "operation": "paralean-p5-store validate-target"}
+{"phase": "_run", "start": 2865782.258964644, "wall_s": 0.07073560496792197, "ok": true, "operation": "paralean ws-plan"}
+{"phase": "_run", "start": 2865782.32989902, "wall_s": 0.044443790800869465, "ok": true, "operation": "paralean-p5-store publish-target"}
+{"phase": "_run", "start": 2865782.374469374, "wall_s": 0.040808461140841246, "ok": true, "operation": "plr pull"}
+{"phase": "_ws", "start": 2865782.415422727, "wall_s": 0.14383728802204132, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865782.41538146, "wall_s": 0.14394747000187635, "ok": true}
+{"phase": "_run", "start": 2865782.559812848, "wall_s": 0.03133962722495198, "ok": true, "operation": "paralean-p5-store verify-target"}
+{"phase": "validate", "start": 2865782.559347045, "wall_s": 0.03192299185320735, "ok": true}
+{"phase": "publish", "start": 2865780.478154889, "wall_s": 2.113232202362269, "ok": true}
+{"phase": "_run", "start": 2865782.591693602, "wall_s": 0.04039219906553626, "ok": true, "operation": "paralean-p5-store verify-target"}
+{"phase": "validate", "start": 2865782.591413044, "wall_s": 0.04082933720201254, "ok": true}
+{"phase": "_run", "start": 2865782.637745501, "wall_s": 0.062441952992230654, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865782.632291258, "wall_s": 0.0680505121126771, "ok": true}
+{"phase": "_ws", "start": 2865782.70058675, "wall_s": 0.1381109058856964, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865782.700545625, "wall_s": 0.1382158249616623, "ok": true}
+{"phase": "_run", "start": 2865782.83881861, "wall_s": 0.041330068837851286, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865782.838792386, "wall_s": 0.041462005116045475, "ok": true}
+{"phase": "_run", "start": 2865782.880285854, "wall_s": 0.03382612392306328, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865782.880273918, "wall_s": 0.03394933184608817, "ok": true}
+{"phase": "_run", "start": 2865782.916832002, "wall_s": 0.06242006132379174, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865782.914254688, "wall_s": 0.06518875993788242, "ok": true}
+{"phase": "_run", "start": 2865782.982197422, "wall_s": 0.06307608913630247, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865782.979695697, "wall_s": 0.06576546933501959, "ok": true}
+{"phase": "_ws", "start": 2865783.045941287, "wall_s": 0.14742116397246718, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865783.04572613, "wall_s": 0.14770705718547106, "ok": true}
+{"phase": "_run", "start": 2865783.193491853, "wall_s": 0.0327224051579833, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865783.193462704, "wall_s": 0.032865459099411964, "ok": true}
+{"phase": "_run", "start": 2865783.226363341, "wall_s": 0.029811084270477295, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865783.226351752, "wall_s": 0.029933743178844452, "ok": true}
+{"phase": "_run", "start": 2865783.259029651, "wall_s": 0.06024572579190135, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865783.256313351, "wall_s": 0.06313108513131738, "ok": true}
+{"phase": "_run", "start": 2865783.322287442, "wall_s": 0.05407859990373254, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865783.319679735, "wall_s": 0.056854229886084795, "ok": true}
+{"phase": "_ws", "start": 2865783.377225034, "wall_s": 0.15336601808667183, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865783.377053302, "wall_s": 0.1536159161478281, "ok": true}
+{"phase": "_run", "start": 2865783.53073221, "wall_s": 0.04002820933237672, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865783.530701105, "wall_s": 0.04017846379429102, "ok": true}
+{"phase": "_run", "start": 2865783.570906538, "wall_s": 0.03531786007806659, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865783.570896901, "wall_s": 0.03543549682945013, "ok": true}
+{"phase": "_run", "start": 2865783.609136104, "wall_s": 0.06015563290566206, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865783.606359168, "wall_s": 0.06311455415561795, "ok": true}
+{"phase": "_run", "start": 2865783.672613844, "wall_s": 0.05767683405429125, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865783.669702731, "wall_s": 0.06076896609738469, "ok": true}
+{"phase": "_ws", "start": 2865783.731201964, "wall_s": 0.1424799570813775, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865783.731024466, "wall_s": 0.14274289505556226, "ok": true}
+{"phase": "_run", "start": 2865783.873832199, "wall_s": 0.036339827347546816, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865783.873800667, "wall_s": 0.036473303101956844, "ok": true}
+{"phase": "_run", "start": 2865783.910299954, "wall_s": 0.03908176580443978, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865783.910291316, "wall_s": 0.039206963032484055, "ok": true}
+{"phase": "_run", "start": 2865783.954330823, "wall_s": 0.05792477400973439, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865783.949527838, "wall_s": 0.06292455224320292, "ok": true}
+{"phase": "_run", "start": 2865784.015461342, "wall_s": 0.05425823898985982, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.012679003, "wall_s": 0.057222986593842506, "ok": true}
+{"phase": "_ws", "start": 2865784.070812442, "wall_s": 0.14500222634524107, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865784.070452885, "wall_s": 0.14546673418954015, "ok": true}
+{"phase": "_run", "start": 2865784.216027303, "wall_s": 0.03626853507012129, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865784.215966376, "wall_s": 0.03644762607291341, "ok": true}
+{"phase": "_run", "start": 2865784.25244197, "wall_s": 0.027768984902650118, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865784.252430906, "wall_s": 0.027916369028389454, "ok": true}
+{"phase": "_run", "start": 2865784.28353652, "wall_s": 0.050771646201610565, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.280386903, "wall_s": 0.05410273699089885, "ok": true}
+{"phase": "_run", "start": 2865784.337498915, "wall_s": 0.045865282882004976, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.334732157, "wall_s": 0.04882378177717328, "ok": true}
+{"phase": "_ws", "start": 2865784.384653795, "wall_s": 0.14480323204770684, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865784.384125231, "wall_s": 0.1454277839511633, "ok": true}
+{"phase": "_run", "start": 2865784.52962455, "wall_s": 0.034609988797456026, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865784.529592096, "wall_s": 0.03474972303956747, "ok": true}
+{"phase": "_run", "start": 2865784.564368503, "wall_s": 0.025689285714179277, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865784.564359355, "wall_s": 0.02580561302602291, "ok": true}
+{"phase": "_run", "start": 2865784.592946524, "wall_s": 0.049766940996050835, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.590192158, "wall_s": 0.05274397740140557, "ok": true}
+{"phase": "_run", "start": 2865784.646378597, "wall_s": 0.0718685151077807, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.643269259, "wall_s": 0.07514970097690821, "ok": true}
+{"phase": "_ws", "start": 2865784.720086924, "wall_s": 0.1453847442753613, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865784.718974196, "wall_s": 0.1465736269019544, "ok": true}
+{"phase": "_run", "start": 2865784.865610658, "wall_s": 0.0370011436752975, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865784.865579755, "wall_s": 0.03715092595666647, "ok": true}
+{"phase": "_run", "start": 2865784.902759073, "wall_s": 0.03645165218040347, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865784.902748331, "wall_s": 0.03659990709275007, "ok": true}
+{"phase": "_run", "start": 2865784.942826228, "wall_s": 0.056385098956525326, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.939381412, "wall_s": 0.05998245859518647, "ok": true}
+{"phase": "_run", "start": 2865785.002378915, "wall_s": 0.06230441713705659, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865784.999580876, "wall_s": 0.06528744800016284, "ok": true}
+{"phase": "_ws", "start": 2865785.06551253, "wall_s": 0.14677987387403846, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2865785.065415738, "wall_s": 0.14697707584127784, "ok": true}
+{"phase": "_run", "start": 2865785.212467304, "wall_s": 0.03664713492617011, "ok": true, "operation": "paralean-p5-store assign-target"}
+{"phase": "assign_target", "start": 2865785.212432, "wall_s": 0.036825165152549744, "ok": true}
+{"phase": "_run", "start": 2865785.249296342, "wall_s": 0.034376238007098436, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2865785.249284438, "wall_s": 0.03451500320807099, "ok": true}
+{"phase": "_run", "start": 2865785.287339078, "wall_s": 0.05043985042721033, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865785.283833388, "wall_s": 0.05412570619955659, "ok": true}
+{"phase": "_run", "start": 2865785.341120069, "wall_s": 0.05984660005196929, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2865785.338218166, "wall_s": 0.0629523629322648, "ok": true}
+{"phase": "scripted_worker", "start": 2865783.082821873, "wall_s": 950.2502161948942, "target": "P5.add_comm_1", "ok": true}
+{"phase": "scripted_worker", "start": 2865783.413809124, "wall_s": 950.0458357222378, "target": "P5.add_comm_2", "ok": true}
+{"phase": "_run", "start": 2866733.385882609, "wall_s": 0.12909930106252432, "ok": true, "operation": "paralean-p5-store verify-target"}
+{"phase": "validate", "start": 2866733.374133603, "wall_s": 0.14101271098479629, "ok": true}
+{"phase": "_run", "start": 2866733.515811984, "wall_s": 0.1252064062282443, "ok": true, "operation": "plr pull"}
+{"phase": "scripted_worker", "start": 2865785.1020832, "wall_s": 958.6211375999264, "target": "P5.add_comm_7", "ok": true}
+{"phase": "scripted_worker", "start": 2865783.768740733, "wall_s": 962.2553142267279, "target": "P5.add_comm_3", "ok": true}
+{"phase": "scripted_worker", "start": 2865784.759955389, "wall_s": 963.0185572998598, "target": "P5.add_comm_6", "ok": true}
+{"phase": "scripted_worker", "start": 2865784.107496318, "wall_s": 968.9959416552447, "target": "P5.add_comm_4", "ok": true}
+{"phase": "scripted_worker", "start": 2865785.438428358, "wall_s": 970.675396211911, "target": "P5.add_comm_8", "ok": true}
+{"phase": "scripted_worker", "start": 2865784.421605532, "wall_s": 972.938366736751, "target": "P5.add_comm_5", "ok": true}
+{"phase": "_run", "start": 2866733.641162437, "wall_s": 634.7362490091473, "ok": true, "operation": "paralean ws-capture"}
+{"phase": "publish", "start": 2866733.373273855, "wall_s": 635.004335232079, "ok": false}
+{"phase": "_run", "start": 2867368.377647717, "wall_s": 0.03678752901032567, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2867368.377637814, "wall_s": 0.03690400021150708, "ok": true}
+{"phase": "_ws", "start": 2867368.414616258, "wall_s": 0.17053409619256854, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2867368.414570633, "wall_s": 0.17068924522027373, "ok": true}
+{"phase": "validate", "start": 2867368.585301394, "wall_s": 0.001025425735861063, "ok": true}
+{"phase": "_run", "start": 2867368.634194383, "wall_s": 0.10315419221296906, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2867368.587198841, "wall_s": 0.15034010307863355, "ok": true}
+{"phase": "_run", "start": 2867368.739449915, "wall_s": 0.043890758883208036, "ok": true, "operation": "paralean-p5-store verify-target"}
+{"phase": "validate", "start": 2867368.738663069, "wall_s": 0.04480011807754636, "ok": true}
+{"phase": "_run", "start": 2867368.784296722, "wall_s": 0.05939223291352391, "ok": true, "operation": "plr pull"}
+{"phase": "_run", "start": 2867368.843838104, "wall_s": 921.3417744957842, "ok": true, "operation": "paralean ws-capture"}
+{"phase": "publish", "start": 2867368.737875631, "wall_s": 921.4555928758346, "ok": false}
+{"phase": "_run", "start": 2868290.193585408, "wall_s": 0.5846832129172981, "ok": true, "operation": "paralean-p5-store observe-target"}
+{"phase": "observe_target", "start": 2868290.193575083, "wall_s": 0.5848761922679842, "ok": true}
+{"phase": "_ws", "start": 2868290.778584337, "wall_s": 12.221781698986888, "ok": true, "operation": "sync"}
+{"phase": "sync", "start": 2868290.778506063, "wall_s": 12.22197973029688, "ok": true}
+{"phase": "validate", "start": 2868303.000526988, "wall_s": 0.026095875073224306, "ok": true}
+{"phase": "_run", "start": 2868303.534549503, "wall_s": 0.5569487418979406, "ok": true, "operation": "paralean-p5-store put"}
+{"phase": "save_state", "start": 2868303.026812868, "wall_s": 1.065072395838797, "ok": true}
+{"phase": "_run", "start": 2868304.100343398, "wall_s": 0.0740665141493082, "ok": true, "operation": "paralean-p5-store verify-target"}
+{"phase": "validate", "start": 2868304.099524891, "wall_s": 0.07505401177331805, "ok": true}
+{"phase": "_run", "start": 2868304.175532521, "wall_s": 0.1396540547721088, "ok": true, "operation": "plr pull"}

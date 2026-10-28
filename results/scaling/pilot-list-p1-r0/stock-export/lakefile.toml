@@ -1,0 +1,6 @@
+name = "paralean_export"
+defaultTargets = ["Export"]
+
+[[lean_lib]]
+name = "Export"
+roots = ["MapLength", "ReverseMap5", "ReverseMap2", "ReverseMap4", "ReverseMap1", "ReverseMap8", "ReverseMap3", "ReverseMap7", "ReverseMap6", "Final"]

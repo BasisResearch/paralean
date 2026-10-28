@@ -1,0 +1,113 @@
+{
+  "name": "pilot-list-p1-r0",
+  "workload": "list",
+  "n": 1,
+  "rep": 0,
+  "stock": false,
+  "sync": false,
+  "work": 2000,
+  "git": "cef6e03d897eba324c6d5b1f80f6751455f30586",
+  "task_sha256": "94c0fddccfdfe1495e451e119ca14d6c77910a60d10d6908768a4e80e94cfd44",
+  "started_utc": "2026-10-28T14:28:11Z",
+  "command": [
+    "/usr/bin/python3",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/controller.py",
+    "run",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/results/scaling/pilot-list-p1-r0/task.toml",
+    "--state",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-list-p1-r0",
+    "--workers",
+    "1",
+    "--parallelism",
+    "1",
+    "--worker",
+    "command",
+    "--no-export"
+  ],
+  "returncode": 0,
+  "wall_s": 65.79210226796567,
+  "cpu_s": 35.398239999999994,
+  "load_start": [
+    12.171875,
+    12.45654296875,
+    15.720703125
+  ],
+  "load_end": [
+    11.9404296875,
+    12.32470703125,
+    15.451171875
+  ],
+  "service_cpu_s": {
+    "s3-guard": 0.03,
+    "garage": 0.28,
+    "fdbserver": 0.9200000000000017
+  },
+  "ok": true,
+  "metrics": {
+    "check_ms": 6430.8308609999995,
+    "started_at": 1793197718.3019955,
+    "transfer_bytes": 36811,
+    "transfer_ms": 209.195537,
+    "wall_s": 39.005,
+    "worker_wall_s": 10.648
+  },
+  "transfer": {
+    "bytes": 36811,
+    "ms": 168.829771,
+    "rows": 30,
+    "files": 1,
+    "invalid_rows": 0,
+    "by_kind": {
+      "put-group": {
+        "rows": 10,
+        "bytes": 5639,
+        "ms": 0.0
+      },
+      "put-capsule": {
+        "rows": 10,
+        "bytes": 20227,
+        "ms": 115.63475199999999
+      },
+      "validate-target": {
+        "rows": 10,
+        "bytes": 0,
+        "ms": 6430.539457999999
+      },
+      "pull": {
+        "rows": 10,
+        "bytes": 10945,
+        "ms": 53.195019
+      }
+    }
+  },
+  "export": {
+    "command": [
+      "/usr/bin/python3",
+      "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/controller.py",
+      "export",
+      "scal-pilot-list-p1-r0",
+      "--state",
+      "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-list-p1-r0",
+      "--out",
+      "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-list-p1-r0/export"
+    ],
+    "returncode": 0,
+    "wall_s": 5.85411789175123,
+    "cpu_s": 4.182174,
+    "load_start": [
+      11.9404296875,
+      12.32470703125,
+      15.451171875
+    ],
+    "load_end": [
+      15.46875,
+      13.0498046875,
+      15.66943359375
+    ],
+    "service_cpu_s": {
+      "s3-guard": 0.0,
+      "garage": 0.030000000000000027,
+      "fdbserver": 0.12999999999999545
+    }
+  }
+}

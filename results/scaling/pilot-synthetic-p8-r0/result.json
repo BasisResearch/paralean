@@ -1,0 +1,84 @@
+{
+  "name": "pilot-synthetic-p8-r0",
+  "workload": "synthetic",
+  "n": 8,
+  "rep": 0,
+  "stock": false,
+  "sync": false,
+  "work": 20000,
+  "agent": false,
+  "git": "cef6e03d897eba324c6d5b1f80f6751455f30586",
+  "task_sha256": "e66d2b296946966e11b9b7a30458de4f0a26e1c0e17ecc26b2a890c1889c9f3f",
+  "started_utc": "2026-10-28T14:38:33Z",
+  "command": [
+    "/usr/bin/python3",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/controller.py",
+    "run",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/results/scaling/pilot-synthetic-p8-r0/task.toml",
+    "--state",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r0",
+    "--workers",
+    "8",
+    "--parallelism",
+    "8",
+    "--worker",
+    "command",
+    "--no-export"
+  ],
+  "returncode": -15,
+  "wall_s": 2888.236232118681,
+  "cpu_s": 9221.432617,
+  "load_start": [
+    10.4189453125,
+    11.5400390625,
+    13.7412109375
+  ],
+  "load_end": [
+    45.458984375,
+    40.31201171875,
+    30.69482421875
+  ],
+  "service_cpu_s": {
+    "s3-guard": 0.020000000000000004,
+    "garage": 0.7600000000000002,
+    "fdbserver": 34.89
+  },
+  "ok": false,
+  "metrics": {
+    "check_ms": 565.547324,
+    "started_at": 1793198316.0150743,
+    "transfer_bytes": 23343,
+    "transfer_ms": 143.65041300000001,
+    "wall_s": 2524.713,
+    "worker_wall_s": 1913.4740000000002
+  },
+  "transfer": {
+    "bytes": 23343,
+    "ms": 46.966238,
+    "rows": 10,
+    "files": 8,
+    "invalid_rows": 0,
+    "by_kind": {
+      "put-group": {
+        "rows": 1,
+        "bytes": 270,
+        "ms": 0.0
+      },
+      "put-capsule": {
+        "rows": 1,
+        "bytes": 1195,
+        "ms": 8.375861
+      },
+      "validate-target": {
+        "rows": 1,
+        "bytes": 0,
+        "ms": 565.526486
+      },
+      "pull": {
+        "rows": 8,
+        "bytes": 21878,
+        "ms": 38.590377000000004
+      }
+    }
+  }
+}

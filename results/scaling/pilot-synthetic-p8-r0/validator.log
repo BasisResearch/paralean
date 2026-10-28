@@ -1,0 +1,4 @@
+validator v0 on 127.0.0.1:19891 (checker dc15cbea574636ef1e16165e8314afea4805c9847f1cee28e17a0d77e3d2da80)
+scaling_queue_us=5
+scaling_fetch_us=1944
+scaling_checker_us=209594

@@ -1,0 +1,103 @@
+{
+  "scope": "posthoc verification of successful pilot package metadata",
+  "ok": true,
+  "edges": [
+    {
+      "target": "P5List.reverse_map_len_1",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_2",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_3",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_4",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_5",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_6",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_7",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_len_8",
+      "depends_on": "P5List.map_length",
+      "package": "b3e68500c640c0b38cf2becb71a05b1c10bddcb8a09d073b104e701472961d2c",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_1",
+      "package": "2d44ec235012a1e84c358d89bf0b12ceca5a31dd850b57c403b43d3193024402",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_2",
+      "package": "077304f40ea81a3ff93f814fcce59e8783e7aec43cbd1ddaa98c22c552985ce5",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_3",
+      "package": "f32f9c319853c27280edd003674c8a3081f3118f5c291c2b45d545f681807b00",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_4",
+      "package": "84ee04a453eeec5537362e266c9e4e72e71bf93fbcd943918728759912a035a1",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_5",
+      "package": "efc3e0c7d76e74aceaa88d87685a3330bd2bdd84ae66959f4b4fc952fa1d3c70",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_6",
+      "package": "fe1f552b1bdb8a794e18e276eec7bb825b4afc3199c279817006cc14c3e0bf04",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_7",
+      "package": "62282c1d5b9fa35b3aa38806019f94f74bf7ebafba3d72d1cd8a9d505a75e419",
+      "present_in_checked_closure": true
+    },
+    {
+      "target": "P5List.reverse_map_lengths",
+      "depends_on": "P5List.reverse_map_len_8",
+      "package": "7f3e49679bd23b92b59eac71ffbd805fdbfb3128fd190c2dc14f561a7bb5d985",
+      "present_in_checked_closure": true
+    }
+  ],
+  "packages_found": 10
+}

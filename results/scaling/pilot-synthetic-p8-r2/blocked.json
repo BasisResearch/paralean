@@ -1,0 +1,9 @@
+{
+  "status": "not_run",
+  "reason": "load gate never opened before explicit shutdown",
+  "wait_start_utc": "2026-10-28T18:27:25Z",
+  "wait_end_utc": "2026-10-28T19:10:55Z",
+  "one_minute_load_at_end": 44.8505859375,
+  "threshold": 24,
+  "note": "Only task staging occurred; no measured subprocess, no result.json."
+}

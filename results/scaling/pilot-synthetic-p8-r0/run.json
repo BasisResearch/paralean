@@ -1,0 +1,318 @@
+{
+  "catalog": "c6555b924f269ba3f10291750073fe824432aebc28f9b581fd5c176da885c82e",
+  "contract_validation": null,
+  "events": [
+    {
+      "at": 1793198316.0150769,
+      "event": "task_created"
+    },
+    {
+      "agents": [
+        "w0",
+        "w1",
+        "w2",
+        "w3",
+        "w4",
+        "w5",
+        "w6",
+        "w7"
+      ],
+      "at": 1793198316.9702375,
+      "event": "workspaces_ready"
+    },
+    {
+      "at": 1793198317.2359493,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "agent": "w0",
+      "at": 1793198317.294814,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "agent": "w0",
+      "at": 1793198320.3339143,
+      "attempt": 1,
+      "event": "target_validated",
+      "group": "11a0f81e9cbaf39c2074057be9b28b7240219a1f924c478ddb4becf5dcac5cc3",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "at": 1793198320.615878,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "agent": "w1",
+      "at": 1793198320.6813183,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "at": 1793198320.957938,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_2"
+    },
+    {
+      "agent": "w2",
+      "at": 1793198321.0213032,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_2"
+    },
+    {
+      "at": 1793198321.3079836,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_3"
+    },
+    {
+      "agent": "w3",
+      "at": 1793198321.371327,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_3"
+    },
+    {
+      "at": 1793198321.6511512,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_4"
+    },
+    {
+      "agent": "w4",
+      "at": 1793198321.7143044,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_4"
+    },
+    {
+      "at": 1793198321.9820094,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_5"
+    },
+    {
+      "agent": "w5",
+      "at": 1793198322.0363567,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_5"
+    },
+    {
+      "at": 1793198322.2918174,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_6"
+    },
+    {
+      "agent": "w6",
+      "at": 1793198322.3448913,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_6"
+    },
+    {
+      "at": 1793198322.6410027,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_7"
+    },
+    {
+      "agent": "w7",
+      "at": 1793198322.7012062,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_7"
+    },
+    {
+      "at": 1793198322.9854565,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_8"
+    },
+    {
+      "agent": "w0",
+      "at": 1793198323.0398428,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_8"
+    },
+    {
+      "agent": "w1",
+      "at": 1793199906.2888184,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "target P5.add_comm_1 was not captured",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "agent": "w3",
+      "at": 1793200840.7284365,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "target P5.add_comm_3 was not captured",
+      "target": "P5.add_comm_3"
+    }
+  ],
+  "export": null,
+  "fingerprint": "dc6f7310562f4a8598785e33c51ecf0c166a79ecf45367cf882c3b169eb3ed3a",
+  "logical_workers": 8,
+  "metrics": {
+    "check_ms": 565.547324,
+    "started_at": 1793198316.0150743,
+    "transfer_bytes": 23343,
+    "transfer_ms": 143.65041300000001,
+    "wall_s": 2524.713,
+    "worker_wall_s": 1913.4740000000002
+  },
+  "parallelism": 8,
+  "phase": "running",
+  "targets": {
+    "P5.add_comm_1": {
+      "agent": "w1",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "target P5.add_comm_1 was not captured",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w1",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r0/w1/p5-logs/P5_add_comm_1-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_1",
+        "timed_out": false,
+        "wall_s": 950.326
+      }
+    },
+    "P5.add_comm_2": {
+      "agent": "w2",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_3": {
+      "agent": "w3",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "target P5.add_comm_3 was not captured",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w3",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r0/w3/p5-logs/P5_add_comm_3-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_3",
+        "timed_out": false,
+        "wall_s": 962.333
+      }
+    },
+    "P5.add_comm_4": {
+      "agent": "w4",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_5": {
+      "agent": "w5",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_6": {
+      "agent": "w6",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_7": {
+      "agent": "w7",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_8": {
+      "agent": "w0",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": null,
+      "status": "running",
+      "worker": null
+    },
+    "P5.add_comm_general": {
+      "agent": "w0",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": "11a0f81e9cbaf39c2074057be9b28b7240219a1f924c478ddb4becf5dcac5cc3",
+      "status": "done",
+      "worker": {
+        "agent": "w0",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r0/w0/p5-logs/P5_add_comm_general-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_general",
+        "timed_out": false,
+        "wall_s": 0.815
+      }
+    },
+    "P5.add_comm_up_to_eight": {
+      "agent": null,
+      "attempts": 0,
+      "error": null,
+      "group": null,
+      "status": "pending",
+      "worker": null
+    }
+  },
+  "task_id": "scal-pilot-synthetic-p8-r0",
+  "worker_command": [
+    "/usr/bin/python3",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/worker.py"
+  ],
+  "worker_kind": "command",
+  "workspace_root": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r0"
+}

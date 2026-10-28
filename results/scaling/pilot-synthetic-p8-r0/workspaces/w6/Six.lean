@@ -1,0 +1,9 @@
+-- paralean: published projection of Six.lean
+
+theorem P5.add_comm_6 : ∀ n : Nat, n + 6 = 6 + n := by
+  run_tac
+    for _ in [:20000] do
+      Lean.Elab.Tactic.evalTactic (← `(tactic| have hscal : (1 : Nat) + 1 = 2 := by decide))
+      Lean.Elab.Tactic.evalTactic (← `(tactic| clear hscal))
+  intro n
+  exact P5.add_comm_general n 6

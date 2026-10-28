@@ -1,0 +1,429 @@
+{
+  "catalog": "cb6d3654a858c1ed2db05c45039c1c8096f693723bafb9a121669eb671840185",
+  "contract_validation": null,
+  "events": [
+    {
+      "at": 1793203193.5001144,
+      "event": "task_created"
+    },
+    {
+      "agents": [
+        "w0",
+        "w1",
+        "w2",
+        "w3",
+        "w4",
+        "w5",
+        "w6",
+        "w7"
+      ],
+      "at": 1793203196.3480272,
+      "event": "workspaces_ready"
+    },
+    {
+      "at": 1793203196.7677588,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "agent": "w0",
+      "at": 1793203196.8537397,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "agent": "w0",
+      "at": 1793203206.0911684,
+      "attempt": 1,
+      "event": "target_validated",
+      "group": "11a0f81e9cbaf39c2074057be9b28b7240219a1f924c478ddb4becf5dcac5cc3",
+      "target": "P5.add_comm_general"
+    },
+    {
+      "at": 1793203206.5469215,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "agent": "w1",
+      "at": 1793203206.6135051,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "at": 1793203207.205122,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_2"
+    },
+    {
+      "agent": "w2",
+      "at": 1793203207.2981184,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_2"
+    },
+    {
+      "at": 1793203207.8892493,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_3"
+    },
+    {
+      "agent": "w3",
+      "at": 1793203207.971129,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_3"
+    },
+    {
+      "at": 1793203208.6196706,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_4"
+    },
+    {
+      "agent": "w4",
+      "at": 1793203208.7043948,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_4"
+    },
+    {
+      "at": 1793203209.2644422,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_5"
+    },
+    {
+      "agent": "w5",
+      "at": 1793203209.3673108,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_5"
+    },
+    {
+      "at": 1793203209.8185413,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_6"
+    },
+    {
+      "agent": "w6",
+      "at": 1793203209.8986273,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_6"
+    },
+    {
+      "at": 1793203210.286301,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_7"
+    },
+    {
+      "agent": "w7",
+      "at": 1793203210.3547764,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_7"
+    },
+    {
+      "at": 1793203210.768046,
+      "epoch": 0,
+      "event": "target_assignment_ready",
+      "target": "P5.add_comm_8"
+    },
+    {
+      "agent": "w0",
+      "at": 1793203210.8494575,
+      "attempt": 1,
+      "event": "target_dispatched",
+      "target": "P5.add_comm_8"
+    },
+    {
+      "agent": "w4",
+      "at": 1793203213.0890896,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_4: check failed: source replay of 58f98adb1c8b failed | [capsule:replay-elab-error] Four.lean:3: <capsule 804c7d86>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_4 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_4"
+    },
+    {
+      "agent": "w1",
+      "at": 1793203216.760983,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_1: check failed: source replay of 6f79ae59e2fa failed | [capsule:replay-elab-error] One.lean:3: <capsule e85706b1>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_1 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_1"
+    },
+    {
+      "agent": "w3",
+      "at": 1793203221.379783,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_3: check failed: source replay of 3127e9c4eab9 failed | [capsule:replay-elab-error] Three.lean:3: <capsule bb0e6173>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_3 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_3"
+    },
+    {
+      "agent": "w2",
+      "at": 1793203225.6196196,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_2: check failed: source replay of 7394cdde45da failed | [capsule:replay-elab-error] Two.lean:3: <capsule 0a0d5f12>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_2 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_2"
+    },
+    {
+      "agent": "w6",
+      "at": 1793203229.0448077,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_6: check failed: source replay of ca4c962e49f0 failed | [capsule:replay-elab-error] Six.lean:3: <capsule ee0f1436>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_6 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_6"
+    },
+    {
+      "agent": "w5",
+      "at": 1793203231.990984,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_5: check failed: source replay of e1abcbf1a129 failed | [capsule:replay-elab-error] Five.lean:3: <capsule 61c61cb3>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_5 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_5"
+    },
+    {
+      "agent": "w0",
+      "at": 1793203234.3478909,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_8: check failed: source replay of d8f934c2fe60 failed | [capsule:replay-elab-error] Eight.lean:3: <capsule cb1a8761>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_8 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_8"
+    },
+    {
+      "agent": "w7",
+      "at": 1793203236.839472,
+      "attempt": 1,
+      "event": "publication_failed",
+      "reason": "trusted validator rejected target P5.add_comm_7: check failed: source replay of 93df76325249 failed | [capsule:replay-elab-error] Seven.lean:3: <capsule 7d9e907b>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_7 with the pinned statement; a pinned target is not declared with its statement",
+      "target": "P5.add_comm_7"
+    },
+    {
+      "at": 1793203236.900048,
+      "event": "task_failed",
+      "incomplete": [
+        "P5.add_comm_1",
+        "P5.add_comm_2",
+        "P5.add_comm_3",
+        "P5.add_comm_4",
+        "P5.add_comm_5",
+        "P5.add_comm_6",
+        "P5.add_comm_7",
+        "P5.add_comm_8",
+        "P5.add_comm_up_to_eight"
+      ]
+    }
+  ],
+  "export": null,
+  "fingerprint": "63c2fb25c164127e9dab7ac33b385a8a284faf0e8a1391079e4014e40a7c558a",
+  "logical_workers": 8,
+  "metrics": {
+    "check_ms": 1165.692324,
+    "started_at": 1793203193.5001113,
+    "transfer_bytes": 23343,
+    "transfer_ms": 94.86580999999998,
+    "wall_s": 43.4,
+    "worker_wall_s": 19.866
+  },
+  "parallelism": 8,
+  "phase": "failed",
+  "targets": {
+    "P5.add_comm_1": {
+      "agent": "w1",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_1: check failed: source replay of 6f79ae59e2fa failed | [capsule:replay-elab-error] One.lean:3: <capsule e85706b1>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_1 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w1",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w1/p5-logs/P5_add_comm_1-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_1",
+        "timed_out": false,
+        "wall_s": 2.716
+      }
+    },
+    "P5.add_comm_2": {
+      "agent": "w2",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_2: check failed: source replay of 7394cdde45da failed | [capsule:replay-elab-error] Two.lean:3: <capsule 0a0d5f12>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_2 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w2",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w2/p5-logs/P5_add_comm_2-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_2",
+        "timed_out": false,
+        "wall_s": 2.566
+      }
+    },
+    "P5.add_comm_3": {
+      "agent": "w3",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_3: check failed: source replay of 3127e9c4eab9 failed | [capsule:replay-elab-error] Three.lean:3: <capsule bb0e6173>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_3 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w3",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w3/p5-logs/P5_add_comm_3-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_3",
+        "timed_out": false,
+        "wall_s": 2.268
+      }
+    },
+    "P5.add_comm_4": {
+      "agent": "w4",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_4: check failed: source replay of 58f98adb1c8b failed | [capsule:replay-elab-error] Four.lean:3: <capsule 804c7d86>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_4 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w4",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w4/p5-logs/P5_add_comm_4-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_4",
+        "timed_out": false,
+        "wall_s": 2.064
+      }
+    },
+    "P5.add_comm_5": {
+      "agent": "w5",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_5: check failed: source replay of e1abcbf1a129 failed | [capsule:replay-elab-error] Five.lean:3: <capsule 61c61cb3>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_5 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w5",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w5/p5-logs/P5_add_comm_5-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_5",
+        "timed_out": false,
+        "wall_s": 2.036
+      }
+    },
+    "P5.add_comm_6": {
+      "agent": "w6",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_6: check failed: source replay of ca4c962e49f0 failed | [capsule:replay-elab-error] Six.lean:3: <capsule ee0f1436>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_6 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w6",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w6/p5-logs/P5_add_comm_6-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_6",
+        "timed_out": false,
+        "wall_s": 1.665
+      }
+    },
+    "P5.add_comm_7": {
+      "agent": "w7",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_7: check failed: source replay of 93df76325249 failed | [capsule:replay-elab-error] Seven.lean:3: <capsule 7d9e907b>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_7 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w7",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w7/p5-logs/P5_add_comm_7-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_7",
+        "timed_out": false,
+        "wall_s": 1.471
+      }
+    },
+    "P5.add_comm_8": {
+      "agent": "w0",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": "trusted validator rejected target P5.add_comm_8: check failed: source replay of d8f934c2fe60 failed | [capsule:replay-elab-error] Eight.lean:3: <capsule cb1a8761>:4:2: error(lean.unknownIdentifier): Unknown constant `Lean.Elab.Tactic.TacticM` | the group does not declare target P5.add_comm_8 with the pinned statement; a pinned target is not declared with its statement",
+      "group": null,
+      "status": "failed",
+      "worker": {
+        "agent": "w0",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w0/p5-logs/P5_add_comm_8-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_8",
+        "timed_out": false,
+        "wall_s": 1.415
+      }
+    },
+    "P5.add_comm_general": {
+      "agent": "w0",
+      "attempts": 1,
+      "dispatch_head": null,
+      "epoch": 0,
+      "epoch_ready": false,
+      "error": null,
+      "group": "11a0f81e9cbaf39c2074057be9b28b7240219a1f924c478ddb4becf5dcac5cc3",
+      "status": "done",
+      "worker": {
+        "agent": "w0",
+        "attempt": 1,
+        "log": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1/w0/p5-logs/P5_add_comm_general-1.log",
+        "returncode": 0,
+        "target": "P5.add_comm_general",
+        "timed_out": false,
+        "wall_s": 3.665
+      }
+    },
+    "P5.add_comm_up_to_eight": {
+      "agent": null,
+      "attempts": 0,
+      "error": null,
+      "group": null,
+      "status": "pending",
+      "worker": null
+    }
+  },
+  "task_id": "scal-pilot-synthetic-p8-r1",
+  "worker_command": [
+    "/usr/bin/python3",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/worker.py"
+  ],
+  "worker_kind": "command",
+  "workspace_root": "/data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/pilot-synthetic-p8-r1"
+}

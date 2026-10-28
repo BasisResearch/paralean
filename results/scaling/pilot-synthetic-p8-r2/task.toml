@@ -1,0 +1,96 @@
+# P5 end-to-end task. Scheduling data lives here, outside the reusable Lean library.
+# The 8 middle targets can run in parallel after the general lemma is published.
+
+[task]
+id = "scal-pilot-synthetic-p8-r2"
+name = "Eight specializations of natural-number addition commutativity"
+
+[controller]
+workers = 8
+max_attempts = 1
+
+[worker]
+kind = "command"
+timeout_s = 180
+command = ["/usr/bin/python3", "/data/home/kirancodes/Documents/code/paralean-scaling/scripts/scaling/worker.py"]
+
+[[targets]]
+name = "P5.add_comm_general"
+statement = "∀ a b : Nat, a + b = b + a"
+file = "Common.lean"
+deps = []
+
+[[targets]]
+name = "P5.add_comm_1"
+instructions = "Use P5.add_comm_general n 1 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 1 = 1 + n"
+file = "One.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_2"
+instructions = "Use P5.add_comm_general n 2 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 2 = 2 + n"
+file = "Two.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_3"
+instructions = "Use P5.add_comm_general n 3 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 3 = 3 + n"
+file = "Three.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_4"
+instructions = "Use P5.add_comm_general n 4 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 4 = 4 + n"
+file = "Four.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_5"
+instructions = "Use P5.add_comm_general n 5 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 5 = 5 + n"
+file = "Five.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_6"
+instructions = "Use P5.add_comm_general n 6 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 6 = 6 + n"
+file = "Six.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_7"
+instructions = "Use P5.add_comm_general n 7 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 7 = 7 + n"
+file = "Seven.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_8"
+instructions = "Use P5.add_comm_general n 8 as the proof, so the dependency is a checked remote helper."
+statement = "∀ n : Nat, n + 8 = 8 + n"
+file = "Eight.lean"
+deps = ["P5.add_comm_general"]
+
+[[targets]]
+name = "P5.add_comm_up_to_eight"
+instructions = "Build the conjunction from P5.add_comm_1 through P5.add_comm_8, each at n."
+statement = "∀ n : Nat, (n + 1 = 1 + n) ∧ (n + 2 = 2 + n) ∧ (n + 3 = 3 + n) ∧ (n + 4 = 4 + n) ∧ (n + 5 = 5 + n) ∧ (n + 6 = 6 + n) ∧ (n + 7 = 7 + n) ∧ (n + 8 = 8 + n)"
+file = "Final.lean"
+deps = ["P5.add_comm_1", "P5.add_comm_2", "P5.add_comm_3", "P5.add_comm_4", "P5.add_comm_5", "P5.add_comm_6", "P5.add_comm_7", "P5.add_comm_8"]
+
+[sources]
+"Common.lean" = "import Init\n"
+"One.lean" = "import Init\n"
+"Two.lean" = "import Init\n"
+"Three.lean" = "import Init\n"
+"Four.lean" = "import Init\n"
+"Five.lean" = "import Init\n"
+"Six.lean" = "import Init\n"
+"Seven.lean" = "import Init\n"
+"Eight.lean" = "import Init\n"
+"Final.lean" = "import Init\n"

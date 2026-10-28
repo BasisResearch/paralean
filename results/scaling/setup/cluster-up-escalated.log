@@ -1,0 +1,5 @@
+Database created
+The database is available, but has issues (type 'status' for more information).
+garage: node e25056f3a0b419e2, bucket paralean
+s3: http://127.0.0.1:19833 (guard) -> 127.0.0.1:19839 (garage)
+fdb: /data/home/kirancodes/Documents/code/paralean-scaling/.runs/scaling/cluster/fdb/fdb.cluster (paralean:p3cfcae6d6c05f5@127.0.0.1:5289)

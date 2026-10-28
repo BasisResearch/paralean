@@ -1,0 +1,30 @@
+{
+  "name": "pilot-list-stock-r0",
+  "workload": "list",
+  "n": 1,
+  "rep": 0,
+  "stock": true,
+  "sync": false,
+  "work": 2000,
+  "git": "712a5b23810f0ef7e82e187f4e0ae1ae62cfd67a",
+  "task_sha256": "d2c4574b6eec107195d88db8ec7033b8396efc7377fa6252d12057ec14efd12c",
+  "started_utc": null,
+  "command": [
+    "/Users/kirancodes/.elan/toolchains/leanprover--lean4-nightly---nightly-2026-10-03/bin/lean",
+    "/data/home/kirancodes/Documents/code/paralean-scaling/results/scaling/pilot-list-stock-r0/Stock.lean"
+  ],
+  "returncode": 1,
+  "wall_s": 0.24322322197258472,
+  "cpu_s": 0.275144,
+  "load_start": [
+    18.0,
+    20.677734375,
+    18.5263671875
+  ],
+  "load_end": [
+    17.919921875,
+    20.6162109375,
+    18.51806640625
+  ],
+  "ok": false
+}

@@ -1,0 +1,80 @@
+{
+  "scope": "single successful List pilot; not production; phase sums overlap/nest; export phases included in trace but export timed separately",
+  "phase_sums_s": {
+    "_run:paralean-p5-store get": 0.2316201855428517,
+    "_run:plr keys-init": 2.1866540028713644,
+    "_run:lean --run": 24.99728814465925,
+    "_run:paralean-p5-store put": 2.3112794854678214,
+    "setup:": 26.504815747961402,
+    "save_state:": 2.0785610349848866,
+    "_run:python3 /data/home/kirancodes/Documents/code/paralean-scaling/impl/p3-remote/scripts/ws.py": 0.12173875793814659,
+    "provision:": 0.12277614744380116,
+    "_ws:sync": 3.522107845172286,
+    "sync:": 3.524937733542174,
+    "_run:paralean-p5-store assign-target": 0.4762740330770612,
+    "assign_target:": 0.4778265217319131,
+    "_run:paralean-p5-store observe-target": 0.3933649715036154,
+    "observe_target:": 0.3946779672987759,
+    "scripted_worker:": 10.046065113507211,
+    "_run:plr pull": 0.8796614063903689,
+    "_run:paralean ws-capture": 10.336067805998027,
+    "_run:plr stage": 0.4795281430706382,
+    "_run:paralean-p5-store validate-target": 6.8049200107343495,
+    "_run:paralean ws-plan": 0.7810946106910706,
+    "_run:paralean-p5-store publish-target": 0.5566216232255101,
+    "_run:paralean-p5-store verify-target": 3.081609999295324,
+    "validate:": 3.105872232001275,
+    "publish:": 23.059790250845253,
+    "_run:paralean ws-export": 2.359520727302879,
+    "_run:paralean-p5-store checkpoint-targets": 0.36720406310632825,
+    "export:": 5.175019672140479
+  },
+  "queue": {
+    "n": 10,
+    "sum_s": 7.9e-05,
+    "samples_s": [
+      8e-06,
+      8e-06,
+      7e-06,
+      6e-06,
+      8e-06,
+      7e-06,
+      1e-05,
+      9e-06,
+      9e-06,
+      7e-06
+    ]
+  },
+  "fetch": {
+    "n": 10,
+    "sum_s": 0.113976,
+    "samples_s": [
+      0.009561,
+      0.00504,
+      0.004303,
+      0.004324,
+      0.004422,
+      0.00426,
+      0.004976,
+      0.004879,
+      0.004607,
+      0.067604
+    ]
+  },
+  "checker": {
+    "n": 10,
+    "sum_s": 2.6359339999999998,
+    "samples_s": [
+      0.226659,
+      0.215406,
+      0.212385,
+      0.223285,
+      0.231373,
+      0.217837,
+      0.389758,
+      0.343054,
+      0.243359,
+      0.332818
+    ]
+  }
+}

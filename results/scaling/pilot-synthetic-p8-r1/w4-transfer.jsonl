@@ -1,0 +1,5 @@
+{"bytes":2971,"id":"0000000000000000000000000000000000000000000000000000000000000000","kind":"pull","ms":7.617422}
+{"bytes":270,"id":"11a0f81e9cbaf39c2074057be9b28b7240219a1f924c478ddb4becf5dcac5cc3","kind":"fetch-group","ms":1.792023}
+{"bytes":1192,"id":"58f98adb1c8b02b2e1c964bd25e5bf364b850448d5d6d7f62a4194828a965a37","kind":"put-group","ms":0.0}
+{"bytes":1449,"id":"326742f0044a2546ceb2eb6e2622d38fb1bb9f1c82ac65867cb5c5e858c0d2cd","kind":"put-capsule","ms":8.655108}
+{"bytes":0,"id":"58f98adb1c8b02b2e1c964bd25e5bf364b850448d5d6d7f62a4194828a965a37","kind":"validate-target","ms":638.21591}

@@ -1,0 +1,114 @@
+{
+  "method": "Mean; t(2) 95% CI for exactly three successes; ratio endpoints use Bonferroni 97.5% t intervals for a joint at-least-95% bound (normal sampling assumption).",
+  "summary": [
+    {
+      "workload": "list",
+      "kind": "stock",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "list",
+      "kind": "stock-sync",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "list",
+      "kind": "p",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "list",
+      "kind": "p",
+      "n": 2,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "list",
+      "kind": "p",
+      "n": 4,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "list",
+      "kind": "p",
+      "n": 8,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "stock",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "stock-sync",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "p",
+      "n": 1,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "p",
+      "n": 2,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "p",
+      "n": 4,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    },
+    {
+      "workload": "synthetic",
+      "kind": "p",
+      "n": 8,
+      "successes": 0,
+      "attempts": 0,
+      "wall_s": null,
+      "cpu_s": null
+    }
+  ],
+  "all_successful": false
+}

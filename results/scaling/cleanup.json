@@ -1,0 +1,10 @@
+{
+  "removed_owned_build_intermediates": [
+    "impl/p1/.lake",
+    "impl/p2/target",
+    ".runs/scaling/pilot-list-p1-r0/export/.lake",
+    "scripts/scaling/__pycache__"
+  ],
+  "services": "ownership-checked shutdown; subsequent host pgrep found no study-owned processes",
+  "retained": "private runtime caches and instance data under .runs/scaling for representative profile"
+}
