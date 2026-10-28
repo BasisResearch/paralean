@@ -12,7 +12,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use paralean_control::checker::{base_id, CheckerConfig};
-use paralean_control::controller::{call_controller, ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
+use paralean_control::controller::{call_controller, replay_generation_hint, ControlCall, ControlPlane, ControlRequest, ControlResponse, ControllerConfig};
+use paralean_control::replay::ReplayConfig;
 use paralean_control::gc::GcConfig;
 use paralean_control::validator::{Validator, ValidatorConfig};
 use paralean_control::worker::WorkerNode;
@@ -36,12 +37,13 @@ const USAGE: &str = "usage: paralean-p3 <command> [args]
   validator --listen ADDR --key NAME [--max-running N] [--max-queued N] [--workdir DIR]
   controller --listen ADDR --validators A,B [--shard N --shards K] [--lease-ms N] [--max-work-queue N]
              [--no-gc] [--gc-grace-ticks N --gc-scan-limit N]
+             [--replay-horizon-ticks H [--replay-grace-ticks N] [--require-replay-generation]]
              [--max-validations N] [--deadline-ms N] [--memory-mb N] [--attempts N]
   worker --name W --controller ADDR --p1-store DIR [--capacity-mb N] [--hold-ms N]
-  submit --controller ADDR --request R --target NAME [--memory-mb N]
-  assign --controller ADDR --target NAME --worker W
-  assign-group --controller ADDR --targets NAME,NAME --worker W
-  cancel --controller ADDR --request R [--worker W]
+  submit --controller ADDR --request R --target NAME [--memory-mb N] [--generation G]
+  assign --controller ADDR --target NAME --worker W [--generation G]
+  assign-group --controller ADDR --targets NAME,NAME --worker W [--request R] [--generation G]
+  cancel --controller ADDR --request R [--worker W] [--generation G]
                                    J3 for W's request R, or for every workspace's R
   status --controller ADDR";
 
@@ -76,6 +78,19 @@ fn controller_gc(f: &BTreeMap<String, String>) -> R<GcConfig> {
     Ok(GcConfig { enabled, grace_ticks: num(f, "gc-grace-ticks", 8)?, scan_limit: num(f, "gc-scan-limit", 128)? as usize })
 }
 
+/// Replay horizons (docs/w4-rest-log.md design 3): off unless `--replay-horizon-ticks`.
+fn controller_replay(f: &BTreeMap<String, String>) -> R<ReplayConfig> {
+    let horizon_ticks = f.get("replay-horizon-ticks").map(|_| num(f, "replay-horizon-ticks", 0)).transpose()?;
+    if horizon_ticks == Some(0) { return Err("--replay-horizon-ticks must be positive".into()) }
+    let require_generation = f.contains_key("require-replay-generation");
+    if require_generation && horizon_ticks.is_none() {
+        return Err("--require-replay-generation needs --replay-horizon-ticks".into());
+    }
+    let grace_ticks = num(f, "replay-grace-ticks", 8)?;
+    if grace_ticks == 0 { return Err("--replay-grace-ticks must be positive".into()) }
+    Ok(ReplayConfig { horizon_ticks, grace_ticks, require_generation })
+}
+
 fn keyfile() -> R<KeyFile> {
     let p = std::env::var("PARALEAN_KEYS").map_err(|_| "PARALEAN_KEYS not set (paralean-p3 keys init)")?;
     serde_json::from_str(&std::fs::read_to_string(&p).map_err(|e| format!("{p}: {e}"))?).map_err(|e| e.to_string())
@@ -96,6 +111,28 @@ async fn ctl_call(f: &BTreeMap<String, String>, req: ControlRequest) -> R<Contro
     let kf = keyfile()?;
     let signer = kf.authority_signer().ok_or("the key file holds no authority seed")?;
     call_controller(addr, &req, &signer, &kf.ring().authority, Duration::from_secs(900)).await.map_err(|e| e.to_string())
+}
+
+/// A request under a client-chosen ID, in replay generation `--generation G` or else the
+/// owning shard's current one: a probe in a generation no shard has reached is refused
+/// before anything is written, with the shard's generation, and the request is resent.
+async fn ctl_call_scoped(f: &BTreeMap<String, String>, req: ControlRequest) -> R<ControlResponse> {
+    let addr = f.get("controller").ok_or("--controller ADDR")?;
+    let kf = keyfile()?;
+    let signer = kf.authority_signer().ok_or("the key file holds no authority seed")?;
+    let call = |generation: u64| {
+        let call = ControlCall::scoped(generation, req.clone());
+        let (signer, ring) = (signer.clone(), kf.ring());
+        async move { call_controller(addr, &call, &signer, &ring.authority, Duration::from_secs(900)).await.map_err(|e| e.to_string()) }
+    };
+    if let Some(generation) = f.get("generation") {
+        return call(generation.parse().map_err(|e| format!("--generation: {e}"))?).await;
+    }
+    let probe = call(u64::MAX).await?;
+    match replay_generation_hint(&probe) {
+        Some(generation) => call(generation).await,
+        None => Ok(probe),
+    }
 }
 
 async fn run(args: Vec<String>) -> R<()> {
@@ -208,7 +245,7 @@ async fn run(args: Vec<String>) -> R<()> {
             let shard = u32::try_from(num(&f, "shard", 0)?).map_err(|_| "--shard exceeds u32")?;
             let shards = u32::try_from(num(&f, "shards", 1)?).map_err(|_| "--shards exceeds u32")?;
             if shards == 0 || shard >= shards { return Err("--shard must be less than positive --shards".into()) }
-            let cp = ControlPlane::new_shard_with_gc(ControllerConfig {
+            let cp = ControlPlane::new_shard_with_replay(ControllerConfig {
                 store: open_store(&kf)?,
                 authority: kf.authority_signer().ok_or("the key file holds no authority seed")?,
                 validators: f.get("validators").ok_or("--validators A,B")?.split(',').map(String::from).collect(),
@@ -221,7 +258,7 @@ async fn run(args: Vec<String>) -> R<()> {
                 validation_deadline: Duration::from_millis(num(&f, "deadline-ms", 600_000)?),
                 validation_memory_mb: num(&f, "memory-mb", 4096)?,
                 validator_attempts: num(&f, "attempts", 4)? as usize,
-            }, shard, shards, controller_gc(&f)?);
+            }, shard, shards, controller_gc(&f)?, controller_replay(&f)?);
             cp.verify_topology().await?;
             let l = tokio::net::TcpListener::bind(f.get("listen").ok_or("--listen ADDR")?).await.map_err(|e| e.to_string())?;
             println!("controller shard {shard}/{shards} on {}", l.local_addr().unwrap());
@@ -239,7 +276,7 @@ async fn run(args: Vec<String>) -> R<()> {
                 &PathBuf::from(f.get("p1-store").ok_or("--p1-store DIR")?),
             )?;
             let lease = match w.register().await.map_err(|e| format!("{e:?}"))? {
-                ControlResponse::Registered { lease_ms } => lease_ms,
+                ControlResponse::Registered { lease_ms, .. } => lease_ms,
                 other => return Err(format!("register: {other:?}")),
             };
             println!("worker {name} ({}) registered, lease {lease} ms", id.hex());
@@ -247,7 +284,7 @@ async fn run(args: Vec<String>) -> R<()> {
             Arc::clone(&w).run(Duration::from_millis(200), Duration::from_millis(num(&f, "hold-ms", 0)?)).await;
         }
         ["submit", ..] => {
-            let r = ctl_call(
+            let r = ctl_call_scoped(
                 &f,
                 ControlRequest::SubmitWork {
                     request: f.get("request").ok_or("--request R")?.clone(),
@@ -264,7 +301,7 @@ async fn run(args: Vec<String>) -> R<()> {
             let id = kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone());
             let request = f.get("request").cloned().unwrap_or_else(|| format!("assign/{}", rand::random::<u64>()));
             let statements = f.get("statement").map(|s| vec![s.clone()]).unwrap_or_default();
-            let r = ctl_call(&f, ControlRequest::AssignGroup {
+            let r = ctl_call_scoped(&f, ControlRequest::AssignGroup {
                 targets: vec![f.get("target").ok_or("--target NAME")?.clone()], worker: id, request, statements,
             }).await?;
             let r = match r { ControlResponse::AssignedGroup { epochs } => ControlResponse::Assigned { epoch: epochs[0] }, other => other };
@@ -277,13 +314,15 @@ async fn run(args: Vec<String>) -> R<()> {
             let targets: Vec<String> = f.get("targets").ok_or("--targets NAME,NAME")?.split(',').map(str::to_owned).collect();
             let request = f.get("request").cloned().unwrap_or_else(|| format!("assign-group/{}", rand::random::<u64>()));
             let statements = f.get("statements").map(|s| s.split(',').map(str::to_owned).collect()).unwrap_or_default();
-            let r = ctl_call(&f, ControlRequest::AssignGroup { targets, worker: id, request, statements }).await?;
+            let r = ctl_call_scoped(&f, ControlRequest::AssignGroup { targets, worker: id, request, statements }).await?;
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["cancel", ..] => {
             let kf = keyfile()?;
             let worker = f.get("worker").map(|w| kf.workspace(w).map(|(id, _)| id.hex()).unwrap_or(w.clone())).unwrap_or_default();
-            let r = ctl_call(&f, ControlRequest::Cancel { request: f.get("request").ok_or("--request R")?.clone(), worker }).await?;
+            let req = ControlRequest::Cancel { request: f.get("request").ok_or("--request R")?.clone(), worker };
+            // `--generation G` names the request ID's generation (cancel is never refused for it).
+            let r = if f.contains_key("generation") { ctl_call_scoped(&f, req).await? } else { ctl_call(&f, req).await? };
             println!("{}", serde_json::to_string(&r).unwrap());
         }
         ["status", ..] => {

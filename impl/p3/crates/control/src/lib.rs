@@ -8,6 +8,7 @@
 //! | `controller` | target assignment (T4), work and validation dispatch, deduplication, cancellation, memory admission, backpressure, leases |
 //! | `worker` | a worker: registers, heartbeats, takes target work, gets receipts, publishes (T1) |
 //! | `server` | the TCP frame server shared by both services |
+//! | `replay` | replay horizons: generation-scoped request identities, their gate and row retirement |
 //! | `keys` | role-specific key files: each process holds only its own seed |
 //!
 //! The receipt format and the staging rule are `paralean_store::receipt`; the validator's
@@ -19,6 +20,7 @@ pub mod durable;
 pub mod keys;
 pub mod gc;
 pub mod p1;
+pub mod replay;
 pub mod server;
 pub mod validator;
 pub mod worker;

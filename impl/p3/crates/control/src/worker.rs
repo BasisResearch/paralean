@@ -18,7 +18,7 @@ use paralean_store::*;
 use std::result::Result;
 use tokio::task::JoinHandle;
 
-use crate::controller::{ControlRequest, ControlResponse, TargetReq};
+use crate::controller::{replay_generation_hint, ControlCall, ControlRequest, ControlResponse, TargetReq};
 use crate::p1::{self, P1Group};
 use paralean_validator_api::rpc;
 
@@ -64,6 +64,10 @@ pub struct WorkerNode {
     pub groups: BTreeMap<String, P1Group>,
     lamport: AtomicU64,
     call_timeout: Duration,
+    /// Each controller endpoint's replay generation, as last learned from a registration
+    /// or a refusal (docs/w4-rest-log.md design 3). Poll tokens and validation request
+    /// IDs are sent in it.
+    generations: Arc<std::sync::Mutex<BTreeMap<String, u64>>>,
 }
 
 impl WorkerNode {
@@ -75,6 +79,7 @@ impl WorkerNode {
             groups: p1::load_store(p1_store)?,
             lamport: AtomicU64::new(1),
             call_timeout: Duration::from_secs(900),
+            generations: Arc::default(),
         }))
     }
 
@@ -87,23 +92,49 @@ impl WorkerNode {
             .await.map_err(|e| WorkerError::Io(e.to_string()))
     }
 
+    /// The replay generation last learned for controller endpoint `addr` (0: none known).
+    pub fn replay_generation(&self, addr: &str) -> u64 {
+        self.generations.lock().unwrap().get(addr).copied().unwrap_or(0)
+    }
+
+    fn learn_generation(generations: &std::sync::Mutex<BTreeMap<String, u64>>, addr: &str, response: &ControlResponse) {
+        let learned = match response {
+            ControlResponse::Registered { replay_generation, .. } => Some(*replay_generation),
+            other => replay_generation_hint(other),
+        };
+        if let Some(g) = learned { generations.lock().unwrap().insert(addr.to_owned(), g); }
+    }
+
+    /// Register as a generation-aware client on `addr`, learning its replay generation.
+    async fn register_at(addr: &str, worker: String, capacity_mb: u64, signer: &Signer, authority: &[u8; 32],
+        generations: &std::sync::Mutex<BTreeMap<String, u64>>) -> std::io::Result<ControlResponse> {
+        let call = ControlCall::scoped(0, ControlRequest::Register { worker, capacity_mb });
+        let response = rpc::call_authenticated::<_, ControlResponse>(addr, &call, signer, authority, Duration::from_secs(3)).await?;
+        Self::learn_generation(generations, addr, &response);
+        Ok(response)
+    }
+
     pub async fn register(&self) -> Result<ControlResponse, WorkerError> {
         // Return after the first live shard accepts us. Per-endpoint heartbeat
         // tasks register other shards on Unknown, and Poll does so immediately
         // for the exact shard it contacted. A blackholed endpoint cannot hold
-        // up this worker's first heartbeat.
-        let mut calls = tokio::task::JoinSet::new();
+        // up this worker's first heartbeat; the other registrations still finish
+        // (and record their shard's replay generation) in the background.
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         for addr in self.controller.split(',').map(str::trim).filter(|s| !s.is_empty()) {
             let addr = addr.to_owned();
-            let request = ControlRequest::Register { worker: self.id().hex(), capacity_mb: self.capacity_mb };
+            let (worker, capacity_mb) = (self.id().hex(), self.capacity_mb);
             let signer = self.writer.signer().clone();
             let authority = self.writer.store.ring.authority;
-            calls.spawn(async move {
-                rpc::call_authenticated::<_, ControlResponse>(&addr, &request, &signer, &authority, Duration::from_secs(3)).await
+            let generations = self.generations.clone();
+            let tx = tx.clone();
+            tokio::spawn(async move {
+                let _ = tx.send(Self::register_at(&addr, worker, capacity_mb, &signer, &authority, &generations).await);
             });
         }
-        while let Some(result) = calls.join_next().await {
-            if let Ok(Ok(r @ ControlResponse::Registered { .. })) = result { return Ok(r) }
+        drop(tx);
+        while let Some(result) = rx.recv().await {
+            if let Ok(r @ ControlResponse::Registered { .. }) = result { return Ok(r) }
         }
         Err(WorkerError::Io("no controller shard accepted registration".into()))
     }
@@ -119,15 +150,14 @@ impl WorkerNode {
                 let capacity_mb = me.capacity_mb;
                 let signer = me.writer.signer().clone();
                 let authority = me.writer.store.ring.authority;
+                let generations = me.generations.clone();
                 tasks.spawn(async move {
                     loop {
                         tokio::time::sleep(every).await;
                         let response = rpc::call_authenticated::<_, ControlResponse>(&addr,
                             &ControlRequest::Heartbeat { worker: worker.clone() }, &signer, &authority, Duration::from_secs(3)).await;
                         if matches!(response, Ok(ControlResponse::Unknown)) {
-                            let _ = rpc::call_authenticated::<_, ControlResponse>(&addr,
-                                &ControlRequest::Register { worker: worker.clone(), capacity_mb },
-                                &signer, &authority, Duration::from_secs(3)).await;
+                            let _ = Self::register_at(&addr, worker.clone(), capacity_mb, &signer, &authority, &generations).await;
                         }
                     }
                 });
@@ -136,24 +166,37 @@ impl WorkerNode {
         })
     }
 
+    /// A poll on `addr` with `token` in that shard's replay generation; a refusal that
+    /// reports a newer generation is retried once in it (a new identity of the token).
+    async fn poll_at(&self, addr: &str, token: &str) -> std::io::Result<ControlResponse> {
+        let mut response = Err(std::io::Error::other("no poll attempt"));
+        for _ in 0..2 {
+            let call = ControlCall::scoped(self.replay_generation(addr),
+                ControlRequest::PollRequest { worker: self.id().hex(), request: token.to_owned() });
+            response = rpc::call_authenticated(addr, &call, self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await;
+            match &response {
+                Ok(r) if replay_generation_hint(r).is_some_and(|g| g != self.replay_generation(addr)) => {
+                    Self::learn_generation(&self.generations, addr, r);
+                }
+                _ => break,
+            }
+        }
+        response
+    }
+
     pub async fn poll(&self) -> Result<Option<Work>, WorkerError> {
         let request = format!("poll/{}/{}", self.id().hex(), rand::random::<u64>());
         let mut saw_no_work = false;
         for addr in self.controller.split(',').map(str::trim).filter(|s| !s.is_empty()) {
-            let response = rpc::call_authenticated(addr,
-                &ControlRequest::PollRequest { worker: self.id().hex(), request: request.clone() },
-                self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await;
+            let response = self.poll_at(addr, &request).await;
             match response {
                 Ok(ControlResponse::NoWork) => { saw_no_work = true; continue }
                 Ok(ControlResponse::Inconclusive { .. }) => continue,
                 Ok(ControlResponse::Unknown) => {
-                    let registration = rpc::call_authenticated::<_, ControlResponse>(addr,
-                        &ControlRequest::Register { worker: self.id().hex(), capacity_mb: self.capacity_mb },
-                        self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await;
+                    let registration = Self::register_at(addr, self.id().hex(), self.capacity_mb,
+                        self.writer.signer(), &self.writer.store.ring.authority, &self.generations).await;
                     if matches!(registration, Ok(ControlResponse::Registered { .. })) {
-                        match rpc::call_authenticated::<_, ControlResponse>(addr,
-                            &ControlRequest::PollRequest { worker: self.id().hex(), request: request.clone() },
-                            self.writer.signer(), &self.writer.store.ring.authority, Duration::from_secs(3)).await {
+                        match self.poll_at(addr, &request).await {
                             Ok(ControlResponse::Work { request, target, epoch, memory_mb }) => {
                                 return Ok(Some(Work { request, target: Name::parse(&target), epoch, memory_mb }));
                             }
@@ -231,6 +274,7 @@ impl WorkerNode {
         st.s3.put_opaque(&g.capsule_object()).await?;
         let order = p1::closure(&self.groups, &g.gid).map_err(WorkerError::Input)?;
         let deps: Vec<String> = order[..order.len() - 1].iter().map(|gid| self.groups[gid].capsule_id().hex()).collect();
+        let request_id = request;
         let req = ControlRequest::Validate {
             worker: self.id().hex(),
             request: request.into(),
@@ -241,7 +285,22 @@ impl WorkerNode {
             memory_mb,
             deadline_ms: 0,
         };
-        match self.call(&req).await? {
+        // A work ID the controller handed out already names its generation; any other ID
+        // goes in the newest generation this worker knows, or the one a refusal reports
+        // (the owning shard is not known in advance).
+        let scoped = request_id.starts_with(crate::replay::SCOPE_MARK);
+        let mut generation = if scoped { 0 } else { self.generations.lock().unwrap().values().copied().max().unwrap_or(0) };
+        let mut response = None;
+        for _ in 0..3 {
+            let call = ControlCall::scoped(generation, req.clone());
+            let r = crate::controller::call_controller(&self.controller, &call, self.writer.signer(), &self.writer.store.ring.authority, self.call_timeout)
+                .await.map_err(|e| WorkerError::Io(e.to_string()))?;
+            match replay_generation_hint(&r) {
+                Some(g) if !scoped && g != generation => { generation = g; response = Some(r) }
+                _ => { response = Some(r); break }
+            }
+        }
+        match response.expect("at least one attempt") {
             ControlResponse::Receipt { receipt, job } => {
                 let r = Receipt::from_bytes(&hex::decode(&receipt).map_err(|e| WorkerError::Io(e.to_string()))?)
                     .map_err(|e| WorkerError::Io(e.to_string()))?;

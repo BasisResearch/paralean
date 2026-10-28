@@ -295,7 +295,7 @@ async fn validate(a: &[&str]) -> R<Value> {
         let mut refusal = None;
         for endpoint in &endpoints {
             match register(endpoint.clone()).await {
-                Ok(ControlResponse::Registered { lease_ms }) => {
+                Ok(ControlResponse::Registered { lease_ms, .. }) => {
                     lease = Some(lease.map_or(lease_ms, |l: u64| l.min(lease_ms)))
                 }
                 other => refusal = Some(format!("{other:?}")),
