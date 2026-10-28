@@ -422,8 +422,22 @@ Rust refinement. Decisions and evidence are in [w3-log.md](w3-log.md).
   5 s limit and the controller's failure-detection timeouts affect liveness only.
   Reassignment is safe at any time (TargetNames), and no timeout grants ownership.
 - **Deletion and GC.** The scan and monotonicity arguments need grow-only key
-  spaces. The bucket denies `DeleteObject` (or uses Object Lock); no FoundationDB
-  role may clear the protocol's prefixes. Garbage collection needs a new model.
+  spaces. Without W4-rest's opt-in store GC the bucket denies `DeleteObject` (or
+  uses Object Lock) and no FoundationDB role clears the protocol's prefixes. With
+  it ([w4-rest-log.md](w4-rest-log.md), design 1, model `StoreGc`), the adopted
+  key spaces stay grow-only: markers, variants, revisions, tombstones, receipts,
+  grants, `cert`, `tcert`, `rcert`, committed `catalog` records and the fence are
+  never cleared, so `scan_between` and `certScanValue_covers` hold as before. The
+  collector clears only S3 objects that no committed metadata names (staging
+  garbage), their `ocert`s, and staged catalogue records whose token rank is below
+  the fence (never adoptable, since T5 needs `rank = fence`). A paginated scan can
+  return such a record and see it cleared afterwards; it was not adoptable when
+  returned. Monotone multi-transaction checks stay sound because a cleared `ocert`
+  belongs to an unreferenced object and T5 re-reads `ocert/snapshot/<m>` in its own
+  transaction. Every referencing transaction writes a `gcref` key and refuses an
+  object the collector has doomed, so a doom and a new reference serialize on
+  those keys. Only s3-guard's GC principal can delete, and only an object whose
+  `gcobj` state the doom transaction set.
   Garage has neither bucket policies nor Object Lock, and a key with write
   permission may delete. In P2, deletes are refused by `s3-guard`, a byte-for-byte S3
   gateway in front of Garage. It refuses every `DELETE`, `POST ?delete` and every
