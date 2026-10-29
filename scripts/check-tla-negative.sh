@@ -241,6 +241,14 @@ witness_items=(
   'horizon_refused_after_retire ReplayHorizon NeverRefusedAfterRetire'
   'horizon_shards_retired ReplayHorizonShards NeverRetired'
   'horizon_shards_cross_dedupe ReplayHorizonShards NeverCrossShardDedupe'
+  'storegc_collected StoreGc NeverCollected'
+  'storegc_revived StoreGc NeverRevived'
+  'storegc_recovered_after_gc StoreGc NeverRecoveredAfterGc'
+  'storegc_ae_import_after_gc StoreGc NeverAeImportAfterGc'
+  'storegc_dead_record_retired StoreGc NeverRetired'
+  'storegc_ancestor_after_gc StoreGc NeverAncestorAfterGc'
+  'storegc_resighted StoreGc NeverResighted'
+  'storegc_retry_collected StoreGc NeverRetryCollected'
 )
 witness_case() {
   local label="$1" model="$2" invariant="$3"
@@ -456,9 +464,8 @@ case_history_no_cancel_overlay() {
   run_expected_failure history_no_cancel_overlay W4History 'Invariant CancelOverlay is violated'
 }
 
-# W4-rest dynamic shards (Design 2). Each mutation checks only its named
-# invariant, so the reported violation is unambiguous; the observers are
-# independent of the guard each mutation removes.
+# W4-rest helpers (dynamic shards, replay horizons and store GC). Each mutation
+# checks only its named invariant, so the reported counterexample is unambiguous.
 only_invariant() {
   python3 - "$1" "$2" <<'PY'
 from pathlib import Path
@@ -652,6 +659,80 @@ case_horizon_added_shard_low_gen() {
   model_mutation horizon_added_shard_low_gen ReplayHorizonShards AtMostOnce \
     "  /\\ G' = [G EXCEPT ![s] = StartGen]" "  /\\ G' = [G EXCEPT ![s] = 1]"
 }
+
+# W4-rest store GC (design 1).
+# storegc_mutation label invariant old new [old new]...
+storegc_mutation() {
+  local label="$1" invariant="$2"
+  shift 2
+  prepare_case "$label"
+  while [[ $# -ge 2 ]]; do
+    edit_once "$neg/$label/StoreGc.tla" "$1" "$2"
+    shift 2
+  done
+  only_invariant "$neg/$label/StoreGc.cfg" "$invariant"
+  run_expected_failure "$label" StoreGc "Invariant $invariant is violated"
+}
+# A redundant check: every StoreGc invariant survives its deletion.
+storegc_redundant() {
+  local label="$1"
+  prepare_case "$label"
+  edit_once "$neg/$label/StoreGc.tla" "$2" "$3"
+  run_expected_pass "$label" StoreGc "redundant check"
+}
+storegc_roots='RootKinds == {"marker", "move", "tomb", "cat", "job", "ae", "import"}'
+for spec in \
+  'storegc_ref_no_doomed_check|NoDanglingRef|DoomedRefOK == FALSE|DoomedRefOK == TRUE' \
+  'storegc_ref_accepts_gone|NoDanglingRef|GoneRefOK == FALSE|GoneRefOK == TRUE' \
+  'storegc_revive_unobserved|NoResurrection|ReviveOK(w, o) == gcobj[o] = wtok[w]|ReviveOK(w, o) == TRUE' \
+  'storegc_revive_without_put|NoResurrection|VerifyOK(o) == present[o]|VerifyOK(o) == TRUE' \
+  'storegc_resight_unlisted|NoResurrection|ResightListed(o) == o \in listing|ResightListed(o) == TRUE' \
+  'storegc_resight_no_clock|NoResurrection|ResightOld(o) == gcobj[o].t < passClock|ResightOld(o) == TRUE' \
+  'storegc_gone_with_inflight|NoResurrection|GoneQuiescent(o) == \A r \in inflight : r[1] # o|GoneQuiescent(o) == TRUE' \
+  'storegc_no_grace|GraceKept|GraceOK(o) == clock - gcobj[o].t >= Grace|GraceOK(o) == TRUE' \
+  'storegc_guard_any_state|OnlyMarkedDeleted|DeleteStateOK(o) == gcobj[o].st \in {"doomed", "deleting"}|DeleteStateOK(o) == TRUE' \
+  'storegc_guard_any_principal|NonGcDeleteDenied|KeyOK(p) == p \in {"gc", "forged"}|KeyOK(p) == TRUE' \
+  'storegc_ae_serves_collected|RetiredAnswered|ServeAnswer(o) == IF Collected(o) THEN "retired"|ServeAnswer(o) == IF FALSE THEN "retired"' \
+  'storegc_ae_clears_collected|NoDanglingRef|AeState(o) == IF gcobj[o].st = "sighted" THEN NoState ELSE gcobj[o]|AeState(o) == IF gcobj[o].st \in {"sighted", "doomed", "deleting"} THEN NoState ELSE gcobj[o]' \
+  'storegc_put_collected|NoDanglingRef|PutOK(o) == gcobj[o].st \notin {"doomed", "deleting"}|PutOK(o) == TRUE' \
+  'storegc_retire_live|RetiredDead|RetireDead(c) == catRank[c] < fence|RetireDead(c) == TRUE' \
+  'storegc_retire_committed|RecoveryComplete|RetireUncommitted(c) == catSt[c] = "staged"|RetireUncommitted(c) == catSt[c] \in {"staged", "committed"}' \
+  'storegc_retire_unrecorded|NoRetiredReimport|  /\ retired'"'"' = retired \cup {c}|  /\ retired'"'"' = retired' \
+  'storegc_import_retired|NoRetiredReimport|ImportOK(c) == c \notin retired|ImportOK(c) == TRUE' \
+  'storegc_job_release_pending|NoDanglingRef|ReleaseOK(w) == jobSt[w] = "done"|ReleaseOK(w) == TRUE' \
+  'storegc_doom_keeps_ocert|OcertSound|  /\ ocert'"'"' = [ocert EXCEPT ![o] = FALSE]|  /\ ocert'"'"' = ocert' \
+  'storegc_t6_certifies_collected|OcertSound|CertOK(o) == gcobj[o].st \notin {"doomed", "deleting", "gone"}|CertOK(o) == TRUE' \
+  'storegc_t5_no_ocert|RecoveryComplete|SnapCertOK(o) == ocert[o]|SnapCertOK(o) == TRUE' \
+  "storegc_no_job_root|NoDanglingRef|$storegc_roots|${storegc_roots/\"job\", /}" \
+  "storegc_no_ae_root|NoDanglingRef|$storegc_roots|${storegc_roots/\"ae\", /}" \
+  "storegc_no_tomb_root|NoDanglingRef|$storegc_roots|${storegc_roots/\"tomb\", /}" \
+  "storegc_no_move_root|NoDanglingRef|$storegc_roots|${storegc_roots/\"move\", /}" \
+  "storegc_no_import_root|NoDanglingRef|$storegc_roots|${storegc_roots/, \"import\"/}" \
+  "storegc_no_marker_root|AncestorsLive|$storegc_roots|${storegc_roots/\"marker\", /}" \
+  "storegc_no_cat_root|RecoveryComplete|$storegc_roots|${storegc_roots/\"cat\", /}"; do
+  IFS='|' read -r label invariant old new <<< "$spec"
+  printf -v body 'storegc_mutation %q %q %q %q' "$label" "$invariant" "$old" "$new"
+  eval "case_$label() { $body; }"
+  defcase "$label"
+done
+# Removing both reference checks of the sweep (sighting and doom).
+defcase storegc_sweep_ignores_refs
+case_storegc_sweep_ignores_refs() {
+  storegc_mutation storegc_sweep_ignores_refs NoDanglingRef \
+    'SightUnreferenced(o) == gcref[o] = {}' 'SightUnreferenced(o) == TRUE' \
+    'DoomUnreferenced(o) == gcref[o] = {}' 'DoomUnreferenced(o) == TRUE'
+}
+# Redundant checks (see verification/TLA-GUARDS.md, "W4-rest store GC").
+for spec in \
+  'storegc_doom_no_refs|DoomUnreferenced(o) == gcref[o] = {}|DoomUnreferenced(o) == TRUE' \
+  'storegc_sight_no_refs|SightUnreferenced(o) == gcref[o] = {}|SightUnreferenced(o) == TRUE' \
+  'storegc_ae_clears_doomed|AeState(o) == IF gcobj[o].st = "sighted" THEN NoState ELSE gcobj[o]|AeState(o) == IF gcobj[o].st \in {"sighted", "doomed"} THEN NoState ELSE gcobj[o]' \
+  'storegc_export_retired|ExportOK(c) == c \notin retired|ExportOK(c) == TRUE'; do
+  IFS='|' read -r label old new <<< "$spec"
+  printf -v body 'storegc_redundant %q %q %q' "$label" "$old" "$new"
+  eval "case_$label() { $body; }"
+  defcase "$label"
+done
 
 # ---------------------------------------------------------------------------
 # Source-qualified catalogue exchange guards.

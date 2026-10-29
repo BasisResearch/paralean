@@ -1,0 +1,5 @@
+storegc_doom_no_refs: expected pass (redundant check) confirmed
+storegc_sight_no_refs: expected pass (redundant check) confirmed
+storegc_ae_clears_doomed: expected pass (redundant check) confirmed
+storegc_export_retired: expected pass (redundant check) confirmed
+exit 0

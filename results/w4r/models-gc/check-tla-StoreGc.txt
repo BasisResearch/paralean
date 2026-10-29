@@ -1,0 +1,4 @@
+Checking StoreGc (StoreGc.tla)
+109335120 states generated, 9987163 distinct states found, 0 states left on queue.
+Finished in 07min 03s at (2026-10-28 23:51:18)
+exit 0

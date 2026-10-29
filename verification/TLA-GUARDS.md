@@ -575,6 +575,192 @@ change carrying active work. The `Expired` answer to a duplicate of still-runnin
 old-generation work is definite but says nothing about execution: clients must
 read it as "outcome unknown, too old", not "not executed".
 
+## W4-rest
+
+### W4-rest store GC
+
+`StoreGc.tla` models design 1 of [w4-rest-log.md](../docs/w4-rest-log.md)
+(physical P2/S3 object collection) for one deployment **as implemented**. S3
+objects are present or absent; `gcobj` is `none`, `Sighted{t}`, `Doomed`,
+`Deleting{n}` or `Gone{t, n}`; `gcref` is the reverse index and `ocert` the T6
+certificate. What metadata names an object (markers, move variants,
+tombstones, imports, staged and committed catalogue records, pending jobs, a
+fetched anti-entropy object) is kept apart from the index, so a transaction
+that forgets its `gcref` entry is still checked against what it named.
+
+The implementation differs from the design text, and the model follows it:
+
+- every referencing transaction (T1, T11, T8/T10, J1, T5s, T5, the
+  anti-entropy import) refuses `Doomed`, `Deleting` and `Gone` alike;
+- revival (`gc_revive`) is its own transaction: read `Gone{t, n}`, re-PUT (or
+  GET-verify that the object is present), then clear `gcobj` only if it is
+  still that exact `Gone`; the writer then retries its reference;
+- a sweep pass reads its clock `c0`, lists S3, and moves `Gone{t}` to
+  `Sighted` when `t < c0` and the object is in this pass's listing, so a
+  revived but never-referenced object can be collected again;
+- s3-guard admits a GC-key DELETE of a `Doomed` **or `Deleting`** key and
+  writes `Deleting{fresh nonce}`, so the collector can retry after an unknown
+  outcome; a request with the GC access key and a forged signature moves the
+  state but Garage rejects it;
+- protective `aepending` references never abort: they clear `Sighted` only.
+  Receivers PUT through `put_live`, which refuses while `Doomed`/`Deleting`
+  and revives after `Gone`.
+
+The guard's access-key match is an identity selector; Garage checks the
+signature. Garage executes a forwarded DELETE at any later time;
+`RequestDies` is the guard's request deadline, after which the request can no
+longer execute. Writers PUT through s3-guard, the collector's sweep, doom, job
+release and dead-record retirement are FDB transactions, the GC clock is a
+counter, fence rotation makes staged records dead, and desktop loss resets a
+writer. Our store also answers a peer's object fetch (the source half of
+anti-entropy) and exchanges catalogue IDs with an adversarial peer.
+
+**Flaw found in the implementation: a stale DELETE after `Gone`.** With
+`Deleting -> Deleting{new nonce}` retries, s3-guard writes `Gone` when the
+*current* nonce's DELETE succeeds, while an earlier forwarded DELETE of the
+same key may still be pending at Garage (its outcome was unknown; that is why
+the collector retried). `storegc_gone_with_inflight` finds the trace: an
+unreferenced object is sighted and doomed; an anti-entropy event names it
+(the `aepending` reference leaves `Doomed` alone, as built); the collector's
+DELETE `n1` gets no answer and it retries with `n2`; Garage executes `n2` and
+the guard writes `Gone{1, 2}`; the receiver's `put_live` re-uploads and
+revives the object; Garage then executes the stale `n1`, and the object is
+absent while `gcobj` is none and a fetched event names it (`NoResurrection`,
+and `NoDanglingRef`). The same holds for a writer's re-PUT and `gc_revive`.
+**Fix, applied in the model (`GoneQuiescent`):** the guard records every
+forwarded nonce of a key and writes `Gone` only when none of them can still
+execute: each has an answer, or its request deadline has passed and the guard
+no longer holds the connection. Until then the key stays `Deleting`, so
+`put_live` and revival wait. An implementation that cannot bound a forwarded
+request's lifetime must not retry a DELETE of the same key at all.
+
+**Flaw in the design text, closed by the implementation.** On the design as
+written (revival inside the referencing transaction, "the writer must have
+re-PUT after reading `Gone`"), a flag-only check is unsound: a writer that
+read an older `Gone` and re-PUT can see a later `Gone` whose deletion removed
+its bytes. The implementation compares the exact `Gone{clock, nonce}`;
+`storegc_revive_unobserved` (clearing a `Gone` the reviver did not observe)
+is the corresponding mutation. The nonce makes the token unique without
+relying on `Grace >= 1`.
+
+The positive `StoreGc.cfg` instance (two objects, two writers, two catalogue
+IDs, `Grace = 1`, GC clock bound 2, fence bound 1, at most two writer PUTs,
+at most two DELETE nonces per object, symmetry over objects, writers and IDs)
+passes **9,987,163** distinct states (109,335,120 generated, 7 min with two
+workers). The PUT and nonce bounds are what the two-incarnation and retry
+traces need. A pass records listing entries only of collected objects: a
+`Gone{t}` with `t < c0` was already collected when the pass started, a stale
+`Doomed`/`Deleting` entry is the case the clock check exists for, and entries
+of objects in none or `Sighted` cannot affect the `Gone -> Sighted` step.
+
+| Guard | Mutation | Required counterexample |
+|---|---|---|
+| Referencing transaction refuses `Doomed`/`Deleting` | `storegc_ref_no_doomed_check` | `NoDanglingRef` |
+| Referencing transaction refuses `Gone` | `storegc_ref_accepts_gone` | `NoDanglingRef` |
+| `gc_revive` clears only the exact `Gone` read before the re-PUT | `storegc_revive_unobserved` | `NoResurrection` |
+| `gc_revive` by GET-verification needs the object present | `storegc_revive_without_put` | `NoResurrection` |
+| `Gone -> Sighted` needs the object in this pass's listing | `storegc_resight_unlisted` | `NoResurrection` |
+| `Gone -> Sighted` needs `t < c0` | `storegc_resight_no_clock` | `NoResurrection` |
+| s3-guard writes `Gone` only with no DELETE of the key in flight (fix) | `storegc_gone_with_inflight` | `NoResurrection` |
+| Doom only after `Grace` ticks | `storegc_no_grace` | `GraceKept` |
+| Sweep sights and dooms only unreferenced objects (both checks) | `storegc_sweep_ignores_refs` | `NoDanglingRef` |
+| s3-guard deletes only `Doomed`/`Deleting` keys | `storegc_guard_any_state` | `OnlyMarkedDeleted` |
+| s3-guard deletes only with the GC access key | `storegc_guard_any_principal` | `NonGcDeleteDenied` |
+| The object endpoint answers `Retired` for a collected object | `storegc_ae_serves_collected` | `RetiredAnswered` |
+| An `aepending` reference clears `Sighted` only (not `Doomed`/`Deleting`) | `storegc_ae_clears_collected` | `NoDanglingRef` |
+| s3-guard and `put_live` refuse a PUT of a `Doomed`/`Deleting` key | `storegc_put_collected` | `NoDanglingRef` |
+| Retirement needs token rank below the fence | `storegc_retire_live` | `RetiredDead` |
+| Retirement needs an uncommitted record (no `rcert`) | `storegc_retire_committed` | `RecoveryComplete` |
+| Retirement records `gc/retired/catalog/<c>` | `storegc_retire_unrecorded` | `NoRetiredReimport` |
+| Catalogue import refuses retired IDs | `storegc_import_retired` | `NoRetiredReimport` |
+| Job release needs J2 or J3 | `storegc_job_release_pending` | `NoDanglingRef` |
+| Doom clears `ocert` | `storegc_doom_keeps_ocert` | `OcertSound` |
+| T6 refuses doomed, deleting and gone objects | `storegc_t6_certifies_collected` | `OcertSound` |
+| T5 re-reads the snapshot `ocert` in its transaction | `storegc_t5_no_ocert` | `RecoveryComplete` |
+| J1 writes the `job` referrer | `storegc_no_job_root` | `NoDanglingRef` |
+| Part persistence writes the `aepending` referrer | `storegc_no_ae_root` | `NoDanglingRef` |
+| T8/T10 write the tombstone referrer | `storegc_no_tomb_root` | `NoDanglingRef` |
+| T11 writes the move-variant referrer | `storegc_no_move_root` | `NoDanglingRef` |
+| The anti-entropy import writes its referrer | `storegc_no_import_root` | `NoDanglingRef` |
+| T1 writes the marker referrer | `storegc_no_marker_root` | `AncestorsLive` |
+| T5s/T5 write the catalogue referrer | `storegc_no_cat_root` | `RecoveryComplete` |
+
+`NoResurrection` is the implementation's invariant: whenever `gcobj` is none
+or `Sighted`, an object that was ever acknowledged is present. Each mutation
+edits one definition in a copy and checks only the named invariant. Eight
+witnesses must be violated: an object is collected (`storegc_collected`), a
+collected object is revived (`storegc_revived`), recovery after desktop loss
+with a committed record after a collection (`storegc_recovered_after_gc`), an
+anti-entropy import of a locally collected object
+(`storegc_ae_import_after_gc`), a dead catalogue record is retired
+(`storegc_dead_record_retired`), a move, revision or tombstone names a
+published ancestor after a collection (`storegc_ancestor_after_gc`), a
+revived but unreferenced object is re-sighted (`storegc_resighted`), and a
+collection completes after a DELETE retry (`storegc_retry_collected`).
+
+Redundant checks (each case requires every StoreGc invariant to survive the
+deletion):
+
+- **Doom's empty-reference check** (`storegc_doom_no_refs`). Every
+  referencing transaction clears `Sighted`, and the sweep sights only an
+  unreferenced object, so a `Sighted` object has no reference. In FDB the
+  doom and a racing reference both read and write `gcobj`, so they conflict
+  even without the range read. The implementation keeps the range read as
+  defence in depth: it also catches a `gcref` write that leaves `gcobj` alone
+  (the backfill pass, which this model does not include).
+- **Sighting's empty-reference check alone** (`storegc_sight_no_refs`). A
+  referenced object may be sighted, but doom still needs an empty index and
+  the next sweep or reference clears `Sighted`. Safety holds; grace would
+  then start while the object is still referenced, which the bounded
+  `GraceKept` observer (clock distance from the sighting) does not
+  distinguish. Removing both checks is `storegc_sweep_ignores_refs`.
+- **An `aepending` reference leaving `Doomed` alone**
+  (`storegc_ae_clears_doomed`). Clearing `Doomed` to none is safe: the guard
+  then refuses the DELETE, and the object is still present. Clearing
+  `Deleting` is not (`storegc_ae_clears_collected`): a DELETE is already in
+  flight.
+- **Catalogue export refusing retired IDs** (`storegc_export_retired`).
+  Export is of committed records only and a retired record was never
+  committed (`RetiredDead`), so the check never fires. Import's check is
+  effective (`storegc_import_retired`).
+
+What the bounded model does not show:
+
+- Scope: two objects, two writers, two catalogue IDs, two writer PUTs (plus
+  the receiver's `put_live`), two DELETE nonces per object and two GC clock
+  ticks. A catalogue record names one object (snapshot and manifests are
+  one). One anti-entropy event and one remote peer. `gc enable`, the backfill
+  pass and `gc/indexed` are not modelled; the model starts with a complete
+  index and every writer GC-aware.
+- Atomicity: each action is one FDB transaction. A writer's `gcobj` read and
+  its PUT are one step, and `put_live`'s read, PUT and exact-`Gone` revival
+  are one step. Reading earlier only makes the observed `Gone` older, which
+  the exact comparison rejects; the model does not interleave the parts.
+  Sighting and doom use a fresh listing (abstracted as present); only the
+  `Gone -> Sighted` step uses the pass's stale listing.
+- FDB clock reads: `t < c0` is sound because the guard's `Gone{clock}` write
+  reads the clock serializably, so a `Gone` committed after the pass read
+  `c0` carries `t >= c0`. A snapshot read of the clock in that write would
+  break this.
+- The request deadline: `RequestDies` assumes a forwarded DELETE that is not
+  answered by its deadline can never execute. The model does not show how
+  the implementation bounds a request's lifetime.
+- Collection completeness and liveness: no fairness, so neither collection
+  progress, a receiver's archive of a `Retired` event, nor writer retries
+  after `Collected` are proved. `RetiredAnswered` is the safety half (a
+  collected object is never answered `Missing`, which a receiver would retry
+  forever). A forged GC-key request can keep moving a `Doomed` key to
+  `Deleting`; that delays, but cannot cause, a deletion.
+- The Lean lemmas in `verification/veil/Paralean/StoreGc.lean`
+  (`scripts/check-w4-lean.sh`) prove the local steps over an abstract state:
+  doom, guard admission, Garage execution of an in-flight DELETE and a
+  quiescent `Gone` preserve "every named object is present and live" and
+  `LivePresent` (with `InflightDeleting`: a DELETE is in flight only for a
+  `Deleting` key, which a non-quiescent `Gone` breaks); references refuse
+  every collected state; revival needs the exact `Gone` and present bytes;
+  the guard admits only the GC key on `Doomed`/`Deleting`; a record below
+  the fence never commits. They do not refine the Rust transactions.
+
 ## Liveness
 
 | Scenario | Property | Fairness | Model |
