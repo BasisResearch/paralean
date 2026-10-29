@@ -375,7 +375,7 @@ On the final tree:
 - W2 security mutations (`check-w2-security.sh`): 41/41 detected;
 - Ed25519 per-path mutations (`check-ed25519.sh`): every path detected, including the new batch-intent path, with refreshed logs in `results/w2/ed25519`.
 
-The full P2 guard-mutation suite (`check-mutations.sh`, all cases) was started but had not finished when this log was written. Its 15 batch cases had passed earlier, on code unchanged since then.
+The full P2 guard-mutation suite (`check-mutations.sh`, all cases) detects 64/64 on the final tree: 49 existing and 15 batch cases.
 
 New mutations: 19 TLA, 16 P2, 6 P3, 3 P1, 4 P4 router, 26 P5 bridge and backend,
 and 7 store-bridge Rust features. That is 81 in total, and every one is detected.
