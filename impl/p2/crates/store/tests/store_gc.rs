@@ -412,6 +412,101 @@ async fn gc_revival_after_gone() {
     e.audit_ok().await;
 }
 
+// ------------------------------------------------------------------ atomic batches (T12)
+
+/// A target-free package of workspace `wi`, its job bound to batch `id`.
+fn bound(e: &Env, wi: usize, name: &str, tag: &str, id: Id) -> Package {
+    let mut p = e.plain_package(wi, name, tag);
+    let mut body = p.job.body.clone();
+    body.batch = Some(id);
+    p.job = receipt::SignedJob::sign(body, &e.authority());
+    p.receipt = fixture::receipt_for(&p.job, &e.validator, Verdict::Accepted);
+    p.marker.receipt = p.receipt.id();
+    p
+}
+
+/// A batch of target-free publications, one per (workspace, name, tag).
+fn batch_of(e: &Env, request: &str, members: &[(usize, &str, &str)]) -> (BatchPackage, Vec<Package>) {
+    let intent = SignedBatch::sign(BatchIntent {
+        request: request.as_bytes().to_vec(),
+        members: members.iter().map(|(wi, name, tag)| BatchMember::Publish { group: e.plain_package(*wi, name, tag).group.id(), writer: e.w[*wi].id }).collect(),
+    }, &e.authority());
+    let packages: Vec<Package> = members.iter().map(|(wi, name, tag)| bound(e, *wi, name, tag, intent.id())).collect();
+    let items = members.iter().zip(&packages)
+        .map(|((wi, _, _), p)| BatchItem::Publish { package: p.clone(), writer: e.w[*wi].id, cert: e.w[*wi].sign_batch_publication(p) }).collect();
+    (BatchPackage { intent, items }, packages)
+}
+
+async fn referrers(st: &Store, kind: Kind, id: &Id) -> Vec<Vec<u8>> {
+    st.meta.scan(&st.meta.keys.gcrefs_of(kind, id), 100, |_| None).await.unwrap().into_iter().map(|(_, v)| v).collect()
+}
+
+/// Atomic batches (docs/atomic-pub-log.md) under store GC. T12 runs each member's T1 body,
+/// which references the member's objects, and the batch record `batch/<id>` references every
+/// member's group and staged marker too: no member of a retained batch is collected. A
+/// member object being collected aborts the whole batch (nothing written); `publish_batch`
+/// revives a gone member object and retries, as the single writer does. Backfill indexes
+/// batch records.
+#[tokio::main(flavor = "current_thread")]
+async fn gc_batches_protect_members_and_revive() {
+    let faults = Faults::none();
+    let g = gc_env_with("batch", 2, faults.clone(), KeyFile::demo(2), None);
+    let e = &g.e;
+    // A batch committed before GC is enabled: backfill indexes its record.
+    let (b0, p0) = batch_of(e, "gc/b0", &[(0, "Gc.B0a", "b0a"), (1, "Gc.B0b", "b0b")]);
+    assert!(e.store.publish_batch(&b0).await.unwrap().fresh);
+    let bk0 = e.store.meta.keys.batch(&b0.intent.id());
+    for (kind, id) in [(Kind::Group, p0[0].group.id()), (Kind::StagedMarker, p0[1].marker.id())] {
+        raw_clear(&e.store, e.store.meta.keys.gcref(kind, &id, &bk0)).await;
+    }
+    enable(&e.store).await;
+    for p in &p0 {
+        for (kind, id) in [(Kind::Group, p.group.id()), (Kind::StagedMarker, p.marker.id())] {
+            assert!(referrers(&e.store, kind, &id).await.contains(&bk0), "backfill: batch record does not reference {} {id}", kind.name());
+        }
+    }
+    // A batch committed with GC on: its record references every member.
+    let (b1, p1) = batch_of(e, "gc/b1", &[(0, "Gc.B1a", "b1a"), (1, "Gc.B1b", "b1b")]);
+    assert!(e.store.publish_batch(&b1).await.unwrap().fresh);
+    let bk1 = e.store.meta.keys.batch(&b1.intent.id());
+    for p in &p1 {
+        for (kind, id) in [(Kind::Group, p.group.id()), (Kind::StagedMarker, p.marker.id())] {
+            assert!(referrers(&e.store, kind, &id).await.contains(&bk1), "T12: batch record does not reference {} {id}", kind.name());
+        }
+    }
+    sweeps(&e.store, 0, 3).await;
+    gc::delete_doomed(&e.store, &g.gc_s3).await.unwrap();
+    for p in p0.iter().chain(&p1) {
+        assert_all_present(&e.store, &package_objects(p), "member of a retained batch").await;
+    }
+    // One member's payloads were uploaded earlier, abandoned and collected (`Gone`).
+    let (b2, p2) = batch_of(e, "gc/b2", &[(0, "Gc.B2a", "b2a"), (1, "Gc.B2b", "b2b")]);
+    put_package_payloads(&e.store, &p2[0]).await;
+    sweeps(&e.store, 1, 2).await;
+    assert!(is_doomed(state(&e.store, Kind::Capsule, &p2[0].capsule.id()).await));
+    // While it is doomed (no delete yet) the whole batch is refused and nothing is written.
+    let mut short = e.store.clone();
+    short.gc_wait = Duration::from_millis(300);
+    let err = short.publish_batch(&b2).await.unwrap_err();
+    assert!(matches!(err.guard(), Some(GuardFailure::Collected { .. })), "{err}");
+    assert!(e.store.batch(&b2.intent.id()).await.unwrap().is_none(), "a batch with a collected member committed");
+    for p in &p2 {
+        assert!(e.store.marker(&p.group.id()).await.unwrap().is_none(), "a member of a refused batch is published");
+    }
+    gc::delete_doomed(&e.store, &g.gc_s3).await.unwrap();
+    assert!(!present(&e.store, Kind::Capsule, &p2[0].capsule.id()).await);
+    let before = faults.stats().get("gc-revived").copied().unwrap_or(0);
+    assert!(e.store.publish_batch(&b2).await.unwrap().fresh, "revival");
+    assert!(faults.stats().get("gc-revived").copied().unwrap_or(0) > before, "publish_batch revived");
+    assert_eq!(e.store.batch(&b2.intent.id()).await.unwrap().expect("batch record").entries.len(), 2);
+    sweeps(&e.store, 0, 3).await;
+    gc::delete_doomed(&e.store, &g.gc_s3).await.unwrap();
+    for p in p0.iter().chain(&p1).chain(&p2) {
+        assert_all_present(&e.store, &package_objects(p), "member of a retained batch").await;
+    }
+    e.audit_ok().await;
+}
+
 // ------------------------------------------------------------------ T5 / T6
 
 /// An aborted checkpoint's snapshot is collected: the doom clears its object certificate,
@@ -884,6 +979,7 @@ fn main() {
         t("gc_pending_ae_events_protect_their_objects", gc_pending_ae_events_protect_their_objects),
         t("gc_ae_never_serves_collected_objects_or_retired_records", gc_ae_never_serves_collected_objects_or_retired_records),
         t("gc_guard_deletes_only_doomed_keys", gc_guard_deletes_only_doomed_keys),
+        t("gc_batches_protect_members_and_revive", gc_batches_protect_members_and_revive),
         t("gc_measurement", gc_measurement).with_ignored_flag(true),
     ];
     let result = libtest_mimic::run(&args, trials);

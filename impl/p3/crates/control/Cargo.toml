@@ -130,6 +130,13 @@ mutate-shard-retired-lease-live = []
 mutate-shard-no-cross-replay = []
 mutate-shard-no-poll-rows = []
 mutate-shard-issue-job-no-gc-refs = []
+# Atomic batches on dynamic shards: no check that every member bucket is this shard's and
+# settled; target-free members on their own hash buckets; no drain of member buckets.
+mutate-shard-batch-no-bucket-check = []
+mutate-shard-batch-own-bucket = []
+mutate-shard-batch-no-drain = []
+# Batch member request IDs left unscoped by the batch's replay generation.
+mutate-replay-batch-members-unscoped = []
 
 [dev-dependencies]
 libtest-mimic = "0.8.2"

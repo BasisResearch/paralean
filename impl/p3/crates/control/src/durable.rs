@@ -701,8 +701,15 @@ impl Durable {
         Err("receipt outcome unresolved".into())
     }
 
+    /// J1 for a batch member. In a dynamic topology a target-free member takes its batch's
+    /// bucket, so one shard issues and fences the whole batch.
+    pub async fn issue_batch_job(&self, job: &SignedJob, term: u64, batch_bucket: Option<u16>) -> Result<SignedJob, String> {
+        if self.dynamic { return self.dyn_issue_job(job, term, batch_bucket).await }
+        self.issue_job(job, term).await
+    }
+
     pub async fn issue_job(&self, job: &SignedJob, term: u64) -> Result<SignedJob, String> {
-        if self.dynamic { return self.dyn_issue_job(job, term).await }
+        if self.dynamic { return self.dyn_issue_job(job, term, None).await }
         let key = self.store.meta.keys.job_request(&job.body.worker, &job.body.request);
         let route_key = self.validation_shard_key(&job.body.worker, &job.body.request);
         let index_key = self.validation_index_key(&job.body.worker, &job.body.request);

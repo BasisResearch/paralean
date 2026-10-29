@@ -19,7 +19,9 @@
 //!
 //! Every transaction that makes committed metadata name an S3 object also writes the
 //! object's `gcref` and checks its `gcobj` (`gc::reference_in`): T1, T5s/T5, T8, T9, T10,
-//! T11, J1 and the anti-entropy imports. T6 refuses an object being collected.
+//! T11, J1 and the anti-entropy imports. T12 and T13 run their members' T1/T8 and T9/T10
+//! bodies, and their batch record references every member too. T6 refuses an object being
+//! collected.
 
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -1237,7 +1239,9 @@ pub(crate) async fn t1_body(trx: &Transaction, k: &Keys, a: &PublishArgs, mode: 
     let capsules: Vec<Id> = a.revisions.iter().map(|(_, r, _)| r.capsule).collect();
     let chunks: Vec<Id> = a.chunk_index.iter().flatten().map(|(id, _)| *id).collect();
     let values: Vec<&[u8]> = std::iter::once(a.marker_value.as_slice()).chain(a.revisions.iter().map(|(_, _, v)| v.as_slice())).collect();
-    crate::gc::reference_in(trx, k, &crate::gc::marker_objects(a.group, a.marker_id, &capsules, &chunks, &values), &mk).await?;
+    if !(cfg!(feature = "mutate-storegc-batch-no-member-refs") && matches!(mode, Mode::Batch(_))) {
+        crate::gc::reference_in(trx, k, &crate::gc::marker_objects(a.group, a.marker_id, &capsules, &chunks, &values), &mk).await?;
+    }
     // Writes: marker, revisions and receipt if absent, heads, the publisher's certificate.
     trx.set(&mk, &a.marker_value);
     for (id, _, v) in &a.revisions {
@@ -1420,7 +1424,9 @@ pub(crate) async fn t8_body(trx: &Transaction, k: &Keys, a: &TombstoneArgs, mode
         return Err(GuardFailure::BadPackage("tombstone certificate does not bind the writer".into()).into());
     }
     tombstone_guards(trx, k, &a.tombstone, &a.target_marker, &a.target_names, &a.target_workspaces, &a.writer, *public, &a.ring, a.controller_grant.as_ref(), false, a.ring.authority).await?;
-    crate::gc::reference_in(trx, k, &tombstone_objects(a.tombstone_id, &a.value), &tk).await?;
+    if !(cfg!(feature = "mutate-storegc-batch-no-member-refs") && matches!(mode, Mode::Batch(_))) {
+        crate::gc::reference_in(trx, k, &tombstone_objects(a.tombstone_id, &a.value), &tk).await?;
+    }
     trx.set(&tk, &a.value);
     if let Some(grant) = &a.controller_grant { trx.set(&k.delete_grant(&a.tombstone_id), &grant.encoded()); }
     if !cfg!(feature = "mutate-tombstone-cert-outside") {

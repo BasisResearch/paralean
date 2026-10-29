@@ -315,6 +315,22 @@ pub async fn revive_job_objects(store: &Store, job: &SignedJob) -> Result<()> {
 
 /// The objects a catalogue record names (referrer `catalog/<c>` or `xcatalog/<src>/<c>`):
 /// its snapshot and, when the snapshot is known, both export manifests.
+/// The objects a batch record names (its referrer is `batch/<id>`): each member's staged
+/// marker or tombstone, and each publication's group.
+pub fn batch_objects(rec: &crate::batch::BatchRecord) -> Vec<(Kind, Id)> {
+    let mut out = Vec::new();
+    for e in &rec.entries {
+        match e.member {
+            crate::batch::BatchMember::Publish { group, .. } => {
+                out.push((Kind::StagedMarker, e.object));
+                out.push((Kind::Group, group));
+            }
+            crate::batch::BatchMember::Tombstone { .. } => out.push((Kind::StagedTombstone, e.object)),
+        }
+    }
+    dedup(&out)
+}
+
 pub fn record_objects(snapshot_id: Id, snapshot: Option<&Snapshot>) -> Vec<(Kind, Id)> {
     let mut v = vec![(Kind::Snapshot, snapshot_id)];
     if let Some(s) = snapshot.filter(|s| s.id() == snapshot_id) {
@@ -712,6 +728,13 @@ pub async fn backfill(store: &Store) -> Result<GcReport> {
         }
         let objects = dedup(&objects);
         push!(Referrer { key, value, objects, absent: vec![], aerefs: vec![] });
+    }
+    // Committed batch records: each member's staged marker or tombstone and group.
+    let rows = store.meta.scan(&k.batches(), page, |_| None).await?;
+    report.keys_scanned += rows.len() as u64;
+    for (key, value) in rows {
+        let Ok(rec) = crate::batch::BatchRecord::decode_value(&value) else { continue };
+        push!(Referrer { key, value, objects: batch_objects(&rec), absent: vec![], aerefs: vec![] });
     }
     // Pending validation jobs (J1 without J2 or J3).
     let rows = store.meta.scan(&k.sub("jobreq"), page, |_| None).await?;

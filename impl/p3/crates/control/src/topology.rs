@@ -613,18 +613,22 @@ impl Durable {
 
     /// The bucket of a validation inside `trx`: its route's, else its targets', else
     /// its (workspace, request) hash for a target-free validation.
-    async fn validation_bucket_in(&self, trx: &Transaction, job: &paralean_store::receipt::SignedJob) -> Result<(u16, bool), String> {
+    async fn validation_bucket_in(&self, trx: &Transaction, job: &paralean_store::receipt::SignedJob, batch_bucket: Option<u16>) -> Result<(u16, bool), String> {
         let route_key = self.validation_shard_key(&job.body.worker, &job.body.request);
         if let Some(v) = trx.get(&route_key, false).await.map_err(|e| e.to_string())? {
             return decode_bucket(&v).map(|b| (b, true)).ok_or_else(|| "invalid validation route".into());
         }
-        if job.body.targets.is_empty() { return Ok((validation_bucket(&job.body.worker, &job.body.request), false)) }
+        if job.body.targets.is_empty() {
+            let own = validation_bucket(&job.body.worker, &job.body.request);
+            return Ok((batch_bucket.filter(|_| !cfg!(feature = "mutate-shard-batch-own-bucket")).unwrap_or(own), false));
+        }
         let names: Vec<Name> = job.body.targets.iter().map(|t| t.name.clone()).collect();
         Ok((self.names_bucket_in(trx, &names).await?.0, false))
     }
 
     /// J1 with its route and this shard's bucket-keyed index entry, fenced by the bucket.
-    pub(crate) async fn dyn_issue_job(&self, job: &paralean_store::receipt::SignedJob, term: u64) -> Result<paralean_store::receipt::SignedJob, String> {
+    /// A target-free batch member takes `batch_bucket`, its batch's.
+    pub(crate) async fn dyn_issue_job(&self, job: &paralean_store::receipt::SignedJob, term: u64, batch_bucket: Option<u16>) -> Result<paralean_store::receipt::SignedJob, String> {
         use paralean_store::receipt::SignedJob;
         let key = self.store.meta.keys.job_request(&job.body.worker, &job.body.request);
         let receipt_key = self.store.meta.keys.job_receipt(&job.body.worker, &job.body.request);
@@ -634,7 +638,7 @@ impl Durable {
         let mut trx = self.store.meta.db.create_trx().map_err(|e| e.to_string())?;
         for _ in 0..60 {
             self.require_lease(&trx, term).await?;
-            let (bucket, had_route) = self.validation_bucket_in(&trx, job).await?;
+            let (bucket, had_route) = self.validation_bucket_in(&trx, job, batch_bucket).await?;
             self.require_bucket(&trx, bucket, cfg!(feature = "mutate-shard-no-fence-issue-job")).await?;
             let index_key = index_key_of(&self.store, self.shard, bucket, &job.body.worker, &job.body.request);
             if !had_route { trx.set(&route_key, &encode_bucket(bucket)) }

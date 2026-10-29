@@ -45,14 +45,14 @@ pub struct Checkpoint {
 /// Bytes a writer holds for the objects its transaction names, for the store GC's revival
 /// path: a reference refused with `Collected` waits for `Gone`, re-PUTs these bytes and
 /// retries (gc.rs).
-type Revivable = BTreeMap<(Kind, Id), Vec<u8>>;
+pub(crate) type Revivable = BTreeMap<(Kind, Id), Vec<u8>>;
 
 /// Retries a referencing transaction refused because the store GC is collecting one of its
 /// objects: revive that object (wait for `Gone`, re-PUT or verify it), then retry. Bounded;
 /// liveness only (nothing was written by a refused transaction).
-const REVIVAL_ATTEMPTS: usize = 16;
+pub(crate) const REVIVAL_ATTEMPTS: usize = 16;
 
-async fn revive_collected(store: &Store, sources: &Revivable, e: &StoreError) -> Result<bool> {
+pub(crate) async fn revive_collected(store: &Store, sources: &Revivable, e: &StoreError) -> Result<bool> {
     let Some(GuardFailure::Collected { kind, id }) = e.guard() else { return Ok(false) };
     store.gc_revive(*kind, id, sources.get(&(*kind, *id)).map(Vec::as_slice)).await?;
     Ok(true)

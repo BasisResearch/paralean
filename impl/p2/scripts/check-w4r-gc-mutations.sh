@@ -24,6 +24,10 @@ cases=(
   'paralean-store|mutate-storegc-retire-no-fence-check|store_gc|gc_dead_catalogue_record_retired_and_recovery'
   'paralean-store|mutate-storegc-job-release-no-check|store_gc|gc_pending_jobs_protect_their_objects'
   'paralean-store|mutate-storegc-ae-pending-no-ref|store_gc|gc_pending_ae_events_protect_their_objects'
+  # Atomic batches (T12; docs/atomic-pub-log.md).
+  'paralean-store|mutate-storegc-batch-no-record-ref|store_gc|gc_batches_protect_members_and_revive'
+  'paralean-store|mutate-storegc-batch-no-member-refs|store_gc|gc_batches_protect_members_and_revive'
+  'paralean-store|mutate-storegc-batch-no-revival|store_gc|gc_batches_protect_members_and_revive'
   's3-guard|mutate-storegc-guard-no-mark-check|unit|tests::gc_content_delete_needs_doomed_mark'
   's3-guard|mutate-storegc-guard-any-principal|unit|tests::gc_content_delete_needs_gc_principal'
 )

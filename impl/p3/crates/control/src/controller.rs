@@ -591,6 +591,17 @@ fn scope_request(field: Option<u64>, mut req: ControlRequest) -> Result<(Control
     };
     let (generation, identity) = crate::replay::resolve_id(field, id).map_err(|e| refused(&e))?;
     *id = identity;
+    // A batch's member envelopes (J1) are keyed by its members' request IDs: they take the
+    // batch's generation, so a retry re-scoped to a new generation issues fresh envelopes
+    // bound to its fresh intent instead of colliding with the old ones.
+    if let ControlRequest::ValidateBatch { members, .. } = &mut req {
+        for m in members.iter_mut().filter(|_| !cfg!(feature = "mutate-replay-batch-members-unscoped")) {
+            let BatchMemberReq::Publish { request, .. } = m else { continue };
+            let (g, identity) = crate::replay::resolve_id(Some(generation), request).map_err(|e| refused(&e))?;
+            if g != generation { return Err(refused("batch member request ID names another replay generation")) }
+            *request = identity;
+        }
+    }
     Ok((req, generation))
 }
 
@@ -1078,6 +1089,24 @@ impl ControlPlane {
         };
         // The replay gate precedes every request-specific write (W4-rest design 3).
         if let Err(r) = self.replay_gate(&req, generation).await { return r }
+        if let ControlRequest::ValidateBatch { coordinator, request, members } = req {
+            // Every member's bucket must be this shard's and not moving. Each is counted, as
+            // one validation's is, until the batch's dispatch ends: exports of them wait.
+            let (hint, buckets) = match self.batch_buckets(&coordinator, &members).await {
+                Ok(Some((primary, all))) => (Some(primary), all),
+                Ok(None) => (None, Vec::new()),
+                Err(e) => return inconclusive(&e),
+            };
+            for b in &buckets {
+                let record = match topology::read_bucket(&self.cfg.store, *b).await { Ok(r) => r, Err(e) => return inconclusive(&e) };
+                if record.shard != self.durable.shard && !cfg!(feature = "mutate-shard-batch-no-bucket-check") { return inconclusive("batch spans controller shards") }
+                if record.moving.is_some() && !cfg!(feature = "mutate-shard-batch-no-bucket-check") { return inconclusive("bucket moving") }
+            }
+            let active = buckets.iter().filter(|_| !cfg!(feature = "mutate-shard-batch-no-drain"))
+                .map(|b| ActiveGuard::enter(&self.active, *b)).collect();
+            drop(guard);
+            return self.validate_batch(coordinator, request, members, lease.term, hint, active).await;
+        }
         if matches!(req, ControlRequest::Validate { .. }) {
             // Counted before J1 and until its dispatch ends: an export of the bucket waits.
             let active = bucket.map(|b| ActiveGuard::enter(&self.active, b));
@@ -1097,6 +1126,28 @@ impl ControlPlane {
         let resp = self.handle_inner(req, lease.term, bucket, None).await;
         if let Err(e) = self.save_state(lease.term).await { return inconclusive(&e) }
         resp
+    }
+
+    /// The buckets of a batch's publication members in a dynamic topology, the batch's own
+    /// first: each member's recorded route, else its target names' bucket, else the batch's
+    /// bucket. The batch's bucket is its first publication member's, so target-free members
+    /// share the shard that issues the rest (a fixed topology routes a batch the same way).
+    async fn batch_buckets(&self, coordinator: &str, members: &[BatchMemberReq]) -> Result<Option<(u16, Vec<u16>)>, String> {
+        let d = &self.durable;
+        let Some(c) = ws(coordinator) else { return Ok(None) };
+        let mut primary = None;
+        let mut all = Vec::new();
+        for m in members {
+            let BatchMemberReq::Publish { worker, request, targets, .. } = m else { continue };
+            let Some(w) = ws(worker) else { return Ok(None) };
+            let bytes = batch_request(&c, request);
+            let b = if let Some(b) = d.validation_route_bucket(&w, &bytes).await? { b }
+                else if !targets.is_empty() { d.bucket_for_names(&targets.iter().map(|t| Name::parse(&t.name)).collect::<Vec<_>>()).await? }
+                else { primary.unwrap_or_else(|| topology::validation_bucket(&w, &bytes)) };
+            primary.get_or_insert(b);
+            if !all.contains(&b) { all.push(b) }
+        }
+        Ok(primary.map(|p| (p, all)))
     }
 
     /// Under the operation lock and a fresh lease: load, start a takeover's recovery
@@ -1122,6 +1173,7 @@ impl ControlPlane {
             },
             ControlRequest::Assign { target, .. } => Some(d.bucket_for_names(&[Name::parse(target)]).await?),
             ControlRequest::AssignGroup { targets, .. } if !targets.is_empty() => Some(d.bucket_for_names(&names(targets)).await?),
+            ControlRequest::ValidateBatch { coordinator, members, .. } => self.batch_buckets(coordinator, members).await?.map(|(primary, _)| primary),
             ControlRequest::Validate { worker, request, targets, .. } => {
                 let Some(w) = ws(worker) else { return Ok(None) };
                 if let Some(b) = d.validation_route_bucket(&w, request.as_bytes()).await? { Some(b) }
@@ -1562,7 +1614,7 @@ impl ControlPlane {
                 self.validate(worker, request, group, capsule, deps, targets, memory_mb, deadline_ms, term, active).await
             }
             ControlRequest::ValidateBatch { coordinator, request, members } => {
-                self.validate_batch(coordinator, request, members, term).await
+                self.validate_batch(coordinator, request, members, term, None, Vec::new()).await
             }
             ControlRequest::Cancel { request, worker } => {
                 let worker = if worker.is_empty() { None } else {
@@ -2208,7 +2260,10 @@ impl ControlPlane {
 
     /// Validate the publication members of one atomic batch: sign the intent, issue each
     /// member's envelope bound to it (J1), and dispatch them in order as one batch.
-    async fn validate_batch(self: &Arc<Self>, coordinator: String, request: String, members: Vec<BatchMemberReq>, term: u64) -> ControlResponse {
+    /// `bucket` (dynamic topologies) is the batch's bucket, which target-free members take;
+    /// `active` holds every member bucket against export until the dispatch ends.
+    async fn validate_batch(self: &Arc<Self>, coordinator: String, request: String, members: Vec<BatchMemberReq>, term: u64,
+        bucket: Option<u16>, active: Vec<Arc<ActiveGuard>>) -> ControlResponse {
         let st = &self.cfg.store;
         let Some(c) = ws(&coordinator) else { return refused("bad coordinator ID") };
         if let Err(r) = self.require_live(&c).await { return r }
@@ -2250,7 +2305,7 @@ impl ControlPlane {
                 Ok(false) => {}
                 Err(e) => return inconclusive(&e.to_string()),
             }
-            match self.durable.issue_job(&job, term).await {
+            match self.durable.issue_batch_job(&job, term, bucket).await {
                 Ok(stored) if stored.body == job.body => jobs.push(stored),
                 Ok(_) => return refused("request ID already used for another envelope"),
                 Err(e) => return inconclusive(&e),
@@ -2290,6 +2345,7 @@ impl ControlPlane {
                     }
                     let me = self.clone();
                     tokio::spawn(async move {
+                        let _active = active;
                         let r = match me.dispatch_batch(&jobs, &cancels, term).await {
                             Ok(receipts) => batch_receipts(&intent, &receipts, &jobs),
                             Err(r) => r,
@@ -2736,6 +2792,35 @@ mod replay_wire_tests {
     /// parsed. A legacy client's request must therefore parse as a `ControlCall` and
     /// re-serialize byte for byte, and a legacy client must get back a `Registered` it
     /// re-serializes identically.
+    /// A batch's member envelopes take the batch's replay generation: a retry re-scoped to
+    /// a new generation names fresh member requests, never the old envelopes' (J1).
+    #[test]
+    fn batch_members_take_the_batch_generation() {
+        let member = |request: &str| BatchMemberReq::Publish {
+            worker: "w".into(), request: request.into(), group: "g".into(), capsule: "c".into(), deps: vec![], targets: vec![],
+        };
+        let req = ControlRequest::ValidateBatch { coordinator: "c".into(), request: "b".into(),
+            members: vec![member("m1"), BatchMemberReq::Tombstone { worker: "w".into(), target: "t".into(), position: String::new() }, member("m2")] };
+        let scoped = |g: u64| {
+            let (req, generation) = scope_request(Some(g), req.clone()).unwrap();
+            assert_eq!(generation, g);
+            let ControlRequest::ValidateBatch { request, members, .. } = req else { unreachable!() };
+            let ids: Vec<String> = members.iter().filter_map(|m| match m { BatchMemberReq::Publish { request, .. } => Some(request.clone()), _ => None }).collect();
+            (request, ids)
+        };
+        let (b3, m3) = scoped(3);
+        let (b4, m4) = scoped(4);
+        assert_eq!(b3, crate::replay::scoped_id(3, "b"));
+        assert_eq!(m3, vec![crate::replay::scoped_id(3, "m1"), crate::replay::scoped_id(3, "m2")]);
+        assert_ne!(b3, b4);
+        assert!(m3.iter().all(|m| !m4.contains(m)), "member envelopes of two generations collide");
+        // Generation 0 (legacy) leaves every ID as sent; a member scoped to another generation is refused.
+        assert_eq!(scoped(0), ("b".to_string(), vec!["m1".to_string(), "m2".to_string()]));
+        let mixed = ControlRequest::ValidateBatch { coordinator: "c".into(), request: "b".into(),
+            members: vec![member(&crate::replay::scoped_id(2, "m1"))] };
+        assert!(scope_request(Some(3), mixed).is_err());
+    }
+
     #[test]
     fn legacy_requests_and_responses_are_byte_identical_through_control_call() {
         let t = TargetReq { name: "A.b".into(), statement: "00".into() };

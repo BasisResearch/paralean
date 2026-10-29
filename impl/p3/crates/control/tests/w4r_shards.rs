@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use common::{deployment, scratch};
-use paralean_control::controller::{call_controller, ControlPlane, ControlRequest, ControlResponse, ControllerConfig, TargetReq};
+use paralean_control::controller::{call_controller, BatchMemberReq, ControlPlane, ControlRequest, ControlResponse, ControllerConfig, TargetReq};
 use paralean_control::durable::Durable;
 use paralean_control::gc::GcConfig;
 use paralean_control::topology::{self, MoveState};
@@ -340,6 +340,15 @@ async fn slow_validator(delay: Duration, calls: Arc<AtomicUsize>) -> (String, to
                         tokio::time::sleep(delay).await;
                         let job = SignedJob::from_bytes(&hex::decode(job).unwrap()).unwrap();
                         ValidatorResponse::Receipt { receipt: hex::encode(fixture::receipt_for(&job, &signer, Verdict::Accepted).to_bytes()) }
+                    }
+                    ValidatorRequest::ValidateBatch { jobs } => {
+                        calls.fetch_add(1, Ordering::SeqCst);
+                        tokio::time::sleep(delay).await;
+                        let responses = jobs.iter().map(|j| {
+                            let job = SignedJob::from_bytes(&hex::decode(j).unwrap()).unwrap();
+                            ValidatorResponse::Receipt { receipt: hex::encode(fixture::receipt_for(&job, &signer, Verdict::Accepted).to_bytes()) }
+                        }).collect();
+                        ValidatorResponse::Batch { responses }
                     }
                     _ => ValidatorResponse::Busy,
                 }
@@ -898,6 +907,88 @@ async fn dynamic_pending_jobs_protect_their_objects() {
     }
 }
 
+/// The envelope request of a batch member (controller.rs `batch_request`).
+fn member_request(coordinator: WorkspaceId, request: &str) -> Vec<u8> {
+    format!("batch/{}/{request}", coordinator.hex()).into_bytes()
+}
+
+fn batch_member(w: WorkspaceId, request: &str, targets: &[&Name]) -> BatchMemberReq {
+    BatchMemberReq::Publish {
+        worker: w.hex(), request: request.into(), group: Id(paralean_store::id::sha256(request.as_bytes())).hex(),
+        capsule: Id(paralean_store::id::sha256(b"capsule")).hex(), deps: vec![],
+        targets: targets.iter().map(|t| TargetReq { name: t.to_string(), statement: String::new() }).collect(),
+    }
+}
+
+/// Atomic batches (docs/atomic-pub-log.md) on a dynamic topology. A batch whose members'
+/// buckets span shards is refused retryably before any envelope is issued (J1). Target-free
+/// members take the batch's bucket, so one shard issues and fences every member even when
+/// their own hash buckets belong to another shard. An in-flight batch holds its buckets
+/// against export until its dispatch ends.
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
+async fn dynamic_batches_issue_on_one_shard_and_drain_their_buckets() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (vaddr, _validator) = slow_validator(Duration::from_millis(1500), calls.clone()).await;
+    let f = fixture_with("w4r-batch", 2, vec![vaddr]).await;
+    let (a, b) = (f.plane(0), f.plane(1));
+    let w = f.worker(0);
+    register(&a, w).await;
+    register(&b, w).await;
+    let mut owner = BTreeMap::new();
+    for (bucket, r) in topology::read_buckets(&f.store).await.unwrap().into_iter().enumerate() { owner.insert(bucket as u16, r.shard); }
+    let on = |shard: u32| *owner.iter().find(|(_, s)| **s == shard).unwrap().0;
+    let job_issued = |request: &str| {
+        let key = f.store.meta.keys.job_request(&w, &member_request(w, request));
+        let store = f.store.clone();
+        async move { store.meta.get(key).await.unwrap().is_some() }
+    };
+    // Members on two shards: refused before any J1, at either shard.
+    let (t0, t1) = (in_bucket("Batch.zero", on(0)), in_bucket("Batch.one", on(1)));
+    for (cp, t, r) in [(&a, &t0, "batch/assign0"), (&b, &t1, "batch/assign1")] {
+        assert!(matches!(cp.handle(ControlRequest::AssignGroup { targets: vec![t.to_string()], worker: w.hex(), request: r.into(), statements: vec![] }).await,
+            ControlResponse::AssignedGroup { .. }));
+    }
+    let span = ControlRequest::ValidateBatch { coordinator: w.hex(), request: "span".into(),
+        members: vec![batch_member(w, "span/0", &[&t0]), batch_member(w, "span/1", &[&t1])] };
+    assert_eq!(a.handle(span.clone()).await, ControlResponse::Inconclusive { reason: "batch spans controller shards".into() });
+    assert_eq!(b.handle(span).await, not_shard());
+    for r in ["span/0", "span/1"] { assert!(!job_issued(r).await, "a spanning batch issued member {r}") }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    // Two target-free members whose own hash buckets are on different shards.
+    let own = |r: &str| topology::validation_bucket(&w, &member_request(w, r));
+    let r0 = (0..1000).map(|i| format!("free/a{i}")).find(|r| owner[&own(r)] == 0).unwrap();
+    let r1 = (0..1000).map(|i| format!("free/b{i}")).find(|r| owner[&own(r)] == 1).unwrap();
+    let primary = own(&r0);
+    let batch = ControlRequest::ValidateBatch { coordinator: w.hex(), request: "free".into(),
+        members: vec![batch_member(w, &r0, &[]), batch_member(w, &r1, &[])] };
+    assert_eq!(b.handle(batch.clone()).await, not_shard(), "the batch's bucket is shard 0's");
+    let a2 = a.clone();
+    let req = batch.clone();
+    let inflight = tokio::spawn(async move { a2.handle(req).await });
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while calls.load(Ordering::SeqCst) == 0 {
+        assert!(Instant::now() < deadline, "batch never dispatched");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    for r in [&r0, &r1] { assert!(job_issued(r).await, "member {r} not issued") }
+    let d = Durable::new_dynamic(f.store.clone(), LEASE, 0);
+    assert_eq!(d.validation_route_bucket(&w, &member_request(w, &r1)).await.unwrap(), Some(primary), "a target-free member left its batch's bucket");
+    topology::begin_move(&f.store, 71, &[primary], 0, 1).await.unwrap();
+    a.drive_moves_now().await.unwrap();
+    assert_eq!(move_state(&f.store, 71).await, MoveState::Prepared, "exported with a batch in flight");
+    let answer = inflight.await.unwrap();
+    let ControlResponse::BatchReceipts { receipts, jobs, .. } = &answer else { panic!("drained batch: {answer:?}") };
+    assert_eq!((receipts.len(), jobs.len()), (2, 2));
+    a.drive_moves_now().await.unwrap();
+    assert_eq!(move_state(&f.store, 71).await, MoveState::Exported);
+    b.drive_moves_now().await.unwrap();
+    assert_eq!(move_state(&f.store, 71).await, MoveState::Done);
+    // The retry goes to the bucket's new shard and gets the recorded receipts.
+    assert_eq!(a.handle(batch.clone()).await, not_shard());
+    assert_eq!(b.handle(batch).await, answer, "retry at the destination");
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "the drained batch ran again");
+}
+
 // Own the process lifetime: stop FDB only after every test runtime has dropped.
 fn main() {
     common::run_tests(vec![
@@ -914,6 +1005,7 @@ fn main() {
         libtest_mimic::Trial::test("fixed_and_dynamic_topologies_refuse_each_other", || { fixed_and_dynamic_topologies_refuse_each_other(); Ok(()) }),
         libtest_mimic::Trial::test("cross_shard_dependency_publication_after_move", || { cross_shard_dependency_publication_after_move(); Ok(()) }),
         libtest_mimic::Trial::test("dynamic_pending_jobs_protect_their_objects", || { dynamic_pending_jobs_protect_their_objects(); Ok(()) }),
+        libtest_mimic::Trial::test("dynamic_batches_issue_on_one_shard_and_drain_their_buckets", || { dynamic_batches_issue_on_one_shard_and_drain_their_buckets(); Ok(()) }),
         libtest_mimic::Trial::test("kill_nine_mid_move_completes_by_takeover", || { kill_nine_mid_move_completes_by_takeover(); Ok(()) }),
         libtest_mimic::Trial::test("reshard_benchmark", || { reshard_benchmark(); Ok(()) }).with_ignored_flag(true),
     ]);

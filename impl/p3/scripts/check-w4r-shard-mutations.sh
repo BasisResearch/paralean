@@ -27,6 +27,10 @@ cases=(
   'mutate-shard-retired-lease-live|add_shard_takes_buckets_and_remove_shard_retires'
   'mutate-shard-no-cross-replay|compacted_work_and_poll_tokens_resolve_across_shards'
   'mutate-shard-no-poll-rows|compacted_work_and_poll_tokens_resolve_across_shards'
+  # Atomic batches (docs/atomic-pub-log.md) on dynamic shards.
+  'mutate-shard-batch-no-bucket-check|dynamic_batches_issue_on_one_shard_and_drain_their_buckets'
+  'mutate-shard-batch-own-bucket|dynamic_batches_issue_on_one_shard_and_drain_their_buckets'
+  'mutate-shard-batch-no-drain|dynamic_batches_issue_on_one_shard_and_drain_their_buckets'
 )
 failed=0
 # Every detecting test must pass with all guards in place.

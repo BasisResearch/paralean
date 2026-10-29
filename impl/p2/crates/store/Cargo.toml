@@ -140,6 +140,11 @@ mutate-storegc-ae-serves-gone = []
 mutate-storegc-retire-no-fence-check = []
 mutate-storegc-job-release-no-check = []
 mutate-storegc-ae-pending-no-ref = []
+# Atomic batches under store GC: T12/T13 without the batch record's references; with the
+# members' own references off in batch mode too; publish_batch without revival.
+mutate-storegc-batch-no-record-ref = []
+mutate-storegc-batch-no-member-refs = []
+mutate-storegc-batch-no-revival = []
 
 [dev-dependencies]
 proptest = "1"

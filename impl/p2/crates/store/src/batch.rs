@@ -45,7 +45,7 @@ use crate::objects::*;
 use crate::pce::{DResult, Dec, DecodeError, Enc, Pce};
 use crate::sign::KeyRing;
 use crate::store::Store;
-use crate::writer::{check_package, dependency_groups, Package, Writer};
+use crate::writer::{check_package, dependency_groups, revive_collected, Package, Revivable, Writer, REVIVAL_ATTEMPTS};
 
 /// Members per batch. Every member's T1/T8 body runs inside one transaction, about 25
 /// point reads each, so this keeps the transaction far below FDB's 5 s limit.
@@ -332,9 +332,21 @@ async fn t12_body(trx: &Transaction, k: &Keys, a: &BatchArgs) -> Result<Step<boo
             return Err(e);
         }
     }
+    record_refs_in(trx, k, &a.record_value, &bk).await?;
     trx.set(&bk, &a.record_value);
     append_event(trx, k, &AeKind::Batch { id }, 0);
     Ok(Step::Commit(true))
+}
+
+/// Store GC: the batch record is a referrer of every member's staged marker or tombstone
+/// and every published group (each member's own referrer names the rest), so no member of
+/// a retained batch record is ever collected. Batch records are never removed.
+async fn record_refs_in(trx: &Transaction, k: &Keys, record_value: &[u8], bk: &[u8]) -> Result<()> {
+    if cfg!(feature = "mutate-storegc-batch-no-record-ref") {
+        return Ok(());
+    }
+    let rec = BatchRecord::decode_value(record_value)?;
+    crate::gc::reference_in(trx, k, &crate::gc::batch_objects(&rec), bk).await
 }
 
 // ---------------------------------------------------------------- the writer
@@ -388,7 +400,9 @@ impl Store {
             return Err(GuardFailure::BatchTooLarge(format!("{} members (1 to {MAX_BATCH_MEMBERS})", b.items.len())).into());
         }
         // Payloads of every member first, so a member's job may name an earlier member's
-        // capsule as a dependency.
+        // capsule as a dependency. Every upload is kept for the store GC's revival path, as
+        // the single writer keeps its own (writer.rs).
+        let mut sources = Revivable::new();
         let mut objects = 0usize;
         for item in &b.items {
             if let BatchItem::Publish { package: p, .. } = item {
@@ -398,11 +412,10 @@ impl Store {
                 if p.job.body.batch != Some(id) {
                     return Err(GuardFailure::BatchBinding(p.group.id()).into());
                 }
-                for c in &p.chunks {
-                    self.s3.put_opaque(c).await?;
+                for o in p.chunks.iter().chain([&p.group, &p.capsule]) {
+                    self.put_payload(o.kind, &o.preimage()).await?;
+                    sources.insert((o.kind, o.id()), o.preimage());
                 }
-                self.s3.put_opaque(&p.group).await?;
-                self.s3.put_opaque(&p.capsule).await?;
                 objects += 2 + p.chunks.len();
             }
         }
@@ -428,7 +441,13 @@ impl Store {
                         }
                     }
                     let mid = p.marker.id();
-                    self.s3.put(Kind::StagedMarker, &p.marker.preimage()).await?;
+                    self.put_payload(Kind::StagedMarker, &p.marker.preimage()).await?;
+                    sources.insert((Kind::StagedMarker, mid), p.marker.preimage());
+                    for stored in std::iter::once(p.marker.preimage()).chain(p.revisions.iter().map(|r| r.preimage())) {
+                        if let (_, Some(blob)) = crate::meta::envelope_for(Id::default(), stored) {
+                            sources.insert((Kind::Blob, Id(crate::id::sha256(&blob))), blob);
+                        }
+                    }
                     let marker_value = self.stage_value(mid, p.marker.preimage()).await?;
                     let mut revisions = Vec::new();
                     for r in &p.revisions {
@@ -497,7 +516,11 @@ impl Store {
                         || cert.body.replica != self.replica {
                         return Err(GuardFailure::BadPackage("member tombstone certificate does not bind its writer".into()).into());
                     }
-                    self.s3.put(Kind::StagedTombstone, &t.preimage()).await?;
+                    self.put_payload(Kind::StagedTombstone, &t.preimage()).await?;
+                    sources.insert((Kind::StagedTombstone, tid), t.preimage());
+                    if let (_, Some(blob)) = crate::meta::envelope_for(Id::default(), t.preimage()) {
+                        sources.insert((Kind::Blob, Id(crate::id::sha256(&blob))), blob);
+                    }
                     let value = self.stage_value(tid, t.preimage()).await?;
                     entries.push(BatchEntry {
                         member: BatchMember::Tombstone { target: t.target, position: t.position, writer: *writer },
@@ -526,10 +549,21 @@ impl Store {
         self.faults.point("batch:before-commit")?;
         let args = Arc::new(BatchArgs { intent: b.intent.clone(), members, record_value, ring: self.ring.clone() });
         let k = self.meta.keys.clone();
-        let fresh = self.meta.run(Txn::T12PublishBatch, Box::new(move |trx| {
+        // A member object the store GC is collecting aborts the whole batch (`Collected`);
+        // revive it and retry, as the single writer does. Nothing was written meanwhile.
+        let mut attempt = 0;
+        let fresh = loop {
             let (k, args) = (k.clone(), args.clone());
-            Box::pin(async move { t12_body(trx, &k, &args).await })
-        })).await?;
+            let r = self.meta.run(Txn::T12PublishBatch, Box::new(move |trx| {
+                let (k, args) = (k.clone(), args.clone());
+                Box::pin(async move { t12_body(trx, &k, &args).await })
+            })).await;
+            match r {
+                Err(e) if attempt < REVIVAL_ATTEMPTS && !cfg!(feature = "mutate-storegc-batch-no-revival")
+                    && revive_collected(self, &sources, &e).await? => attempt += 1,
+                r => break r?,
+            }
+        };
         Ok(BatchOutcome { batch: id, fresh, record })
     }
 
@@ -588,6 +622,7 @@ pub(crate) async fn t13_receive_batch(
                     return Err(e);
                 }
             }
+            record_refs_in(trx, &k, &record, &bk).await?;
             trx.set(&bk, &record);
             append_event(trx, &k, &AeKind::Batch { id }, 0);
             Ok(Step::Commit(true))
