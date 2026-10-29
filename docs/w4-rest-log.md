@@ -119,7 +119,24 @@ FDB transaction, `gcobj/<kind>/<id>` is `Doomed`; it moves it to
 `Deleting{nonce}`, forwards the request, and on Garage's success moves
 `Deleting{nonce}` to `Gone{clock}`. Every other principal, an unmarked key, a
 key in any other state, a bucket or configuration delete, a bulk delete and a
-virtual-hosted request stay refused. A content PUT whose key is `Doomed` or
+virtual-hosted request stay refused.
+
+**Quiescent `Gone`** (a fix found by the `StoreGc` model). A retried delete
+replaces `Deleting{n1}` with `Deleting{n2}`. If the gateway never saw Garage's
+answer to n1 (a timeout, a lost connection, a gateway crash), n1 may still
+execute at Garage after n2 succeeded, `Gone` was written and a writer revived
+the object; it then removes live bytes (`storegc_gone_with_inflight`). Each
+attempt therefore records its wall-clock send time in `Deleting` before it is
+forwarded, and records whether Garage answered it. A retry over an unanswered
+attempt sets `stale_until` to that attempt's send time plus the request
+deadline (`--gc-request-deadline-secs`, default 600). The gateway gives up on
+Garage after 30 s, and the deadline must exceed that. `Gone` is written only
+when the current attempt succeeded and `stale_until` has passed. Until then
+the key stays `Deleting`: PUTs and revival wait, and a later delete pass
+finishes it (the collector reports it as `deletes_waiting`). The deadline is an
+assumption about how long Garage can still act on a request its client
+abandoned. The model assumes the same (`RequestDies`), and wall-clock skew
+between gateway instances must stay well below it. A content PUT whose key is `Doomed` or
 `Deleting` is refused, so a revival cannot land under an in-flight delete. The
 former prefix allowlist for non-content keys is unchanged. Garage still verifies
 the SigV4 signature; the guard's access-key match is an identity selector, as in
@@ -409,6 +426,14 @@ According to the models, five guards are redundant given the others:
 They stay in the code as defence in depth. The mutation scripts still detect
 each one in the implementation, where the other guards are weaker than in the
 model.
+
+The `StoreGc` model found one more flaw, this one in the implementation as
+built: a stale DELETE after `Gone`. s3-guard now writes `Gone` only once no
+earlier attempt can still run ("Quiescent `Gone`" above). The design text's
+revival rule, read as "the writer re-PUT after reading some `Gone`", is unsound,
+because a later `Gone`'s deletion can remove those bytes. The build already
+compared the exact `Gone{clock, nonce}`, and `storegc_revive_unobserved` is the
+matching mutation.
 
 ## Implementation deviations from the design text
 

@@ -564,6 +564,12 @@ Design findings, with the fixes applied in the models:
    starts it at 1 and violates `AtMostOnce`). A single deployment-wide
    generation would also satisfy both. Witnesses: `horizon_shards_retired`,
    `horizon_shards_cross_dedupe` (a duplicate at `B` answered from `A`'s row).
+   The implementation takes the deployment-wide alternative in a dynamic
+   topology: one `controller/replay-gen`, advanced only by the lowest active
+   member, with each shard counting the grace from the tick it first saw a
+   generation refused. The model checks the per-shard "every shard refused"
+   variant, which the deployment-wide generation implies (all shards then
+   share one `G`).
 
 Scope limits. Work requests only (poll tokens, group and validation request IDs
 follow the same rule and are not modelled); one shard in `ReplayHorizon`;

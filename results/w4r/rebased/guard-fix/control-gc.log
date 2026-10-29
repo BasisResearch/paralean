@@ -1,0 +1,39 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.13s
+     Running tests/gc.rs (target/debug/deps/gc-2ed13faf4fbf5a42)
+
+running 4 tests
+test controller_monitor_collects_only_when_enabled_and_preserves_queued_work ... ok
+test gc_requires_opt_in_grace_and_unpinned_superseded_root                   ... ok
+test gc_rechecks_current_head_and_rejects_stale_leader                       ... ok
+test load_during_collection_and_new_incarnation_of_same_hash                 ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.94s
+
+     Running tests/w4r_shards.rs (target/debug/deps/w4r_shards-232d57b3bc072551)
+
+running 16 tests
+test move_preserves_every_job_exactly_once                      ... ok
+test leaders_lost_around_export_and_import_complete_by_takeover ... ok
+test stale_source_cannot_write_moved_buckets                    ... ok
+test snapshot_saves_compare_the_loaded_generation               ... ok
+test stale_leader_export_is_fenced_by_lease                     ... ok
+test inflight_validation_is_drained_before_export               ... ok
+test compacted_work_and_poll_tokens_resolve_across_shards       ... ok
+test add_shard_takes_buckets_and_remove_shard_retires           ... ok
+test second_import_does_not_resurrect_work                      ... ok
+test oversized_move_is_aborted_and_buckets_stay                 ... controller shard 0: move 101 aborted: export of 418 bytes exceeds the 64-byte move limit; split the move
+ok
+test fixed_and_dynamic_topologies_refuse_each_other             ... ok
+test cross_shard_dependency_publication_after_move              ... ok
+test dynamic_pending_jobs_protect_their_objects                 ... ok
+test dynamic_batches_issue_on_one_shard_and_drain_their_buckets ... ok
+test kill_nine_mid_move_completes_by_takeover                   ... kill -9 mid-export: standby exported after 1.191s; kill -9 mid-import: standby imported after 1.141s; 5 jobs at source, 19 at destination
+ok
+test reshard_benchmark                                          ... ignored
+
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 13.15s
+
+
+real	0m15.334s
+user	0m3.224s
+sys	0m0.514s

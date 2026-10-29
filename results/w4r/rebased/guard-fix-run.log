@@ -1,0 +1,13 @@
+== store: cargo test -p paralean-store -j6 -- --test-threads=1
+store exit=0
+== s3-guard: cargo test -p s3-guard -j6
+s3-guard exit=0
+== ae-service: cargo test -p paralean-ae-service -j6 -- --test-threads=1
+ae-service exit=0
+== control-gc: cargo test -p paralean-control -j6 --test w4r_shards --test gc -- --test-threads=1
+control-gc exit=0
+== mut-storegc: bash impl/p2/scripts/check-w4r-gc-mutations.sh
+mut-storegc exit=0
+== mut-s3guard: bash impl/p2/scripts/check-s3-guard-mutations.sh
+mut-s3guard exit=0
+ALL-DONE

@@ -1,0 +1,20 @@
+detected  mutate-storegc-doom-no-ref-check  by gc_never_collects_published_tombstoned_moved_or_revised
+detected  mutate-storegc-doom-no-grace  by gc_collects_staged_orphans_only_after_grace
+detected  mutate-storegc-doom-no-ocert-clear  by gc_t5_t6_refuse_a_doomed_snapshot
+detected  mutate-storegc-t1-no-doomed-check  by gc_t1_doom_race_both_orders
+detected  mutate-storegc-ref-no-gone-check  by gc_t1_doom_race_both_orders
+detected  mutate-storegc-t6-no-doomed-check  by gc_t5_t6_refuse_a_doomed_snapshot
+detected  mutate-storegc-ae-serves-gone  by gc_ae_never_serves_collected_objects_or_retired_records
+detected  mutate-storegc-retire-no-fence-check  by gc_dead_catalogue_record_retired_and_recovery
+detected  mutate-storegc-job-release-no-check  by gc_pending_jobs_protect_their_objects
+detected  mutate-storegc-ae-pending-no-ref  by gc_pending_ae_events_protect_their_objects
+detected  mutate-storegc-batch-no-record-ref  by gc_batches_protect_members_and_revive
+detected  mutate-storegc-batch-no-member-refs  by gc_batches_protect_members_and_revive
+detected  mutate-storegc-batch-no-revival  by gc_batches_protect_members_and_revive
+detected  mutate-storegc-guard-no-mark-check  by tests::gc_content_delete_needs_doomed_mark
+detected  mutate-storegc-guard-any-principal  by tests::gc_content_delete_needs_gc_principal
+detected  mutate-storegc-guard-gone-with-inflight  by tests::gc_gone_waits_for_unanswered_attempts
+
+real	1m42.636s
+user	1m30.551s
+sys	0m18.056s
