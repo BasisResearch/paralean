@@ -1,4 +1,7 @@
 Checking StoreGc (StoreGc.tla)
 109335120 states generated, 9987163 distinct states found, 0 states left on queue.
-Finished in 07min 03s at (2026-10-28 23:51:18)
+Finished in 08min 02s at (2026-10-29 00:41:55)
+Checking StoreGcBatch (StoreGc.tla)
+56684623 states generated, 6158902 distinct states found, 0 states left on queue.
+Finished in 02min 33s at (2026-10-29 00:44:29)
 exit 0

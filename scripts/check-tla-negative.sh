@@ -661,17 +661,23 @@ case_horizon_added_shard_low_gen() {
 }
 
 # W4-rest store GC (design 1).
-# storegc_mutation label invariant old new [old new]...
-storegc_mutation() {
-  local label="$1" invariant="$2"
-  shift 2
+# storegc_mutation_cfg label cfg invariant old new [old new]...
+storegc_mutation_cfg() {
+  local label="$1" cfg="$2" invariant="$3"
+  shift 3
   prepare_case "$label"
   while [[ $# -ge 2 ]]; do
     edit_once "$neg/$label/StoreGc.tla" "$1" "$2"
     shift 2
   done
-  only_invariant "$neg/$label/StoreGc.cfg" "$invariant"
-  run_expected_failure "$label" StoreGc "Invariant $invariant is violated"
+  only_invariant "$neg/$label/$cfg.cfg" "$invariant"
+  run_expected_failure "$label" StoreGc "Invariant $invariant is violated" "$cfg"
+}
+# storegc_mutation label invariant old new [old new]...
+storegc_mutation() {
+  local label="$1"
+  shift
+  storegc_mutation_cfg "$label" StoreGc "$@"
 }
 # A redundant check: every StoreGc invariant survives its deletion.
 storegc_redundant() {
@@ -722,6 +728,31 @@ case_storegc_sweep_ignores_refs() {
     'SightUnreferenced(o) == gcref[o] = {}' 'SightUnreferenced(o) == TRUE' \
     'DoomUnreferenced(o) == gcref[o] = {}' 'DoomUnreferenced(o) == TRUE'
 }
+# Atomic multi-group batches (T12/T13) on the StoreGcBatch instance.
+storegc_batch_witness() {
+  local label="$1" invariant="$2"
+  prepare_case "$label"
+  finite_witness_config "$neg/$label/StoreGcBatch.cfg" "$invariant"
+  run_expected_failure "$label" StoreGc "Invariant $invariant is violated" StoreGcBatch
+}
+for spec in \
+  'storegc_batch_committed|NeverBatchCommitted' \
+  'storegc_batch_committed_after_gc|NeverBatchCommittedAfterGc' \
+  'storegc_batch_received|NeverBatchReceived'; do
+  IFS='|' read -r label invariant <<< "$spec"
+  eval "case_$label() { storegc_batch_witness $label $invariant; }"
+  defcase "$label"
+done
+for spec in \
+  'storegc_batch_member_no_doomed_check|BatchMembersLive|MemberRefOK(m) == RefAllowed(m)|MemberRefOK(m) == m = bOrder[1] \/ RefAllowed(m)' \
+  'storegc_batch_partial_on_collected|NoPartialBatch|BatchAllOK(ok) == ok = Objects|BatchAllOK(ok) == ok # {}' \
+  'storegc_batch_no_record_ref|BatchMembersLive|BatchRefs(id) == {<<"batch", id>>, <<"marker", Perm>>}|BatchRefs(id) == {}' \
+  'storegc_batch_ae_no_pending_ref|NoDanglingRef|AeBatchPendingRefs == {<<"ae", "batch">>}|AeBatchPendingRefs == {}'; do
+  IFS='|' read -r label invariant old new <<< "$spec"
+  printf -v body 'storegc_mutation_cfg %q StoreGcBatch %q %q %q' "$label" "$invariant" "$old" "$new"
+  eval "case_$label() { $body; }"
+  defcase "$label"
+done
 # Redundant checks (see verification/TLA-GUARDS.md, "W4-rest store GC").
 for spec in \
   'storegc_doom_no_refs|DoomUnreferenced(o) == gcref[o] = {}|DoomUnreferenced(o) == TRUE' \

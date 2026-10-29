@@ -297,6 +297,44 @@ theorem gone_key_has_no_inflight_delete (s : Store Obj) (o : Obj) (t n : Nat)
   rw [hGone] at h
   exact h
 
+/-! ### Atomic multi-group batches -/
+
+/-- T12 (and T13): one transaction runs every member's body, which clears
+`Sighted` and writes the member's referrer, and `batch/<id>`, which references
+every member. -/
+def batchCommit (s : Store Obj) (members : Obj → Prop) [DecidablePred members] :
+    Store Obj :=
+  { s with gc := fun x => if members x then
+                            (match s.gc x with | .sighted _ => .none | g => g)
+                          else s.gc x,
+           refs := fun x => members x ∨ s.refs x }
+
+omit [DecidableEq Obj] in
+/-- If every member passes its body's check (all or nothing), the commit keeps
+every named object, now including every member, present, live and indexed. -/
+theorem batch_commit_preserves_safe (s : Store Obj) (named acked members : Obj → Prop)
+    [DecidablePred members] (hSafe : Safe s named) (hIndex : IndexComplete s named)
+    (hLivePresent : LivePresent s acked) (hAcked : ∀ m, members m → acked m)
+    (hAll : ∀ m, members m → refAllowed (s.gc m)) :
+    Safe (batchCommit s members) (fun x => named x ∨ members x) ∧
+      IndexComplete (batchCommit s members) (fun x => named x ∨ members x) := by
+  constructor
+  · intro x hNamed
+    by_cases hMember : members x
+    · have hLive : (s.gc x).live := (ref_allowed_iff_live _).mp (hAll x hMember)
+      refine ⟨hLivePresent x (hAcked x hMember) hLive, ?_⟩
+      simp only [batchCommit, if_pos hMember]
+      cases hG : s.gc x <;> simp_all [GcObj.live]
+    · rcases hNamed with hNamed | hNamed
+      · simp only [batchCommit, if_neg hMember]
+        exact hSafe x hNamed
+      · exact absurd hNamed hMember
+  · intro x hNamed
+    simp only [batchCommit]
+    rcases hNamed with hNamed | hNamed
+    · exact Or.inr (hIndex x hNamed)
+    · exact Or.inl hNamed
+
 /-! ### Dead catalogue records -/
 
 /-- T5 needs `rank = fence` and the fence only grows, so a record staged

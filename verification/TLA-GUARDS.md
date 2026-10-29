@@ -646,7 +646,7 @@ relying on `Grace >= 1`.
 The positive `StoreGc.cfg` instance (two objects, two writers, two catalogue
 IDs, `Grace = 1`, GC clock bound 2, fence bound 1, at most two writer PUTs,
 at most two DELETE nonces per object, symmetry over objects, writers and IDs)
-passes **9,987,163** distinct states (109,335,120 generated, 7 min with two
+passes **9,987,163** distinct states (109,335,120 generated, 8 min with two
 workers). The PUT and nonce bounds are what the two-incarnation and retry
 traces need. A pass records listing entries only of collected objects: a
 `Gone{t}` with `t < c0` was already collected when the pass started, a stale
@@ -758,8 +758,57 @@ What the bounded model does not show:
   `LivePresent` (with `InflightDeleting`: a DELETE is in flight only for a
   `Deleting` key, which a non-quiescent `Gone` breaks); references refuse
   every collected state; revival needs the exact `Gone` and present bytes;
-  the guard admits only the GC key on `Doomed`/`Deleting`; a record below
-  the fence never commits. They do not refine the Rust transactions.
+  the guard admits only the GC key on `Doomed`/`Deleting`; a batch commit
+  whose members all pass keeps every member present, live and indexed; a
+  record below the fence never commits. They do not refine the Rust
+  transactions.
+
+### W4-rest store GC with atomic batches
+
+Atomic multi-group publication ([atomic-pub-log.md](../docs/atomic-pub-log.md))
+adds T12 and T13. `StoreGcBatch.cfg` checks them on the same `StoreGc.tla`
+with `BatchMode = TRUE`; `StoreGc.cfg` keeps `BatchMode = FALSE`, where the
+batch variables never change and the instance above is unchanged. A
+controller-signed intent names two members (both objects, as Publish
+members, in a chosen commit order). The coordinator PUTs each member (reading
+`gcobj` first); each member's bound job envelope is recorded at J1, which
+writes a job referrer and refuses a collected object; J2 follows, and the
+collector may release the job reference. T12 is one step: every member's
+unchanged T1 body (which refuses `Doomed`, `Deleting` and `Gone` and writes
+its own referrer) and `batch/<id>`, which references every member. A
+collected member aborts the whole batch; the coordinator re-PUTs, revives the
+exact `Gone` it read and retries. On the receiver, the batch event's parts
+are staged under its `aepending` referrer (which never aborts and clears
+`Sighted` only), each member is fetched through `put_live`, and T13 imports
+every member, writes the receiver's record and releases the `aepending`
+referrer in one step. The intent itself writes no `gcref`: before T12 the
+members are protected only by their J1 job referrers.
+
+To keep the instance small it has no catalogue IDs, no fence rotation, no
+writer PUTs and no single-object anti-entropy event (those are covered by
+`StoreGc.cfg`); collection, revival, guard retries with in-flight DELETEs,
+forged requests and peer fetches all remain. It passes **6,158,902**
+distinct states (56,684,623 generated, 2 min 33 s with two workers). Two
+batch invariants are added to the others: `BatchMembersLive` (no member
+object of a recorded batch is ever collected; on both sides it stays present
+and live) and `NoPartialBatch` (the member bodies T12 wrote are all members
+or none, and the record exists exactly when all were written). Fetched batch
+parts of a pending event join `NoDanglingRef`.
+
+| Guard | Mutation | Required counterexample |
+|---|---|---|
+| T12 runs every member's collected-object check | `storegc_batch_member_no_doomed_check` (skip the first member's) | `BatchMembersLive` |
+| T12 is all or nothing | `storegc_batch_partial_on_collected` (commit the members that pass) | `NoPartialBatch` |
+| T12/T13 write `batch/<id>` and member-body referrers | `storegc_batch_no_record_ref` (neither) | `BatchMembersLive` |
+| Batch parts are staged under the `aepending` referrer | `storegc_batch_ae_no_pending_ref` | `NoDanglingRef` |
+
+Witnesses: a batch commits (`storegc_batch_committed`), a batch commits after
+one of its members was collected and revived
+(`storegc_batch_committed_after_gc`), and a receiver imports a batch
+(`storegc_batch_received`). Not shown: tombstone members (all members are
+Publish members), more than two members, intents larger than one
+transaction (the staged protocol), and a batch together with catalogue
+records or writer publications in one instance.
 
 ## Liveness
 

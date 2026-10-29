@@ -27,11 +27,23 @@
    no forwarded DELETE of that key can still execute (GoneQuiescent). With a
    retry after an unknown outcome, the earlier DELETE may run after Gone and
    a revival, deleting the revived bytes (`storegc_gone_with_inflight`).
-   RequestDies abstracts the guard's request deadline. *)
+   RequestDies abstracts the guard's request deadline.
+
+   Atomic multi-group batches (BatchMode, StoreGcBatch.cfg): a controller-
+   signed intent names the members (here both objects, as Publish members, in
+   a chosen order). Each member's payload is PUT by the coordinator, its
+   bound job envelope is recorded at J1 (a job referrer), J2 follows and the
+   collector may release the job reference. T12 is one transaction: every
+   member's unchanged T1 body (refusing Doomed/Deleting/Gone, writing its own
+   referrer) plus `batch/<id>`, which references every member; a collected
+   member aborts the whole batch, and the coordinator re-PUTs, revives the
+   exact Gone and retries. On the receiver, the batch event's parts are
+   staged under its aepending referrer, each member is fetched through
+   put_live, and T13 imports all members in one transaction. *)
 EXTENDS Integers, TLC
 
 CONSTANTS Objects, Writers, CatIds, Grace, MaxClock, MaxFence, MaxPuts,
-          MaxNonce
+          MaxNonce, BatchMode
 
 NoObj == "noobj"
 NoCat == "nocat"
@@ -50,7 +62,8 @@ VARIABLES present, gcobj, gcref, ocert, clock, fence, puts,
           everDeleted, everRetired, everCommitted, sweepDoomed, retriedObjs,
           markedOk, nonGcDelete, graceOk, peerMissing, reimported,
           revived, recoveredAfterGc, aeImportAfterGc, ancestorAfterGc,
-          resighted, retryGone
+          resighted, retryGone,
+          bSt, bOrder, btok, bJob, bBodies, aeB, aeBFetched
 
 storeVars == <<present, gcobj, gcref, ocert, clock, fence, puts>>
 guardVars == <<nonce, inflight, executed, passClock, listing>>
@@ -63,11 +76,13 @@ ghostVars == <<lost, everDeleted, everRetired, everCommitted, sweepDoomed,
                retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
                reimported, revived, recoveredAfterGc, aeImportAfterGc,
                ancestorAfterGc, resighted, retryGone>>
+batchVars == <<bSt, bOrder, btok, bJob, bBodies, aeB, aeBFetched>>
 vars == <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
-          aeVars, ghostVars>>
+          aeVars, ghostVars, batchVars>>
 
 St(s, t, n) == [st |-> s, t |-> t, n |-> n]
 NoState == St("none", 0, 0)
+Unput == St("unput", 0, 0)
 Collected(o) == gcobj[o].st \in {"doomed", "deleting", "gone"}
 LiveState(o) == gcobj[o].st \in {"none", "sighted"}
 Usable(o) == present[o] /\ LiveState(o)
@@ -110,6 +125,15 @@ KeyOK(p) == p \in {"gc", "forged"}
 DeleteStateOK(o) == gcobj[o].st \in {"doomed", "deleting"}
 (* Fix: Gone only when no forwarded DELETE of the key can still execute. *)
 GoneQuiescent(o) == \A r \in inflight : r[1] # o
+(* T12 runs each member's T1 body, which refuses a collected object. *)
+MemberRefOK(m) == RefAllowed(m)
+(* T12 is all or nothing: every member must pass. *)
+BatchAllOK(ok) == ok = Objects
+(* T12/T13 reference every member: `batch/<id>` and the member body's own
+   referrer. *)
+BatchRefs(id) == {<<"batch", id>>, <<"marker", Perm>>}
+(* Batch parts are staged under the event's aepending referrer. *)
+AeBatchPendingRefs == {<<"ae", "batch">>}
 (* Job release reads J2/J3. *)
 ReleaseOK(w) == jobSt[w] = "done"
 (* Dead-record retirement: uncommitted and token rank below the fence. *)
@@ -168,6 +192,13 @@ Init ==
   /\ ancestorAfterGc = FALSE
   /\ resighted = FALSE
   /\ retryGone = FALSE
+  /\ bSt = "none"
+  /\ bOrder = <<>>
+  /\ btok = [o \in Objects |-> Unput]
+  /\ bJob = [o \in Objects |-> "none"]
+  /\ bBodies = {}
+  /\ aeB = "none"
+  /\ aeBFetched = {}
 
 ResetWriter(w) ==
   /\ wst' = [wst EXCEPT ![w] = "idle"]
@@ -186,7 +217,7 @@ Put(w, o) ==
   /\ wst' = [wst EXCEPT ![w] = "put"]
   /\ wobj' = [wobj EXCEPT ![w] = o]
   /\ wtok' = [wtok EXCEPT ![w] = gcobj[o]]
-  /\ UNCHANGED <<gcobj, gcref, ocert, clock, fence, guardVars, metaVars, wcat,
+  /\ UNCHANGED <<batchVars, gcobj, gcref, ocert, clock, fence, guardVars, metaVars, wcat,
                  jobVars, catVars, aeVars, ghostVars>>
 
 (* gc_revive after the writer's re-PUT: the exact Gone it read before the
@@ -200,7 +231,7 @@ Revive(w) ==
   /\ gcobj' = [gcobj EXCEPT ![o] = NoState]
   /\ wtok' = [wtok EXCEPT ![w] = NoState]
   /\ revived' = TRUE
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, wst, wobj, wcat, jobVars, catVars, aeVars, lost,
                  everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -213,7 +244,7 @@ VerifyRevive(o) ==
   /\ VerifyOK(o)
   /\ gcobj' = [gcobj EXCEPT ![o] = NoState]
   /\ revived' = TRUE
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, lost,
                  everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -235,7 +266,7 @@ Reference(w, k, g) ==
   /\ ancestors' = IF g = NoObj THEN ancestors ELSE ancestors \cup {g}
   /\ ancestorAfterGc' = (ancestorAfterGc \/ (g # NoObj /\ everDeleted # {}))
   /\ ResetWriter(w)
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, jobVars,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, jobVars,
                  catVars, aeVars, lost, everDeleted, everRetired,
                  everCommitted, sweepDoomed, retriedObjs, markedOk,
                  nonGcDelete, graceOk, peerMissing, reimported, revived,
@@ -252,14 +283,14 @@ IssueJob(w) ==
   /\ jobSt' = [jobSt EXCEPT ![w] = "pending"]
   /\ jobObj' = [jobObj EXCEPT ![w] = o]
   /\ ResetWriter(w)
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, metaVars,
                  catVars, aeVars, ghostVars>>
 
 (* J2 or J3. *)
 JobFinish(w) ==
   /\ jobSt[w] = "pending"
   /\ jobSt' = [jobSt EXCEPT ![w] = "done"]
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobObj, catVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, writerVars, jobObj, catVars,
                  aeVars, ghostVars>>
 
 (* T5s: stage catalogue record c naming snapshot o, with the writer's token
@@ -278,7 +309,7 @@ StageCat(w, c, p) ==
   /\ catPred' = [catPred EXCEPT ![c] = p]
   /\ wst' = [wst EXCEPT ![w] = "staged"]
   /\ wcat' = [wcat EXCEPT ![w] = c]
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, metaVars,
                  wobj, wtok, jobVars, retired, aeVars, ghostVars>>
 
 (* T5: token rank equals the fence, the record is staged, the snapshot's
@@ -296,7 +327,7 @@ CommitCat(w) ==
   /\ catSt' = [catSt EXCEPT ![c] = "committed"]
   /\ everCommitted' = everCommitted \cup {c}
   /\ ResetWriter(w)
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, metaVars,
                  jobVars, catRank, catSnap, catPred, retired, aeVars, lost,
                  everDeleted, everRetired, sweepDoomed, retriedObjs,
                  markedOk, nonGcDelete, graceOk, peerMissing, reimported,
@@ -308,7 +339,7 @@ CommitCat(w) ==
 Abandon(w) ==
   /\ wst[w] # "idle"
   /\ ResetWriter(w)
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, jobVars, catVars, aeVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, jobVars, catVars, aeVars,
                  ghostVars>>
 
 (* T6: the store acknowledges a present object. *)
@@ -317,21 +348,21 @@ Certify(o) ==
   /\ ~ocert[o]
   /\ CertOK(o)
   /\ ocert' = [ocert EXCEPT ![o] = TRUE]
-  /\ UNCHANGED <<present, gcobj, gcref, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, gcref, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 (* A new writer token (for example after desktop loss) raises the fence. *)
 RotateFence ==
   /\ fence < MaxFence
   /\ fence' = fence + 1
-  /\ UNCHANGED <<present, gcobj, gcref, ocert, clock, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, gcref, ocert, clock, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 DesktopLoss(w) ==
   /\ w \notin lost
   /\ lost' = lost \cup {w}
   /\ ResetWriter(w)
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, jobVars, catVars, aeVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, jobVars, catVars, aeVars,
                  everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
                  reimported, revived, recoveredAfterGc, aeImportAfterGc,
@@ -345,7 +376,7 @@ Recover(w) ==
   /\ lost' = lost \ {w}
   /\ recoveredAfterGc' = (recoveredAfterGc
                            \/ (everDeleted # {} /\ everCommitted # {}))
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
                  aeVars, everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
                  reimported, revived, aeImportAfterGc, ancestorAfterGc,
@@ -355,7 +386,7 @@ Recover(w) ==
 Tick ==
   /\ clock < MaxClock
   /\ clock' = clock + 1
-  /\ UNCHANGED <<present, gcobj, gcref, ocert, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, gcref, ocert, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 (* A sweep pass reads c0 = clock and then lists S3. Only the listing entries
@@ -366,7 +397,7 @@ Tick ==
 PassStart ==
   /\ passClock' = clock
   /\ listing' = {o \in Objects : present[o] /\ Collected(o)}
-  /\ UNCHANGED <<storeVars, nonce, inflight, executed, metaVars, writerVars,
+  /\ UNCHANGED <<batchVars, storeVars, nonce, inflight, executed, metaVars, writerVars,
                  jobVars, catVars, aeVars, ghostVars>>
 
 (* Per-object sweep transactions read the gcref range and gcobj. Sighting
@@ -376,7 +407,7 @@ SweepClear(o) ==
   /\ gcref[o] # {}
   /\ gcobj[o].st = "sighted"
   /\ gcobj' = [gcobj EXCEPT ![o] = NoState]
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 SweepSight(o) ==
@@ -384,7 +415,7 @@ SweepSight(o) ==
   /\ SightUnreferenced(o)
   /\ gcobj[o].st = "none"
   /\ gcobj' = [gcobj EXCEPT ![o] = St("sighted", clock, 0)]
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 SweepDoom(o) ==
@@ -396,7 +427,7 @@ SweepDoom(o) ==
   /\ ocert' = [ocert EXCEPT ![o] = FALSE]
   /\ sweepDoomed' = sweepDoomed \cup {o}
   /\ graceOk' = (graceOk /\ clock - gcobj[o].t >= Grace)
-  /\ UNCHANGED <<present, gcref, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, present, gcref, clock, fence, puts, guardVars, metaVars,
                  writerVars, jobVars, catVars, aeVars, lost, everDeleted,
                  everRetired, everCommitted, retriedObjs, markedOk,
                  nonGcDelete, peerMissing, reimported, revived,
@@ -411,7 +442,7 @@ SweepResight(o) ==
   /\ ResightListed(o)
   /\ gcobj' = [gcobj EXCEPT ![o] = St("sighted", clock, 0)]
   /\ resighted' = TRUE
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, lost,
                  everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -426,7 +457,7 @@ JobRelease(w) ==
   /\ gcref' = [gcref EXCEPT ![jobObj[w]] = @ \ {<<"job", w>>}]
   /\ jobSt' = [jobSt EXCEPT ![w] = IF @ = "done" THEN "none" ELSE @]
   /\ jobObj' = [jobObj EXCEPT ![w] = IF jobSt[w] = "done" THEN NoObj ELSE @]
-  /\ UNCHANGED <<present, gcobj, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, catVars, aeVars, ghostVars>>
 
 (* Retire a dead catalogue record: clear the record and its references, and
@@ -438,7 +469,7 @@ Retire(c) ==
   /\ gcref' = [gcref EXCEPT ![catSnap[c]] = @ \ {<<"cat", c>>}]
   /\ retired' = retired \cup {c}
   /\ everRetired' = everRetired \cup {c}
-  /\ UNCHANGED <<present, gcobj, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catRank, catSnap, catPred,
                  aeVars, lost, everDeleted, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -460,7 +491,7 @@ DeleteRequest(p, o) ==
                  ELSE inflight \cup {<<o, nonce[o] + 1, p>>}
   /\ retriedObjs' = IF gcobj[o].st = "deleting" THEN retriedObjs \cup {o}
                     ELSE retriedObjs
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, executed,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, executed,
                  passClock, listing, metaVars, writerVars, jobVars, catVars,
                  aeVars, lost, everDeleted, everRetired, everCommitted,
                  sweepDoomed, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -476,7 +507,7 @@ GarageExec(r) ==
   /\ executed' = [executed EXCEPT ![o] = @ \cup {r[2]}]
   /\ markedOk' = (markedOk /\ o \in sweepDoomed)
   /\ nonGcDelete' = (nonGcDelete \/ r[3] # "gc")
-  /\ UNCHANGED <<gcobj, gcref, ocert, clock, fence, puts, nonce, passClock,
+  /\ UNCHANGED <<batchVars, gcobj, gcref, ocert, clock, fence, puts, nonce, passClock,
                  listing, metaVars, writerVars, jobVars, catVars, aeVars,
                  lost, everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, graceOk, peerMissing, reimported, revived,
@@ -487,7 +518,7 @@ GarageExec(r) ==
 RequestDies(r) ==
   /\ r \in inflight
   /\ inflight' = inflight \ {r}
-  /\ UNCHANGED <<storeVars, nonce, executed, passClock, listing, metaVars,
+  /\ UNCHANGED <<batchVars, storeVars, nonce, executed, passClock, listing, metaVars,
                  writerVars, jobVars, catVars, aeVars, ghostVars>>
 
 (* Garage's success for the current nonce: Deleting{n} -> Gone{clock, n}. *)
@@ -500,7 +531,7 @@ DeleteDone(o) ==
   /\ sweepDoomed' = sweepDoomed \ {o}
   /\ retriedObjs' = retriedObjs \ {o}
   /\ retryGone' = (retryGone \/ o \in retriedObjs)
-  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcref, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeVars, lost,
                  everRetired, everCommitted, markedOk, nonGcDelete, graceOk,
                  peerMissing, reimported, revived, recoveredAfterGc,
@@ -511,7 +542,7 @@ DeleteDone(o) ==
 PeerFetch(o) ==
   /\ present[o] \/ o \in everDeleted
   /\ peerMissing' = (peerMissing \/ ServeAnswer(o) = "missing")
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
                  aeVars, lost, everDeleted, everRetired, everCommitted,
                  sweepDoomed, retriedObjs, markedOk, nonGcDelete, graceOk,
                  reimported, revived, recoveredAfterGc, aeImportAfterGc,
@@ -521,7 +552,7 @@ ExportCat(c) ==
   /\ catSt[c] = "committed"
   /\ ExportOK(c)
   /\ reimported' = (reimported \/ c \in everRetired)
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
                  aeVars, lost, everDeleted, everRetired, everCommitted,
                  sweepDoomed, retriedObjs, markedOk, nonGcDelete, graceOk,
                  peerMissing, revived, recoveredAfterGc, aeImportAfterGc,
@@ -532,21 +563,23 @@ ImportCat(c) ==
   /\ catSt[c] # "none"
   /\ ImportOK(c)
   /\ reimported' = (reimported \/ c \in everRetired)
-  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
+  /\ UNCHANGED <<batchVars, storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
                  aeVars, lost, everDeleted, everRetired, everCommitted,
                  sweepDoomed, retriedObjs, markedOk, nonGcDelete, graceOk,
                  peerMissing, revived, recoveredAfterGc, aeImportAfterGc,
                  ancestorAfterGc, resighted, retryGone>>
 
 (* Receiver half: part persistence writes the protective aepending
-   referrer; it never aborts. *)
+   referrer; it never aborts. The batch instance exercises the batch event
+   instead of a single one. *)
 AeArrive(o) ==
+  /\ ~BatchMode
   /\ aeSt = "none"
   /\ gcobj' = [gcobj EXCEPT ![o] = AeState(o)]
   /\ gcref' = [gcref EXCEPT ![o] = AddRef(@, <<"ae", AeEvent>>)]
   /\ aeSt' = "pending"
   /\ aeObj' = o
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, metaVars,
                  writerVars, jobVars, catVars, ghostVars>>
 
 (* put_live: refused while Doomed or Deleting; after Gone, the PUT is
@@ -558,7 +591,7 @@ AeFetch ==
   /\ gcobj' = [gcobj EXCEPT ![aeObj] = IF @.st = "gone" THEN NoState ELSE @]
   /\ revived' = (revived \/ gcobj[aeObj].st = "gone")
   /\ aeSt' = "fetched"
-  /\ UNCHANGED <<gcref, ocert, clock, fence, puts, guardVars, metaVars,
+  /\ UNCHANGED <<batchVars, gcref, ocert, clock, fence, puts, guardVars, metaVars,
                  writerVars, jobVars, catVars, aeObj, lost, everDeleted,
                  everRetired, everCommitted, sweepDoomed, retriedObjs,
                  markedOk, nonGcDelete, graceOk, peerMissing, reimported,
@@ -578,7 +611,7 @@ AeImport ==
   /\ named' = named \cup {o}
   /\ aeSt' = "done"
   /\ aeImportAfterGc' = (aeImportAfterGc \/ o \in everDeleted)
-  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, published,
+  /\ UNCHANGED <<batchVars, present, ocert, clock, fence, puts, guardVars, published,
                  ancestors, writerVars, jobVars, catVars, aeObj, lost,
                  everDeleted, everRetired, everCommitted, sweepDoomed,
                  retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
@@ -590,8 +623,145 @@ AeArchive ==
   /\ aeSt \in {"pending", "fetched"}
   /\ gcref' = [gcref EXCEPT ![aeObj] = @ \ {<<"ae", AeEvent>>}]
   /\ aeSt' = "done"
-  /\ UNCHANGED <<present, gcobj, ocert, clock, fence, puts, guardVars,
+  /\ UNCHANGED <<batchVars, present, gcobj, ocert, clock, fence, puts, guardVars,
                  metaVars, writerVars, jobVars, catVars, aeObj, ghostVars>>
+
+(* ---- Atomic multi-group batches ---------------------------------------- *)
+(* The controller signs an intent naming the members in commit order. *)
+BatchIntent(x, y) ==
+  /\ BatchMode
+  /\ bSt = "none"
+  /\ x # y
+  /\ bSt' = "intent"
+  /\ bOrder' = <<x, y>>
+  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars, catVars,
+                 aeVars, ghostVars, btok, bJob, bBodies, aeB, aeBFetched>>
+
+(* The coordinator PUTs a member's payload and staged marker, reading gcobj
+   first; after a collection it re-PUTs. *)
+BatchPut(m) ==
+  /\ bSt = "intent"
+  /\ btok[m] = Unput \/ (gcobj[m].st = "gone" /\ btok[m] # gcobj[m])
+  /\ PutOK(m)
+  /\ present' = [present EXCEPT ![m] = TRUE]
+  /\ btok' = [btok EXCEPT ![m] = gcobj[m]]
+  /\ UNCHANGED <<gcobj, gcref, ocert, clock, fence, puts, guardVars,
+                 metaVars, writerVars, jobVars, catVars, aeVars, ghostVars,
+                 bSt, bOrder, bJob, bBodies, aeB, aeBFetched>>
+
+(* publish_batch revives the exact Gone it read before its re-PUT. *)
+BatchRevive(m) ==
+  /\ btok[m].st = "gone"
+  /\ gcobj[m] = btok[m]
+  /\ gcobj' = [gcobj EXCEPT ![m] = NoState]
+  /\ btok' = [btok EXCEPT ![m] = NoState]
+  /\ revived' = TRUE
+  /\ UNCHANGED <<present, gcref, ocert, clock, fence, puts, guardVars,
+                 metaVars, writerVars, jobVars, catVars, aeVars, lost,
+                 everDeleted, everRetired, everCommitted, sweepDoomed,
+                 retriedObjs, markedOk, nonGcDelete, graceOk, peerMissing,
+                 reimported, recoveredAfterGc, aeImportAfterGc,
+                 ancestorAfterGc, resighted, retryGone,
+                 bSt, bOrder, bJob, bBodies, aeB, aeBFetched>>
+
+(* J1 records the member's bound job envelope: a job referrer. *)
+BatchJ1(m) ==
+  /\ bSt = "intent"
+  /\ bJob[m] = "none"
+  /\ btok[m] # Unput
+  /\ RefAllowed(m)
+  /\ gcobj' = [gcobj EXCEPT ![m] = RefState(m)]
+  /\ gcref' = [gcref EXCEPT ![m] = AddRef(@, <<"job", m>>)]
+  /\ bJob' = [bJob EXCEPT ![m] = "pending"]
+  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+                 writerVars, jobVars, catVars, aeVars, ghostVars,
+                 bSt, bOrder, btok, bBodies, aeB, aeBFetched>>
+
+BatchJ2(m) ==
+  /\ bJob[m] = "pending"
+  /\ bJob' = [bJob EXCEPT ![m] = "done"]
+  /\ UNCHANGED <<storeVars, guardVars, metaVars, writerVars, jobVars,
+                 catVars, aeVars, ghostVars, bSt, bOrder, btok, bBodies, aeB,
+                 aeBFetched>>
+
+(* The collector's job-release step, after J2. *)
+BatchJobRelease(m) ==
+  /\ bJob[m] = "done"
+  /\ gcref' = [gcref EXCEPT ![m] = @ \ {<<"job", m>>}]
+  /\ bJob' = [bJob EXCEPT ![m] = "released"]
+  /\ UNCHANGED <<present, gcobj, ocert, clock, fence, puts, guardVars,
+                 metaVars, writerVars, jobVars, catVars, aeVars, ghostVars,
+                 bSt, bOrder, btok, bBodies, aeB, aeBFetched>>
+
+(* T12: one FDB transaction runs every member's T1 body and writes
+   `batch/<id>`; any refusal aborts the whole batch. *)
+BatchCommit ==
+  LET ok == {m \in Objects : MemberRefOK(m)} IN
+  /\ bSt = "intent"
+  /\ \A m \in Objects : bJob[m] \in {"done", "released"} /\ btok[m] # Unput
+  /\ BatchAllOK(ok)
+  /\ gcobj' = [o \in Objects |-> IF o \in ok THEN RefState(o) ELSE gcobj[o]]
+  /\ gcref' = [o \in Objects |-> IF o \in ok THEN gcref[o] \cup BatchRefs("b")
+                                 ELSE gcref[o]]
+  /\ named' = named \cup ok
+  /\ published' = published \cup ok
+  /\ bBodies' = ok
+  /\ bSt' = "committed"
+  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, ancestors,
+                 writerVars, jobVars, catVars, aeVars, ghostVars, bOrder,
+                 btok, bJob, aeB, aeBFetched>>
+
+(* Receiver: the batch event's parts are staged under its aepending
+   referrer, which never aborts and clears Sighted only. *)
+AeBatchArrive ==
+  /\ BatchMode
+  /\ aeB = "none"
+  /\ gcobj' = [o \in Objects |-> AeState(o)]
+  /\ gcref' = [o \in Objects |-> gcref[o] \cup AeBatchPendingRefs]
+  /\ aeB' = "pending"
+  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, metaVars,
+                 writerVars, jobVars, catVars, aeVars, ghostVars, bSt,
+                 bOrder, btok, bJob, bBodies, aeBFetched>>
+
+(* put_live of one member. *)
+AeBatchFetch(m) ==
+  /\ aeB = "pending"
+  /\ m \notin aeBFetched
+  /\ PutOK(m)
+  /\ present' = [present EXCEPT ![m] = TRUE]
+  /\ gcobj' = [gcobj EXCEPT ![m] = IF @.st = "gone" THEN NoState ELSE @]
+  /\ revived' = (revived \/ gcobj[m].st = "gone")
+  /\ aeBFetched' = aeBFetched \cup {m}
+  /\ UNCHANGED <<gcref, ocert, clock, fence, puts, guardVars, metaVars,
+                 writerVars, jobVars, catVars, aeVars, lost, everDeleted,
+                 everRetired, everCommitted, sweepDoomed, retriedObjs,
+                 markedOk, nonGcDelete, graceOk, peerMissing, reimported,
+                 recoveredAfterGc, aeImportAfterGc, ancestorAfterGc,
+                 resighted, retryGone, bSt, bOrder, btok, bJob, bBodies, aeB>>
+
+(* T13: every member's T9 body, the receiver's `batch/<id>` and the release
+   of the aepending referrer, in one transaction. *)
+AeBatchImport ==
+  /\ aeB = "pending"
+  /\ aeBFetched = Objects
+  /\ \A m \in Objects : present[m] /\ RefAllowed(m)
+  /\ gcobj' = [o \in Objects |-> RefState(o)]
+  /\ gcref' = [o \in Objects |-> (gcref[o] \ {<<"ae", "batch">>})
+                                 \cup BatchRefs("rb")]
+  /\ named' = named \cup Objects
+  /\ aeB' = "imported"
+  /\ UNCHANGED <<present, ocert, clock, fence, puts, guardVars, published,
+                 ancestors, writerVars, jobVars, catVars, aeVars, ghostVars,
+                 bSt, bOrder, btok, bJob, bBodies, aeBFetched>>
+
+AeBatchArchive ==
+  /\ aeB = "pending"
+  /\ gcref' = [o \in Objects |-> gcref[o] \ {<<"ae", "batch">>}]
+  /\ aeB' = "archived"
+  /\ aeBFetched' = {}
+  /\ UNCHANGED <<present, gcobj, ocert, clock, fence, puts, guardVars,
+                 metaVars, writerVars, jobVars, catVars, aeVars, ghostVars,
+                 bSt, bOrder, btok, bJob, bBodies>>
 
 Next ==
   \/ Tick \/ RotateFence \/ PassStart \/ AeFetch \/ AeImport \/ AeArchive
@@ -609,6 +779,11 @@ Next ==
        \/ AeArrive(o)
        \/ \E p \in Principals : DeleteRequest(p, o)
   \/ \E c \in CatIds : Retire(c) \/ ExportCat(c) \/ ImportCat(c)
+  \/ BatchCommit \/ AeBatchArrive \/ AeBatchImport \/ AeBatchArchive
+  \/ \E x \in Objects, y \in Objects : BatchIntent(x, y)
+  \/ \E m \in Objects :
+       BatchPut(m) \/ BatchRevive(m) \/ BatchJ1(m) \/ BatchJ2(m)
+       \/ BatchJobRelease(m) \/ AeBatchFetch(m)
 
 Spec == Init /\ [][Next]_vars
 
@@ -616,6 +791,7 @@ Sym == Permutations(Objects) \cup Permutations(Writers) \cup Permutations(CatIds
 
 (* ---- Properties -------------------------------------------------------- *)
 PendingJobObjs == {jobObj[w] : w \in {x \in Writers : jobSt[x] = "pending"}}
+                  \cup {m \in Objects : bJob[m] = "pending"}
 RecordObjs == {catSnap[c] : c \in {x \in CatIds : catSt[x] \in {"staged", "committed"}}}
 
 (* Committed metadata (markers, variants, tombstones, imports, catalogue
@@ -624,6 +800,7 @@ RecordObjs == {catSnap[c] : c \in {x \in CatIds : catSt[x] \in {"staged", "commi
 NoDanglingRef ==
   /\ \A o \in named \cup PendingJobObjs \cup RecordObjs : Usable(o)
   /\ aeSt = "fetched" => Usable(aeObj)
+  /\ aeB = "pending" => \A m \in aeBFetched : Usable(m)
 
 (* Every executed DELETE was of an object the sweep had doomed and that is
    not yet Gone. *)
@@ -652,6 +829,17 @@ AncestorsLive == \A g \in ancestors : Usable(g)
 OcertSound == \A o \in Objects : ocert[o] => Usable(o)
 RetiredAnswered == ~peerMissing
 
+(* No member object of a recorded batch is ever collected (here: it stays
+   present and live), on the publisher and on the receiver. *)
+BatchMembersLive ==
+  /\ bSt = "committed" => \A m \in Objects : Usable(m)
+  /\ aeB = "imported" => \A m \in Objects : Usable(m)
+(* No partial batch: the member bodies T12 wrote are all members or none,
+   and the record exists exactly when all were written. *)
+NoPartialBatch ==
+  /\ bBodies \in {{}, Objects}
+  /\ (bSt = "committed") = (bBodies = Objects)
+
 (* Reachability witnesses: each must be violated. *)
 NeverCollected == everDeleted = {}
 NeverRevived == ~revived
@@ -661,4 +849,7 @@ NeverRetired == everRetired = {}
 NeverAncestorAfterGc == ~ancestorAfterGc
 NeverResighted == ~resighted
 NeverRetryCollected == ~retryGone
+NeverBatchCommitted == bSt # "committed"
+NeverBatchCommittedAfterGc == ~(bSt = "committed" /\ everDeleted # {})
+NeverBatchReceived == aeB # "imported"
 =============================================================================

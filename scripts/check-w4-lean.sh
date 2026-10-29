@@ -11,4 +11,4 @@ lean -R . -o "$repo_root/.runs/w4/StoreGc.olean" \
   Paralean/StoreGc.lean
 lean --version
 echo "ControllerGc: reachability, recovery roots, term fencing and atomic history-compaction lemmas checked"
-echo "StoreGc: doom, guard admission, Garage execution and quiescent Gone preserve named-object safety and LivePresent; references refuse collected states; revival needs the exact Gone; dead records never commit"
+echo "StoreGc: doom, guard admission, Garage execution, quiescent Gone and an all-member batch commit preserve named-object safety and LivePresent; references refuse collected states; revival needs the exact Gone; dead records never commit"
