@@ -1,0 +1,8 @@
+detected  mutate-no-gc-principal-check
+detected  mutate-no-bucket-delete-check
+detected  mutate-no-query-key-decode
+detected  mutate-no-gc-prefix-check
+
+real	0m2.600s
+user	0m3.154s
+sys	0m1.213s

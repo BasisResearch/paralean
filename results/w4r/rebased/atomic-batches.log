@@ -1,0 +1,18 @@
+fdb=/data/home/kirancodes/paralean-p2/inst/w4r-d/fdb/fdb.cluster s3=http://127.0.0.1:32450
+
+running 5 tests
+test batch_of_dependent_groups_by_two_workspaces_publishes_all_members ... ok
+test stale_owner_on_one_member_rejects_the_whole_batch                 ... ok
+test forged_rejected_or_misbound_batch_member_receipts_fail_closed     ... ok
+test batch_member_receipt_for_another_epoch_fails_closed               ... ok
+test job_of_another_batch_cannot_serve_as_a_batch_dependency           ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.18s
+
+suite exit=0
+detected paralean-store/mutate-no-receipt-check (forged_rejected_or_misbound_batch_member_receipts_fail_closed)
+detected paralean-store/mutate-no-epoch-binding (batch_member_receipt_for_another_epoch_fails_closed)
+detected paralean-store/mutate-batch-partial-commit (stale_owner_on_one_member_rejects_the_whole_batch)
+detected paralean-store/mutate-batch-member-alone (batch_of_dependent_groups_by_two_workspaces_publishes_all_members)
+detected mutate-no-dispatch-owner-check (stale_owner_on_one_member_rejects_the_whole_batch)
+detected mutate-validator-cross-batch-dependency (job_of_another_batch_cannot_serve_as_a_batch_dependency)

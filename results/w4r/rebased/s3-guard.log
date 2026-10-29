@@ -1,0 +1,24 @@
+   Compiling s3-guard v0.2.0 (/data/home/kirancodes/Documents/code/paralean-w4-rest/impl/p2/crates/s3-guard)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running unittests src/main.rs (target/debug/deps/s3_guard-adc0e3e41917660d)
+
+running 12 tests
+test tests::decodes_query_keys_before_denying_destructive_subresources ... ok
+test tests::encoded_and_unknown_mutations_are_denied ... ok
+test tests::gc_content_delete_needs_doomed_mark ... ok
+test tests::gc_state_layout_matches_the_store ... ok
+test tests::gc_content_delete_needs_gc_principal ... ok
+test tests::gc_key_only_allows_signed_object_delete_candidate ... ok
+test tests::one_source_cannot_hold_every_connection_slot ... ok
+test tests::refuses_deletes_and_config ... ok
+test tests::gc_content_targets_are_exact_configured_keys ... ok
+test tests::overwrites_copies_and_unaddressed_keys_are_denied ... ok
+test tests::gc_never_deletes_p2_content_or_unlisted_keys ... ok
+test tests::streamed_body_limit_is_enforced ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+real	0m0.637s
+user	0m0.755s
+sys	0m0.319s

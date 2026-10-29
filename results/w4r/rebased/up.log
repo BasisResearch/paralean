@@ -1,0 +1,7 @@
+started fdbserver-0 (127.0.0.1:32400)
+The database is available, but has issues (type 'status' for more information).
+started garage-0
+garage: 1 node(s), replication 1, bucket paralean
+    Finished `release` profile [optimized] target(s) in 0.09s
+s3: http://127.0.0.1:32450 (guard) -> unix:/data/home/kirancodes/paralean-p2/inst/w4r-d/garage/n0/s3.sock (garage)
+fdb: /data/home/kirancodes/paralean-p2/inst/w4r-d/fdb/fdb.cluster

@@ -1,20 +1,29 @@
 # W4-rest: store GC, dynamic shards and replay horizons
 
-Branch `w4-rest`, a fresh clone of `origin/main` `91784ba` (2026-10-28). It
-finishes the three limits that [w4-log.md](w4-log.md) leaves open: physical
-P2/S3 object GC, the fixed shard topology (with its per-shard 8 MiB cap as the
-reason to move load), and indefinitely retained replay IDs.
+Branch `w4-rest`, a fresh clone of `origin/main` `91784ba` (2026-10-28), rebased
+on 2026-10-29 onto `origin/main` `d009100`, which adds atomic multi-group
+publication (T12/T13, [atomic-pub-log.md](atomic-pub-log.md)). It finishes the
+three limits that [w4-log.md](w4-log.md) leaves open: physical P2/S3 object GC,
+the fixed shard topology (with its per-shard 8 MiB cap as the reason to move
+load), and indefinitely retained replay IDs.
 
 ## Isolation and resources
 
 Only private instances are used: `PARALEAN_INSTANCE=w4r-a` (port base 32100),
-`w4r-b` (32200) and `w4r-c` (32300), selected by `impl/p3/scripts/w4r-env.sh`,
+`w4r-b` (32200) and `w4r-c` (32300) for the three implementation branches, and
+`w4r-d` (32400) for the integrated runs, selected by `impl/p3/scripts/w4r-env.sh`,
 which refuses any instance not named `w4r-*`. Their data lives under
 `/data/home/kirancodes/paralean-p2/inst/w4r-*`. At start `/data` had 143 GB
 free. Builds use at most six Cargo jobs; TLC uses one or two workers per run,
 with at most a few heavy processes at a time. W2's strict verifier and limits
 stay on every path: no change below relaxes a signature check, a request bound,
 an admission cap or a size limit.
+
+The work ran as five branches in sibling clones (`w4r-store-gc`, `w4r-shards`,
+`w4r-replay`, `w4r-models-shard`, `w4r-models-gc`), merged into `w4-rest`. Once a
+branch was merged and pushed, its clone, its instance data and the regenerable
+Cargo build directories were deleted: `/data` reached 95% during the work (about
+54 GB free), and the cleanup brought it back to about 190 GB.
 
 ## Design 1: physical store GC
 
@@ -134,6 +143,23 @@ roots, and the dead records the collector removes were never adoptable. Paginate
 scans stay sound: a scan may return a dead record that is cleared afterwards;
 it was not adoptable when returned.
 
+### Atomic batches (T12/T13)
+
+Main's atomic publication commits several members in one transaction. Each
+member runs its unchanged T1 or T8 body (T9 or T10 on a receiver), so each member
+writes its own `gcref` entries and refuses an object being collected. Any refused
+member aborts the whole batch, so nothing of it is written. In addition, the
+batch record `batch/<id>` is a referrer of every member's staged marker or
+tombstone and of every published group. It is written in T12 and T13 and indexed
+by backfill. Batch records are never removed, so no member of a retained batch
+can be collected even without the members' own references. Before T12 the
+member payloads are protected the way a single publication's are: by the J1
+references of the member envelopes, which the controller binds to the signed
+intent, and after J2 by the grace period. `publish_batch` uploads through the
+GC-aware put. If T12 aborts with `Collected`, it revives the object and retries,
+as the single writer does. The intent itself lives only in the record and the
+envelopes, so it names no S3 object.
+
 ### Enabling
 
 Collection is off unless `gc enable` has run. Enabling requires every writer to
@@ -207,6 +233,20 @@ retryable answer.
 
 Cross-shard dependencies are unaffected: they rely on P2's global T1
 certificate and publication checks, not on shard placement.
+
+**Batches.** A `ValidateBatch` names several publication members. In a dynamic
+topology it goes to the shard that owns every member's bucket:
+
+- **Member buckets:** each member's recorded validation route, else its target
+  names' bucket, else the batch's own bucket. The batch's bucket is its first
+  publication member's, so target-free members share it, and one shard issues
+  and fences every envelope (J1).
+- **Refusals:** a batch whose members span shards is refused retryably
+  (`batch spans controller shards`) before any J1, and so is one with a moving
+  member bucket.
+- **Drain:** an in-flight batch counts against every member bucket, as one
+  validation does, until its dispatch ends, so an export of any of them waits.
+  It runs outside the operation lock, as `Validate` does.
 
 ## Design 3: replay horizons
 
@@ -314,6 +354,23 @@ and 16 poll tokens, `H = 4`, grace 1. With a horizon the shard retains 160 repla
 (about 35.8 KB) from the second phase on; without one it reaches 640 rows (133.6 KB),
 growing linearly.
 
+### Integration with dynamic shards (found while merging)
+
+Per-shard generations are unsound once buckets move. Shard A could retire
+generation g's rows while shard B still accepts g, and a move then takes the
+request to B, where its row is gone, so it executes again. The models found the
+same flaw independently (below). In a dynamic topology the implementation
+therefore has one deployment-wide generation (`controller/replay-gen`). Only the
+lowest active member advances it. Each shard records the tick at which it first
+saw a generation refused, and its collector counts the grace from there. Scoped
+replay rows are found across shards, as unscoped ones already were. Every
+snapshot save re-reads the generation inside its own transaction and aborts if
+the request's generation is no longer accepted: the gate's read and the
+definite answer it guards must not straddle an advance. A `ValidateBatch` is
+scoped like a `Validate`, and so are its members' request IDs, with the batch's
+generation. A retry re-scoped to a new generation then issues fresh member
+envelopes bound to its fresh intent, instead of colliding with the old ones.
+
 ## Verification plan
 
 Models first: `StoreGc` (TLA+, with mutations, and Lean lemmas for the doom and
@@ -321,6 +378,108 @@ guard steps), `ShardHandover` (TLA+, with mutations), and `ReplayHorizon`
 (TLA+, with mutations). The implementation flags stay off until the models and
 tests pass.
 
+## Design changes from the models
+
+The `ShardHandover`, `ReplayHorizon` and `ReplayHorizonShards` models found four
+flaws in the design text. The implementation handles each:
+
+1. **J2 fence.** A receipt fenced on "owned and not moving" loses a drained
+   validation's receipt. J2 needs only `shard = self`, which the implementation
+   already used: receipts are allowed while the move is `Prepared`.
+2. **Definite answers.** A definite answer must be fenced: a deposed leader's
+   cached answer can contradict the new owner. The implementation re-routes
+   under the operation lock and answers definitely only after a lease-fenced
+   save; every other answer is retryable.
+3. **Commit-time generation check.** The gate's read of `G` and the commit of
+   the request it admits can straddle an advance and a retirement. Saves now
+   re-check the generation in their transaction (`replay_check`).
+4. **Generations across shards.** Per-shard generations are unsound under moves.
+   The implementation uses one deployment-wide generation. The model's
+   alternative is "every shard has refused g", with added shards starting at the
+   maximum generation; `ReplayHorizonShards` checks that variant.
+
+According to the models, five guards are redundant given the others:
+
+- the save compare-and-swap;
+- the J2 ownership check (a backstop for the drain);
+- the T4 claim fence;
+- import's state check;
+- the replay grace, given the commit check.
+
+They stay in the code as defence in depth. The mutation scripts still detect
+each one in the implementation, where the other guards are weaker than in the
+model.
+
+## Implementation deviations from the design text
+
+- **Store GC:**
+  - Revival is a separate transaction (`gc_revive`). The referencing transaction
+    refuses `Gone`, and revival clears it only if it still holds the same `Gone`
+    the writer observed before its re-PUT.
+  - A sweep moves `Gone` to `Sighted` only when a listing shows the object
+    again, so it never skips the grace period.
+  - The guard allows `Deleting → Deleting{nonce}` for a retried delete, and
+    admits no query on a GC delete other than `x-id=DeleteObject`.
+  - Protective `aepending` references never abort. They keep a doomed object's
+    state, and the receiver refetches after `Gone`.
+  - P5 bridge task blobs are referenced by their event rows.
+- **Shards:**
+  - Receipts are allowed while a move is `Prepared`.
+  - Every request for a moving bucket is retryable.
+  - Export and import are optimistic transactions.
+  - Poll tokens of moved work leave as replay rows.
+  - The validation index is keyed by bucket.
+  - A move whose handoff would not fit one transaction is aborted.
+- **Replay:** the generation is deployment-wide in dynamic mode (above).
+
 ## Evidence
 
-(Filled in as checks complete.)
+(Filled in below as the final checks complete.)
+
+## Not done
+
+- **Collected metadata:**
+  - `Gone` markers and `gc/retired/catalog/<c>` keys are kept forever. They are
+    small, but they grow with the number of collected objects.
+  - The delete pass scans all of `gcobj`.
+  - An anti-entropy release reads its event's `gcaeref` index without a bound.
+  - A writer waits for `Gone` (revival) for up to 30 s.
+- **Controller routing records:** routing records keyed by request ID are not
+  retired: work and validation routes, group descriptors and the validation
+  index. Neither are J1–J3 or a removed shard's residual keys. Topology and
+  move records are trusted as FDB contents and are unsigned, like every other
+  controller key.
+- **Replay generations for other clients:** `plr` (p3-remote) and the P5 bridge
+  still send generation-0 requests, so `--require-replay-generation` refuses
+  them. The worker and the `controller` CLI are generation-aware.
+- **Batches:**
+  - A batch on dynamic shards must have all its member buckets on one shard;
+    one that spans shards is refused retryably, as a fixed topology refuses it.
+    There is no cross-shard batch protocol.
+  - The staged multi-transaction batch protocol (designed in atomic-pub-log.md)
+    is still unimplemented, and the GC models cover only the single-transaction
+    T12.
+- **The `auth` test** in `w4r_shards.rs` needs `PARALEAN_BIN`.
+
+## Proposed sentences
+
+For docs/plan.md, "Deferred changes", replacing "Protocol-object GC, changing
+membership, …":
+
+> Protocol-object GC and changing controller membership are done for P2/S3
+> payloads and controller shards: a transactional reverse-reference index with a
+> logical-time grace and a guard-mediated delete (TLA `StoreGc`, Lean
+> `Paralean.StoreGc`), and bucket handover fenced by shard epochs and leases (TLA
+> `ShardHandover`). Shared-writer failover and Byzantine storage still change the
+> protocol assumptions and require new models and proofs.
+
+For README.md, replacing "Controllers support independent fixed shards, …
+cannot delete P2 content ([w4-log](docs/w4-log.md))":
+
+> Controllers support fixed or dynamic shard topologies, with online bucket
+> moves and adding and removing shards, plus store-ordered leases and
+> disabled-by-default history compaction and snapshot GC. Replay rows can be
+> bounded by replay generations. Unreferenced P2/S3 payloads can be collected
+> by an opt-in store GC, and only s3-guard's GC principal may delete them, and
+> only keys the GC marked ([w4-log](docs/w4-log.md),
+> [w4-rest-log](docs/w4-rest-log.md)).

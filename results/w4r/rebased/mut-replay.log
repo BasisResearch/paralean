@@ -1,0 +1,16 @@
+detected  mutate-replay-accept-g-minus-2  (retired_generations_are_refused_before_and_after_their_rows_go)
+detected  mutate-replay-retire-g-minus-1  (in_window_duplicates_are_deduplicated_after_compaction)
+detected  mutate-replay-retire-no-grace  (retired_generations_are_refused_before_and_after_their_rows_go)
+detected  mutate-replay-advance-no-fence  (retirement_and_advance_need_the_fenced_leader)
+detected  mutate-replay-retire-no-fence  (retirement_and_advance_need_the_fenced_leader)
+detected  mutate-replay-retire-gen0  (legacy_generation_zero_is_unchanged_and_never_retired)
+detected  mutate-replay-dedupe-ignores-generation  (in_window_duplicates_are_deduplicated_after_compaction)
+detected  mutate-replay-poll-token-unchecked  (retired_poll_tokens_cannot_take_new_work)
+detected  mutate-replay-accept-legacy  (require_replay_generation_refuses_generation_zero)
+detected  mutate-replay-per-shard-generation  (dynamic_generations_follow_requests_across_moves)
+detected  mutate-replay-no-commit-check  (replay::tests::saves_recheck_the_request_generation)
+detected  mutate-replay-batch-members-unscoped  (controller::replay_wire_tests::batch_members_take_the_batch_generation)
+
+real	1m10.641s
+user	1m53.971s
+sys	0m20.915s
