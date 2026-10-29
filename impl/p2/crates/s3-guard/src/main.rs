@@ -33,7 +33,14 @@
 //! `<BUCKET/KEYPREFIX>obj/<kind>/<64 hex>` for a configured deployment is admitted only after
 //! an FDB transaction moves `gcobj/<kind>/<id>` under `("paralean", NAME)` from `Doomed` (or an
 //! interrupted `Deleting`) to `Deleting{nonce}`; it is then forwarded, and on Garage's success
-//! `Deleting{nonce}` becomes `Gone{gc/clock}`. Any other principal, an unmarked key or a key
+//! `Deleting{nonce}` becomes `Gone{gc/clock}`, but only once no earlier attempt can still
+//! execute: an attempt whose answer the gateway never saw (a timeout, a lost connection, a
+//! gateway crash) may still run at Garage until its request deadline
+//! (`--gc-request-deadline-secs`, default 600), and a stale DELETE after `Gone` would remove
+//! a revived object's bytes (TLA `StoreGc`, `storegc_gone_with_inflight`). Each attempt
+//! records its send time before it is forwarded; a retry over an unanswered attempt moves
+//! `stale_until` to that attempt's deadline, and until then the key stays `Deleting` (writers
+//! and revival wait; a later delete pass finishes it). Any other principal, an unmarked key or a key
 //! in another state, a query, a virtual-hosted request and every bucket, configuration or
 //! bulk delete stay refused. A content PUT under a configured deployment whose key is
 //! `Doomed` or `Deleting` is refused, so a revival cannot land under an in-flight delete.
@@ -161,7 +168,9 @@ fn query_key(raw: &str) -> Option<String> {
 enum GcState {
     Sighted,
     Doomed { size: u64 },
-    Deleting { nonce: [u8; 16], size: u64 },
+    /// `sent_ms`: when this attempt was forwarded (wall clock); `stale_until_ms`: until when a
+    /// replaced, unanswered attempt may still execute; `answered`: Garage answered this one.
+    Deleting { nonce: [u8; 16], size: u64, sent_ms: u64, stale_until_ms: u64, answered: bool },
     Gone,
 }
 
@@ -171,19 +180,68 @@ impl GcState {
         match (v.first(), v.len()) {
             (Some(1), 9) => Some(GcState::Sighted),
             (Some(2), 17) => Some(GcState::Doomed { size: u(&v[9..17]) }),
-            (Some(3), 25) => Some(GcState::Deleting { nonce: v[1..17].try_into().unwrap(), size: u(&v[17..25]) }),
+            (Some(3), 42) if v[41] <= 1 => Some(GcState::Deleting {
+                nonce: v[1..17].try_into().unwrap(), size: u(&v[17..25]), sent_ms: u(&v[25..33]), stale_until_ms: u(&v[33..41]), answered: v[41] == 1,
+            }),
             (Some(4), 25) => Some(GcState::Gone),
             _ => None,
         }
     }
 }
 
-fn deleting(nonce: [u8; 16], size: u64) -> Vec<u8> {
+fn deleting(nonce: [u8; 16], size: u64, sent_ms: u64, stale_until_ms: u64, answered: bool) -> Vec<u8> {
     let mut v = vec![3];
     v.extend_from_slice(&nonce);
     v.extend_from_slice(&size.to_be_bytes());
+    v.extend_from_slice(&sent_ms.to_be_bytes());
+    v.extend_from_slice(&stale_until_ms.to_be_bytes());
+    v.push(u8::from(answered));
     v
 }
+
+/// The state a new GC delete attempt `n`, forwarded at `now_ms`, writes over `state`; `None`
+/// if the key is not admissible. Replacing an attempt whose answer is unknown (it may still
+/// execute at Garage) moves `stale_until` to that attempt's send time plus the deadline.
+fn next_deleting(state: Option<GcState>, n: [u8; 16], now_ms: u64, deadline_ms: u64) -> Option<Vec<u8>> {
+    if !gc_delete_admits(state) {
+        return None;
+    }
+    Some(match state {
+        Some(GcState::Deleting { size, sent_ms, stale_until_ms, answered, .. }) => {
+            let stale = if answered { stale_until_ms } else { stale_until_ms.max(sent_ms.saturating_add(deadline_ms)) };
+            deleting(n, size, now_ms, stale, false)
+        }
+        Some(GcState::Doomed { size }) => deleting(n, size, now_ms, 0, false),
+        _ => deleting(n, 0, now_ms, 0, false),
+    })
+}
+
+/// The state to write after Garage answered attempt `n` (`deleted`: with success) at
+/// `now_ms`: `Gone` once no replaced attempt can still execute, else the attempt recorded as
+/// answered (the key stays `Deleting`; a later attempt completes it). `None`: `n` was
+/// replaced meanwhile.
+fn after_answer(state: Option<GcState>, n: [u8; 16], deleted: bool, now_ms: u64, clock: u64) -> Option<Vec<u8>> {
+    let Some(GcState::Deleting { nonce, size, sent_ms, stale_until_ms, .. }) = state else { return None };
+    if nonce != n {
+        return None;
+    }
+    if deleted && (now_ms >= stale_until_ms || cfg!(feature = "mutate-storegc-guard-gone-with-inflight")) {
+        return Some(gone(clock, n));
+    }
+    Some(deleting(n, size, sent_ms, stale_until_ms, true))
+}
+
+fn unix_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// How long the gateway waits for Garage's answer to a GC delete before treating its outcome
+/// as unknown. The request deadline must exceed it.
+const GC_FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Marks a response the gateway made up because Garage's answer never arrived.
+#[derive(Clone, Copy)]
+struct Unanswered;
 
 fn gone(clock: u64, nonce: [u8; 16]) -> Vec<u8> {
     let mut v = vec![4];
@@ -271,20 +329,18 @@ fn nonce() -> [u8; 16] {
     n
 }
 
-/// `Doomed` (or `Deleting`) → `Deleting{nonce}`; `None` if the key is not admissible.
-async fn gc_mark_deleting(db: &foundationdb::Database, key: &[u8]) -> Result<Option<[u8; 16]>, String> {
+/// `Doomed` (or `Deleting`) → `Deleting{nonce}` before forwarding; `None` if the key is not
+/// admissible.
+async fn gc_mark_deleting(db: &foundationdb::Database, key: &[u8], deadline_ms: u64) -> Result<Option<[u8; 16]>, String> {
     let mut trx = db.create_trx().map_err(|e| e.to_string())?;
     for _ in 0..60 {
         let state = match trx.get(key, false).await {
             Ok(v) => v.and_then(|v| GcState::decode(&v)),
             Err(e) => { trx = trx.on_error(e).await.map_err(|e| e.to_string())?; continue; }
         };
-        if !gc_delete_admits(state) {
-            return Ok(None);
-        }
-        let size = match state { Some(GcState::Doomed { size } | GcState::Deleting { size, .. }) => size, _ => 0 };
         let n = nonce();
-        trx.set(key, &deleting(n, size));
+        let Some(next) = next_deleting(state, n, unix_ms(), deadline_ms) else { return Ok(None) };
+        trx.set(key, &next);
         match trx.commit().await {
             Ok(_) => return Ok(Some(n)),
             Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
@@ -293,8 +349,9 @@ async fn gc_mark_deleting(db: &foundationdb::Database, key: &[u8]) -> Result<Opt
     Err("store-GC mark outcome unresolved".into())
 }
 
-/// `Deleting{nonce}` → `Gone{gc/clock}` after Garage acknowledged the delete.
-async fn gc_mark_gone(db: &foundationdb::Database, key: &[u8], clock_key: &[u8], n: [u8; 16]) -> Result<bool, String> {
+/// Record Garage's answer to attempt `n` (`after_answer`): `Gone{gc/clock}` or answered.
+/// Returns whether the key is now `Gone`.
+async fn gc_record_answer(db: &foundationdb::Database, key: &[u8], clock_key: &[u8], n: [u8; 16], deleted: bool) -> Result<bool, String> {
     let mut trx = db.create_trx().map_err(|e| e.to_string())?;
     for _ in 0..60 {
         let read = async {
@@ -306,12 +363,11 @@ async fn gc_mark_gone(db: &foundationdb::Database, key: &[u8], clock_key: &[u8],
             Ok(x) => x,
             Err(e) => { trx = trx.on_error(e).await.map_err(|e| e.to_string())?; continue; }
         };
-        if !matches!(state, Some(GcState::Deleting { nonce, .. }) if nonce == n) {
-            return Ok(false);
-        }
-        trx.set(key, &gone(clock, n));
+        let Some(next) = after_answer(state, n, deleted, unix_ms(), clock) else { return Ok(false) };
+        let is_gone = next.first() == Some(&4);
+        trx.set(key, &next);
         match trx.commit().await {
-            Ok(_) => return Ok(true),
+            Ok(_) => return Ok(is_gone),
             Err(e) => trx = e.on_error().await.map_err(|e| e.to_string())?,
         }
     }
@@ -338,6 +394,8 @@ struct GcPolicy {
     prefixes: Vec<String>,
     /// Store-GC content deletes: the FDB database and the configured deployments.
     store: Option<(Arc<foundationdb::Database>, Vec<GcDeployment>)>,
+    /// How long a forwarded GC delete whose answer was lost may still execute at Garage.
+    deadline_ms: u64,
 }
 
 /// Decode an object path for allowlist matching. Fails closed on malformed or
@@ -555,18 +613,30 @@ async fn handle(
                     eprintln!("s3-guard: refused DELETE");
                     return Ok(denied(msg));
                 }
-                let n = match gc_mark_deleting(db, &key).await {
+                let n = match gc_mark_deleting(db, &key, gc.deadline_ms).await {
                     Ok(Some(n)) => n,
                     Ok(None) => return Ok(denied("the object is not doomed by the store GC")),
                     Err(e) => return Ok(error(StatusCode::SERVICE_UNAVAILABLE, &format!("store-GC state: {e}"))),
                 };
                 let (parts, _) = req.into_parts();
-                let resp = forward(&client, &upstreams, parts, Bytes::new()).await;
-                if resp.status().is_success() {
-                    // On failure the state stays Deleting (refused to writers); a retried
-                    // DELETE is admitted again and completes the transition.
-                    if let Err(e) = gc_mark_gone(db, &key, &clock_key, n).await {
-                        return Ok(error(StatusCode::SERVICE_UNAVAILABLE, &format!("store-GC completion: {e}")));
+                let resp = match tokio::time::timeout(GC_FORWARD_TIMEOUT, forward(&client, &upstreams, parts, Bytes::new())).await {
+                    Ok(resp) => resp,
+                    Err(_) => {
+                        let mut r = error(StatusCode::GATEWAY_TIMEOUT, "upstream timeout");
+                        r.extensions_mut().insert(Unanswered);
+                        r
+                    }
+                };
+                // Without Garage's answer the state stays Deleting{n} unanswered (refused to
+                // writers); a retry admits a new attempt that waits out n's deadline.
+                if resp.extensions().get::<Unanswered>().is_none() {
+                    match gc_record_answer(db, &key, &clock_key, n, resp.status().is_success()).await {
+                        Ok(true) => {}
+                        Ok(false) if resp.status().is_success() => {
+                            return Ok(error(StatusCode::SERVICE_UNAVAILABLE, "deleted; an earlier delete attempt may still run, retry after its deadline"));
+                        }
+                        Ok(false) => {}
+                        Err(e) => return Ok(error(StatusCode::SERVICE_UNAVAILABLE, &format!("store-GC completion: {e}"))),
                     }
                 }
                 return Ok(resp);
@@ -620,12 +690,12 @@ async fn forward(
             *r.uri_mut() = pq.parse().unwrap();
             let (mut sender, connection) = match hyper::client::conn::http1::handshake(TokioIo::new(stream)).await {
                 Ok(pair) => pair,
-                Err(_) => return error(StatusCode::BAD_GATEWAY, "upstream handshake failed"),
+                Err(_) => return unanswered(StatusCode::BAD_GATEWAY, "upstream handshake failed"),
             };
             tokio::spawn(async move { let _ = connection.await; });
             return match sender.send_request(r).await {
                 Ok(resp) => resp.map(|b| b.boxed()),
-                Err(_) => error(StatusCode::BAD_GATEWAY, "upstream error"),
+                Err(_) => unanswered(StatusCode::BAD_GATEWAY, "upstream error"),
             };
         }
         *r.uri_mut() = format!("http://{up}{pq}").parse().unwrap();
@@ -636,12 +706,19 @@ async fn forward(
             Err(e) if e.is_connect() => last = format!("{up}: {e}"),
             Err(e) => {
                 eprintln!("s3-guard: upstream {up} error: {e}");
-                return error(StatusCode::BAD_GATEWAY, "upstream error");
+                return unanswered(StatusCode::BAD_GATEWAY, "upstream error");
             }
         }
     }
     eprintln!("s3-guard: no upstream reachable ({last})");
-    error(StatusCode::BAD_GATEWAY, "no upstream reachable")
+    unanswered(StatusCode::BAD_GATEWAY, "no upstream reachable")
+}
+
+/// A gateway-made failure for a forwarded request whose outcome at Garage is unknown.
+fn unanswered(status: StatusCode, msg: &str) -> Response<Body> {
+    let mut r = error(status, msg);
+    r.extensions_mut().insert(Unanswered);
+    r
 }
 
 fn error(status: StatusCode, msg: &str) -> Response<Body> {
@@ -664,6 +741,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "--listen" => listen = args.next().ok_or("--listen needs a value")?.parse()?,
             "--upstream" => upstream = args.next().ok_or("--upstream needs a value")?,
             "--gc-access-key" => gc.key = Some(args.next().ok_or("--gc-access-key needs a value")?),
+            "--gc-request-deadline-secs" => {
+                let secs: u64 = args.next().ok_or("--gc-request-deadline-secs needs a value")?.parse()?;
+                gc.deadline_ms = secs.saturating_mul(1000);
+            }
             "--gc-fdb-cluster" => gc_cluster = Some(args.next().ok_or("--gc-fdb-cluster needs a value")?),
             "--gc-deployment" => {
                 let spec = args.next().ok_or("--gc-deployment needs a value")?;
@@ -687,6 +768,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
     if upstream.is_empty() { return Err("--upstream unix:/private/path/s3.sock is required".into()); }
+    if gc.deadline_ms == 0 { gc.deadline_ms = 600_000 }
+    if gc.deadline_ms <= GC_FORWARD_TIMEOUT.as_millis() as u64 {
+        return Err("--gc-request-deadline-secs must exceed the 30 s forward timeout".into());
+    }
     if gc_cluster.is_some() != !gc_deployments.is_empty() {
         return Err("--gc-fdb-cluster and --gc-deployment must be given together".into());
     }
@@ -940,19 +1025,19 @@ mod tests {
     #[test]
     fn gc_content_delete_needs_doomed_mark() {
         assert!(gc_delete_admits(Some(GcState::Doomed { size: 5 })));
-        assert!(gc_delete_admits(Some(GcState::Deleting { nonce: [1; 16], size: 5 })));
+        assert!(gc_delete_admits(Some(GcState::Deleting { nonce: [1; 16], size: 5, sent_ms: 0, stale_until_ms: 0, answered: false })));
         assert!(!gc_delete_admits(None), "unmarked key");
         assert!(!gc_delete_admits(Some(GcState::Sighted)), "sighted key");
         assert!(!gc_delete_admits(Some(GcState::Gone)), "gone key");
         assert!(gc_put_admits(None) && gc_put_admits(Some(GcState::Sighted)) && gc_put_admits(Some(GcState::Gone)));
-        assert!(!gc_put_admits(Some(GcState::Doomed { size: 1 })) && !gc_put_admits(Some(GcState::Deleting { nonce: [0; 16], size: 1 })));
+        assert!(!gc_put_admits(Some(GcState::Doomed { size: 1 })) && !gc_put_admits(Some(GcState::Deleting { nonce: [1; 16], size: 5, sent_ms: 0, stale_until_ms: 0, answered: false })));
     }
 
     /// Content deletes need the configured GC principal, no query and path-style addressing.
     /// Mutation: `mutate-storegc-guard-any-principal`.
     #[test]
     fn gc_content_delete_needs_gc_principal() {
-        let policy = GcPolicy { key: Some("GKGC".into()), prefixes: vec![], store: None };
+        let policy = GcPolicy { key: Some("GKGC".into()), prefixes: vec![], store: None, deadline_ms: 600_000 };
         let uri: Uri = format!("/paralean/dep-a/obj/group/{HEX}").parse().unwrap();
         assert_eq!(content_delete_refusal(&uri, &gc_headers("GKGC"), &policy), None);
         assert!(content_delete_refusal(&uri, &gc_headers("GKAPP"), &policy).is_some(), "application principal");
@@ -976,12 +1061,41 @@ mod tests {
 
     /// The byte layout shared with paralean-store `gc::GcState::encode`.
     #[test]
+    fn gc_gone_waits_for_unanswered_attempts() {
+        let state = |v: &[u8]| GcState::decode(v);
+        let d = 600_000;
+        // One attempt, answered with success: gone at once.
+        let a = next_deleting(Some(GcState::Doomed { size: 7 }), [1; 16], 1_000, d).unwrap();
+        assert_eq!(after_answer(state(&a), [1; 16], true, 1_100, 4), Some(gone(4, [1; 16])));
+        // Attempt 1 lost (no answer): attempt 2 succeeds, but 1 may still run at Garage until
+        // its deadline, so the key stays Deleting (answered) and writers keep waiting.
+        let b = next_deleting(state(&a), [2; 16], 5_000, d).unwrap();
+        assert_eq!(state(&b), Some(GcState::Deleting { nonce: [2; 16], size: 7, sent_ms: 5_000, stale_until_ms: 601_000, answered: false }));
+        let b2 = after_answer(state(&b), [2; 16], true, 6_000, 4).unwrap();
+        assert_eq!(state(&b2), Some(GcState::Deleting { nonce: [2; 16], size: 7, sent_ms: 5_000, stale_until_ms: 601_000, answered: true }));
+        assert!(!gc_put_admits(state(&b2)), "a revival PUT under a possibly running delete");
+        // A retry after the deadline replaces an answered attempt: it may finish.
+        let c = next_deleting(state(&b2), [3; 16], 601_500, d).unwrap();
+        assert_eq!(after_answer(state(&c), [3; 16], true, 601_600, 5), Some(gone(5, [3; 16])));
+        // A retry before the deadline still waits; an answer for a replaced attempt is ignored.
+        let early = next_deleting(state(&b2), [3; 16], 7_000, d).unwrap();
+        assert_ne!(after_answer(state(&early), [3; 16], true, 7_100, 5), Some(gone(5, [3; 16])));
+        assert_eq!(after_answer(state(&early), [2; 16], true, 7_100, 5), None);
+        // A failed answer records the attempt as answered and never writes Gone.
+        let f = after_answer(state(&a), [1; 16], false, 1_100, 4).unwrap();
+        assert_eq!(state(&f), Some(GcState::Deleting { nonce: [1; 16], size: 7, sent_ms: 1_000, stale_until_ms: 0, answered: true }));
+        assert_eq!(next_deleting(Some(GcState::Gone), [4; 16], 0, d), None);
+    }
+
+    /// Mutation: none (the layout is shared with paralean-store's `gc::GcState`).
+    #[test]
     fn gc_state_layout_matches_the_store() {
         let mut doomed = vec![2];
         doomed.extend_from_slice(&7u64.to_be_bytes());
         doomed.extend_from_slice(&1234u64.to_be_bytes());
         assert_eq!(GcState::decode(&doomed), Some(GcState::Doomed { size: 1234 }));
-        assert_eq!(GcState::decode(&deleting([5; 16], 99)), Some(GcState::Deleting { nonce: [5; 16], size: 99 }));
+        assert_eq!(GcState::decode(&deleting([5; 16], 99, 10, 20, true)),
+            Some(GcState::Deleting { nonce: [5; 16], size: 99, sent_ms: 10, stale_until_ms: 20, answered: true }));
         assert_eq!(GcState::decode(&gone(3, [5; 16])), Some(GcState::Gone));
         let mut sighted = vec![1];
         sighted.extend_from_slice(&3u64.to_be_bytes());

@@ -30,6 +30,7 @@ cases=(
   'paralean-store|mutate-storegc-batch-no-revival|store_gc|gc_batches_protect_members_and_revive'
   's3-guard|mutate-storegc-guard-no-mark-check|unit|tests::gc_content_delete_needs_doomed_mark'
   's3-guard|mutate-storegc-guard-any-principal|unit|tests::gc_content_delete_needs_gc_principal'
+  's3-guard|mutate-storegc-guard-gone-with-inflight|unit|tests::gc_gone_waits_for_unanswered_attempts'
 )
 failed=0
 for case in "${cases[@]}"; do

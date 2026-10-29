@@ -31,3 +31,4 @@ mutate-no-gc-prefix-check = []
 # the Doomed mark, or for any principal.
 mutate-storegc-guard-no-mark-check = []
 mutate-storegc-guard-any-principal = []
+mutate-storegc-guard-gone-with-inflight = []

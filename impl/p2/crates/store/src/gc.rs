@@ -66,8 +66,11 @@ pub enum GcState {
     Sighted { clock: u64 },
     /// No reference for at least the grace period; `size` is the listed object size.
     Doomed { clock: u64, size: u64 },
-    /// s3-guard admitted a GC-principal DELETE (`nonce` identifies the attempt).
-    Deleting { nonce: [u8; 16], size: u64 },
+    /// s3-guard admitted a GC-principal DELETE (`nonce` identifies the attempt), forwarded at
+    /// `sent_ms` (wall clock). `stale_until_ms`: until when a replaced attempt whose answer was
+    /// lost may still execute at Garage (no `Gone` before then); `answered`: Garage answered
+    /// this attempt.
+    Deleting { nonce: [u8; 16], size: u64, sent_ms: u64, stale_until_ms: u64, answered: bool },
     /// Garage acknowledged the delete. `nonce` identifies this incarnation's deletion.
     Gone { clock: u64, nonce: [u8; 16] },
 }
@@ -85,10 +88,13 @@ impl GcState {
                 v.extend_from_slice(&clock.to_be_bytes());
                 v.extend_from_slice(&size.to_be_bytes());
             }
-            GcState::Deleting { nonce, size } => {
+            GcState::Deleting { nonce, size, sent_ms, stale_until_ms, answered } => {
                 v.push(3);
                 v.extend_from_slice(nonce);
                 v.extend_from_slice(&size.to_be_bytes());
+                v.extend_from_slice(&sent_ms.to_be_bytes());
+                v.extend_from_slice(&stale_until_ms.to_be_bytes());
+                v.push(u8::from(*answered));
             }
             GcState::Gone { clock, nonce } => {
                 v.push(4);
@@ -105,7 +111,9 @@ impl GcState {
         Ok(match (v.first(), v.len()) {
             (Some(1), 9) => GcState::Sighted { clock: u(&v[1..9]) },
             (Some(2), 17) => GcState::Doomed { clock: u(&v[1..9]), size: u(&v[9..17]) },
-            (Some(3), 25) => GcState::Deleting { nonce: n(&v[1..17]), size: u(&v[17..25]) },
+            (Some(3), 42) if v[41] <= 1 => GcState::Deleting {
+                nonce: n(&v[1..17]), size: u(&v[17..25]), sent_ms: u(&v[25..33]), stale_until_ms: u(&v[33..41]), answered: v[41] == 1,
+            },
             (Some(4), 25) => GcState::Gone { clock: u(&v[1..9]), nonce: n(&v[9..25]) },
             _ => return Err(StoreError::Invalid("bad store-GC object state".into())),
         })
@@ -511,6 +519,9 @@ pub struct GcReport {
     /// Listed bytes of the deleted objects.
     pub reclaimed_bytes: u64,
     pub delete_failures: u64,
+    /// Deleted at Garage but not yet `Gone`: an earlier attempt whose answer was lost may
+    /// still run until its deadline (s3-guard); a later pass finishes them.
+    pub deletes_waiting: u64,
     pub referrers: u64,
     pub references_written: u64,
     pub jobs_examined: u64,
@@ -1010,7 +1021,8 @@ async fn retire_dead_records(store: &Store, cfg: &GcConfig, c0: u64, report: &mu
 
 /// Drive the deletion of every doomed (or interrupted deleting) object: a GC-principal
 /// DELETE through s3-guard, which moves the state to `Deleting{nonce}` before forwarding and
-/// to `Gone` after Garage's success. `gc_s3` holds the GC principal's credentials.
+/// to `Gone` after Garage's success, once no earlier attempt whose answer was lost can still
+/// execute (`deletes_waiting` counts the others). `gc_s3` holds the GC principal's credentials.
 pub async fn delete_doomed(store: &Store, gc_s3: &Payloads) -> Result<GcReport> {
     let start = Instant::now();
     let mut report = GcReport::default();
@@ -1040,6 +1052,9 @@ pub async fn delete_doomed(store: &Store, gc_s3: &Payloads) -> Result<GcReport> 
                     }
                     other => report.anomalies.push(format!("{} {id}: delete acknowledged but state {:?}", kind.name(), other)),
                 }
+            }
+            Err(_) if matches!(store.gc_state(kind, &id).await?, Some(GcState::Deleting { answered: true, stale_until_ms, .. }) if stale_until_ms > 0) => {
+                report.deletes_waiting += 1;
             }
             Err(e) => {
                 report.delete_failures += 1;
@@ -1081,11 +1096,11 @@ mod tests {
         for s in [
             GcState::Sighted { clock: 7 },
             GcState::Doomed { clock: 9, size: 1 << 40 },
-            GcState::Deleting { nonce: [3; 16], size: 12 },
+            GcState::Deleting { nonce: [3; 16], size: 12, sent_ms: 5, stale_until_ms: 6, answered: true },
             GcState::Gone { clock: u64::MAX, nonce: [9; 16] },
         ] {
             let v = s.encode();
-            assert!(v.len() <= 25, "far below FDB's 100 kB value limit");
+            assert!(v.len() <= 42, "far below FDB's 100 kB value limit");
             assert_eq!(GcState::decode(&v).unwrap(), s);
         }
         assert!(GcState::decode(&[1, 0]).is_err());
